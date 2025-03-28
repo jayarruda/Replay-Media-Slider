@@ -5,13 +5,16 @@
 
 Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-featured](https://github.com/BobHasNoSoul/jellyfin-featured) eklentisinden fork edilerek geliştirilmiştir.
 
+<details>
+<summary>🖼️ Ekran Görüntüleri/Screenshots </summary>
+
 ![Preview 1](https://github.com/user-attachments/assets/30393add-cdad-440f-bcb9-78323e042a4c)
 
 
 ![Preview 2](https://github.com/user-attachments/assets/9f51aa2c-d70a-43ab-8f10-4d4a1bbf967b)
 
 
-![Preview 3](https://github.com/user-attachments/assets/be7557de-8953-4569-80a5-390071da07aa)
+![Preview 3](https://github.com/user-attachments/assets/be7557de-8953-4569-80a5-390071da07aa) </details>
 
 
 
