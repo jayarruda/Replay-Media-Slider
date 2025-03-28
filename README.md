@@ -33,21 +33,21 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ``` cd Jellyfin-Media-Slider ```
 
-# Slider klasörünü oluşturun:
+### Slider klasörünü oluşturun:
 
 ``` sudo mkdir /usr/share/jellyfin/web/slider ```
 
-# Dosyaları klasöre taşıyın:
+### Dosyaları klasöre taşıyın:
 
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
 
-# Kurulum scriptini çalıştırın:
+### Kurulum scriptini çalıştırın:
 
 ``` sudo chmod +x install.sh ```
 
 ``` sudo ./install.sh ```
 
-# Tarayıcı çerezlerini temizleyin.
+### Tarayıcı çerezlerini temizleyin.
 
 ### Liste Güncelleme Scripti
 
@@ -59,13 +59,13 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 ### Script Seçenekleri
 'updateList'	Rastgele içerikleri listeler ( değerleri değiştirmek için listConfig.json el ile yapılandırılmalı ve script yeniden başlatılmalı.)
 
-### Script Çalıştırma
+# Script Çalıştırma
 
-# list klasörüne okuma yazma izni verin
+### list klasörüne okuma yazma izni verin
 
 ``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
 
-# Gerekli bağımlılıkları yükleyin:
+### Gerekli bağımlılıkları yükleyin:
 
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 
@@ -80,8 +80,8 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 ``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
 ``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
 
-### Katkıda Bulunanlar
-### Orijinal eklenti yazarı: BobHasNoSoul
+## Katkıda Bulunanlar
+## Orijinal eklenti yazarı: BobHasNoSoul
 
 
 # Jellyfin Media Slider
@@ -106,34 +106,34 @@ A customizable media slider component for Jellyfin. This project is a fork and e
 
 - User-based personalization
 
-# Installation
+## Installation
 
-# For Linux
+### For Linux
 
 ``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
 
 ``` cd Jellyfin-Media-Slider ```
 
-# Create the slider directory:
+### Create the slider directory:
 
 ``` sudo mkdir /usr/share/jellyfin/web/slider ```
 
-# Copy all files to the slider directory:
+### Copy all files to the slider directory:
 
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
 
-# Run the installation script:
+### Run the installation script:
 
 ``` sudo chmod +x install.sh ```
 ``` sudo ./install.sh ```
 
-# Clear browser cookies to ensure the changes take effect.
+### Clear browser cookies to ensure the changes take effect.
 
-# List Update Script
+## List Update Script
 
 The script in the listUpdate folder updates user lists at specific intervals.
 
-# Required Settings
+### Required Settings
 
 Edit the .env file and insert the necessary information.
 
@@ -141,24 +141,24 @@ Edit the .env file and insert the necessary information.
 
 updateList random content. (To change the values, manually configure the listConfig.json file and restart the script.)
 
-# Running the Script
+### Running the Script
 
-# Give read-write permission to the list folder
+### Give read-write permission to the list folder
 
 ``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
 
-# Install dependencies:
+### Install dependencies:
 
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 ``` npm install dotenv node-fetch ```
 
-# Run the script:
+### Run the script:
 
 ``` node updateList.mjs ```
 
-# Uninstallation
+## Uninstallation
 
-To remove the installation, run:
+## To remove the installation, run:
 
 ``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
 
