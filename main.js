@@ -1,0 +1,215 @@
+import { cleanupSlider } from "./modules/sliderCleanup.js";
+import { getConfig } from "./modules/config.js";
+import { getLanguageLabels, getDefaultLanguage } from './language/index.js';
+import {
+  getCurrentIndex,
+  setCurrentIndex,
+  getSlideDuration,
+  setAutoSlideTimeout,
+  getAutoSlideTimeout,
+  setSlideStartTime,
+  getSlideStartTime,
+  setRemainingTime,
+  getRemainingTime,
+} from "./modules/sliderState.js";
+import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer, SLIDE_DURATION } from "./modules/timer.js";
+import {
+  ensureProgressBarExists,
+  resetProgressBar,
+  startProgressBarWithDuration,
+  pauseProgressBar,
+  resumeProgressBar,
+} from "./modules/progressBar.js";
+import { createSlide } from "./modules/slideCreator.js";
+import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
+import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
+import { fetchItemDetails } from "./modules/api.js";
+const config = getConfig();
+
+const shuffleArray = (array) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1)); // 0 ile i arasında rastgele bir indeks seç
+    [array[i], array[j]] = [array[j], array[i]]; // Elemanları değiştir
+  }
+  return array;
+};
+
+export function slidesInit() {
+  if (window.sliderResetInProgress) return;
+  window.sliderResetInProgress = true;
+  setCurrentIndex(0);
+  document.cookie.split(";").forEach((cookie) => {
+    const [name] = cookie.split("=");
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
+  });
+
+  cleanupSlider();
+  window.mySlider = {};
+  if (window.intervalChangeSlide) {
+    clearInterval(window.intervalChangeSlide);
+    window.intervalChangeSlide = null;
+  }
+  if (window.sliderTimeout) {
+    clearTimeout(window.sliderTimeout);
+    window.sliderTimeout = null;
+  }
+
+  const credentials = sessionStorage.getItem("json-credentials");
+  const apiKey = sessionStorage.getItem("api-key");
+  let userId = null,
+    accessToken = null;
+  if (credentials) {
+    try {
+      const parsed = JSON.parse(credentials);
+      userId = parsed.Servers[0].UserId;
+      accessToken = parsed.Servers[0].AccessToken;
+    } catch (error) {
+      console.error("Credential JSON hatası:", error);
+    }
+  }
+  if (!userId || !apiKey) {
+    console.error("Kullanıcı bilgileri veya API key bulunamadı.");
+    window.sliderResetInProgress = false;
+    return;
+  }
+
+  const savedLimit = localStorage.getItem("limit") || 20;
+  window.myUserId = userId;
+
+  const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
+  window.myListUrl = listUrl;
+  console.log("List URL:", listUrl);
+
+  (async () => {
+    let listItems = [];
+    let listContent = "";
+
+    if (config.useListFile) {
+      try {
+        const res = await fetch(window.myListUrl);
+        if (!res.ok) throw new Error("list.txt getirilemedi");
+        listContent = await res.text();
+        console.log("list.txt içeriği:", listContent);
+        window.cachedListContent = listContent;
+        if (listContent.length < 10) {
+          console.warn("list.txt dosyası 10 byte'dan küçük, API çağrısı kullanılacak.");
+          listItems = [];
+        } else {
+          listItems = listContent.split("\n").map(line => line.trim()).filter(line => line);
+        }
+      } catch (err) {
+        console.warn("list.txt hatası:", err);
+        window.cachedListContent = "";
+      }
+    } else {
+      console.log("Config ayarı pasif: list.txt kullanılmayacak.");
+    }
+
+    let items = [];
+    if (listItems.length > 0) {
+      // list.txt'den gelen öğeleri kullan
+      const itemPromises = listItems.map((id) => fetchItemDetails(id));
+      items = (await Promise.all(itemPromises)).filter((item) => item);
+    } else {
+      try {
+        const config = getConfig();
+        const queryString = config.customQueryString;
+
+        const res = await fetch(
+          `${window.location.origin}/Users/${userId}/Items?${queryString}`,
+          {
+            headers: {
+              Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`,
+            },
+          }
+        );
+        const data = await res.json();
+        const movies = data.Items.filter((item) => item.Type === "Movie");
+        const series = data.Items.filter((item) => item.Type === "Series");
+        const boxSets = data.Items.filter((item) => item.Type === "BoxSet");
+        const slideLimit = savedLimit;
+        const shuffledMovies = shuffleArray(movies);
+        const shuffledSeries = shuffleArray(series);
+        const shuffledBoxSets = shuffleArray(boxSets);
+        const limitedMovies = shuffledMovies.slice(0, slideLimit);
+        const limitedSeries = shuffledSeries.slice(0, slideLimit);
+        const limitedBoxSet = shuffledBoxSets.slice(0, slideLimit);
+
+        let fallbackItems = [...limitedMovies, ...limitedSeries, ...limitedBoxSet];
+        fallbackItems = shuffleArray(fallbackItems);
+        fallbackItems = fallbackItems.slice(0, slideLimit);
+
+        const detailedItems = await Promise.all(
+          fallbackItems.map((item) => fetchItemDetails(item.Id))
+        );
+        items = detailedItems.filter((item) => item);
+      } catch (error) {
+        console.error("Itemlar getirilirken hata oluştu:", error);
+      }
+    }
+
+    console.groupCollapsed("Slide Oluşturma");
+    for (const item of items) {
+      await createSlide(item);
+    }
+    console.groupEnd();
+    (() => {
+      const hiddenIndexPage = document.querySelector("#indexPage.hide");
+      if (hiddenIndexPage) {
+        const container = hiddenIndexPage.querySelector("#slides-container");
+        if (container) container.remove();
+      }
+      const indexPage = document.querySelector("#indexPage:not(.hide)");
+      if (!indexPage) return;
+      const slides = indexPage.querySelectorAll(".slide");
+      const slidesContainer = indexPage.querySelector("#slides-container");
+      let focusedSlide = null,
+        keyboardActive = false;
+
+      startSlideTimer();
+      attachMouseEvents();
+
+      slides.forEach((slide) => {
+        slide.addEventListener(
+          "focus",
+          () => {
+            focusedSlide = slide;
+            slidesContainer.classList.remove("disable-interaction");
+          },
+          true
+        );
+        slide.addEventListener(
+          "blur",
+          () => {
+            if (focusedSlide === slide) focusedSlide = null;
+          },
+          true
+        );
+      });
+      indexPage.addEventListener("keydown", (e) => {
+        if (keyboardActive) {
+          if (e.keyCode === 37) changeSlide(-1);
+          else if (e.keyCode === 39) changeSlide(1);
+          else if (e.keyCode === 13 && focusedSlide)
+            window.location.href = focusedSlide.dataset.detailUrl;
+        }
+      });
+      indexPage.addEventListener("focusin", (e) => {
+        if (e.target.closest("#slides-container")) {
+          keyboardActive = true;
+          slidesContainer.classList.remove("disable-interaction");
+        }
+      });
+      indexPage.addEventListener("focusout", (e) => {
+        if (!e.target.closest("#slides-container")) {
+          keyboardActive = false;
+          slidesContainer.classList.add("disable-interaction");
+        }
+      });
+      createDotNavigation();
+      window.sliderResetInProgress = false;
+    })();
+  })();
+}
+
+window.slidesInit = slidesInit;

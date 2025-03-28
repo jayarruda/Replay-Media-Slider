@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title data-translate="html.sliderSettings">Slider Ayarları</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main class="container">
+    <h1 data-translate="html.sliderSettings">Slider Ayarları</h1>
+    <section id="settingsContainer">
+      <!-- Sol Kolon -->
+      <div class="column left-column">
+        <div class="setting-group" id="defaultLanguage">
+          <h2 data-translate="html.defaultLanguage">Varsayılan Dil</h2>
+          <select id="defaultLanguageSelect">
+            <option value="tur" data-translate="html.optionTurkish">Türkçe</option>
+            <option value="eng" data-translate="html.optionEnglish">İngilizce</option>
+            <option value="deu" data-translate="html.optionGerman">Almanca</option>
+            <option value="fre" data-translate="html.optionFrench">Fransızca</option>
+          </select>
+          <div class="description-text" data-translate="html.defaultLanguageDescription">
+            Bu ayar, slider üzerinde mümkün olan verileri seçtiğiniz dile çevirir.
+          </div>
+        </div>
+
+        <div class="setting-group" data-setting="sliderSettings">
+          <h2 data-translate="html.sliderSettings">Slider Ayarları</h2>
+          <div>
+            <label for="sliderDurationInput" data-translate="html.sliderDuration">Slider Süresi:</label>
+            <input type="number" id="sliderDurationInput" value="15000" min="1000" step="500">
+          </div>
+          <div class="description-text" data-translate="html.sliderDurationDescription">
+            Bu ayar, ms cinsinden olmalıdır.
+          </div>
+
+          <div>
+            <h3><label for="progressBarCheckbox">
+              <input type="checkbox" id="progressBarCheckbox">
+              <span data-translate="html.progressBar">ProgressBar'ı Göster</span>
+            </label></h3>
+          </div>
+
+          <div class="setting-item">
+            <label for="progressBarWidthInput">
+              <span data-translate="html.progressBarWidthInput">İlerleme Çubuğu Genişliği (%):</span>
+            </label>
+            <input type="number" id="progressBarWidthInput" min="0" max="100" step="1" />
+          </div>
+
+          <div>
+            <h3><label for="enableTrailerPlaybackCheckbox">
+              <input type="checkbox" id="enableTrailerPlaybackCheckbox">
+              <span data-translate="html.enableTrailerPlayback">Yerleşik Fragman Oynatımına İzin Ver</span>
+            </label></h3>
+          </div>
+
+          <div>
+            <label for="gradientOverlayImageTypeSelect" data-translate="html.gradientOverlayImageType">
+              Yerleşik Fragman Oynatıldığında Gösterilecek Görsel Türü:
+            </label>
+            <select id="gradientOverlayImageTypeSelect">
+              <option value="backdropUrl" data-translate="html.gradientOverlayOptionBackdrop">Backdrop Görseli</option>
+              <option value="landscapeUrl" data-translate="html.gradientOverlayOptionLandscape">Landscape Görseli</option>
+              <option value="primaryUrl" data-translate="html.gradientOverlayOptionPoster">Poster Görseli</option>
+              <option value="logoUrl" data-translate="html.gradientOverlayOptionLogo">Logo Görseli</option>
+              <option value="bannerUrl" data-translate="html.gradientOverlayOptionBanner">Banner Görseli</option>
+              <option value="artUrl" data-translate="html.gradientOverlayOptionArt">Art Görseli</option>
+              <option value="none" data-translate="html.gradientBackgroundOptionNone">Hiçbiri</option>
+            </select>
+          </div>
+
+          <div>
+            <h3><label for="manualBackdropSelectionCheckbox">
+              <input type="checkbox" id="manualBackdropSelectionCheckbox">
+              <span data-translate="html.manualBackdropSelection">Slide Arkaplanı Değiştir</span>
+            </label></h3>
+          </div>
+
+          <div>
+            <label for="backdropImageTypeSelect" data-translate="html.slideBackgroundImageType">
+              Slider Arka Plan Görsel Türü:
+            </label>
+            <select id="backdropImageTypeSelect">
+              <option value="backdropUrl" data-translate="html.dotBackgroundOptionBackdrop">Backdrop Görseli</option>
+              <option value="landscapeUrl" data-translate="html.dotBackgroundOptionLandscape">Landscape Görseli</option>
+              <option value="primaryUrl" data-translate="html.dotBackgroundOptionPoster">Poster Görseli</option>
+              <option value="logoUrl" data-translate="html.dotBackgroundOptionLogo">Logo Görseli</option>
+              <option value="bannerUrl" data-translate="html.dotBackgroundOptionBanner">Banner Görseli</option>
+              <option value="artUrl" data-translate="html.dotBackgroundOptionArt">Art Görseli</option>
+              <option value="none" data-translate="html.dotBackgroundOptionNone">Hiçbiri</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="minHighQualityWidthInput" data-translate="html.minHighQualityWidthInput">
+              Minimum Genişlik (px):
+            </label>
+            <input type="number" id="minHighQualityWidthInput" value="1920" min="1">
+            <div class="description-text" data-translate="html.minHighQualitydescriptiontext">
+              Bu ayar, arkaplan olarak atanacak görselin minimun genişliğini belirler.("Slide Arkaplanı Değiştir" aktif ise çalışmaz. Eğer belirlenen genişlikte görsel yok ise en kalitelisi seçilecektir.)
+            </div>
+          </div>
+
+          <div>
+            <h3><label for="dotNavigationCheckbox">
+              <input type="checkbox" id="dotNavigationCheckbox">
+              <span data-translate="html.showDotNavigation">Dot Navigasyonu Göster</span>
+            </label></h3>
+          </div>
+
+          <label for="dotBackgroundImageTypeSelect" data-translate="html.dotBackgroundImageType">Dot Arka Plan Görsel Türü:</label>
+          <select id="dotBackgroundImageTypeSelect">
+            <option value="useSlideBackground" data-translate="html.dotBackgroundOptionUseSlide">Slide Arka Planını Kullan</option>
+            <option value="backdropUrl" data-translate="html.dotBackgroundOptionBackdrop">Backdrop Görseli</option>
+            <option value="landscapeUrl" data-translate="html.dotBackgroundOptionLandscape">Landscape Görseli</option>
+            <option value="primaryUrl" data-translate="html.dotBackgroundOptionPoster">Poster Görseli</option>
+            <option value="logoUrl" data-translate="html.dotBackgroundOptionLogo">Logo Görseli</option>
+            <option value="bannerUrl" data-translate="html.dotBackgroundOptionBanner">Banner Görseli</option>
+            <option value="artUrl" data-translate="html.dotBackgroundOptionArt">Art Görseli</option>
+            <option value="none" data-translate="html.dotBackgroundOptionNone">Hiçbiri</option>
+          </select>
+        </div>
+
+        <!-- Durum ve Puan Bilgileri Kartı -->
+        <div class="setting-group" data-setting="statusRatingInfo">
+          <h2 data-translate="html.statusRatingInfo">Durum ve Puan Bilgileri</h2>
+          <div class="status-rating-wrapper">
+            <div class="status-info">
+              <h3 data-translate="html.showStatusInfo">Durum Bilgileri</h3>
+              <div>
+                <label for="showStatusInfoCheckbox">
+                  <input type="checkbox" id="showStatusInfoCheckbox">
+                  <span data-translate="html.showStatusInfo">Durum Bilgilerini Göster</span>
+                </label>
+              </div>
+              <div class="sub-options" id="statusSubOptions">
+                <label for="showTypeInfoCheckbox">
+                  <input type="checkbox" id="showTypeInfoCheckbox">
+                  <span data-translate="html.showTypeInfo">Medya Türü</span>
+                </label>
+                <label for="showWatchedInfoCheckbox">
+                  <input type="checkbox" id="showWatchedInfoCheckbox">
+                  <span data-translate="html.showWatchedInfo">İzlenme</span>
+                </label>
+                <label for="showRuntimeInfoCheckbox">
+                  <input type="checkbox" id="showRuntimeInfoCheckbox">
+                  <span data-translate="html.showRuntimeInfo">Süre</span>
+                </label>
+                <label for="showQualityInfoCheckbox">
+                  <input type="checkbox" id="showQualityInfoCheckbox">
+                  <span data-translate="html.showQualityInfo">Kalite</span>
+                </label>
+                <div class="sub-options" id="qualitDetailSubOptions">
+                  <label for="showQualityDetailCheckbox">
+                    <input type="checkbox" id="showQualityDetailCheckbox">
+                    <span data-translate="html.showQualityDetail">Kalite Detayı</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="rating-info">
+              <h3 data-translate="html.ratingInfoHeader">Puan Bilgileri</h3>
+              <div>
+                <label for="ratingInfoCheckbox">
+                  <input type="checkbox" id="ratingInfoCheckbox">
+                  <span data-translate="html.ratingInfo">Derecelendirmeleri Göster</span>
+                </label>
+              </div>
+              <div class="sub-options" id="ratingSubOptions">
+                <label for="showCommunityRatingCheckbox">
+                  <input type="checkbox" id="showCommunityRatingCheckbox">
+                  <span data-translate="html.showCommunityRating">Topluluk</span>
+                </label>
+                <label for="showCriticRatingCheckbox">
+                  <input type="checkbox" id="showCriticRatingCheckbox">
+                  <span data-translate="html.showCriticRating">Rotten Tomato</span>
+                </label>
+                <label for="showOfficialRatingCheckbox">
+                  <input type="checkbox" id="showOfficialRatingCheckbox">
+                  <span data-translate="html.showOfficialRating">Sertifikasyon</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="description-text" data-translate="html.statusRatingDescription">
+            Bu ayar, içeriğin kalite, izlenme durumu, medya türü, süre ve puanlama bilgilerinin görünürlüğünü kontrol eder.
+          </div>
+        </div>
+
+        <!-- Artist Bilgileri Kartı -->
+        <div class="setting-group" data-setting="actorInfo">
+          <h2 data-translate="html.actorInfo">Artist Bilgileri</h2>
+          <div>
+            <label for="showActorInfoCheckbox">
+              <input type="checkbox" id="showActorInfoCheckbox">
+              <span data-translate="html.showActorInfo">Artist İsimlerini Göster</span>
+            </label>
+          </div>
+          <div class="description-text" data-translate="html.actorInfoDescription">
+            Bu ayar, içeriğin ilk 3 artist bilgilerinin görünürlüğünü kontrol eder.
+          </div>
+        </div>
+
+        <!-- Yönetmen ve Yazar Kartı -->
+        <div class="setting-group" data-setting="directorWriter">
+          <h2 data-translate="html.directorWriter">Yönetmen ve Yazar Ayarları</h2>
+          <div>
+            <label for="showDirectorWriterCheckbox">
+              <input type="checkbox" id="showDirectorWriterCheckbox">
+              <span data-translate="html.showDirectorWriter">Yönetmen ve Yazar Bilgilerini Göster</span>
+            </label>
+          </div>
+          <div class="sub-options" id="directorWriterSubOptions">
+            <label for="showDirectorCheckbox">
+              <input type="checkbox" id="showDirectorCheckbox">
+              <span data-translate="html.showDirector">Yönetmen</span>
+            </label>
+            <label for="showWriterCheckbox">
+              <input type="checkbox" id="showWriterCheckbox">
+              <span data-translate="html.showWriter">Yazar</span>
+            </label>
+          </div>
+          <div class="description-text" data-translate="html.directorWriterDescription">
+            Bu ayar, içeriğin yazar ve yönetmen görünürlüğünü kontrol eder. (Yazar bilgisi sadece aşağıdaki listede var ise)
+          </div>
+
+          <!-- Yazar İsimleri Kartı -->
+          <h2 data-translate="html.writersListHeader">Yazarlar Listesi</h2>
+          <div>
+            <label for="allowedWritersInput" data-translate="html.writersListLabel">
+              İsimleri virgül ile ayırınız:
+            </label>
+            <textarea id="allowedWritersInput" rows="4" placeholder="Örnek: Quentin TARANTINO, Nuri Bilge CEYLAN"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sağ Kolon -->
+      <div class="column right-column">
+        <div class="setting-group" data-setting="queryStringInput">
+          <h2 data-translate="html.queryStringInput">Api Sorgu Parametresi</h2>
+          <h3><label>
+            <input type="checkbox" id="useListFileCheckbox">
+            <span data-translate="html.useListFile">list.txt kullan</span>
+          </label></h3>
+
+          <div>
+            <label for="limitInput" data-translate="html.limit">Slider Limiti:</label>
+            <input type="number" id="limitInput" min="1" max="100">
+          </div>
+
+          <h3><label class="customQueryStringInput" data-translate="html.customQueryString">Api Sorgu Dizesi:</label></h3>
+          <div class="description-text" data-translate="html.customQueryStringNote">
+            (Ne yaptığınız hakkında fikriniz yok ise bu alanı değiştirmeyin ve sadece list.txt kullanılmadıkça etkin olduğunu unutmayın.)
+          </div>
+
+          <textarea id="customQueryStringInput" rows="4" placeholder="Örnek: IncludeItemTypes=Movie&hasOverview=true&imageTypes=Backdrop"></textarea>
+
+          <div class="description-text" data-translate="html.customQueryStringDescription">
+            Bu ayar, slider için özel bir sorgu dizesi belirlemenizi sağlar. Tanımlı 'IncludeItemTypes' itemleri: Movie, BoxSet ve Series'dir. Detaylar İçin <a href="https://api.jellyfin.org" target="_blank">burayı ziyaret edin.</a>.
+          </div>
+          </div>
+
+        <div class="setting-group" data-setting="languageInfo">
+          <h2 data-translate="html.languageInfoHeader">Ses ve Altyazı Bilgileri</h2>
+          <div>
+            <label for="languageInfoCheckbox">
+              <input type="checkbox" id="languageInfoCheckbox">
+              <span data-translate="html.languageInfo">Ses ve Altyazı Bilgilerini Göster</span>
+            </label>
+          </div>
+          <div class="description-text" data-translate="html.languageInfoDescription">
+            Bu ayar aktifleştirildiğinde seçilen dile ait ses bilgileri içerikte mevcut ise yazdırılır. Dilinize ait ses bulunamazsa altyazı bilgileri aranır. Dilinize ait altyazı mevcut ise bilgi yazdırır.
+          </div>
+        </div>
+
+        <!-- Logo / Başlık Kartı -->
+        <div class="setting-group" data-setting="logoOrTitle">
+          <h2 data-translate="html.logoOrTitleHeader">Logo / Başlık Ayarları</h2>
+          <div>
+            <label for="showLogoOrTitleCheckbox">
+              <input type="checkbox" id="showLogoOrTitleCheckbox">
+              <span data-translate="html.showLogoOrTitle">Logo Görselini Göster</span>
+            </label>
+          </div>
+          <div class="sub-options" id="showTitleOnlyLabel">
+            <label for="showTitleOnlyCheckbox">
+              <input type="checkbox" id="showTitleOnlyCheckbox" disabled>
+              <span data-translate="html.showTitleOnly">Logo Yerine Orijinal Başlık Göster</span>
+            </label>
+          </div>
+          <div class="description-text" data-translate="html.logoOrTitleDescription">
+            Bu ayar, slider üzerinde logo veya orijinal başlık görünürlüğünü kontrol eder.
+          </div>
+        </div>
+
+        <!-- Açıklama Kartı -->
+        <div class="setting-group" data-setting="descriptions">
+          <h2 data-translate="html.descriptionsHeader">Açıklama Ayarları</h2>
+          <div>
+            <label for="showDescriptionsCheckbox">
+              <input type="checkbox" id="showDescriptionsCheckbox">
+              <span data-translate="html.showDescriptions">Bilgileri Göster</span>
+            </label>
+          </div>
+          <div class="sub-options" id="descriptionsSubOptions">
+            <label for="showSloganInfoCheckbox">
+              <input type="checkbox" id="showSloganInfoCheckbox">
+              <span data-translate="html.showSloganInfo">Slogan</span>
+            </label>
+            <label for="showTitleInfoCheckbox">
+              <input type="checkbox" id="showTitleInfoCheckbox">
+              <span data-translate="html.showTitleInfo">Başlık</span>
+            </label>
+            <label for="showOriginalTitleInfoCheckbox">
+              <input type="checkbox" id="showOriginalTitleInfoCheckbox">
+              <span data-translate="html.showOriginalTitleInfo">Orijinal Başlık</span>
+            </label>
+            <label for="hideOriginalTitleIfSameCheckbox">
+              <input type="checkbox" id="hideOriginalTitleIfSameCheckbox">
+              <span data-translate="html.hideOriginalTitleIfSame">Başlık ile Aynı İse Orijinal Başlığı Gösterme</span>
+            </label>
+            <label for="showPlotInfoCheckbox">
+              <input type="checkbox" id="showPlotInfoCheckbox">
+              <span data-translate="html.showPlotInfo">Konu Metni</span>
+            </label>
+            <div class="sub-options" id="showPlotOnlyLabel">
+              <label for="showbPlotInfoCheckbox">
+                <input type="checkbox" id="showbPlotInfoCheckbox" disabled>
+                <span data-translate="html.showbPlotInfo">Konu Başlığı</span>
+              </label>
+            </div>
+          </div>
+          <div class="description-text" data-translate="html.descriptionsDescription">
+            Bu ayar, içeriğin konu, slogan, başlık ve orijinal başlık bilgilerinin görünürlüğünü kontrol eder.
+          </div>
+        </div>
+
+        <!-- Dış Bağlantılar / Sağlayıcı Kartı -->
+        <div class="setting-group" data-setting="provider">
+          <h2 data-translate="html.providerHeader">Dış Bağlantılar / Sağlayıcı Ayarları</h2>
+          <div>
+            <label for="providerCheckbox">
+              <input type="checkbox" id="providerCheckbox">
+              <span data-translate="html.showProviderInfo">Metaveri Bağlantıları Göster</span>
+            </label>
+          </div>
+          <div id="settingsLinkContainer">
+            <label for="showSettingsLinkCheckbox">
+              <input type="checkbox" id="showSettingsLinkCheckbox">
+              <span data-translate="html.showSettingsLink">Ayarlar Kısayolunu Göster</span>
+            </label>
+          </div>
+          <div class="description-text" data-translate="html.providerDescription">
+            Bu ayar, metaveri bağlantılarının görünürlüğünü kontrol eder.
+          </div>
+        </div>
+
+        <!-- Buton Ayarları Kartı -->
+        <div class="setting-group" data-setting="buttons">
+          <h2 data-translate="html.buttons">Buton Ayarları</h2>
+          <div>
+            <h3><label for="showTrailerButtonCheckbox">
+              <input type="checkbox" id="showTrailerButtonCheckbox">
+              <span data-translate="html.showTrailerButton">Fragman Butonunu Göster</span>
+            </label></h3>
+          </div>
+          <div>
+            <label for="trailerBackgroundImageTypeSelect" data-translate="html.buttonBackgroundImageType">Buton Arka Plan Görsel Türü:</label>
+            <select id="trailerBackgroundImageTypeSelect">
+              <option value="backdropUrl" data-translate="html.dotBackgroundOptionBackdrop">Backdrop Görseli</option>
+              <option value="landscapeUrl" data-translate="html.dotBackgroundOptionLandscape">Landscape Görseli</option>
+              <option value="primaryUrl" data-translate="html.dotBackgroundOptionPoster">Poster Görseli</option>
+              <option value="logoUrl" data-translate="html.dotBackgroundOptionLogo">Logo Görseli</option>
+              <option value="bannerUrl" data-translate="html.dotBackgroundOptionBanner">Banner Görseli</option>
+              <option value="artUrl" data-translate="html.dotBackgroundOptionArt">Art Görseli</option>
+              <option value="none" data-translate="html.dotBackgroundOptionNone">Hiçbiri</option>
+            </select>
+          </div>
+
+          <div>
+            <h3><label for="showWatchButtonCheckbox">
+              <input type="checkbox" id="showWatchButtonCheckbox">
+              <span data-translate="html.showWatchButton">İzle Butonunu Göster</span>
+            </label></h3>
+          </div>
+          <div>
+            <label for="watchBackgroundImageTypeSelect" data-translate="html.buttonBackgroundImageType">Buton Arka Plan Görsel Türü:</label>
+            <select id="watchBackgroundImageTypeSelect">
+              <option value="backdropUrl" data-translate="html.dotBackgroundOptionBackdrop">Backdrop Görseli</option>
+              <option value="landscapeUrl" data-translate="html.dotBackgroundOptionLandscape">Landscape Görseli</option>
+              <option value="primaryUrl" data-translate="html.dotBackgroundOptionPoster">Poster Görseli</option>
+              <option value="logoUrl" data-translate="html.dotBackgroundOptionLogo">Logo Görseli</option>
+              <option value="bannerUrl" data-translate="html.dotBackgroundOptionBanner">Banner Görseli</option>
+              <option value="artUrl" data-translate="html.dotBackgroundOptionArt">Art Görseli</option>
+              <option value="none" data-translate="html.dotBackgroundOptionNone">Hiçbiri</option>
+            </select>
+          </div>
+
+          <div>
+            <h3><label for="showFavoriteButtonCheckbox">
+              <input type="checkbox" id="showFavoriteButtonCheckbox">
+              <span data-translate="html.showFavoriteButton">Favori Butonunu Göster</span>
+            </label></h3>
+          </div>
+          <div>
+            <label for="favoriBackgroundImageTypeSelect" data-translate="html.buttonBackgroundImageType">Buton Arka Plan Görsel Türü:</label>
+            <select id="favoriBackgroundImageTypeSelect">
+              <option value="backdropUrl" data-translate="html.dotBackgroundOptionBackdrop">Backdrop Görseli</option>
+              <option value="landscapeUrl" data-translate="html.dotBackgroundOptionLandscape">Landscape Görseli</option>
+              <option value="primaryUrl" data-translate="html.dotBackgroundOptionPoster">Poster Görseli</option>
+              <option value="logoUrl" data-translate="html.dotBackgroundOptionLogo">Logo Görseli</option>
+              <option value="bannerUrl" data-translate="html.dotBackgroundOptionBanner">Banner Görseli</option>
+              <option value="artUrl" data-translate="html.dotBackgroundOptionArt">Art Görseli</option>
+              <option value="none" data-translate="html.dotBackgroundOptionNone">Hiçbiri</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tür, Yıl ve Ülke Kartı -->
+        <div class="setting-group" data-setting="info">
+          <h2 data-translate="html.infoHeader">Tür, Yıl ve Ülke Bilgileri</h2>
+          <div>
+            <label for="showInfoCheckbox">
+              <input type="checkbox" id="showInfoCheckbox">
+              <span data-translate="html.showInfo">Tür, Yıl ve Ülke Bilgilerini Göster</span>
+            </label>
+          </div>
+          <div class="sub-options" id="infoSubOptions">
+            <label for="showGenresInfoCheckbox">
+              <input type="checkbox" id="showGenresInfoCheckbox">
+              <span data-translate="html.showGenresInfo">Tür</span>
+            </label>
+            <label for="showYearInfoCheckbox">
+              <input type="checkbox" id="showYearInfoCheckbox">
+              <span data-translate="html.showYearInfo">Yıl</span>
+            </label>
+            <label for="showCountryInfoCheckbox">
+              <input type="checkbox" id="showCountryInfoCheckbox">
+              <span data-translate="html.showCountryInfo">Ülke</span>
+            </label>
+          </div>
+          <div class="description-text" data-translate="html.infoDescription">
+            Bu ayar, içeriğin türü, yapım yılı ve yapımcı ülke bilgilerinin görünürlüğünü kontrol eder.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Kaydet Butonu -->
+    <div class="actions">
+      <button id="saveSettings" data-translate="html.saveSettings">Kaydet</button>
+    </div>
+  </main>
+
+  <div id="settingsSavedModal" class="modal">
+    <div class="modal-content">
+      <p data-translate="html.settingsSavedModal">Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.</p>
+      <button id="closeModalBtn" data-translate="html.closeModalBtn">Tamam</button>
+    </div>
+  </div>
+
+  <script type="module" src="../language/index.js"></script>
+  <script type="module" src="../language/translations.js"></script>
+  <script src="../modules/settings.js"></script>
+</body>
+</html>
