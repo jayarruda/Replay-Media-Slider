@@ -1,6 +1,5 @@
 # Jellyfin Media Slider
 
-[![License](https://img.shields.io/github/license/G-grbz/jellyfin-media-slider)](LICENSE)
 
 ### Orijinal eklenti sahibi BobHasNoSoul'a çalışmaları için teşekkür ederim.
 
@@ -78,5 +77,3 @@ Gerekli bağımlılıkları yükleyin:
 ### Katkıda Bulunanlar
 ### Orijinal eklenti yazarı: BobHasNoSoul
 
-Lisans
-Bu proje MIT Lisansı altında dağıtılmaktadır.
