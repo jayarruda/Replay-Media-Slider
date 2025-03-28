@@ -61,7 +61,7 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 .env dosyasını düzenleyerek gerekli bilgileri girin.
 
 ### Script Seçenekleri
-'updateList-Random'	Rastgele içerikleri listeler ( değerleri değiştirmek için listConfig.json el ile yapılandırılmalı ve script yeniden başlatılmalı.)
+'updateList'	Rastgele içerikleri listeler ( değerleri değiştirmek için listConfig.json el ile yapılandırılmalı ve script yeniden başlatılmalı.)
 
 ### Script Çalıştırma
 
@@ -143,7 +143,7 @@ Edit the .env file and insert the necessary information.
 
 # Script Options
 
-updateList-RandomLists random content. (To change the values, manually configure the listConfig.json file and restart the script.)
+updateList random content. (To change the values, manually configure the listConfig.json file and restart the script.)
 
 # Running the Script
 
