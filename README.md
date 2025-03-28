@@ -29,29 +29,25 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ### Linux için
 
-``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider.git ```
+``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
 
 ``` cd Jellyfin-Media-Slider ```
 
-Slider klasörünü oluşturun:
+# Slider klasörünü oluşturun:
 
 ``` sudo mkdir /usr/share/jellyfin/web/slider ```
 
-Dosyaları klasöre taşıyın:
+# Dosyaları klasöre taşıyın:
 
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
 
-list klasörüne okuma yazma izni verin
-
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
-
-Kurulum scriptini çalıştırın:
+# Kurulum scriptini çalıştırın:
 
 ``` sudo chmod +x install.sh ```
 
 ``` sudo ./install.sh ```
 
-Tarayıcı çerezlerini temizleyin.
+# Tarayıcı çerezlerini temizleyin.
 
 ### Liste Güncelleme Scripti
 
@@ -65,7 +61,11 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 
 ### Script Çalıştırma
 
-Gerekli bağımlılıkları yükleyin:
+# list klasörüne okuma yazma izni verin
+
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
+
+# Gerekli bağımlılıkları yükleyin:
 
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 
@@ -110,28 +110,24 @@ A customizable media slider component for Jellyfin. This project is a fork and e
 
 # For Linux
 
-``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider.git ```
+``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
 
 ``` cd Jellyfin-Media-Slider ```
 
-Create the slider directory:
+# Create the slider directory:
 
 ``` sudo mkdir /usr/share/jellyfin/web/slider ```
 
-Copy all files to the slider directory:
+# Copy all files to the slider directory:
 
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
 
-Give read-write permission to the list folder
-
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
-
-Run the installation script:
+# Run the installation script:
 
 ``` sudo chmod +x install.sh ```
 ``` sudo ./install.sh ```
 
-Clear browser cookies to ensure the changes take effect.
+# Clear browser cookies to ensure the changes take effect.
 
 # List Update Script
 
@@ -147,22 +143,27 @@ updateList random content. (To change the values, manually configure the listCon
 
 # Running the Script
 
-Install dependencies:
+# Give read-write permission to the list folder
+
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
+
+# Install dependencies:
 
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 ``` npm install dotenv node-fetch ```
 
-Run the script:
+# Run the script:
 
 ``` node updateList.mjs ```
 
-Uninstallation
+# Uninstallation
 
 To remove the installation, run:
 
 ``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
+
 ``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
 
-Contributors
+# Contributors
 
-Original Plugin Author: BobHasNoSoul
+# Original Plugin Author: BobHasNoSoul
