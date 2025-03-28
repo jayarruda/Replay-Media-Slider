@@ -41,6 +41,10 @@ Dosyaları klasöre taşıyın:
 
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
 
+list klasörüne okuma yazma izni verin
+
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
+
 Kurulum scriptini çalıştırın:
 
 ``` sudo chmod +x install.sh ```
@@ -117,6 +121,10 @@ Create the slider directory:
 Copy all files to the slider directory:
 
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
+
+Give read-write permission to the list folder
+
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
 
 Run the installation script:
 
