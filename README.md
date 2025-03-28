@@ -67,7 +67,7 @@ Gerekli bağımlılıkları yükleyin:
 
 ### scripti çalıştırın:
 
-``` node updateList-Random.js ```
+``` node updateList.mjs ```
 
 ### Yüklemeyi Kaldırma
 
@@ -76,3 +76,81 @@ Gerekli bağımlılıkları yükleyin:
 
 ### Katkıda Bulunanlar
 ### Orijinal eklenti yazarı: BobHasNoSoul
+
+
+# Jellyfin Media Slider
+
+A customizable media slider component for Jellyfin. This project is a fork and enhancement of the original jellyfin-featured plugin. Special thanks to the original creator, BobHasNoSoul, for his work.
+
+
+
+## Features
+
+- User-friendly media slider interface
+
+- Individual lists for each user
+
+- API customization when a list is not in use
+
+- Automatic list update functionality
+
+- List type support:
+
+    - Random selection (for customized content)
+
+- User-based personalization
+
+# Installation
+
+# For Linux
+
+
+Create the slider directory:
+
+``` sudo mkdir /usr/share/jellyfin/web/slider ```
+
+Copy all files to the slider directory:
+
+``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
+
+Run the installation script:
+
+``` cd /usr/share/jellyfin/web/slider/ ```
+``` sudo chmod +x install.sh ```
+``` sudo ./install.sh ```
+
+Clear browser cookies to ensure the changes take effect.
+
+# List Update Script
+
+The script in the listUpdate folder updates user lists at specific intervals.
+
+# Required Settings
+
+Edit the .env file and insert the necessary information.
+
+# Script Options
+
+updateList-RandomLists random content. (To change the values, manually configure the listConfig.json file and restart the script.)
+
+# Running the Script
+
+Install dependencies:
+
+``` cd /usr/share/jellyfin/web/slider/listUpdate ```
+``` npm install dotenv node-fetch ```
+
+Run the script:
+
+``` node updateList.mjs ```
+
+Uninstallation
+
+To remove the installation, run:
+
+``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
+``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
+
+Contributors
+
+Original Plugin Author: BobHasNoSoul
