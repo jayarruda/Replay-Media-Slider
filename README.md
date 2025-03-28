@@ -29,6 +29,10 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ### Linux için
 
+``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider.git ```
+
+``` cd Jellyfin-Media-Slider ```
+
 Slider klasörünü oluşturun:
 
 ``` sudo mkdir /usr/share/jellyfin/web/slider ```
@@ -38,8 +42,6 @@ Dosyaları klasöre taşıyın:
 ``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
 
 Kurulum scriptini çalıştırın:
-
-``` cd /usr/share/jellyfin/web/slider/ ```
 
 ``` sudo chmod +x install.sh ```
 
@@ -104,6 +106,9 @@ A customizable media slider component for Jellyfin. This project is a fork and e
 
 # For Linux
 
+``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider.git ```
+
+``` cd Jellyfin-Media-Slider ```
 
 Create the slider directory:
 
@@ -115,7 +120,6 @@ Copy all files to the slider directory:
 
 Run the installation script:
 
-``` cd /usr/share/jellyfin/web/slider/ ```
 ``` sudo chmod +x install.sh ```
 ``` sudo ./install.sh ```
 
