@@ -49,6 +49,7 @@ const manualListIdsInput = document.getElementById('manualListIdsInput');
 const manualListIdsContainer = document.getElementById('manualListIdsContainer');
 const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
   progressBarWidthInput.value = parseInt(progressBarWidth);
+const sortingKeywordsInput = document.getElementById('sortingKeywordsInput');
 
 manualBackdropSelectionCheckbox.addEventListener("change", function () {
   backdropImageTypeSelect.disabled = !this.checked;
@@ -192,6 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
   watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
   favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
   customQueryStringInput.value = localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop';
+  sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear";
 
 
   const allowedWritersInput = document.getElementById('allowedWritersInput');
@@ -295,6 +297,7 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("showLanguageInfo", languageCheckbox.checked ? "true" : "false");
     localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
     localStorage.setItem("useListFile", useListFileCheckbox.checked ? "true" : "false");
+    localStorage.setItem("sortingKeywords", sortingKeywordsInput.value);
 
     const allowedWritersList = allowedWritersInput.value
       .split(',')
@@ -329,7 +332,7 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("manualListIds", manualListIdsInput.value);
 
     const modal = document.getElementById("settingsSavedModal");
-let autoCloseTimer;
+  let autoCloseTimer;
 
 function showModal() {
   modal.style.display = "flex";
