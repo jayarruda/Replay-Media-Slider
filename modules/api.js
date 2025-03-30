@@ -1,4 +1,3 @@
-// modules/api.js
 import { getConfig } from "./config.js";
 
 export async function fetchItemDetails(itemId) {
