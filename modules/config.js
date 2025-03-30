@@ -3,6 +3,9 @@ export function getConfig() {
   const defaultLanguage = getDefaultLanguage();
   return {
     customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop',
+    sortingKeywords: localStorage.getItem('sortingKeywords')
+      ? localStorage.getItem('sortingKeywords').split(',').map(k => k.trim())
+      : ["DateCreated", "PremiereDate", "ProductionYear"],
     showLanguageInfo: localStorage.getItem('showLanguageInfo') !== 'false',
     showRatingInfo: localStorage.getItem('showRatingInfo') !== 'false',
     showProviderInfo: localStorage.getItem('showProviderInfo') !== 'false',
