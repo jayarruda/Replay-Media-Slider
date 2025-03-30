@@ -245,12 +245,14 @@ export const languageLabels = {
   showDotNavigation: "Show Dot Navigation",
   showQualityDetail: "Quality Detail",
   useListFile: "Use List.txt",
+  useManualList: "Prepare Custom List",
+  manualListIdsInput: "Content IDs (Separate with commas)",
   saveSettings: "Save",
   settingsSavedModal: "Settings saved. Refresh the slider page for changes to take effect.",
   closeModalBtn: "OK",
   optionTurkish: "Türkçe",
-    optionEnglish: "English",
-    optionGerman: "Deutsch",
-    optionFrench: "Français",
+  optionEnglish: "English",
+  optionGerman: "Deutsch",
+  optionFrench: "Français",
 }
 };
