@@ -70,6 +70,8 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 
 ### Gerekli bağımlılıkları yükleyin:
 
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
+
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 
 ``` npm install dotenv node-fetch ```
@@ -151,7 +153,7 @@ updateList random content. (To change the values, manually configure the listCon
 ``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
 
 ### Install dependencies:
-
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 ``` npm install dotenv node-fetch ```
 
