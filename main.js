@@ -28,8 +28,8 @@ const config = getConfig();
 
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1)); // 0 ile i arasında rastgele bir indeks seç
-    [array[i], array[j]] = [array[j], array[i]]; // Elemanları değiştir
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
 };
@@ -84,7 +84,12 @@ export function slidesInit() {
     let listItems = [];
     let listContent = "";
 
-    if (config.useListFile) {
+    const config = getConfig();
+    if (config.useManualList && config.manualListIds) {
+      listItems = config.manualListIds.split(',').map(id => id.trim()).filter(id => id);
+      console.log("El ile yapılandırılmış liste kullanılıyor:", listItems);
+    }
+    else if (config.useListFile) {
       try {
         const res = await fetch(window.myListUrl);
         if (!res.ok) throw new Error("list.txt getirilemedi");
@@ -107,7 +112,6 @@ export function slidesInit() {
 
     let items = [];
     if (listItems.length > 0) {
-      // list.txt'den gelen öğeleri kullan
       const itemPromises = listItems.map((id) => fetchItemDetails(id));
       items = (await Promise.all(itemPromises)).filter((item) => item);
     } else {
