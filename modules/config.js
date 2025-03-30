@@ -46,6 +46,8 @@ export function getConfig() {
     trailerBackgroundImageType: localStorage.getItem('trailerBackgroundImageType') || 'trailerBgImage',
     watchBackgroundImageType: localStorage.getItem('watchBackgroundImageType') || 'watchBgImage',
     favoriBackgroundImageType: localStorage.getItem('favoriBackgroundImageType') || 'watchBgImage',
+    manualListIds: localStorage.getItem('manualListIds') || '',
+    useManualList: localStorage.getItem('useManualList') === 'true',
     useListFile: localStorage.getItem('useListFile') !== 'false',
     listcustomQueryString: "IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop",
     listLimit: 20,
