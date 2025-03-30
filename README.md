@@ -64,13 +64,12 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 
 # Script Çalıştırma
 
-### list klasörüne okuma yazma izni verin
+### list ve listUpdate klasörüne okuma yazma izni verin
 
 ``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
 
 ### Gerekli bağımlılıkları yükleyin:
-
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
 
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 
@@ -148,12 +147,13 @@ updateList random content. (To change the values, manually configure the listCon
 
 ### Running the Script
 
-### Give read-write permission to the list folder
+### Give read-write permission to the list and listUpdate folder
 
 ``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
 
 ### Install dependencies:
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
+
 ``` cd /usr/share/jellyfin/web/slider/listUpdate ```
 ``` npm install dotenv node-fetch ```
 
