@@ -44,7 +44,10 @@ const showWatchButtonCheckbox = document.getElementById("showWatchButtonCheckbox
 const customQueryStringInput = document.getElementById('customQueryStringInput');
 const showFavoriteButtonCheckbox = document.getElementById("showFavoriteButtonCheckbox");
 const useListFileCheckbox = document.getElementById('useListFileCheckbox');
-const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%"; // Varsayılan değer 100%
+const useManualListCheckbox = document.getElementById('useManualListCheckbox');
+const manualListIdsInput = document.getElementById('manualListIdsInput');
+const manualListIdsContainer = document.getElementById('manualListIdsContainer');
+const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
   progressBarWidthInput.value = parseInt(progressBarWidth);
 
 manualBackdropSelectionCheckbox.addEventListener("change", function () {
@@ -78,6 +81,23 @@ showFavoriteButtonCheckbox.addEventListener("change", function () {
   favoriBackgroundImageTypeSelect.disabled = !this.checked;
 });
 
+useListFileCheckbox.addEventListener("change", function () {
+  limitInput.disabled = this.checked || useManualListCheckbox.checked;
+  customQueryStringInput.disabled = this.checked || useManualListCheckbox.checked;
+  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
+});
+
+useManualListCheckbox.addEventListener("change", function() {
+  manualListIdsContainer.style.display = this.checked ? "block" : "none";
+  limitInput.disabled = this.checked;
+  customQueryStringInput.disabled = this.checked;
+  useListFileCheckbox.disabled = this.checked;
+  if (this.checked) {
+    useListFileCheckbox.checked = false;
+  } else {
+    useListFileCheckbox.disabled = false;
+  }
+});
 
 function updateGroup(parentCheckbox, container) {
   container.style.display = "block";
@@ -239,6 +259,9 @@ document.addEventListener("DOMContentLoaded", function () {
   showPlotInfoCheckbox.addEventListener("change", updatePlotOnlyVisibility);
   showQualityInfoCheckbox.addEventListener("change", updateQualityDetailOnlyVisibility);
   languageCheckbox.addEventListener("change", () => updateGroup(languageCheckbox, defaultLanguageSelect));
+  useManualListCheckbox.checked = localStorage.getItem('useManualList') === 'true';
+  manualListIdsInput.value = localStorage.getItem('manualListIds') || '';
+  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
 
   document.getElementById('saveSettings').addEventListener("click", function () {
     localStorage.setItem("showLanguageInfo", languageCheckbox.checked ? "true" : "false");
@@ -302,6 +325,8 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("limit", limitInput.value);
     localStorage.setItem("minHighQualityWidth", minHighQualityWidthInput.value);
     localStorage.setItem("progressBarWidth", progressBarWidthInput.value + "%");
+    localStorage.setItem("useManualList", useManualListCheckbox.checked ? "true" : "false");
+    localStorage.setItem("manualListIds", manualListIdsInput.value);
 
     const modal = document.getElementById("settingsSavedModal");
 let autoCloseTimer;
