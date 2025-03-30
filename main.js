@@ -24,6 +24,7 @@ import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
+
 const config = getConfig();
 
 const shuffleArray = (array) => {
@@ -118,6 +119,8 @@ export function slidesInit() {
       try {
         const config = getConfig();
         const queryString = config.customQueryString;
+        const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
+        const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
 
         const res = await fetch(
           `${window.location.origin}/Users/${userId}/Items?${queryString}`,
@@ -128,25 +131,36 @@ export function slidesInit() {
           }
         );
         const data = await res.json();
-        const movies = data.Items.filter((item) => item.Type === "Movie");
-        const series = data.Items.filter((item) => item.Type === "Series");
-        const boxSets = data.Items.filter((item) => item.Type === "BoxSet");
         const slideLimit = savedLimit;
-        const shuffledMovies = shuffleArray(movies);
-        const shuffledSeries = shuffleArray(series);
-        const shuffledBoxSets = shuffleArray(boxSets);
-        const limitedMovies = shuffledMovies.slice(0, slideLimit);
-        const limitedSeries = shuffledSeries.slice(0, slideLimit);
-        const limitedBoxSet = shuffledBoxSets.slice(0, slideLimit);
 
-        let fallbackItems = [...limitedMovies, ...limitedSeries, ...limitedBoxSet];
-        fallbackItems = shuffleArray(fallbackItems);
-        fallbackItems = fallbackItems.slice(0, slideLimit);
+        if (shouldShuffle) {
+          const movies = data.Items.filter((item) => item.Type === "Movie");
+          const series = data.Items.filter((item) => item.Type === "Series");
+          const boxSets = data.Items.filter((item) => item.Type === "BoxSet");
 
-        const detailedItems = await Promise.all(
-          fallbackItems.map((item) => fetchItemDetails(item.Id))
-        );
-        items = detailedItems.filter((item) => item);
+          const shuffledMovies = shuffleArray(movies);
+          const shuffledSeries = shuffleArray(series);
+          const shuffledBoxSets = shuffleArray(boxSets);
+
+          const limitedMovies = shuffledMovies.slice(0, slideLimit);
+          const limitedSeries = shuffledSeries.slice(0, slideLimit);
+          const limitedBoxSet = shuffledBoxSets.slice(0, slideLimit);
+
+          let fallbackItems = [...limitedMovies, ...limitedSeries, ...limitedBoxSet];
+          fallbackItems = shuffleArray(fallbackItems);
+          fallbackItems = fallbackItems.slice(0, slideLimit);
+
+          const detailedItems = await Promise.all(
+            fallbackItems.map((item) => fetchItemDetails(item.Id))
+          );
+          items = detailedItems.filter((item) => item);
+        } else {
+          const defaultItems = data.Items.slice(0, slideLimit);
+          const detailedItems = await Promise.all(
+            defaultItems.map((item) => fetchItemDetails(item.Id))
+          );
+          items = detailedItems.filter((item) => item);
+        }
       } catch (error) {
         console.error("Itemlar getirilirken hata oluştu:", error);
       }
@@ -157,6 +171,7 @@ export function slidesInit() {
       await createSlide(item);
     }
     console.groupEnd();
+
     (() => {
       const hiddenIndexPage = document.querySelector("#indexPage.hide");
       if (hiddenIndexPage) {
