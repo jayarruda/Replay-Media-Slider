@@ -12,7 +12,6 @@
   <main class="container">
     <h1 data-translate="html.sliderSettings">Slider Ayarları</h1>
     <section id="settingsContainer">
-      <!-- Sol Kolon -->
       <div class="column left-column">
         <div class="setting-group" id="defaultLanguage">
           <h2 data-translate="html.defaultLanguage">Varsayılan Dil</h2>
@@ -124,8 +123,6 @@
             <option value="none" data-translate="html.dotBackgroundOptionNone">Hiçbiri</option>
           </select>
         </div>
-
-        <!-- Durum ve Puan Bilgileri Kartı -->
         <div class="setting-group" data-setting="statusRatingInfo">
           <h2 data-translate="html.statusRatingInfo">Durum ve Puan Bilgileri</h2>
           <div class="status-rating-wrapper">
@@ -191,8 +188,6 @@
             Bu ayar, içeriğin kalite, izlenme durumu, medya türü, süre ve puanlama bilgilerinin görünürlüğünü kontrol eder.
           </div>
         </div>
-
-        <!-- Artist Bilgileri Kartı -->
         <div class="setting-group" data-setting="actorInfo">
           <h2 data-translate="html.actorInfo">Artist Bilgileri</h2>
           <div>
@@ -205,8 +200,6 @@
             Bu ayar, içeriğin ilk 3 artist bilgilerinin görünürlüğünü kontrol eder.
           </div>
         </div>
-
-        <!-- Yönetmen ve Yazar Kartı -->
         <div class="setting-group" data-setting="directorWriter">
           <h2 data-translate="html.directorWriter">Yönetmen ve Yazar Ayarları</h2>
           <div>
@@ -228,8 +221,6 @@
           <div class="description-text" data-translate="html.directorWriterDescription">
             Bu ayar, içeriğin yazar ve yönetmen görünürlüğünü kontrol eder. (Yazar bilgisi sadece aşağıdaki listede var ise)
           </div>
-
-          <!-- Yazar İsimleri Kartı -->
           <h2 data-translate="html.writersListHeader">Yazarlar Listesi</h2>
           <div>
             <label for="allowedWritersInput" data-translate="html.writersListLabel">
@@ -239,8 +230,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Sağ Kolon -->
       <div class="column right-column">
         <div class="setting-group" data-setting="queryStringInput">
           <h2 data-translate="html.queryStringInput">Api Sorgu Parametresi</h2>
@@ -248,12 +237,20 @@
             <input type="checkbox" id="useListFileCheckbox">
             <span data-translate="html.useListFile">list.txt kullan</span>
           </label></h3>
-
+      <div class="form-group">
+        <label>
+        <input type="checkbox" id="useManualListCheckbox">
+        <span data-translate="html.useManualList">Özel Liste Hazırla</span>
+        </label>
+        </div>
+        <div class="form-group" id="manualListIdsContainer" style="display: none;">
+          <label for="manualListIdsInput" data-translate="html.manualListIdsInput">İçerik ID'leri (virgülle ayırın):</label>
+          <textarea id="manualListIdsInput" class="form-control" rows="4"></textarea>
+        </div>
           <div>
             <label for="limitInput" data-translate="html.limit">Slider Limiti:</label>
             <input type="number" id="limitInput" min="1" max="100">
           </div>
-
           <h3><label class="customQueryStringInput" data-translate="html.customQueryString">Api Sorgu Dizesi:</label></h3>
           <div class="description-text" data-translate="html.customQueryStringNote">
             (Ne yaptığınız hakkında fikriniz yok ise bu alanı değiştirmeyin ve sadece list.txt kullanılmadıkça etkin olduğunu unutmayın.)
@@ -278,8 +275,6 @@
             Bu ayar aktifleştirildiğinde seçilen dile ait ses bilgileri içerikte mevcut ise yazdırılır. Dilinize ait ses bulunamazsa altyazı bilgileri aranır. Dilinize ait altyazı mevcut ise bilgi yazdırır.
           </div>
         </div>
-
-        <!-- Logo / Başlık Kartı -->
         <div class="setting-group" data-setting="logoOrTitle">
           <h2 data-translate="html.logoOrTitleHeader">Logo / Başlık Ayarları</h2>
           <div>
@@ -298,8 +293,6 @@
             Bu ayar, slider üzerinde logo veya orijinal başlık görünürlüğünü kontrol eder.
           </div>
         </div>
-
-        <!-- Açıklama Kartı -->
         <div class="setting-group" data-setting="descriptions">
           <h2 data-translate="html.descriptionsHeader">Açıklama Ayarları</h2>
           <div>
@@ -340,8 +333,6 @@
             Bu ayar, içeriğin konu, slogan, başlık ve orijinal başlık bilgilerinin görünürlüğünü kontrol eder.
           </div>
         </div>
-
-        <!-- Dış Bağlantılar / Sağlayıcı Kartı -->
         <div class="setting-group" data-setting="provider">
           <h2 data-translate="html.providerHeader">Dış Bağlantılar / Sağlayıcı Ayarları</h2>
           <div>
@@ -361,7 +352,6 @@
           </div>
         </div>
 
-        <!-- Buton Ayarları Kartı -->
         <div class="setting-group" data-setting="buttons">
           <h2 data-translate="html.buttons">Buton Ayarları</h2>
           <div>
@@ -421,8 +411,6 @@
             </select>
           </div>
         </div>
-
-        <!-- Tür, Yıl ve Ülke Kartı -->
         <div class="setting-group" data-setting="info">
           <h2 data-translate="html.infoHeader">Tür, Yıl ve Ülke Bilgileri</h2>
           <div>
@@ -451,8 +439,6 @@
         </div>
       </div>
     </section>
-
-    <!-- Kaydet Butonu -->
     <div class="actions">
       <button id="saveSettings" data-translate="html.saveSettings">Kaydet</button>
     </div>
