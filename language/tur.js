@@ -246,6 +246,8 @@ export const languageLabels = {
     showDotNavigation: "Dot Navigasyonu Göster",
     showQualityDetail: "Kalite Detayı",
     useListFile: "List.txt Kullan",
+    useManualList: "Özel Liste Hazırla",
+    manualListIdsInput: "İçerik ID'leri (virgül ile ayırın)",
     saveSettings: "Kaydet",
     settingsSavedModal: "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.",
     closeModalBtn: "Tamam",
