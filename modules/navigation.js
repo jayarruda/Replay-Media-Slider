@@ -108,15 +108,16 @@ export function displaySlide(index) {
         slide.classList.add("active");
         const directorContainer = slide.querySelector(".director-container");
         if (directorContainer) {
+          directorContainer.style.transition = "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease";
+          directorContainer.style.transform = "scale(0.95)";
           directorContainer.style.opacity = "0";
-          directorContainer.style.display = "none";
-          directorContainer.style.transition = "opacity 1s";
-          setTimeout(() => {
-            directorContainer.style.display = "flex";
-            directorContainer.style.opacity = "1";
+          directorContainer.style.display = "flex";
+            setTimeout(() => {
+              directorContainer.style.transform = "scale(1)";
+              directorContainer.style.opacity = "1";
           }, 1000);
-          setTimeout(() => {
-            directorContainer.style.opacity = "0";
+            setTimeout(() => {
+              directorContainer.style.opacity = "0";
           }, 7500);
         }
       }, 50);
