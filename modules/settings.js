@@ -329,7 +329,6 @@ document.addEventListener("DOMContentLoaded", function () {
   sliderDurationInput.value = localStorage.getItem("sliderDuration") || 15000;
   limitInput.value = localStorage.getItem("limit") || 10;
 
-
   updateGroup(showStatusInfoCheckbox, statusSubOptions);
   updateGroup(ratingCheckbox, ratingSubOptions);
   updateGroup(descriptionsCheckbox, descriptionsSubOptions);
@@ -356,6 +355,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.getElementById('saveSettings').addEventListener("click", function () {
     const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
+    const allowedWritersList = allowedWritersInput.value
+        .split(',')
+        .map(name => name.trim().toLowerCase())
+        .filter(name => name.length > 0);
+
+    localStorage.setItem("allowedWriters", JSON.stringify(allowedWritersList));
     localStorage.setItem('theme', selectedTheme);
     localStorage.setItem("showLanguageInfo", languageCheckbox.checked ? "true" : "false");
     localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
@@ -389,7 +394,6 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
     localStorage.setItem("useListFile", useListFileCheckbox.checked ? "true" : "false");
     localStorage.setItem("sortingKeywords", sortingKeywordsInput.value);
-    localStorage.setItem("allowedWriters", JSON.stringify(allowedWritersList));
     localStorage.setItem("showInfo", showInfoCheckbox.checked ? "true" : "false");
     localStorage.setItem("showGenresInfo", showGenresInfoCheckbox.checked ? "true" : "false");
     localStorage.setItem("showYearInfo", showYearInfoCheckbox.checked ? "true" : "false");
@@ -416,11 +420,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const modal = document.getElementById("settingsSavedModal");
 let autoCloseTimer;
-
-const allowedWritersList = allowedWritersInput.value
-      .split(',')
-      .map(name => name.trim().toLowerCase())
-      .filter(name => name.length > 0);
 
 function showModal() {
   modal.style.display = "flex";
