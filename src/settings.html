@@ -9,11 +9,11 @@
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
+<div id="settingsBackgroundSlider" class="settings-background-slider"></div>
   <main class="container">
-    <h1 data-translate="html.sliderSettings">Slider Ayarları</h1>
-    <section id="settingsContainer">
-      <div class="column left-column">
-        <div class="theme-switcher-fixed">
+   <header class="settings-header">
+  <h1 data-translate="html.sliderSettings">Slider Ayarları</h1>
+  <div class="theme-switcher-fixed">
           <label>
             <input type="radio" name="theme" value="light" checked>
             <svg class="icon" title="Aydınlık Tema" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -44,6 +44,9 @@
             </svg>
           </label>
         </div>
+</header>
+    <section id="settingsContainer">
+      <div class="column left-column">
         <div class="setting-group" id="defaultLanguage">
           <h2 data-translate="html.defaultLanguage">Varsayılan Dil</h2>
           <select id="defaultLanguageSelect">
