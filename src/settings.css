@@ -387,6 +387,6 @@ body.dark-theme .column:hover {
 }
 
 .dark-theme .settings-background-slider .slide.active {
-  opacity: 0.2;
+  opacity: 0.5;
   filter: brightness(0.6);
 }
