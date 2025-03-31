@@ -99,6 +99,7 @@ export function displaySlide(index) {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
   const slides = indexPage.querySelectorAll(".slide");
+
   slides.forEach((slide, i) => {
     if (i === index) {
       slide.style.opacity = "0";
@@ -111,22 +112,27 @@ export function displaySlide(index) {
           directorContainer.style.transition = "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease";
           directorContainer.style.transform = "scale(0.95)";
           directorContainer.style.opacity = "0";
-          directorContainer.style.display = "flex";
+          directorContainer.style.display = "none";
+
+          setTimeout(() => {
+            directorContainer.style.display = "flex";
             setTimeout(() => {
               directorContainer.style.transform = "scale(1)";
               directorContainer.style.opacity = "1";
-          }, 1000);
+            }, 50);
             setTimeout(() => {
               directorContainer.style.opacity = "0";
-          }, 7500);
+            }, 7500);
+          }, 1000);
         }
       }, 50);
     } else {
       slide.style.opacity = "0";
       slide.classList.remove("active");
-      setTimeout(() => (slide.style.display = "none"), 500);
+      setTimeout(() => (slide.style.display = "none"), 1000);
     }
   });
+
   resetProgressBar();
   stopSlideTimer();
   setRemainingTime(SLIDE_DURATION);
