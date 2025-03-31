@@ -56,12 +56,6 @@ manualBackdropSelectionCheckbox.addEventListener("change", function () {
   minHighQualityWidthInput.disabled = this.checked;
 });
 
-
-useListFileCheckbox.addEventListener("change", function () {
-  limitInput.disabled = this.checked;
-  customQueryStringInput.disabled = this.checked;
-});
-
 progressBarCheckbox.addEventListener("change", function () {
   progressBarWidthInput.disabled = !this.checked;
 });
@@ -85,12 +79,14 @@ showFavoriteButtonCheckbox.addEventListener("change", function () {
 useListFileCheckbox.addEventListener("change", function () {
   limitInput.disabled = this.checked || useManualListCheckbox.checked;
   customQueryStringInput.disabled = this.checked || useManualListCheckbox.checked;
+  sortingKeywordsInput.disabled = this.checked || useManualListCheckbox.checked;
   manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
 });
 
 useManualListCheckbox.addEventListener("change", function() {
   manualListIdsContainer.style.display = this.checked ? "block" : "none";
   limitInput.disabled = this.checked;
+  sortingKeywordsInput.disabled = this.checked;
   customQueryStringInput.disabled = this.checked;
   useListFileCheckbox.disabled = this.checked;
   if (this.checked) {
@@ -332,7 +328,7 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("manualListIds", manualListIdsInput.value);
 
     const modal = document.getElementById("settingsSavedModal");
-  let autoCloseTimer;
+let autoCloseTimer;
 
 function showModal() {
   modal.style.display = "flex";
