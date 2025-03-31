@@ -126,14 +126,26 @@ function initSettingsBackgroundSlider() {
   const settingsSlider = document.getElementById('settingsBackgroundSlider');
   if (!settingsSlider) return;
   settingsSlider.innerHTML = '';
-  const backdropUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [
-  ];
+  const backdropUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [];
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
 
-  backdropUrls.forEach((url, index) => {
+  const shuffledUrls = backdropUrls.length > 1 ? shuffleArray(backdropUrls) : backdropUrls;
+  shuffledUrls.forEach((url, index) => {
     const slide = document.createElement('div');
     slide.className = 'slide';
     slide.style.backgroundImage = `url('${url}')`;
     settingsSlider.appendChild(slide);
+
+    if (Math.random() > 0.7) {
+      slide.classList.add('micro-move');
+    }
 
     if (index === 0) {
       slide.classList.add('active');
@@ -143,17 +155,50 @@ function initSettingsBackgroundSlider() {
   const slides = settingsSlider.querySelectorAll('.slide');
   if (slides.length > 0) {
     let currentIndex = 0;
-    const slideInterval = setInterval(() => {
+    let previousIndex = -1;
+    let previousPreviousIndex = -1;
+    let isFirstTransition = true;
+
+    const changeSlide = () => {
       slides[currentIndex].classList.remove('active');
-      currentIndex = (currentIndex + 1) % slides.length;
+      let nextIndex;
+      let attempts = 0;
+      const maxAttempts = slides.length * 3;
+
+      do {
+        nextIndex = Math.floor(Math.random() * slides.length);
+        attempts++;
+
+        if (attempts > maxAttempts) {
+          nextIndex = (currentIndex + 1) % slides.length;
+          break;
+        }
+
+      } while (
+        (nextIndex === currentIndex && slides.length > 1) ||
+        (nextIndex === previousIndex && slides.length > 2) ||
+        (nextIndex === previousPreviousIndex && slides.length > 3)
+      );
+      previousPreviousIndex = previousIndex;
+      previousIndex = currentIndex;
+      currentIndex = nextIndex;
+
       slides[currentIndex].classList.add('active');
-    }, 10000);
+
+      const delay = isFirstTransition ? 5000 :
+                   3000 + Math.random() * 6000;
+      isFirstTransition = false;
+
+      slideTimer = setTimeout(changeSlide, delay);
+    };
+    let slideTimer = setTimeout(changeSlide, 10000);
 
     window.addEventListener('beforeunload', () => {
-      clearInterval(slideInterval);
+      clearTimeout(slideTimer);
     });
   }
 }
+
 
 function updateTitleOnlyVisibility() {
   if (showLogoOrTitleCheckbox.checked) {
@@ -344,15 +389,7 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
     localStorage.setItem("useListFile", useListFileCheckbox.checked ? "true" : "false");
     localStorage.setItem("sortingKeywords", sortingKeywordsInput.value);
-
-    const allowedWritersList = allowedWritersInput.value
-      .split(',')
-      .map(name => name.trim().toLowerCase())
-      .filter(name => name.length > 0);
     localStorage.setItem("allowedWriters", JSON.stringify(allowedWritersList));
-
-
-
     localStorage.setItem("showInfo", showInfoCheckbox.checked ? "true" : "false");
     localStorage.setItem("showGenresInfo", showGenresInfoCheckbox.checked ? "true" : "false");
     localStorage.setItem("showYearInfo", showYearInfoCheckbox.checked ? "true" : "false");
@@ -379,6 +416,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const modal = document.getElementById("settingsSavedModal");
 let autoCloseTimer;
+
+const allowedWritersList = allowedWritersInput.value
+      .split(',')
+      .map(name => name.trim().toLowerCase())
+      .filter(name => name.length > 0);
 
 function showModal() {
   modal.style.display = "flex";
