@@ -189,7 +189,7 @@ document.addEventListener("DOMContentLoaded", function () {
   watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
   favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
   customQueryStringInput.value = localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop';
-  sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear";
+  sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
 
 
   const allowedWritersInput = document.getElementById('allowedWritersInput');
