@@ -50,6 +50,17 @@ const manualListIdsContainer = document.getElementById('manualListIdsContainer')
 const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
   progressBarWidthInput.value = parseInt(progressBarWidth);
 const sortingKeywordsInput = document.getElementById('sortingKeywordsInput');
+const themeRadios = document.querySelectorAll('input[name="theme"]');
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
+document.body.className = savedTheme + '-theme';
+themeRadios.forEach(radio => {
+  radio.addEventListener('change', function() {
+    const selectedTheme = this.value;
+    document.body.className = selectedTheme + '-theme';
+    localStorage.setItem('theme', selectedTheme);
+  });
+});
 
 manualBackdropSelectionCheckbox.addEventListener("change", function () {
   backdropImageTypeSelect.disabled = !this.checked;
@@ -151,6 +162,9 @@ function updateProviderSettingsVisibility() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
+  document.body.className = savedTheme + '-theme';
   languageCheckbox.checked = localStorage.getItem("showLanguageInfo") === "false" ? false : true;
   showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") === "false" ? false : true;
   showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") === "false" ? false : true;
@@ -262,6 +276,8 @@ document.addEventListener("DOMContentLoaded", function () {
   manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
 
   document.getElementById('saveSettings').addEventListener("click", function () {
+    const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
+    localStorage.setItem('theme', selectedTheme);
     localStorage.setItem("showLanguageInfo", languageCheckbox.checked ? "true" : "false");
     localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
     localStorage.setItem("showProgressBar", progressCheckbox.checked ? "true" : "false");
