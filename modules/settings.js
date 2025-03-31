@@ -122,6 +122,39 @@ function updateGroup(parentCheckbox, container) {
   }
 }
 
+function initSettingsBackgroundSlider() {
+  const settingsSlider = document.getElementById('settingsBackgroundSlider');
+  if (!settingsSlider) return;
+  settingsSlider.innerHTML = '';
+  const backdropUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [
+  ];
+
+  backdropUrls.forEach((url, index) => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.style.backgroundImage = `url('${url}')`;
+    settingsSlider.appendChild(slide);
+
+    if (index === 0) {
+      slide.classList.add('active');
+    }
+  });
+
+  const slides = settingsSlider.querySelectorAll('.slide');
+  if (slides.length > 0) {
+    let currentIndex = 0;
+    const slideInterval = setInterval(() => {
+      slides[currentIndex].classList.remove('active');
+      currentIndex = (currentIndex + 1) % slides.length;
+      slides[currentIndex].classList.add('active');
+    }, 10000);
+
+    window.addEventListener('beforeunload', () => {
+      clearInterval(slideInterval);
+    });
+  }
+}
+
 function updateTitleOnlyVisibility() {
   if (showLogoOrTitleCheckbox.checked) {
     showTitleOnlyLabel.style.display = "none";
@@ -177,7 +210,7 @@ document.addEventListener("DOMContentLoaded", function () {
   showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") === "false" ? false : true;
   descriptionsCheckbox.checked = localStorage.getItem("showDescriptions") === "false" ? false : true;
   hideOriginalTitleIfSameCheckbox.checked = localStorage.getItem("hideOriginalTitleIfSame") === "false" ? false : true;
-  manualBackdropSelectionCheckbox.checked = localStorage.getItem("manualBackdropSelection") === "false" ? false : false;
+  manualBackdropSelectionCheckbox.checked = localStorage.getItem("manualBackdropSelection") === "true";
   showPlotInfoCheckbox.checked = localStorage.getItem("showPlotInfo") === "false" ? false : true;
   gradientOverlayImageTypeSelect.value = localStorage.getItem('gradientOverlayImageType') || 'backdropUrl';
   backdropImageTypeSelect.value = localStorage.getItem('backdropImageType') || 'backdropUrl';
@@ -204,6 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
   favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
   customQueryStringInput.value = localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop';
   sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
+  initSettingsBackgroundSlider();
 
 
   const allowedWritersInput = document.getElementById('allowedWritersInput');
