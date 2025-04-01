@@ -4,7 +4,7 @@ import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 
 const config = getConfig();
-
+const settingsBackgroundSlides = [];
 async function createSlide(item) {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
@@ -47,6 +47,14 @@ async function createSlide(item) {
     console.log("Otomatik arka plan seçimi aktif; seçilen index:", highestQualityBackdropIndex);
   }
 
+  function storeBackdropUrl(itemId, backdropUrl) {
+  const storedUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [];
+  if (!storedUrls.includes(backdropUrl)) {
+    storedUrls.push(backdropUrl);
+    localStorage.setItem('backdropUrls', JSON.stringify(storedUrls));
+  }
+}
+
   const autoBackdropUrl = `${window.location.origin}/Items/${itemId}/Images/Backdrop/${highestQualityBackdropIndex}`;
   const landscapeUrl = `${window.location.origin}/Items/${itemId}/Images/Thumb/0`;
   const primaryUrl = `${window.location.origin}/Items/${itemId}/Images/Primary`;
@@ -62,6 +70,8 @@ async function createSlide(item) {
     logoExists = false;
   }
 
+  storeBackdropUrl(itemId, autoBackdropUrl);
+
   const manualBackdropUrl = {
     backdropUrl: `${window.location.origin}/Items/${itemId}/Images/Backdrop/0`,
     landscapeUrl: landscapeUrl,
@@ -71,6 +81,8 @@ async function createSlide(item) {
     artUrl: artUrl,
     none: ''
   }[config.backdropImageType];
+
+  addSlideToSettingsBackground(itemId, autoBackdropUrl);
 
   const slide = document.createElement("div");
   slide.className = "slide";
@@ -677,24 +689,24 @@ if (config.showLanguageInfo && MediaStreams && MediaStreams.length > 0 && itemTy
   console.log("Dil - Ses ve Altyazı bilgileri gösterilmiyor veya bilgi mevcut değil.");
 }
 
-const metaContainer = document.createElement("div");
-metaContainer.className = "meta-container";
+  const metaContainer = document.createElement("div");
+  metaContainer.className = "meta-container";
 
-if (statusContainer) metaContainer.appendChild(statusContainer);
-if (languageContainer) metaContainer.appendChild(languageContainer);
-if (ratingExists) metaContainer.appendChild(ratingContainer);
-if (actorContainer) metaContainer.appendChild(actorContainer);
+  if (statusContainer) metaContainer.appendChild(statusContainer);
+  if (languageContainer) metaContainer.appendChild(languageContainer);
+  if (ratingExists) metaContainer.appendChild(ratingContainer);
+  if (actorContainer) metaContainer.appendChild(actorContainer);
 
-const mainContentContainer = document.createElement("div");
-mainContentContainer.className = "main-content-container";
-mainContentContainer.append(
+  const mainContentContainer = document.createElement("div");
+  mainContentContainer.className = "main-content-container";
+  mainContentContainer.append(
   logoContainer,
   titleContainer,
   plotContainer,
   providerContainer
 );
 
-slide.append(
+  slide.append(
   gradientOverlay,
   infoContainer,
   directorContainer,
@@ -702,13 +714,57 @@ slide.append(
   metaContainer,
   mainContentContainer,
   buttonContainer
-);
-slidesContainer.appendChild(slide);
+  );
+  slidesContainer.appendChild(slide);
 
-console.log(`Item ${itemId} slide eklendi.`);
-if (slidesContainer.children.length === 1) {
+  console.log(`Item ${itemId} slide eklendi.`);
+  if (slidesContainer.children.length === 1) {
   import("./navigation.js").then(mod => mod.displaySlide(0));
+  }
 }
+
+    function addSlideToSettingsBackground(itemId, backdropUrl) {
+    const settingsSlider = document.getElementById('settingsBackgroundSlider');
+    if (!settingsSlider) return;
+    const existingSlide = settingsSlider.querySelector(`[data-item-id="${itemId}"]`);
+    if (existingSlide) return;
+
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.itemId = itemId;
+    slide.style.backgroundImage = `url('${backdropUrl}')`;
+
+    const img = new Image();
+    img.src = backdropUrl;
+    img.onerror = () => {
+      if (slide.parentNode) {
+        slide.parentNode.removeChild(slide);
+      }
+    };
+
+    settingsSlider.appendChild(slide);
+    if (settingsSlider.children.length === 1) {
+      slide.classList.add('active');
+    }
+  }
+
+
+    function initSettingsBackgroundSlider() {
+    const settingsSlider = document.getElementById('settingsBackgroundSlider');
+    if (!settingsSlider || settingsSlider.children.length === 0) return;
+
+    let currentIndex = 0;
+    const slides = settingsSlider.children;
+    const slideCount = slides.length;
+    const interval = setInterval(() => {
+    slides[currentIndex].classList.remove('active');
+    currentIndex = (currentIndex + 1) % slideCount;
+    slides[currentIndex].classList.add('active');
+  }, 10000);
+
+  window.addEventListener('beforeunload', () => {
+    clearInterval(interval);
+  });
 }
 function openTrailerModal(trailerUrl, trailerName) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
@@ -749,4 +805,4 @@ function openTrailerModal(trailerUrl, trailerName) {
   document.addEventListener("keydown", escListener);
 }
 
-export { createSlide, openTrailerModal };
+export { createSlide, openTrailerModal, initSettingsBackgroundSlider };
