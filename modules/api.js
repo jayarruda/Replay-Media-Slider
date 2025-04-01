@@ -1,110 +1,130 @@
 import { getConfig } from "./config.js";
 
-export async function fetchItemDetails(itemId) {
+function getSessionInfo() {
   const credentials = sessionStorage.getItem("json-credentials");
-  let userId = null, accessToken = null;
-  if (credentials) {
-    try {
-      const parsed = JSON.parse(credentials);
-      userId = parsed.Servers[0].UserId;
-      accessToken = parsed.Servers[0].AccessToken;
-    } catch (error) {
-      console.error("Credential JSON hatası:", error);
-    }
+  if (!credentials) {
+    throw new Error("sessionStorage'da kimlik bilgisi bulunamadı");
   }
+
   try {
-    const response = await fetch(`${window.location.origin}/Users/${userId}/Items/${itemId}`, {
-      headers: {
-        Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`
-      }
-    });
-    const data = await response.json();
-    console.log("Item Details:", data);
-    return data;
+    const parsed = JSON.parse(credentials);
+    const server = parsed.Servers[0];
+    if (!server) throw new Error("Sunucu yapılandırması bulunamadı");
+
+    return {
+      userId: server.UserId,
+      accessToken: server.AccessToken,
+      deviceId: server.SystemId || "web-client",
+      clientName: "Jellyfin Web Client",
+      clientVersion: "1.0.0"
+    };
   } catch (error) {
-    console.error(`Item ${itemId} getirilemedi:`, error);
-    return null;
+    console.error("Kimlik bilgisi ayrıştırma hatası:", error);
+    throw error;
   }
 }
 
-export function updateFavoriteStatus(itemId, isFavorite) {
-  const credentials = sessionStorage.getItem("json-credentials");
-  let userId = null, accessToken = null;
-  if (credentials) {
-    try {
-      const parsed = JSON.parse(credentials);
-      userId = parsed.Servers[0].UserId;
-      accessToken = parsed.Servers[0].AccessToken;
-    } catch (error) {
-      console.error("Credential JSON hatası:", error);
+function getAuthHeader() {
+  const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
+  return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
+}
+
+async function makeApiRequest(url, options = {}) {
+  try {
+    if (!options.headers) {
+      options.headers = {};
     }
+
+    options.headers["Authorization"] = getAuthHeader();
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `API isteği başarısız oldu (durum: ${response.status})`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`${url} için API isteği hatası:`, error);
+    throw error;
   }
-  fetch(`${window.location.origin}/Users/${userId}/Items/${itemId}/UserData`, {
+}
+
+export async function fetchItemDetails(itemId) {
+  const { userId } = getSessionInfo();
+  return makeApiRequest(`${window.location.origin}/Users/${userId}/Items/${itemId}`);
+}
+
+export async function updateFavoriteStatus(itemId, isFavorite) {
+  const { userId } = getSessionInfo();
+  return makeApiRequest(`${window.location.origin}/Users/${userId}/Items/${itemId}/UserData`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({ IsFavorite: isFavorite })
-  })
-  .then((response) => {
-    if (!response.ok) throw new Error("Favori durumu güncellenemedi");
-    return response.json();
-  })
-  .then((data) => console.log("Favori durumu güncellendi:", data))
-  .catch((error) => console.error("Favori güncelleme hatası:", error));
+  });
 }
 
 export async function getHighestQualityBackdropIndex(itemId) {
   const config = getConfig();
-  const candidateIndexes = ["0", "1", "2", "3", "4"];
-  let bestIndex = null;
-  let bestArea = 0;
-  let bestWidth = 0;
-  let bestHeight = 0;
-  let hasHighQuality = false;
-  const minQualityWidth = config.minHighQualityWidth;
+  const candidateIndexes = ["0", "1", "2", "3"];
+  const results = [];
+  const minQualityWidth = config.minHighQualityWidth || 1920;
 
-  for (let index of candidateIndexes) {
+  await Promise.all(candidateIndexes.map(async (index) => {
     const url = `${window.location.origin}/Items/${itemId}/Images/Backdrop/${index}`;
     try {
-      const { width, height } = await getImageDimensions(url);
-      const area = width * height;
-      console.log(`Index ${index}: Çözünürlük: ${width}x${height} (${area} piksel)`);
-
-      if (width >= minQualityWidth) {
-        hasHighQuality = true;
-        if (area > bestArea) {
-          bestArea = area;
-          bestIndex = index;
-          bestWidth = width;
-          bestHeight = height;
-        }
-      } else {
-        if (!hasHighQuality && area > bestArea) {
-          bestArea = area;
-          bestIndex = index;
-          bestWidth = width;
-          bestHeight = height;
-        }
-      }
+      const dimensions = await getImageDimensions(url);
+      results.push({
+        index,
+        ...dimensions,
+        area: dimensions.width * dimensions.height,
+        isHighQuality: dimensions.width >= minQualityWidth
+      });
     } catch (error) {
-      console.error(`Index ${index}: Resim yüklenemedi veya hata oluştu:`, error);
+      console.warn(`${index} indeksli arka plan görseli bulunamadı:`, error.message);
     }
+  }));
+
+  const highQuality = results.filter(img => img.isHighQuality);
+  const bestImage = highQuality.length > 0
+    ? highQuality.reduce((best, current) => current.area > best.area ? current : best)
+    : results.reduce((best, current) => current.area > best.area ? current : best, { area: 0 });
+
+  if (!bestImage.index) {
+    console.warn("Uygun arka plan görseli bulunamadı, varsayılan 0 indeksi kullanılıyor");
+    return "0";
   }
 
-  if (!hasHighQuality) {
-    console.log(`Config'de belirtilen minimum genişlik (${minQualityWidth}px) koşulunu sağlayan görsel bulunamadı. ` +
-      `En uygun fallback görsel: Index ${bestIndex} - Çözünürlük: ${bestWidth}x${bestHeight} (${bestArea} piksel)`);
-  }
-  return bestIndex;
+  console.log(`${bestImage.index} indeksli görsel seçildi, çözünürlük: ${bestImage.width}x${bestImage.height}`);
+  return bestImage.index;
 }
 
 export async function getImageDimensions(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = (err) => reject(err);
-    img.src = url;
+    img.onload = () => resolve({
+      width: img.naturalWidth,
+      height: img.naturalHeight
+    });
+    img.onerror = () => reject(new Error("Görsel yüklenemedi"));
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.responseType = "blob";
+    xhr.setRequestHeader("Authorization", getAuthHeader());
+
+    xhr.onload = function() {
+      if (this.status === 200) {
+        img.src = URL.createObjectURL(this.response);
+      } else {
+        reject(new Error(`HTTP ${this.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Ağ hatası"));
+    xhr.send();
   });
 }
