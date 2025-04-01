@@ -206,12 +206,13 @@ body {
     text-overflow: ellipsis;
     text-transform: capitalize;
     filter: drop-shadow(4px 0px 8px black);
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     display: -webkit-box;
     text-shadow: 0 0 black;
     opacity: 0;
     animation: fadeIn 1s ease-out 0.9s forwards;
+    padding: 2px;
 }
 .language-container {
     transition: opacity 0.3s ease-in-out;
