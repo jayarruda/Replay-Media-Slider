@@ -251,9 +251,9 @@ export const languageLabels = {
   saveSettings: "Speichern",
   settingsSavedModal: "Einstellungen gespeichert. Aktualisieren Sie die Slider-Seite, damit die Änderungen wirksam werden.",
   closeModalBtn: "OK",
-  optionTurkish: "Türkçe",
-  optionEnglish: "English",
-  optionGerman: "Deutsch",
-  optionFrench: "Français",
+  optionTurkish: "🇹🇷 Türkçe",
+    optionEnglish: "🇬🇧 English",
+    optionGerman: "🇩🇪 Deutsch",
+    optionFrench: "🇫🇷 Français",
 }
 };
