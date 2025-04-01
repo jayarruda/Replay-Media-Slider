@@ -314,7 +314,6 @@ async function createSlide(item) {
     });
     buttonContainer.appendChild(trailerBtn);
   }
-
   document.body.appendChild(buttonContainer);
 
   const plotContainer = document.createElement("div");
@@ -434,17 +433,17 @@ async function createSlide(item) {
   }
 
   let actorContainer = document.createElement("div");
-  actorContainer.className = "artist-container";
-  if (People && config.showActorInfo) {
-    const actors = People.filter(p => p.Type === "Actor").slice(0, 3);
-    if (actors.length) {
-      const actorNames = actors.map(a => a.Name).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
-      const actorsSpan = document.createElement("span");
-      actorsSpan.className = "artists";
-      actorsSpan.innerHTML = actorNames;
-      actorContainer.appendChild(actorsSpan);
-    }
+actorContainer.className = "artist-container";
+if (People && config.showActorInfo) {
+  const actors = People.filter(p => p.Type === "Actor").slice(0, getConfig().artistLimit || 3);
+  if (actors.length) {
+    const actorNames = actors.map(a => a.Name).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
+    const actorsSpan = document.createElement("span");
+    actorsSpan.className = "artists";
+    actorsSpan.innerHTML = actorNames;
+    actorContainer.appendChild(actorsSpan);
   }
+}
 
   const infoContainer = document.createElement("div");
   infoContainer.className = "info-container";
