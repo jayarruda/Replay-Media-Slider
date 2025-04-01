@@ -748,24 +748,6 @@ if (config.showLanguageInfo && MediaStreams && MediaStreams.length > 0 && itemTy
     }
   }
 
-
-    function initSettingsBackgroundSlider() {
-    const settingsSlider = document.getElementById('settingsBackgroundSlider');
-    if (!settingsSlider || settingsSlider.children.length === 0) return;
-
-    let currentIndex = 0;
-    const slides = settingsSlider.children;
-    const slideCount = slides.length;
-    const interval = setInterval(() => {
-    slides[currentIndex].classList.remove('active');
-    currentIndex = (currentIndex + 1) % slideCount;
-    slides[currentIndex].classList.add('active');
-  }, 10000);
-
-  window.addEventListener('beforeunload', () => {
-    clearInterval(interval);
-  });
-}
 function openTrailerModal(trailerUrl, trailerName) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
   const overlay = document.createElement("div");
@@ -805,4 +787,4 @@ function openTrailerModal(trailerUrl, trailerName) {
   document.addEventListener("keydown", escListener);
 }
 
-export { createSlide, openTrailerModal, initSettingsBackgroundSlider };
+export { createSlide, openTrailerModal};
