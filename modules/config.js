@@ -60,6 +60,7 @@ export function getConfig() {
     defaultLanguage,
     languageLabels: getLanguageLabels(defaultLanguage),
     sliderDuration: parseInt(localStorage.getItem('sliderDuration'), 10) || 15000,
+    artistLimit: parseInt(localStorage.getItem('artistLimit')) || 3,
     limit: parseInt(localStorage.getItem('limit'), 10) || 20,
     allowedWriters: (() => {
       const defaultWriters = [
