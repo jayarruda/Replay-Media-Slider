@@ -14,6 +14,7 @@ const ratingSubOptions = document.getElementById("ratingSubOptions");
 const descriptionsCheckbox = document.getElementById("showDescriptionsCheckbox");
 const descriptionsSubOptions = document.getElementById("descriptionsSubOptions");
 const sliderDurationInput = document.getElementById("sliderDurationInput");
+const artistLimitInput = document.getElementById("artistLimitInput");
 const showActorInfoCheckbox = document.getElementById("showActorInfoCheckbox");
 const showTitleOnlyLabel = document.getElementById("showTitleOnlyLabel");
 const showPlotOnlyLabel = document.getElementById("showPlotOnlyLabel");
@@ -143,7 +144,7 @@ function initSettingsBackgroundSlider() {
     slide.style.backgroundImage = `url('${url}')`;
     settingsSlider.appendChild(slide);
 
-    if (Math.random() > 0.7) {
+    if (Math.random() > 0.2) {
       slide.classList.add('micro-move');
     }
 
@@ -185,20 +186,19 @@ function initSettingsBackgroundSlider() {
 
       slides[currentIndex].classList.add('active');
 
-      const delay = isFirstTransition ? 5000 :
-                   3000 + Math.random() * 6000;
+      const delay = isFirstTransition ? 8000 :
+                   8000 + Math.random() * 4000;
       isFirstTransition = false;
 
       slideTimer = setTimeout(changeSlide, delay);
     };
-    let slideTimer = setTimeout(changeSlide, 10000);
+    let slideTimer = setTimeout(changeSlide, sliderDurationInput);
 
     window.addEventListener('beforeunload', () => {
       clearTimeout(slideTimer);
     });
   }
 }
-
 
 function updateTitleOnlyVisibility() {
   if (showLogoOrTitleCheckbox.checked) {
@@ -327,6 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
   showYearInfoCheckbox.checked = localStorage.getItem("showYearInfo") === "false" ? false : true;
   showCountryInfoCheckbox.checked = localStorage.getItem("showCountryInfo") === "false" ? false : true;
   sliderDurationInput.value = localStorage.getItem("sliderDuration") || 15000;
+  artistLimitInput.value = localStorage.getItem("artistLimit") || 3;
   limitInput.value = localStorage.getItem("limit") || 10;
 
   updateGroup(showStatusInfoCheckbox, statusSubOptions);
@@ -399,6 +400,7 @@ document.addEventListener("DOMContentLoaded", function () {
     localStorage.setItem("showYearInfo", showYearInfoCheckbox.checked ? "true" : "false");
     localStorage.setItem("showCountryInfo", showCountryInfoCheckbox.checked ? "true" : "false");
     localStorage.setItem("sliderDuration", sliderDurationInput.value);
+    localStorage.setItem("artistLimit", artistLimitInput.value);
     localStorage.setItem("showTrailerButton", showTrailerButtonCheckbox.checked ? "true" : "false");
     localStorage.setItem("showWatchButton", showWatchButtonCheckbox.checked ? "true" : "false");
     localStorage.setItem("showFavoriteButton", showFavoriteButtonCheckbox.checked ? "true" : "false");
