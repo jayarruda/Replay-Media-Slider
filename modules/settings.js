@@ -126,8 +126,18 @@ function updateGroup(parentCheckbox, container) {
 function initSettingsBackgroundSlider() {
   const settingsSlider = document.getElementById('settingsBackgroundSlider');
   if (!settingsSlider) return;
+
   settingsSlider.innerHTML = '';
-  const backdropUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [];
+  settingsSlider.style.backgroundImage = '';
+
+  const validBackdropUrls = (JSON.parse(localStorage.getItem('backdropUrls')) || [])
+    .filter(url => url && typeof url === 'string' && url.trim() !== '' && !url.endsWith('/null'));
+
+  if (validBackdropUrls.length === 0) {
+    settingsSlider.style.backgroundImage = 'linear-gradient(to right, #434343 0%, black 100%)';
+    return;
+  }
+
   const shuffleArray = (array) => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -137,10 +147,15 @@ function initSettingsBackgroundSlider() {
     return shuffled;
   };
 
-  const shuffledUrls = backdropUrls.length > 1 ? shuffleArray(backdropUrls) : backdropUrls;
+  const shuffledUrls = validBackdropUrls.length > 1 ? shuffleArray(validBackdropUrls) : validBackdropUrls;
+
   shuffledUrls.forEach((url, index) => {
     const slide = document.createElement('div');
     slide.className = 'slide';
+    slide.addEventListener('error', function() {
+      this.style.display = 'none';
+    });
+
     slide.style.backgroundImage = `url('${url}')`;
     settingsSlider.appendChild(slide);
 
@@ -149,6 +164,7 @@ function initSettingsBackgroundSlider() {
     }
 
     if (index === 0) {
+      slide.offsetHeight;
       slide.classList.add('active');
     }
   });
@@ -158,8 +174,8 @@ function initSettingsBackgroundSlider() {
     let currentIndex = 0;
     let previousIndex = -1;
     let previousPreviousIndex = -1;
-    let isFirstTransition = true;
 
+    const fadeDuration = 1000;
     const changeSlide = () => {
       slides[currentIndex].classList.remove('active');
       let nextIndex;
@@ -174,7 +190,6 @@ function initSettingsBackgroundSlider() {
           nextIndex = (currentIndex + 1) % slides.length;
           break;
         }
-
       } while (
         (nextIndex === currentIndex && slides.length > 1) ||
         (nextIndex === previousIndex && slides.length > 2) ||
@@ -183,22 +198,19 @@ function initSettingsBackgroundSlider() {
       previousPreviousIndex = previousIndex;
       previousIndex = currentIndex;
       currentIndex = nextIndex;
-
       slides[currentIndex].classList.add('active');
-
-      const delay = isFirstTransition ? 8000 :
-                   8000 + Math.random() * 4000;
-      isFirstTransition = false;
-
+      const delay = parseInt(sliderDurationInput.value) || 8000;
       slideTimer = setTimeout(changeSlide, delay);
     };
-    let slideTimer = setTimeout(changeSlide, sliderDurationInput);
+    let delay = parseInt(sliderDurationInput.value) || 8000;
+    let slideTimer = setTimeout(changeSlide, delay - fadeDuration);
 
     window.addEventListener('beforeunload', () => {
       clearTimeout(slideTimer);
     });
   }
 }
+
 
 function updateTitleOnlyVisibility() {
   if (showLogoOrTitleCheckbox.checked) {
