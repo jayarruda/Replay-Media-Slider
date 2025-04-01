@@ -395,12 +395,15 @@ body.dark-theme .column:hover {
   opacity: 0;
   background-size: cover;
   background-position: center;
-  transition: opacity 1.2s ease-in-out;
+  transition: opacity 1s ease-in-out;
   will-change: opacity, background-position;
 }
 
-.settings-background-slider .slide.active {
-  opacity: 0.7;
+.slide.active {
+  opacity: 1;
+ }
+.settings-background-slider {
+  opacity: 0.3;
 }
 
 .slide.micro-move {
