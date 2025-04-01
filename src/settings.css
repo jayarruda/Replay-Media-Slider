@@ -348,7 +348,7 @@ body.dark-theme label {
 }
 
 body.dark-theme select {
-  background-color: rgba(51, 51, 51, 0.25);
+  background-color: rgb(51 51 51);
   color: var(--text-dark);
   border: 2px solid var(--border-color);
   backdrop-filter: blur(4px);
