@@ -252,9 +252,9 @@ export const languageLabels = {
     saveSettings: "Kaydet",
     settingsSavedModal: "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.",
     closeModalBtn: "Tamam",
-    optionTurkish: "Türkçe",
-    optionEnglish: "English",
-    optionGerman: "Deutsch",
-    optionFrench: "Français",
+    optionTurkish: "🇹🇷 Türkçe",
+    optionEnglish: "🇬🇧 English",
+    optionGerman: "🇩🇪 Deutsch",
+    optionFrench: "🇫🇷 Français",
   }
 };
