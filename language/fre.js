@@ -251,9 +251,9 @@ export const languageLabels = {
   saveSettings: "Enregistrer",
   settingsSavedModal: "Paramètres enregistrés. Actualisez la page du slider pour que les modifications prennent effet.",
   closeModalBtn: "OK",
-  optionTurkish: "Türkçe",
-  optionEnglish: "English",
-  optionGerman: "Deutsch",
-  optionFrench: "Français",
+  optionTurkish: "🇹🇷 Türkçe",
+    optionEnglish: "🇬🇧 English",
+    optionGerman: "🇩🇪 Deutsch",
+    optionFrench: "🇫🇷 Français",
 }
 };
