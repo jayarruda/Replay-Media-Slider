@@ -1,3 +1,17 @@
+
+.fa-solid, .fas {
+    font-weight: 900;
+    cursor: pointer;
+    color: #FFC107;
+    box-shadow;
+}
+
+.fa-solid, .fas:hover {
+    font-weight: 900;
+    cursor: pointer;
+    color: #F44336;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -17,7 +31,7 @@ body {
   margin: 0 auto;
 }
 .dark-theme header.settings-header {
-    background: #1212127d;
+    background: #12121240;
     border-radius: 10px;
     display: flex;
     justify-content: space-between;
@@ -26,10 +40,11 @@ body {
     position: relative;
     margin-bottom: 20px;
     z-index: 10;
+    backdrop-filter: blur(10px);
 }
 
 header.settings-header {
-    background: #ffffffc4;
+    background: #ffffffab;
     border-radius: 10px;
     display: flex;
     justify-content: space-between;
@@ -57,25 +72,21 @@ header.settings-header .theme-switcher-fixed {
 .theme-switcher-fixed {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
     padding: 5px;
     border-radius: 5px;
     z-index: 1100;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     overflow: hidden;
-    width: 35px;
+    width: 30px;
+    height: 2%;
     transition: width 0.3s ease;
     cursor: pointer;
-    background: rgb(255 255 255 / 40%);
-    backdrop-filter: blur(4px);
-}
-.dark-theme .theme-switcher-fixed {
-    background: rgb(0 0 0 / 40%);
-    backdrop-filter: blur(4px);
+    font-size: 1.5em;
 }
 
 .theme-switcher-fixed:hover {
     width: 100px;
+    cursor: pointer;
 }
 
 .theme-switcher-fixed label {
@@ -91,28 +102,6 @@ header.settings-header .theme-switcher-fixed {
     display: none;
 }
 
-.theme-switcher-fixed .icon {
-    font-size: 1.5rem;
-    color: #673AB7;
-    transition: color 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
-}
-
-.dark-theme .theme-switcher-fixed .icon {
-    font-size: 1.5rem;
-    color: #ffffff;
-    transition: color 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
-}
-
-.theme-switcher-fixed input[type="radio"]:checked + .icon {
-    color: #E91E63;
-    scale: 1.5;
-    border-radius: 50%;
-    padding: 5px;
-}
-
-.theme-switcher-fixed .icon:hover {
-    color: #C2185B;
-}
 h3 {
   text-align: center;
   padding: 10px;
@@ -369,7 +358,7 @@ body.dark-theme .modal-content {
 }
 
 body.dark-theme label {
-  color: #90A4AE;
+  color: #90a4ae;
 }
 
 body.dark-theme select {
@@ -439,4 +428,19 @@ body.dark-theme .column:hover {
   50% { background-position: 50% 53%; }
   75% { background-position: 48% 51%; }
   100% { background-position: 50% 50%; }
+}
+
+.language-selector select {
+  padding: 5px 10px 5px 30px;
+  background-color: transparent;
+  border: 1px solid #ffffff;
+  border-radius: 4px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: left 8px center;
+  background-size: 1em;
+}
+.dark-theme .language-selector select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 }
