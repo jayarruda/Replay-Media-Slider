@@ -251,9 +251,9 @@ export const languageLabels = {
   saveSettings: "Save",
   settingsSavedModal: "Settings saved. Refresh the slider page for changes to take effect.",
   closeModalBtn: "OK",
-  optionTurkish: "Türkçe",
-  optionEnglish: "English",
-  optionGerman: "Deutsch",
-  optionFrench: "Français",
+  optionTurkish: "🇹🇷 Türkçe",
+    optionEnglish: "🇬🇧 English",
+    optionGerman: "🇩🇪 Deutsch",
+    optionFrench: "🇫🇷 Français",
 }
 };
