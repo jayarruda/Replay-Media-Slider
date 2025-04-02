@@ -149,25 +149,26 @@ function initSettingsBackgroundSlider() {
 
   const shuffledUrls = validBackdropUrls.length > 1 ? shuffleArray(validBackdropUrls) : validBackdropUrls;
 
-  shuffledUrls.forEach((url, index) => {
+  shuffledUrls.forEach((url) => {
     const slide = document.createElement('div');
     slide.className = 'slide';
+    slide.setAttribute('data-bg', url);
     slide.addEventListener('error', function() {
       this.style.display = 'none';
     });
 
-    slide.style.backgroundImage = `url('${url}')`;
-    settingsSlider.appendChild(slide);
-
     if (Math.random() > 0.2) {
       slide.classList.add('micro-move');
     }
-
-    if (index === 0) {
-      slide.offsetHeight;
-      slide.classList.add('active');
-    }
+    settingsSlider.appendChild(slide);
   });
+
+  function loadSlideImage(slide) {
+    if (!slide.style.backgroundImage) {
+      const url = slide.getAttribute('data-bg');
+      slide.style.backgroundImage = `url('${url}')`;
+    }
+  }
 
   const slides = settingsSlider.querySelectorAll('.slide');
   if (slides.length > 0) {
@@ -175,17 +176,20 @@ function initSettingsBackgroundSlider() {
     let previousIndex = -1;
     let previousPreviousIndex = -1;
 
+    loadSlideImage(slides[0]);
+    slides[0].offsetHeight;
+    slides[0].classList.add('active');
+
     const fadeDuration = 1000;
     const changeSlide = () => {
       slides[currentIndex].classList.remove('active');
+
       let nextIndex;
       let attempts = 0;
       const maxAttempts = slides.length * 3;
-
       do {
         nextIndex = Math.floor(Math.random() * slides.length);
         attempts++;
-
         if (attempts > maxAttempts) {
           nextIndex = (currentIndex + 1) % slides.length;
           break;
@@ -198,10 +202,17 @@ function initSettingsBackgroundSlider() {
       previousPreviousIndex = previousIndex;
       previousIndex = currentIndex;
       currentIndex = nextIndex;
+
+      loadSlideImage(slides[currentIndex]);
+
       slides[currentIndex].classList.add('active');
+      const nextNextIndex = (currentIndex + 1) % slides.length;
+      loadSlideImage(slides[nextNextIndex]);
+
       const delay = parseInt(sliderDurationInput.value) || 8000;
       slideTimer = setTimeout(changeSlide, delay);
     };
+
     let delay = parseInt(sliderDurationInput.value) || 8000;
     let slideTimer = setTimeout(changeSlide, delay - fadeDuration);
 
