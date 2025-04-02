@@ -22,7 +22,7 @@ body {
   background-color: var(--bg-light);
   color: var(--text-light);
   line-height: 1.6;
-  padding: 20px;
+  padding: 5px;
   border-radius: 10px;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
