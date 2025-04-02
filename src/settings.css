@@ -339,8 +339,11 @@ body.dark-theme #saveSettings:hover {
 }
 
 body.dark-theme .modal-content {
-  background-color: #1e1e1e;
+  background-color: #1e1e1e82;
   color: var(--text-dark);
+  width: 30%;
+  height: 20%;
+  backdrop-filter: blur(10px);
 }
 
 body.dark-theme label {
