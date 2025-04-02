@@ -1,120 +1,77 @@
-const languageCheckbox = document.getElementById('languageInfoCheckbox');
-const showLogoOrTitleCheckbox = document.getElementById("showLogoOrTitleCheckbox");
-const showTitleOnlyCheckbox = document.getElementById("showTitleOnlyCheckbox");
-const ratingCheckbox = document.getElementById('ratingInfoCheckbox');
-const progressCheckbox = document.getElementById('progressBarCheckbox');
-const providerCheckbox = document.getElementById("providerCheckbox");
-const dotNavigationCheckbox = document.getElementById("dotNavigationCheckbox");
-const showSettingsLinkCheckbox = document.getElementById("showSettingsLinkCheckbox");
-const settingsLinkContainer = document.getElementById("settingsLinkContainer");
-const showStatusInfoCheckbox = document.getElementById("showStatusInfoCheckbox");
-const statusSubOptions = document.getElementById("statusSubOptions");
-const qualitDetailSubOptions = document.getElementById("qualitDetailSubOptions");
-const ratingSubOptions = document.getElementById("ratingSubOptions");
-const descriptionsCheckbox = document.getElementById("showDescriptionsCheckbox");
-const descriptionsSubOptions = document.getElementById("descriptionsSubOptions");
-const sliderDurationInput = document.getElementById("sliderDurationInput");
-const artistLimitInput = document.getElementById("artistLimitInput");
-const showActorInfoCheckbox = document.getElementById("showActorInfoCheckbox");
-const showTitleOnlyLabel = document.getElementById("showTitleOnlyLabel");
-const showPlotOnlyLabel = document.getElementById("showPlotOnlyLabel");
-const hideOriginalTitleIfSameCheckbox = document.getElementById("hideOriginalTitleIfSameCheckbox");
-const gradientOverlayImageTypeSelect = document.getElementById("gradientOverlayImageTypeSelect");
-const backdropImageTypeSelect = document.getElementById("backdropImageTypeSelect");
-const dotBackgroundImageTypeSelect = document.getElementById("dotBackgroundImageTypeSelect");
-const trailerBackgroundImageTypeSelect = document.getElementById("trailerBackgroundImageTypeSelect");
-const watchBackgroundImageTypeSelect = document.getElementById("watchBackgroundImageTypeSelect");
-const favoriBackgroundImageTypeSelect = document.getElementById("favoriBackgroundImageTypeSelect");
-const defaultLanguageSelect = document.getElementById('defaultLanguageSelect');
-const limitInput = document.getElementById("limitInput");
-const plotInfoCheckbox = document.getElementById("showPlotInfoCheckbox");
-const minHighQualityWidthInput = document.getElementById("minHighQualityWidthInput");
-const manualBackdropSelectionCheckbox = document.getElementById("manualBackdropSelectionCheckbox");
-const enableTrailerPlaybackCheckbox = document.getElementById("enableTrailerPlaybackCheckbox");
-const showDirectorWriterCheckbox = document.getElementById("showDirectorWriterCheckbox");
-const directorWriterSubOptions = document.getElementById("directorWriterSubOptions");
-const showDirectorCheckbox = document.getElementById("showDirectorCheckbox");
-const showWriterCheckbox = document.getElementById("showWriterCheckbox");
-const showInfoCheckbox = document.getElementById("showInfoCheckbox");
-const infoSubOptions = document.getElementById("infoSubOptions");
-const showGenresInfoCheckbox = document.getElementById("showGenresInfoCheckbox");
-const showYearInfoCheckbox = document.getElementById("showYearInfoCheckbox");
-const showCountryInfoCheckbox = document.getElementById("showCountryInfoCheckbox");
-const showTrailerButtonCheckbox = document.getElementById("showTrailerButtonCheckbox");
-const showWatchButtonCheckbox = document.getElementById("showWatchButtonCheckbox");
-const customQueryStringInput = document.getElementById('customQueryStringInput');
-const showFavoriteButtonCheckbox = document.getElementById("showFavoriteButtonCheckbox");
-const useListFileCheckbox = document.getElementById('useListFileCheckbox');
-const useManualListCheckbox = document.getElementById('useManualListCheckbox');
-const manualListIdsInput = document.getElementById('manualListIdsInput');
-const manualListIdsContainer = document.getElementById('manualListIdsContainer');
-const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
-  progressBarWidthInput.value = parseInt(progressBarWidth);
-const sortingKeywordsInput = document.getElementById('sortingKeywordsInput');
+const getEl = id => document.getElementById(id);
+const languageCheckbox = getEl('languageInfoCheckbox');
+const showLogoOrTitleCheckbox = getEl("showLogoOrTitleCheckbox");
+const showTitleOnlyCheckbox = getEl("showTitleOnlyCheckbox");
+const ratingCheckbox = getEl('ratingInfoCheckbox');
+const progressCheckbox = getEl('progressBarCheckbox');
+const providerCheckbox = getEl("providerCheckbox");
+const dotNavigationCheckbox = getEl("dotNavigationCheckbox");
+const showSettingsLinkCheckbox = getEl("showSettingsLinkCheckbox");
+const settingsLinkContainer = getEl("settingsLinkContainer");
+const showStatusInfoCheckbox = getEl("showStatusInfoCheckbox");
+const statusSubOptions = getEl("statusSubOptions");
+const qualitDetailSubOptions = getEl("qualitDetailSubOptions");
+const ratingSubOptions = getEl("ratingSubOptions");
+const descriptionsCheckbox = getEl("showDescriptionsCheckbox");
+const descriptionsSubOptions = getEl("descriptionsSubOptions");
+const sliderDurationInput = getEl("sliderDurationInput");
+const artistLimitInput = getEl("artistLimitInput");
+const showActorInfoCheckbox = getEl("showActorInfoCheckbox");
+const showTitleOnlyLabel = getEl("showTitleOnlyLabel");
+const showPlotOnlyLabel = getEl("showPlotOnlyLabel");
+const hideOriginalTitleIfSameCheckbox = getEl("hideOriginalTitleIfSameCheckbox");
+const gradientOverlayImageTypeSelect = getEl("gradientOverlayImageTypeSelect");
+const backdropImageTypeSelect = getEl("backdropImageTypeSelect");
+const dotBackgroundImageTypeSelect = getEl("dotBackgroundImageTypeSelect");
+const trailerBackgroundImageTypeSelect = getEl("trailerBackgroundImageTypeSelect");
+const watchBackgroundImageTypeSelect = getEl("watchBackgroundImageTypeSelect");
+const favoriBackgroundImageTypeSelect = getEl("favoriBackgroundImageTypeSelect");
+const defaultLanguageSelect = getEl('defaultLanguageSelect');
+const limitInput = getEl("limitInput");
+const plotInfoCheckbox = getEl("showPlotInfoCheckbox");
+const minHighQualityWidthInput = getEl("minHighQualityWidthInput");
+const manualBackdropSelectionCheckbox = getEl("manualBackdropSelectionCheckbox");
+const enableTrailerPlaybackCheckbox = getEl("enableTrailerPlaybackCheckbox");
+const showDirectorWriterCheckbox = getEl("showDirectorWriterCheckbox");
+const directorWriterSubOptions = getEl("directorWriterSubOptions");
+const showDirectorCheckbox = getEl("showDirectorCheckbox");
+const showWriterCheckbox = getEl("showWriterCheckbox");
+const showInfoCheckbox = getEl("showInfoCheckbox");
+const infoSubOptions = getEl("infoSubOptions");
+const showGenresInfoCheckbox = getEl("showGenresInfoCheckbox");
+const showYearInfoCheckbox = getEl("showYearInfoCheckbox");
+const showCountryInfoCheckbox = getEl("showCountryInfoCheckbox");
+const showTrailerButtonCheckbox = getEl("showTrailerButtonCheckbox");
+const showWatchButtonCheckbox = getEl("showWatchButtonCheckbox");
+const customQueryStringInput = getEl('customQueryStringInput');
+const showFavoriteButtonCheckbox = getEl("showFavoriteButtonCheckbox");
+const useListFileCheckbox = getEl('useListFileCheckbox');
+const useManualListCheckbox = getEl('useManualListCheckbox');
+const manualListIdsInput = getEl('manualListIdsInput');
+const manualListIdsContainer = getEl('manualListIdsContainer');
+const progressBarWidthInput = getEl("progressBarWidthInput");
+const sortingKeywordsInput = getEl('sortingKeywordsInput');
 const themeRadios = document.querySelectorAll('input[name="theme"]');
+const allowedWritersInput = getEl('allowedWritersInput');
+const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
+progressBarWidthInput.value = parseInt(progressBarWidth);
+
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
 document.body.className = savedTheme + '-theme';
 themeRadios.forEach(radio => {
-  radio.addEventListener('change', function() {
+  radio.addEventListener('change', function () {
     const selectedTheme = this.value;
     document.body.className = selectedTheme + '-theme';
     localStorage.setItem('theme', selectedTheme);
   });
 });
 
-manualBackdropSelectionCheckbox.addEventListener("change", function () {
-  backdropImageTypeSelect.disabled = !this.checked;
-  minHighQualityWidthInput.disabled = this.checked;
-});
-
-progressBarCheckbox.addEventListener("change", function () {
-  progressBarWidthInput.disabled = !this.checked;
-});
-
-dotNavigationCheckbox.addEventListener("change", function () {
-  dotBackgroundImageTypeSelect.disabled = !this.checked;
-})
-
-showTrailerButtonCheckbox.addEventListener("change", function () {
-  trailerBackgroundImageTypeSelect.disabled = !this.checked;
-});
-
-showWatchButtonCheckbox.addEventListener("change", function () {
-  watchBackgroundImageTypeSelect.disabled = !this.checked;
-});
-
-showFavoriteButtonCheckbox.addEventListener("change", function () {
-  favoriBackgroundImageTypeSelect.disabled = !this.checked;
-});
-
-useListFileCheckbox.addEventListener("change", function () {
-  limitInput.disabled = this.checked || useManualListCheckbox.checked;
-  customQueryStringInput.disabled = this.checked || useManualListCheckbox.checked;
-  sortingKeywordsInput.disabled = this.checked || useManualListCheckbox.checked;
-  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
-});
-
-useManualListCheckbox.addEventListener("change", function() {
-  manualListIdsContainer.style.display = this.checked ? "block" : "none";
-  limitInput.disabled = this.checked;
-  sortingKeywordsInput.disabled = this.checked;
-  customQueryStringInput.disabled = this.checked;
-  useListFileCheckbox.disabled = this.checked;
-  if (this.checked) {
-    useListFileCheckbox.checked = false;
-  } else {
-    useListFileCheckbox.disabled = false;
-  }
-});
-
 function updateGroup(parentCheckbox, container) {
   container.style.display = "block";
   const subCheckboxes = container.querySelectorAll('input[type="checkbox"]');
   if (parentCheckbox.checked) {
-    subCheckboxes.forEach(cb => {
-      cb.disabled = false;
-    });
+    subCheckboxes.forEach(cb => (cb.disabled = false));
   } else {
     subCheckboxes.forEach(cb => {
       cb.disabled = true;
@@ -124,21 +81,21 @@ function updateGroup(parentCheckbox, container) {
 }
 
 function initSettingsBackgroundSlider() {
-  const settingsSlider = document.getElementById('settingsBackgroundSlider');
+  const settingsSlider = getEl('settingsBackgroundSlider');
   if (!settingsSlider) return;
 
   settingsSlider.innerHTML = '';
   settingsSlider.style.backgroundImage = '';
 
   const validBackdropUrls = (JSON.parse(localStorage.getItem('backdropUrls')) || [])
-    .filter(url => url && typeof url === 'string' && url.trim() !== '' && !url.endsWith('/null'));
+    .filter(url => url && typeof url === 'string' && url.trim() && !url.endsWith('/null'));
 
-  if (validBackdropUrls.length === 0) {
+  if (!validBackdropUrls.length) {
     settingsSlider.style.backgroundImage = 'linear-gradient(to right, #434343 0%, black 100%)';
     return;
   }
 
-  const shuffleArray = (array) => {
+  const shuffleArray = array => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -148,34 +105,27 @@ function initSettingsBackgroundSlider() {
   };
 
   const shuffledUrls = validBackdropUrls.length > 1 ? shuffleArray(validBackdropUrls) : validBackdropUrls;
-
-  shuffledUrls.forEach((url) => {
+  shuffledUrls.forEach(url => {
     const slide = document.createElement('div');
     slide.className = 'slide';
     slide.setAttribute('data-bg', url);
-    slide.addEventListener('error', function() {
+    slide.addEventListener('error', function () {
       this.style.display = 'none';
     });
-
-    if (Math.random() > 0.2) {
-      slide.classList.add('micro-move');
-    }
+    if (Math.random() > 0.2) slide.classList.add('micro-move');
     settingsSlider.appendChild(slide);
   });
 
-  function loadSlideImage(slide) {
+  const loadSlideImage = slide => {
     if (!slide.style.backgroundImage) {
       const url = slide.getAttribute('data-bg');
       slide.style.backgroundImage = `url('${url}')`;
     }
-  }
+  };
 
   const slides = settingsSlider.querySelectorAll('.slide');
-  if (slides.length > 0) {
-    let currentIndex = 0;
-    let previousIndex = -1;
-    let previousPreviousIndex = -1;
-
+  if (slides.length) {
+    let currentIndex = 0, previousIndex = -1, previousPreviousIndex = -1;
     loadSlideImage(slides[0]);
     slides[0].offsetHeight;
     slides[0].classList.add('active');
@@ -183,10 +133,7 @@ function initSettingsBackgroundSlider() {
     const fadeDuration = 1000;
     const changeSlide = () => {
       slides[currentIndex].classList.remove('active');
-
-      let nextIndex;
-      let attempts = 0;
-      const maxAttempts = slides.length * 3;
+      let nextIndex, attempts = 0, maxAttempts = slides.length * 3;
       do {
         nextIndex = Math.floor(Math.random() * slides.length);
         attempts++;
@@ -204,24 +151,17 @@ function initSettingsBackgroundSlider() {
       currentIndex = nextIndex;
 
       loadSlideImage(slides[currentIndex]);
-
       slides[currentIndex].classList.add('active');
-      const nextNextIndex = (currentIndex + 1) % slides.length;
-      loadSlideImage(slides[nextNextIndex]);
-
-      const delay = parseInt(sliderDurationInput.value) || 8000;
+      loadSlideImage(slides[(currentIndex + 1) % slides.length]);
+      let delay = parseInt(sliderDurationInput.value) || 8000;
       slideTimer = setTimeout(changeSlide, delay);
     };
 
     let delay = parseInt(sliderDurationInput.value) || 8000;
     let slideTimer = setTimeout(changeSlide, delay - fadeDuration);
-
-    window.addEventListener('beforeunload', () => {
-      clearTimeout(slideTimer);
-    });
+    window.addEventListener('beforeunload', () => clearTimeout(slideTimer));
   }
 }
-
 
 function updateTitleOnlyVisibility() {
   if (showLogoOrTitleCheckbox.checked) {
@@ -235,7 +175,8 @@ function updateTitleOnlyVisibility() {
 }
 
 function updatePlotOnlyVisibility() {
-  if (showPlotInfoCheckbox.checked) {
+  const showbPlotInfoCheckbox = getEl("showbPlotInfoCheckbox");
+  if (plotInfoCheckbox.checked) {
     showPlotOnlyLabel.style.display = "block";
     showbPlotInfoCheckbox.disabled = false;
   } else {
@@ -246,6 +187,8 @@ function updatePlotOnlyVisibility() {
 }
 
 function updateQualityDetailOnlyVisibility() {
+  const showQualityInfoCheckbox = getEl("showQualityInfoCheckbox");
+  const showQualityDetailCheckbox = getEl("showQualityDetailCheckbox");
   if (showQualityInfoCheckbox.checked) {
     qualitDetailSubOptions.style.display = "block";
     showQualityDetailCheckbox.disabled = false;
@@ -256,49 +199,86 @@ function updateQualityDetailOnlyVisibility() {
   }
 }
 
-
 function updateProviderSettingsVisibility() {
   showSettingsLinkCheckbox.disabled = false;
   settingsLinkContainer.style.display = "block";
 }
 
+manualBackdropSelectionCheckbox.addEventListener("change", () => {
+  backdropImageTypeSelect.disabled = !manualBackdropSelectionCheckbox.checked;
+  minHighQualityWidthInput.disabled = manualBackdropSelectionCheckbox.checked;
+});
+progressCheckbox.addEventListener("change", () => {
+  progressBarWidthInput.disabled = !progressCheckbox.checked;
+});
+dotNavigationCheckbox.addEventListener("change", () => {
+  dotBackgroundImageTypeSelect.disabled = !dotNavigationCheckbox.checked;
+});
+showTrailerButtonCheckbox.addEventListener("change", () => {
+  trailerBackgroundImageTypeSelect.disabled = !showTrailerButtonCheckbox.checked;
+});
+showWatchButtonCheckbox.addEventListener("change", () => {
+  watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
+});
+showFavoriteButtonCheckbox.addEventListener("change", () => {
+  favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
+});
+useListFileCheckbox.addEventListener("change", () => {
+  const disableState = useListFileCheckbox.checked || useManualListCheckbox.checked;
+  limitInput.disabled = disableState;
+  customQueryStringInput.disabled = disableState;
+  sortingKeywordsInput.disabled = disableState;
+  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
+});
+useManualListCheckbox.addEventListener("change", () => {
+  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
+  limitInput.disabled = useManualListCheckbox.checked;
+  sortingKeywordsInput.disabled = useManualListCheckbox.checked;
+  customQueryStringInput.disabled = useManualListCheckbox.checked;
+  useListFileCheckbox.disabled = useManualListCheckbox.checked;
+  if (useManualListCheckbox.checked) {
+    useListFileCheckbox.checked = false;
+  } else {
+    useListFileCheckbox.disabled = false;
+  }
+});
+
 document.addEventListener("DOMContentLoaded", function () {
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
   document.body.className = savedTheme + '-theme';
-  languageCheckbox.checked = localStorage.getItem("showLanguageInfo") === "false" ? false : true;
-  showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") === "false" ? false : true;
-  showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") === "false" ? false : true;
-  ratingCheckbox.checked = localStorage.getItem("showRatingInfo") === "false" ? false : true;
-  progressCheckbox.checked = localStorage.getItem("showProgressBar") === "false" ? false : true;
-  providerCheckbox.checked = localStorage.getItem("showProviderInfo") === "false" ? false : true;
-  dotNavigationCheckbox.checked = localStorage.getItem("showDotNavigation") === "false" ? false : true;
-  showSettingsLinkCheckbox.checked = localStorage.getItem("showSettingsLink") === "false" ? false : true;
-  showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") === "false" ? false : true;
-  showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") === "false" ? false : true;
-  descriptionsCheckbox.checked = localStorage.getItem("showDescriptions") === "false" ? false : true;
-  hideOriginalTitleIfSameCheckbox.checked = localStorage.getItem("hideOriginalTitleIfSame") === "false" ? false : true;
+
+  languageCheckbox.checked = localStorage.getItem("showLanguageInfo") !== "false";
+  showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") !== "false";
+  showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") !== "false";
+  ratingCheckbox.checked = localStorage.getItem("showRatingInfo") !== "false";
+  progressCheckbox.checked = localStorage.getItem("showProgressBar") !== "false";
+  providerCheckbox.checked = localStorage.getItem("showProviderInfo") !== "false";
+  dotNavigationCheckbox.checked = localStorage.getItem("showDotNavigation") !== "false";
+  showSettingsLinkCheckbox.checked = localStorage.getItem("showSettingsLink") !== "false";
+  showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") !== "false";
+  showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") !== "false";
+  descriptionsCheckbox.checked = localStorage.getItem("showDescriptions") !== "false";
+  hideOriginalTitleIfSameCheckbox.checked = localStorage.getItem("hideOriginalTitleIfSame") !== "false";
   manualBackdropSelectionCheckbox.checked = localStorage.getItem("manualBackdropSelection") === "true";
-  showPlotInfoCheckbox.checked = localStorage.getItem("showPlotInfo") === "false" ? false : true;
+  plotInfoCheckbox.checked = localStorage.getItem("showPlotInfo") !== "false";
   gradientOverlayImageTypeSelect.value = localStorage.getItem('gradientOverlayImageType') || 'backdropUrl';
   backdropImageTypeSelect.value = localStorage.getItem('backdropImageType') || 'backdropUrl';
-  showbPlotInfoCheckbox.checked = localStorage.getItem('showbPlotInfo') === "false" ? false : true;
+  getEl("showbPlotInfoCheckbox").checked = localStorage.getItem('showbPlotInfo') !== "false";
   dotBackgroundImageTypeSelect.value = localStorage.getItem('dotBackgroundImageType') || 'none';
   trailerBackgroundImageTypeSelect.value = localStorage.getItem('trailerBackgroundImageType') || 'none';
   watchBackgroundImageTypeSelect.value = localStorage.getItem('watchBackgroundImageType') || 'none';
   favoriBackgroundImageTypeSelect.value = localStorage.getItem('favoriBackgroundImageType') || 'none';
   defaultLanguageSelect.value = localStorage.getItem('defaultLanguage') || 'tur';
   minHighQualityWidthInput.value = localStorage.getItem("minHighQualityWidth") || 1920;
-  enableTrailerPlaybackCheckbox.checked = localStorage.getItem("enableTrailerPlayback") === "false" ? false : true;
-  showTrailerButtonCheckbox.checked = localStorage.getItem("showTrailerButton") === "false" ? false : true;
-  showWatchButtonCheckbox.checked = localStorage.getItem("showWatchButton") === "false" ? false : true;
-  showFavoriteButtonCheckbox.checked = localStorage.getItem("showFavoriteButton") === "false" ? false : true;
-  useListFileCheckbox.checked = localStorage.getItem("useListFile") === "false" ? false : true;
-  backdropImageTypeSelect.disabled = !manualBackdropSelectionCheckbox.checked;
-  minHighQualityWidthInput.disabled = manualBackdropSelectionCheckbox.checked;
+  enableTrailerPlaybackCheckbox.checked = localStorage.getItem("enableTrailerPlayback") !== "false";
+  showTrailerButtonCheckbox.checked = localStorage.getItem("showTrailerButton") !== "false";
+  showWatchButtonCheckbox.checked = localStorage.getItem("showWatchButton") !== "false";
+  showFavoriteButtonCheckbox.checked = localStorage.getItem("showFavoriteButton") !== "false";
+  useListFileCheckbox.checked = localStorage.getItem("useListFile") !== "false";
   customQueryStringInput.disabled = useListFileCheckbox.checked;
   limitInput.disabled = useListFileCheckbox.checked;
-  progressBarWidthInput.disabled = !progressBarCheckbox.checked;
+  progressBarWidthInput.disabled = !progressCheckbox.checked;
   dotBackgroundImageTypeSelect.disabled = !dotNavigationCheckbox.checked;
   trailerBackgroundImageTypeSelect.disabled = !showTrailerButtonCheckbox.checked;
   watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
@@ -307,8 +287,6 @@ document.addEventListener("DOMContentLoaded", function () {
   sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
   initSettingsBackgroundSlider();
 
-
-  const allowedWritersInput = document.getElementById('allowedWritersInput');
   const defaultWriters = [
     "quentin tarantino",
     "nuri bilge ceylan",
@@ -328,27 +306,21 @@ document.addEventListener("DOMContentLoaded", function () {
   } catch (e) {
     storedWriters = [];
   }
-  const combined = [...new Set([...defaultWriters, ...storedWriters])];
-  allowedWritersInput.value = combined.join(', ');
+  allowedWritersInput.value = [...new Set([...defaultWriters, ...storedWriters])].join(', ');
 
-  document.getElementById("showCommunityRatingCheckbox").checked = localStorage.getItem("showCommunityRating") === "false" ? false : true;
-  document.getElementById("showCriticRatingCheckbox").checked = localStorage.getItem("showCriticRating") === "false" ? false : true;
-  document.getElementById("showOfficialRatingCheckbox").checked = localStorage.getItem("showOfficialRating") === "false" ? false : true;
-  document.getElementById("showTypeInfoCheckbox").checked = localStorage.getItem("showTypeInfo") === "false" ? false : true;
-  document.getElementById("showWatchedInfoCheckbox").checked = localStorage.getItem("showWatchedInfo") === "false" ? false : true;
-  document.getElementById("showRuntimeInfoCheckbox").checked = localStorage.getItem("showRuntimeInfo") === "false" ? false : true;
-  document.getElementById("showQualityInfoCheckbox").checked = localStorage.getItem("showQualityInfo") === "false" ? false : true;
-  document.getElementById("showQualityDetailCheckbox").checked = localStorage.getItem("showQualityDetail") === "false" ? false : true;
-  document.getElementById("showSloganInfoCheckbox").checked = localStorage.getItem("showSloganInfo") === "false" ? false : true;
-  document.getElementById("showTitleInfoCheckbox").checked = localStorage.getItem("showTitleInfo") === "false" ? false : true;
-  document.getElementById("showOriginalTitleInfoCheckbox").checked = localStorage.getItem("showOriginalTitleInfo") === "false" ? false : true;
-  showDirectorWriterCheckbox.checked = localStorage.getItem("showDirectorWriter") === "false" ? false : true;
-  showDirectorCheckbox.checked = localStorage.getItem("showDirector") === "false" ? false : true;
-  showWriterCheckbox.checked = localStorage.getItem("showWriter") === "false" ? false : true;
-  showInfoCheckbox.checked = localStorage.getItem("showInfo") === "false" ? false : true;
-  showGenresInfoCheckbox.checked = localStorage.getItem("showGenresInfo") === "false" ? false : true;
-  showYearInfoCheckbox.checked = localStorage.getItem("showYearInfo") === "false" ? false : true;
-  showCountryInfoCheckbox.checked = localStorage.getItem("showCountryInfo") === "false" ? false : true;
+  ["showCommunityRatingCheckbox", "showCriticRatingCheckbox", "showOfficialRatingCheckbox",
+   "showTypeInfoCheckbox", "showWatchedInfoCheckbox", "showRuntimeInfoCheckbox",
+   "showQualityInfoCheckbox", "showQualityDetailCheckbox", "showSloganInfoCheckbox",
+   "showTitleInfoCheckbox", "showOriginalTitleInfoCheckbox"].forEach(id => {
+    getEl(id).checked = localStorage.getItem(id.replace("Checkbox", "")) !== "false";
+  });
+  showDirectorWriterCheckbox.checked = localStorage.getItem("showDirectorWriter") !== "false";
+  showDirectorCheckbox.checked = localStorage.getItem("showDirector") !== "false";
+  showWriterCheckbox.checked = localStorage.getItem("showWriter") !== "false";
+  showInfoCheckbox.checked = localStorage.getItem("showInfo") !== "false";
+  showGenresInfoCheckbox.checked = localStorage.getItem("showGenresInfo") !== "false";
+  showYearInfoCheckbox.checked = localStorage.getItem("showYearInfo") !== "false";
+  showCountryInfoCheckbox.checked = localStorage.getItem("showCountryInfo") !== "false";
   sliderDurationInput.value = localStorage.getItem("sliderDuration") || 15000;
   artistLimitInput.value = localStorage.getItem("artistLimit") || 3;
   limitInput.value = localStorage.getItem("limit") || 10;
@@ -370,100 +342,99 @@ document.addEventListener("DOMContentLoaded", function () {
   showDirectorWriterCheckbox.addEventListener("change", () => updateGroup(showDirectorWriterCheckbox, directorWriterSubOptions));
   showInfoCheckbox.addEventListener("change", () => updateGroup(showInfoCheckbox, infoSubOptions));
   showLogoOrTitleCheckbox.addEventListener("change", updateTitleOnlyVisibility);
-  showPlotInfoCheckbox.addEventListener("change", updatePlotOnlyVisibility);
-  showQualityInfoCheckbox.addEventListener("change", updateQualityDetailOnlyVisibility);
+  plotInfoCheckbox.addEventListener("change", updatePlotOnlyVisibility);
+  getEl("showQualityInfoCheckbox").addEventListener("change", updateQualityDetailOnlyVisibility);
   languageCheckbox.addEventListener("change", () => updateGroup(languageCheckbox, defaultLanguageSelect));
+
   useManualListCheckbox.checked = localStorage.getItem('useManualList') === 'true';
   manualListIdsInput.value = localStorage.getItem('manualListIds') || '';
   manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
 
-  document.getElementById('saveSettings').addEventListener("click", function () {
-    const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
+  getEl('saveSettings').addEventListener("click", function () {
     const allowedWritersList = allowedWritersInput.value
-        .split(',')
-        .map(name => name.trim().toLowerCase())
-        .filter(name => name.length > 0);
-
+      .split(',')
+      .map(name => name.trim().toLowerCase())
+      .filter(name => name);
     localStorage.setItem("allowedWriters", JSON.stringify(allowedWritersList));
-    localStorage.setItem('theme', selectedTheme);
-    localStorage.setItem("showLanguageInfo", languageCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showProgressBar", progressCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showProviderInfo", providerCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showDotNavigation", dotNavigationCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showSettingsLink", showSettingsLinkCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showLogoOrTitle", showLogoOrTitleCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showTitleOnly", showTitleOnlyCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showCommunityRating", document.getElementById("showCommunityRatingCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showCriticRating", document.getElementById("showCriticRatingCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showOfficialRating", document.getElementById("showOfficialRatingCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showStatusInfo", showStatusInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showTypeInfo", document.getElementById("showTypeInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showWatchedInfo", document.getElementById("showWatchedInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showRuntimeInfo", document.getElementById("showRuntimeInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showQualityInfo", document.getElementById("showQualityInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showQualityDetail", document.getElementById("showQualityDetailCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showActorInfo", showActorInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showDescriptions", descriptionsCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showPlotInfo", showPlotInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showbPlotInfo", showbPlotInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showSloganInfo", document.getElementById("showSloganInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showTitleInfo", document.getElementById("showTitleInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("showOriginalTitleInfo", document.getElementById("showOriginalTitleInfoCheckbox").checked ? "true" : "false");
-    localStorage.setItem("customQueryString", customQueryStringInput.value);
-    localStorage.setItem("showDirectorWriter", showDirectorWriterCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showDirector", showDirectorCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showWriter", showWriterCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showLanguageInfo", languageCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showRatingInfo", ratingCheckbox.checked ? "true" : "false");
-    localStorage.setItem("useListFile", useListFileCheckbox.checked ? "true" : "false");
-    localStorage.setItem("sortingKeywords", sortingKeywordsInput.value);
-    localStorage.setItem("showInfo", showInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showGenresInfo", showGenresInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showYearInfo", showYearInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showCountryInfo", showCountryInfoCheckbox.checked ? "true" : "false");
-    localStorage.setItem("sliderDuration", sliderDurationInput.value);
-    localStorage.setItem("artistLimit", artistLimitInput.value);
-    localStorage.setItem("showTrailerButton", showTrailerButtonCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showWatchButton", showWatchButtonCheckbox.checked ? "true" : "false");
-    localStorage.setItem("showFavoriteButton", showFavoriteButtonCheckbox.checked ? "true" : "false");
-    localStorage.setItem("hideOriginalTitleIfSame", hideOriginalTitleIfSameCheckbox.checked ? "true" : "false");
-    localStorage.setItem("manualBackdropSelection", manualBackdropSelectionCheckbox.checked ? "true" : "false");
-    localStorage.setItem("gradientOverlayImageType", gradientOverlayImageTypeSelect.value);
-    localStorage.setItem("backdropImageType", backdropImageTypeSelect.value);
-    localStorage.setItem("dotBackgroundImageType", dotBackgroundImageTypeSelect.value);
-    localStorage.setItem("trailerBackgroundImageType", trailerBackgroundImageTypeSelect.value);
-    localStorage.setItem("watchBackgroundImageType", watchBackgroundImageTypeSelect.value);
-    localStorage.setItem("favoriBackgroundImageType", favoriBackgroundImageTypeSelect.value);
-    localStorage.setItem("enableTrailerPlayback", enableTrailerPlaybackCheckbox.checked ? "true" : "false");
-    localStorage.setItem("defaultLanguage", defaultLanguageSelect.value);
-    localStorage.setItem("limit", limitInput.value);
-    localStorage.setItem("minHighQualityWidth", minHighQualityWidthInput.value);
-    localStorage.setItem("progressBarWidth", progressBarWidthInput.value + "%");
+
+    const settingsToSave = {
+      theme: document.querySelector('input[name="theme"]:checked').value,
+      showLanguageInfo: languageCheckbox.checked,
+      showRatingInfo: ratingCheckbox.checked,
+      showProgressBar: progressCheckbox.checked,
+      showProviderInfo: providerCheckbox.checked,
+      showDotNavigation: dotNavigationCheckbox.checked,
+      showSettingsLink: showSettingsLinkCheckbox.checked,
+      showLogoOrTitle: showLogoOrTitleCheckbox.checked,
+      showTitleOnly: showTitleOnlyCheckbox.checked,
+      showCommunityRating: getEl("showCommunityRatingCheckbox").checked,
+      showCriticRating: getEl("showCriticRatingCheckbox").checked,
+      showOfficialRating: getEl("showOfficialRatingCheckbox").checked,
+      showStatusInfo: showStatusInfoCheckbox.checked,
+      showTypeInfo: getEl("showTypeInfoCheckbox").checked,
+      showWatchedInfo: getEl("showWatchedInfoCheckbox").checked,
+      showRuntimeInfo: getEl("showRuntimeInfoCheckbox").checked,
+      showQualityInfo: getEl("showQualityInfoCheckbox").checked,
+      showQualityDetail: getEl("showQualityDetailCheckbox").checked,
+      showActorInfo: showActorInfoCheckbox.checked,
+      showDescriptions: descriptionsCheckbox.checked,
+      showPlotInfo: plotInfoCheckbox.checked,
+      showbPlotInfo: getEl('showbPlotInfoCheckbox').checked,
+      showSloganInfo: getEl("showSloganInfoCheckbox").checked,
+      showTitleInfo: getEl("showTitleInfoCheckbox").checked,
+      showOriginalTitleInfo: getEl("showOriginalTitleInfoCheckbox").checked,
+      customQueryString: customQueryStringInput.value,
+      showDirectorWriter: showDirectorWriterCheckbox.checked,
+      showDirector: showDirectorCheckbox.checked,
+      showWriter: showWriterCheckbox.checked,
+      useListFile: useListFileCheckbox.checked,
+      sortingKeywords: sortingKeywordsInput.value,
+      showInfo: showInfoCheckbox.checked,
+      showGenresInfo: showGenresInfoCheckbox.checked,
+      showYearInfo: showYearInfoCheckbox.checked,
+      showCountryInfo: showCountryInfoCheckbox.checked,
+      sliderDuration: sliderDurationInput.value,
+      artistLimit: artistLimitInput.value,
+      showTrailerButton: showTrailerButtonCheckbox.checked,
+      showWatchButton: showWatchButtonCheckbox.checked,
+      showFavoriteButton: showFavoriteButtonCheckbox.checked,
+      hideOriginalTitleIfSame: hideOriginalTitleIfSameCheckbox.checked,
+      manualBackdropSelection: manualBackdropSelectionCheckbox.checked,
+      gradientOverlayImageType: gradientOverlayImageTypeSelect.value,
+      backdropImageType: backdropImageTypeSelect.value,
+      dotBackgroundImageType: dotBackgroundImageTypeSelect.value,
+      trailerBackgroundImageType: trailerBackgroundImageTypeSelect.value,
+      watchBackgroundImageType: watchBackgroundImageTypeSelect.value,
+      favoriBackgroundImageType: favoriBackgroundImageTypeSelect.value,
+      enableTrailerPlayback: enableTrailerPlaybackCheckbox.checked,
+      defaultLanguage: defaultLanguageSelect.value,
+      limit: limitInput.value,
+      minHighQualityWidth: minHighQualityWidthInput.value,
+      progressBarWidth: progressBarWidthInput.value + "%"
+    };
+
+    Object.entries(settingsToSave).forEach(([key, value]) => {
+      localStorage.setItem(key, value.toString());
+    });
     localStorage.setItem("useManualList", useManualListCheckbox.checked ? "true" : "false");
     localStorage.setItem("manualListIds", manualListIdsInput.value);
 
-    const modal = document.getElementById("settingsSavedModal");
-let autoCloseTimer;
-
-function showModal() {
-  modal.style.display = "flex";
-  setTimeout(() => modal.classList.add("show"), 1);
-
-  if (autoCloseTimer) clearTimeout(autoCloseTimer);
-  autoCloseTimer = setTimeout(hideModal, 5000);
-}
-
-function hideModal() {
-  modal.classList.remove("show");
-  setTimeout(() => (modal.style.display = "none"), 300);
-}
-
-showModal();
-
-document.getElementById("closeModalBtn").addEventListener("click", function() {
-  clearTimeout(autoCloseTimer);
-  hideModal();
-});
-});
+    const modal = getEl("settingsSavedModal");
+    let autoCloseTimer;
+    function showModal() {
+      modal.style.display = "flex";
+      setTimeout(() => modal.classList.add("show"), 1);
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      autoCloseTimer = setTimeout(hideModal, 5000);
+    }
+    function hideModal() {
+      modal.classList.remove("show");
+      setTimeout(() => (modal.style.display = "none"), 300);
+    }
+    showModal();
+    getEl("closeModalBtn").addEventListener("click", function () {
+      clearTimeout(autoCloseTimer);
+      hideModal();
+    });
+  });
 });
