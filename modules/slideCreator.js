@@ -61,6 +61,7 @@ async function createSlide(item) {
   let logoUrl = `${window.location.origin}/Items/${itemId}/Images/Logo`;
   const bannerUrl = `${window.location.origin}/Items/${itemId}/Images/Banner`;
   const artUrl = `${window.location.origin}/Items/${itemId}/Images/Art`;
+  const discUrl = `${window.location.origin}/Items/${itemId}/Images/Disc`;
 
   let logoExists = true;
   try {
@@ -79,6 +80,7 @@ async function createSlide(item) {
     logoUrl: logoExists ? logoUrl : `${window.location.origin}/Items/${itemId}/Images/Backdrop/0`,
     bannerUrl: bannerUrl,
     artUrl: artUrl,
+    discUrl: discUrl,
     none: ''
   }[config.backdropImageType];
 
@@ -97,6 +99,7 @@ async function createSlide(item) {
     logoUrl: logoExists ? logoUrl : autoBackdropUrl,
     bannerUrl: bannerUrl,
     artUrl: artUrl,
+    discUrl: discUrl,
     none: ''
   }[config.gradientOverlayImageType];
 
@@ -107,6 +110,7 @@ async function createSlide(item) {
   slide.dataset.logoUrl = logoExists ? logoUrl : autoBackdropUrl;
   slide.dataset.bannerUrl = bannerUrl;
   slide.dataset.artUrl = artUrl;
+  slide.dataset.discUrl = discUrl;
 
   const backdropImg = document.createElement("img");
   backdropImg.className = "backdrop";
