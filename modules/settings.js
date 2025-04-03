@@ -1,3 +1,5 @@
+import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
+const labels = getLanguageLabels(getDefaultLanguage());
 const getEl = id => document.getElementById(id);
 const languageCheckbox = getEl('languageInfoCheckbox');
 const showLogoOrTitleCheckbox = getEl("showLogoOrTitleCheckbox");
@@ -316,6 +318,44 @@ document.addEventListener("DOMContentLoaded", function () {
   sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
   initSettingsBackgroundSlider();
 
+  getEl('resetToDefaults').addEventListener('click', function() {
+  if (confirm(labels.resetConfirm)) {
+    const keysToRemove = [
+      'theme', 'showLanguageInfo', 'showRatingInfo', 'showProgressBar', 'showProviderInfo',
+      'showDotNavigation', 'showSettingsLink', 'showLogoOrTitle', 'showTitleOnly',
+      'showDiscOnly', 'showCommunityRating', 'showCriticRating', 'showOfficialRating',
+      'showStatusInfo', 'showTypeInfo', 'showWatchedInfo', 'showRuntimeInfo',
+      'showQualityInfo', 'showQualityDetail', 'showActorInfo', 'showDescriptions',
+      'showPlotInfo', 'showbPlotInfo', 'showSloganInfo', 'showTitleInfo',
+      'showOriginalTitleInfo', 'customQueryString', 'showDirectorWriter',
+      'showDirector', 'showWriter', 'useListFile', 'sortingKeywords', 'showInfo',
+      'showGenresInfo', 'showYearInfo', 'showCountryInfo', 'sliderDuration',
+      'artistLimit', 'showTrailerButton', 'showWatchButton', 'showFavoriteButton',
+      'hideOriginalTitleIfSame', 'manualBackdropSelection', 'gradientOverlayImageType',
+      'backdropImageType', 'dotBackgroundImageType', 'trailerBackgroundImageType',
+      'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
+      'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
+      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls'
+    ];
+
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    let messageDiv = document.getElementById('reset-message');
+    if (!messageDiv) {
+      messageDiv = document.createElement('div');
+      messageDiv.id = 'reset-message';
+      document.body.appendChild(messageDiv);
+    }
+
+    messageDiv.textContent = labels.resetSuccess || 'Tüm ayarlar sıfırlandı. Sayfa yenileniyor...';
+    messageDiv.style.display = 'block';
+
+    setTimeout(() => {
+      location.reload();
+    }, 2000);
+  }
+});
+
+
   const defaultWriters = [
     "quentin tarantino",
     "nuri bilge ceylan",
@@ -386,6 +426,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .filter(name => name);
     localStorage.setItem("allowedWriters", JSON.stringify(allowedWritersList));
 
+
     const settingsToSave = {
       theme: document.querySelector('input[name="theme"]:checked').value,
       showLanguageInfo: languageCheckbox.checked,
@@ -442,6 +483,7 @@ document.addEventListener("DOMContentLoaded", function () {
       minHighQualityWidth: minHighQualityWidthInput.value,
       progressBarWidth: progressBarWidthInput.value + "%"
     };
+
 
     Object.entries(settingsToSave).forEach(([key, value]) => {
       localStorage.setItem(key, value.toString());
