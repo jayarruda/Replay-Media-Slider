@@ -1,5 +1,3 @@
-//translations.js
-
 import { getLanguageLabels, getDefaultLanguage } from './index.js';
 
 let translations = getLanguageLabels(getDefaultLanguage());

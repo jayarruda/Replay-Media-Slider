@@ -213,7 +213,7 @@ export const languageLabels = {
   showLogoOrTitle: "Afficher l'image du logo",
   showTitleOnly: "Afficher le titre original au lieu du logo",
   showDiscOnly: "Utiliser l'image disque au lieu du logo (si disponible)",
-  logoOrTitleDescription: "Ce paramètre contrôle la visibilité du logo ou du titre original sur le slider.",
+  logoOrTitleDescription: "Si l'image du logo est sélectionnée mais n'est pas disponible dans le contenu, l'image du disque sera affichée à la place. Si aucune des deux images n'est disponible, le titre original sera affiché dans la zone du logo. Lorsque l'étiquette 'Logo' est supprimée de la chaîne de requête de l'API, cela permet de lister plus de contenu.",
   descriptions: "Paramètres de description",
   descriptionsHeader: "Paramètres de description",
   showDescriptions: "Afficher les informations",
@@ -259,5 +259,6 @@ export const languageLabels = {
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",
     optionFrench: "🇫🇷 Français",
+    optionRussian: "🇷🇺 Русский",
 }
 };

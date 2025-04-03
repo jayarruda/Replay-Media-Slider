@@ -213,7 +213,7 @@ export const languageLabels = {
   showLogoOrTitle: "Logo-Bild anzeigen",
   showTitleOnly: "Originaltitel anstelle des Logos anzeigen",
   showDiscOnly: "Verwenden Sie ein Disk-Image anstelle des Logos (falls verfügbar).",
-  logoOrTitleDescription: "Diese Einstellung steuert die Sichtbarkeit des Logos oder Originaltitels auf dem Slider.",
+  logoOrTitleDescription: "Wenn das Logo-Bild ausgewählt ist, aber nicht im Inhalt verfügbar ist, wird stattdessen das Scheibenbild angezeigt. Wenn keines der Bilder verfügbar ist, wird der Originaltitel im Logo-Bereich angezeigt. Wenn das 'Logo'-Tag aus der API-Abfragezeichenfolge entfernt wird, können mehr Inhalte aufgelistet werden.",
   descriptions: "Beschreibungseinstellungen",
   descriptionsHeader: "Beschreibungseinstellungen",
   showDescriptions: "Informationen anzeigen",
@@ -259,5 +259,6 @@ export const languageLabels = {
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",
     optionFrench: "🇫🇷 Français",
+    optionRussian: "🇷🇺 Русский",
 }
 };
