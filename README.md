@@ -30,6 +30,15 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ## Kurulum
 
+### Windows için
+
+İndirdiğiniz sıkıştırılmış klasörü herhangi boş bir klasöre çıkarıp ``` install.bat ``` dosyasını yönetici olarak çalıştırın ve tarayıcı çerezlerini birkaç kez temizleyin.
+
+### Yüklemeyi Kaldırma
+
+``` uninstall.bat ``` dosyasını yönetici olarak çalıştırın.
+
+
 ### Linux için
 
 ``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
@@ -111,6 +120,12 @@ A customizable media slider component for Jellyfin. This project is a fork and e
 - User-based personalization
 
 ## Installation
+
+### For Windows
+Extract the downloaded compressed folder to any empty folder, then run the ``` install.bat ``` file as administrator and clear your browser cookies a few times.
+
+### Uninstalling
+Run the ``` uninstall.bat ``` file as administrator.
 
 ### For Linux
 
