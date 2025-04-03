@@ -1,11 +1,38 @@
 #!/bin/bash
-
-HTML_FILE="/usr/share/jellyfin/web/index.html"
-JS_FILE="/usr/share/jellyfin/web/home-html.8ce38bc7d6dc073656d4.chunk.js"
+JELLYFIN_WEB="/usr/share/jellyfin/web"
+HTML_FILE="$JELLYFIN_WEB/index.html"
+JS_FILE=$(find "$JELLYFIN_WEB" -name "home-html.*.chunk.js" | head -n 1)
+SLIDER_DIR="$JELLYFIN_WEB/slider"
+SOURCE_DIR="$(dirname "$(realpath "$0")")"
 
 INSERT_HTML='<script src="/web/slider/auth.js"></script><link rel="stylesheet" href="/web/slider/src/slider.css"><script type="module" async src="/web/slider/main.js"></script>'
-
 INSERT_JS='<div id="slides-container"></div><script>slidesInit()</script>'
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Bu script root olarak çalıştırılmalıdır."
+    exit 1
+fi
+
+echo "Slider klasörü oluşturuluyor: $SLIDER_DIR"
+if mkdir -p "$SLIDER_DIR"; then
+    if [ -d "$SLIDER_DIR" ]; then
+        echo "Klasör başarıyla oluşturuldu, dosyalar kopyalanıyor..."
+        if cp -r "$SOURCE_DIR"/* "$SLIDER_DIR"/ 2>/dev/null; then
+            echo "Dosyalar başarıyla kopyalandı: $SLIDER_DIR"
+        else
+            echo "HATA: Dosyalar kopyalanırken bir sorun oluştu!" >&2
+            exit 1
+        fi
+    else
+        echo "HATA: Klasör oluşturulamadı: $SLIDER_DIR" >&2
+        exit 1
+    fi
+else
+    echo "HATA: Klasör oluşturulamadı: $SLIDER_DIR" >&2
+    exit 1
+fi
+
+JS_FILE=$(find "$JELLYFIN_WEB" -name "home-html.*.chunk.js" | head -n 1)
 
 if ! grep -q "slider.css" "$HTML_FILE"; then
     sed -i "s|</body>|${INSERT_HTML}</body>|g" "$HTML_FILE"
@@ -20,3 +47,5 @@ if ! grep -q "slides-container" "$JS_FILE"; then
 else
     echo "JS snippet zaten mevcut. Atlanıyor..."
 fi
+
+echo "Kurulum tamamlandı!"
