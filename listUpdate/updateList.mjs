@@ -155,10 +155,12 @@ async function updateListFileForUser(userId) {
     return;
   }
 
+  const limitedIds = newIds.slice(0, config.itemLimit);
+
   const listFilePath = getListFilePath(userId);
   try {
-    await fs.promises.writeFile(listFilePath, newIds.slice(0, config.listLimit).join('\n'), 'utf8');
-    console.log(`🔄 [${userId}] Liste dosyası güncellendi (${newIds.length} içerik)`);
+    await fs.promises.writeFile(listFilePath, limitedIds.join('\n'), 'utf8');
+    console.log(`🔄 [${userId}] Liste dosyası güncellendi (${limitedIds.length} içerik)`);
   } catch (error) {
     console.error(`⛔ [${userId}] Dosya yazma hatası:`, error.message);
   }
