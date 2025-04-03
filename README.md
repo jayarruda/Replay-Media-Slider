@@ -30,7 +30,7 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
   
 ## Kurulum/Installation
 <details>
-<summary> ## Türkçe Kurulum </summary>
+<summary> Türkçe Kurulum </summary>
 
 ### Windows için
 
