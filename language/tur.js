@@ -214,7 +214,7 @@ export const languageLabels = {
     showLogoOrTitle: "Logo Görselini Göster",
     showTitleOnly: "Logo Yerine Orijinal Başlık Göster",
     showDiscOnly: "Logo Yerine Disk Görseli Kullan(mevcut ise)",
-    logoOrTitleDescription: "Logo görseli seçili olsa daha içerikte logo görseli yok ise disk görseli, her 2 görselde mevcut değilse Logo alanına orijinal başlık yazdırılır. Api Sorgu Dizesi'nde Logo etiketi kaldırılarak kullanıldığında daha fazla içeriğin listelenmesine olanak tanır.",
+    logoOrTitleDescription: "Logo görseli seçili olsa dahi içerikte logo görseli yok ise disk görseli, her 2 görselde mevcut değilse Logo alanına orijinal başlık yazdırılır. Api Sorgu Dizesi'nde Logo etiketi kaldırılarak kullanıldığında daha fazla içeriğin listelenmesine olanak tanır.",
     descriptions: "Açıklama Ayarları",
     descriptionsHeader: "Açıklama Ayarları",
     showDescriptions: "Bilgileri Göster",
