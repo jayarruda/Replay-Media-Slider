@@ -47,19 +47,9 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ``` cd Jellyfin-Media-Slider ```
 
-### Slider klasörünü oluşturun:
-
-``` sudo mkdir /usr/share/jellyfin/web/slider ```
-
-### Dosyaları klasöre taşıyın:
-
-``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
-
 ### Kurulum scriptini çalıştırın:
 
-``` sudo chmod +x install.sh ```
-
-``` sudo ./install.sh ```
+``` sudo chmod +x install.sh && sudo ./install.sh ```
 
 ### Tarayıcı çerezlerini temizleyin.
 
@@ -77,14 +67,11 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 
 ### list ve listUpdate klasörüne okuma yazma izni verin
 
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list && sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
 
 ### Gerekli bağımlılıkları yükleyin:
 
-``` cd /usr/share/jellyfin/web/slider/listUpdate ```
-
-``` npm install dotenv node-fetch ```
+``` cd /usr/share/jellyfin/web/slider/listUpdate && npm install dotenv node-fetch ```
 
 ### scripti çalıştırın:
 
@@ -92,8 +79,7 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 
 ### Yüklemeyi Kaldırma
 
-``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
-``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
+``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh && sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
 </details>
 
 <details>
@@ -111,18 +97,9 @@ Run the ``` uninstall.bat ``` file as administrator.
 
 ``` cd Jellyfin-Media-Slider ```
 
-### Create the slider directory:
-
-``` sudo mkdir /usr/share/jellyfin/web/slider ```
-
-### Copy all files to the slider directory:
-
-``` sudo cp -r * /usr/share/jellyfin/web/slider/ ```
-
 ### Run the installation script:
 
-``` sudo chmod +x install.sh ```
-``` sudo ./install.sh ```
+``` sudo chmod +x install.sh && sudo ./install.sh ```
 
 ### Clear browser cookies to ensure the changes take effect.
 
@@ -142,13 +119,11 @@ updateList random content. (To change the values, manually configure the listCon
 
 ### Give read-write permission to the list and listUpdate folder
 
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list ```
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
+``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list && sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
 
 ### Install dependencies:
 
-``` cd /usr/share/jellyfin/web/slider/listUpdate ```
-``` npm install dotenv node-fetch ```
+``` cd /usr/share/jellyfin/web/slider/listUpdate && npm install dotenv node-fetch ```
 
 ### Run the script:
 
@@ -158,9 +133,7 @@ updateList random content. (To change the values, manually configure the listCon
 
 ## To remove the installation, run:
 
-``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
-
-``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ``` </details>
+``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh && sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ``` </details>
 
 # Jellyfin Media Slider
 
