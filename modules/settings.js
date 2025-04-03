@@ -2,6 +2,7 @@ const getEl = id => document.getElementById(id);
 const languageCheckbox = getEl('languageInfoCheckbox');
 const showLogoOrTitleCheckbox = getEl("showLogoOrTitleCheckbox");
 const showTitleOnlyCheckbox = getEl("showTitleOnlyCheckbox");
+const showDiscOnlyCheckbox = getEl("showDiscOnlyCheckbox");
 const ratingCheckbox = getEl('ratingInfoCheckbox');
 const progressCheckbox = getEl('progressBarCheckbox');
 const providerCheckbox = getEl("providerCheckbox");
@@ -18,6 +19,7 @@ const sliderDurationInput = getEl("sliderDurationInput");
 const artistLimitInput = getEl("artistLimitInput");
 const showActorInfoCheckbox = getEl("showActorInfoCheckbox");
 const showTitleOnlyLabel = getEl("showTitleOnlyLabel");
+const showDiscOnlyLabel = getEl("showDiscOnlyLabel");
 const showPlotOnlyLabel = getEl("showPlotOnlyLabel");
 const hideOriginalTitleIfSameCheckbox = getEl("hideOriginalTitleIfSameCheckbox");
 const gradientOverlayImageTypeSelect = getEl("gradientOverlayImageTypeSelect");
@@ -168,9 +170,21 @@ function updateTitleOnlyVisibility() {
     showTitleOnlyLabel.style.display = "none";
     showTitleOnlyCheckbox.disabled = true;
     showTitleOnlyCheckbox.checked = false;
+    showDiscOnlyLabel.style.display = "none";
+    showDiscOnlyCheckbox.disabled = true;
+    showDiscOnlyCheckbox.checked = false;
   } else {
     showTitleOnlyLabel.style.display = "block";
     showTitleOnlyCheckbox.disabled = false;
+    showDiscOnlyLabel.style.display = "block";
+    showDiscOnlyCheckbox.disabled = false;
+
+    if (showTitleOnlyCheckbox.checked) {
+      showDiscOnlyCheckbox.checked = false;
+    }
+    if (showDiscOnlyCheckbox.checked) {
+      showTitleOnlyCheckbox.checked = false;
+    }
   }
 }
 
@@ -243,6 +257,20 @@ useManualListCheckbox.addEventListener("change", () => {
   }
 });
 
+showTitleOnlyCheckbox.addEventListener('change', function() {
+  if (this.checked) {
+    showDiscOnlyCheckbox.checked = false;
+  }
+  updateTitleOnlyVisibility();
+});
+
+showDiscOnlyCheckbox.addEventListener('change', function() {
+  if (this.checked) {
+    showTitleOnlyCheckbox.checked = false;
+  }
+  updateTitleOnlyVisibility();
+});
+
 document.addEventListener("DOMContentLoaded", function () {
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
@@ -251,6 +279,7 @@ document.addEventListener("DOMContentLoaded", function () {
   languageCheckbox.checked = localStorage.getItem("showLanguageInfo") !== "false";
   showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") !== "false";
   showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") !== "false";
+  showDiscOnlyCheckbox.checked = localStorage.getItem("showDiscOnly") !== "false";
   ratingCheckbox.checked = localStorage.getItem("showRatingInfo") !== "false";
   progressCheckbox.checked = localStorage.getItem("showProgressBar") !== "false";
   providerCheckbox.checked = localStorage.getItem("showProviderInfo") !== "false";
@@ -367,6 +396,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showSettingsLink: showSettingsLinkCheckbox.checked,
       showLogoOrTitle: showLogoOrTitleCheckbox.checked,
       showTitleOnly: showTitleOnlyCheckbox.checked,
+      showDiscOnly: showDiscOnlyCheckbox.checked,
       showCommunityRating: getEl("showCommunityRatingCheckbox").checked,
       showCriticRating: getEl("showCriticRatingCheckbox").checked,
       showOfficialRating: getEl("showOfficialRatingCheckbox").checked,
