@@ -497,7 +497,7 @@ document.addEventListener("DOMContentLoaded", function () {
       modal.style.display = "flex";
       setTimeout(() => modal.classList.add("show"), 1);
       if (autoCloseTimer) clearTimeout(autoCloseTimer);
-      autoCloseTimer = setTimeout(hideModal, 5000);
+      autoCloseTimer = setTimeout(hideModal, 2000);
     }
     function hideModal() {
       modal.classList.remove("show");
