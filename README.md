@@ -27,8 +27,10 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 - Liste türü desteği:
   - Rastgele seçim
 - Kullanıcı bazlı özelleştirme
-
-## Kurulum
+  
+## Kurulum/Installation
+<details>
+<summary> ## Türkçe Kurulum </summary>
 
 ### Windows için
 
@@ -92,34 +94,10 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 
 ``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
 ``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
+</details>
 
-## Katkıda Bulunanlar
-## Orijinal eklenti yazarı: BobHasNoSoul
-
-
-# Jellyfin Media Slider
-
-A customizable media slider component for Jellyfin. This project is a fork and enhancement of the original jellyfin-featured plugin. Special thanks to the original creator, BobHasNoSoul, for his work.
-
-
-
-## Features
-
-- User-friendly media slider interface
-
-- Individual lists for each user
-
-- API customization when a list is not in use
-
-- Automatic list update functionality
-
-- List type support:
-
-    - Random selection (for customized content)
-
-- User-based personalization
-
-## Installation
+<details>
+<summary> English Installation</summary>
 
 ### For Windows
 Extract the downloaded compressed folder to any empty folder, then run the ``` install.bat ``` file as administrator and clear your browser cookies a few times.
@@ -182,8 +160,29 @@ updateList random content. (To change the values, manually configure the listCon
 
 ``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh ```
 
-``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
+``` sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ``` </details>
 
-# Contributors
+# Jellyfin Media Slider
 
-# Original Plugin Author: BobHasNoSoul
+A customizable media slider component for Jellyfin. This project is a fork and enhancement of the original jellyfin-featured plugin. Special thanks to the original creator, BobHasNoSoul, for his work.
+
+## Features
+
+- User-friendly media slider interface
+
+- Individual lists for each user
+
+- API customization when a list is not in use
+
+- Automatic list update functionality
+
+- List type support:
+
+    - Random selection (for customized content)
+
+- User-based personalization
+
+
+### Contributors
+
+### Original Plugin Author: BobHasNoSoul
