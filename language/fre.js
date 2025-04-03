@@ -20,6 +20,8 @@ export const languageLabels = {
   sesyok: "Les informations audio n'ont pas pu être récupérées",
   yonetmen: "Directeur",
   yazar: "des œuvres de",
+  resetConfirm: "Êtes-vous sûr de vouloir réinitialiser tous les paramètres aux valeurs par défaut ? Cette action est irréversible !",
+  resetSuccess: "Tous les paramètres ont été réinitialisés par défaut. Actualisation de la page...",
   ulke: {
   Afghanistan: { code: "AF", name: "Afghanistan" },
   Argentina: { code: "AR", name: "Argentine" },
@@ -255,6 +257,7 @@ export const languageLabels = {
   saveSettings: "Enregistrer",
   settingsSavedModal: "Paramètres enregistrés. Actualisez la page du slider pour que les modifications prennent effet.",
   closeModalBtn: "OK",
+  resetToDefaults : "Valeurs par défaut",
   optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",

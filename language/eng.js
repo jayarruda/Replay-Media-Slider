@@ -20,6 +20,8 @@ export const languageLabels = {
   sesyok: "Audio Information Could Not Be Received",
   yonetmen: "Director",
   yazar: "from the works of",
+  resetConfirm: "Are you sure you want to reset all settings to default values? This action cannot be undone!",
+  resetSuccess: "All settings have been reset to default. Refreshing page...",
   ulke: {
   Afghanistan: { code: "AF", name: "Afghanistan" },
     Argentina: { code: "AR", name: "Argentina" },
@@ -255,6 +257,7 @@ export const languageLabels = {
   saveSettings: "Save",
   settingsSavedModal: "Settings saved. Refresh the slider page for changes to take effect.",
   closeModalBtn: "OK",
+  resetToDefaults: "Default Values",
   optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",

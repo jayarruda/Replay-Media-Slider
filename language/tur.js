@@ -20,6 +20,8 @@ export const languageLabels = {
   sesyok: "Ses Bilgisi Alınamadı",
   yonetmen: "Yönetmen",
   yazar: "Kaleminden",
+  resetConfirm: "Tüm ayarları varsayılan değerlere sıfırlamak istediğinize emin misiniz? Bu işlem geri alınamaz!",
+  resetSuccess: "Tüm ayarlar varsayılan değerlere sıfırlandı. Sayfa yenileniyor...",
   ulke: {
   Afghanistan: { code: "AF", name: "Afganistan" },
     Argentina: { code: "AR", name: "Arjantin" },
@@ -256,6 +258,7 @@ export const languageLabels = {
     saveSettings: "Kaydet",
     settingsSavedModal: "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.",
     closeModalBtn: "Tamam",
+    resetToDefaults: "Varsayılan Değerler",
     optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",
