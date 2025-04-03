@@ -70,7 +70,6 @@ async function createSlide(item) {
   } catch (err) {
     logoExists = false;
   }
-
   storeBackdropUrl(itemId, autoBackdropUrl);
 
   const manualBackdropUrl = {
@@ -186,16 +185,46 @@ async function createSlide(item) {
     });
   }
 
-  const logoContainer = document.createElement("div");
-  logoContainer.className = "logo-container";
-  if (config.showLogoOrTitle) {
-    const logoImg = document.createElement("img");
-    logoImg.className = "logo";
-    logoImg.src = logoUrl;
-    logoImg.alt = "Logo";
-    logoImg.loading = "lazy";
-    logoImg.onerror = () => {
-      logoContainer.innerHTML = "";
+const logoContainer = document.createElement("div");
+logoContainer.className = "logo-container";
+
+const commonImageStyle = {
+  maxWidth: "100%",
+  height: "auto",
+  objectFit: "contain",
+  aspectRatio: "1/1",
+  display: "block",
+};
+
+if (config.showLogoOrTitle) {
+  const logoImg = document.createElement("img");
+  logoImg.className = "logo";
+  logoImg.src = logoUrl;
+  logoImg.alt = "";
+  logoImg.loading = "lazy";
+
+  Object.assign(logoImg.style, commonImageStyle, {
+    aspectRatio: "initial"
+  });
+
+  logoImg.onerror = () => {
+    console.log("Logo yüklenemedi, disk resmi deneniyor.");
+    logoContainer.innerHTML = "";
+
+    const discImg = document.createElement("img");
+    discImg.className = "disk";
+    discImg.src = discUrl;
+    discImg.alt = "";
+    discImg.loading = "lazy";
+
+    Object.assign(discImg.style, commonImageStyle, {
+      maxHeight: "100%",
+      width: "auto",
+      borderRadius: "50%"
+    });
+
+    discImg.onerror = () => {
+      console.log("Disc yüklenemedi, başlık gösterilecek.");
       const logoDiv = document.createElement("div");
       logoDiv.className = "no-logo-container";
       logoDiv.textContent = OriginalTitle;
@@ -204,8 +233,25 @@ async function createSlide(item) {
       logoDiv.style.justifyContent = "center";
       logoContainer.appendChild(logoDiv);
     };
-    logoContainer.appendChild(logoImg);
-  } else if (config.showTitleOnly) {
+
+    logoContainer.appendChild(discImg);
+  };
+
+  logoContainer.appendChild(logoImg);
+} else if (config.showDiscOnly) {
+  const discImg = document.createElement("img");
+  discImg.className = "disk";
+  discImg.src = discUrl;
+  discImg.alt = "";
+  discImg.loading = "lazy";
+
+  Object.assign(discImg.style, commonImageStyle, {
+    maxHeight: "100%",
+    width: "auto",
+    borderRadius: "50%"
+  });
+
+  discImg.onerror = () => {
     const logoDiv = document.createElement("div");
     logoDiv.className = "no-logo-container";
     logoDiv.textContent = OriginalTitle;
@@ -213,9 +259,20 @@ async function createSlide(item) {
     logoDiv.style.alignItems = "center";
     logoDiv.style.justifyContent = "center";
     logoContainer.appendChild(logoDiv);
-  } else {
-    logoContainer.style.display = "none";
-  }
+  };
+
+  logoContainer.appendChild(discImg);
+} else if (config.showTitleOnly) {
+  const logoDiv = document.createElement("div");
+  logoDiv.className = "no-logo-container";
+  logoDiv.textContent = OriginalTitle;
+  logoDiv.style.display = "flex";
+  logoDiv.style.alignItems = "center";
+  logoDiv.style.justifyContent = "center";
+  logoContainer.appendChild(logoDiv);
+} else {
+  logoContainer.style.display = "none";
+}
 
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "button-container";
