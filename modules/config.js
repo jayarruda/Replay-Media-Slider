@@ -13,6 +13,7 @@ export function getConfig() {
     showSettingsLink: localStorage.getItem("showSettingsLink") !== "false",
     showLogoOrTitle: localStorage.getItem('showLogoOrTitle') !== 'false',
     showTitleOnly: localStorage.getItem('showTitleOnly') !== 'false',
+    showDiscOnly: localStorage.getItem('showDiscOnly') !== 'false',
     showCommunityRating: localStorage.getItem('showCommunityRating') !== 'false',
     showCriticRating: localStorage.getItem('showCriticRating') !== 'false',
     showOfficialRating: localStorage.getItem('showOfficialRating') !== 'false',
