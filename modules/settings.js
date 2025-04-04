@@ -90,6 +90,7 @@ function initSettingsBackgroundSlider() {
 
   settingsSlider.innerHTML = '';
   settingsSlider.style.backgroundImage = '';
+  settingsSlider.style.zIndex = '0';
 
   const validBackdropUrls = (JSON.parse(localStorage.getItem('backdropUrls')) || [])
     .filter(url => url && typeof url === 'string' && url.trim() && !url.endsWith('/null'));
@@ -189,6 +190,45 @@ function updateTitleOnlyVisibility() {
     }
   }
 }
+
+function setupBackButton() {
+  const backButton = document.createElement('button');
+  backButton.id = 'backButton';
+  backButton.className = 'back-button';
+  backButton.innerHTML = '<i class="fas fa-arrow-left"></i> ' + (labels.backButton || '');
+
+  const footer = document.querySelector('.settings-footer');
+  if (footer) {
+    footer.insertBefore(backButton, footer.firstChild);
+  }
+
+  backButton.addEventListener('click', handleBackAction);
+
+  document.addEventListener('backbutton', handleBackAction, false);
+}
+
+function handleBackAction() {
+  const modal = document.getElementById('settingsSavedModal');
+  if (modal && modal.style.display === 'flex') {
+    modal.style.display = 'none';
+    return;
+  }
+
+  if (window.Jellyfin && window.Jellyfin.App) {
+    window.Jellyfin.App.back();
+  }
+  else if (window.NativeShell && window.NativeShell.goBack) {
+    window.NativeShell.goBack();
+  }
+  else {
+    window.history.back();
+  }
+}
+function addBackButtonStyles() {
+  const style = document.createElement('style');
+  document.head.appendChild(style);
+}
+
 
 function updatePlotOnlyVisibility() {
   const showbPlotInfoCheckbox = getEl("showbPlotInfoCheckbox");
@@ -317,6 +357,8 @@ document.addEventListener("DOMContentLoaded", function () {
   customQueryStringInput.value = localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop';
   sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
   initSettingsBackgroundSlider();
+  addBackButtonStyles();
+  setupBackButton();
 
   getEl('resetToDefaults').addEventListener('click', function() {
   if (confirm(labels.resetConfirm)) {
