@@ -320,6 +320,7 @@ img:broken {
     -webkit-box-orient: vertical;
     transition: opacity 1s ease, transform 0.5s ease, filter 0.5s ease;
     width: 100%;
+    text-align: center;
 }
 
 .plot-container {
@@ -1193,6 +1194,7 @@ html .gradient-overlay {
     align-self: anchor-center;
     justify-content: center;
 }
+
     .plot {
     display: -webkit-box;
     text-align: justify;
