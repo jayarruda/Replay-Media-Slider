@@ -1,5 +1,68 @@
+@import url(https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap);
+@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/all.css");
+
+@font-face {
+  font-family: "Advent-Bold-2";
+  src: url('fonts/Advent-Bold-2.otf') format('opentype');
+}
+
+@font-face {
+  font-family: "polaris";
+  src: url('fonts/polaris.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: "lighthouse";
+  src: url('fonts/lighthouse.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: "Neogrey";
+  src: url('fonts/Neogrey.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: "skyline";
+  src: url('fonts/skyline.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'myhandsareholdingyou';
+  src: url('fonts/MyHandsareHoldingYou.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Righteous';
+  src: url('fonts/Righteous-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Sansation';
+  src: url('fonts/Sansation_Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'TheQueenMarker';
+  src: url('fonts/TheQueenMarker.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: "NovaFlat";
+  src: url('fonts/NovaFlat.ttf') format('truetype');
+}
+
 :root {
   --font-family-base: 'Inter', sans-serif;
+  --font-family-advent: 'Advent-Bold-2', sans-serif;
+  --font-family-polaris: 'polaris', sans-serif;
+  --font-family-lighthouse: 'lighthouse', sans-serif;
+  --font-family-Neogrey: 'Neogrey', sans-serif;
+  --font-family-skyline: 'skyline', sans-serif;
+  --font-family-myhandsareholdingyou: 'MyHandsareHoldingYou', sans-serif;
+  --font-family-righteous: 'Righteous', sans-serif;
+  --font-family-sansation: 'Sansation', sans-serif;
+  --font-family-theQueenMarker: 'TheQueenMarker', sans-serif;
+  --font-family-novaflat: 'NovaFlat', sans-serif;
   --color-text: inherit;
   --color-bg-darker: inherit;
   --color-white: #ffffff;
@@ -55,9 +118,6 @@
   --modal-height: 60vh;
   --modal-close-font-size: 32px;
 }
-
-@import url(https://fonts.googleapis.com/css2?family=Noto+Sans&display=swap);
-@import url("https://site-assets.fontawesome.com/releases/v6.7.2/css/all.css");
 
 body {
   font-family: var(--font-family-base);
@@ -200,7 +260,7 @@ body {
   height: var(--backdrop-height);
   object-fit: cover;
   object-position: center 20%;
-  z-index: 3;
+  z-index: 2;
   background-size: var(--backdrop-bg-size);
   transition: opacity var(--transition-duration) var(--transition-timing);
   animation: moveUpDown var(--backdrop-animation-duration) var(--backdrop-animation-easing) infinite;
@@ -211,7 +271,12 @@ body {
   width: 31% !important;
   height: 100% !important;
   background-position: 50%;
+  -webkit-mask-image: linear-gradient(270deg, rgba(0,0,0,0) 10px, rgba(0, 0, 0, 0) 10px, rgb(0, 0, 0) 80px);
   transition: all var(--transition-duration) ease-in-out;
+}
+
+.trailer-active .horizontal-gradient-overlay {
+  display: none;
 }
 
 .slide.active {
@@ -237,6 +302,8 @@ body {
   padding: 2px;
   gap: 1px;
   filter: drop-shadow(var(--drop-shadow-small));
+  font-family: var(--font-family-advent);
+  pointer-events: none;
 }
 
 .rating-container {
@@ -314,6 +381,7 @@ body {
   opacity: 0;
   animation: fadeIn var(--transition-duration) ease 0.7s forwards;
   justify-items: anchor-center;
+  pointer-events: none;
 }
 
 .logo-container img {
@@ -343,59 +411,56 @@ img:broken {
 
 .baslik-container {
   position: absolute;
+  top: 40%;
+  left: 0%;
+  width: 90%;
   z-index: 5;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1em;
   background-color: transparent;
-  font-family: var(--font-family-base), arial;
   color: var(--color-white);
-  width: 40%;
-  text-transform: capitalize;
-  top: 35%;
-  height: 30%;
+  font-family: var(--font-family-base), Arial, sans-serif;
   opacity: 0;
+  padding: 1em 2em;
   animation: fadeIn var(--transition-duration) ease-out 1.3s forwards;
   transition: opacity var(--transition-duration) ease, transform 0.5s ease, filter 0.5s ease;
   filter: drop-shadow(var(--drop-shadow-small));
-  padding: 10px;
-  justify-items: end;
-  display: grid;
-  align-content: center;
-  justify-content: start;
-}
-
-.slogan {
-  overflow: hidden;
-  font-size: 1.5em;
-  color: #FFC107;
-  text-transform: capitalize;
-  -webkit-box-orient: vertical;
-  transition: opacity var(--transition-duration) ease, transform 0.5s ease, filter 0.5s ease;
-  text-shadow: 0px 0px 0px black;
-  width: 100%;
-}
-
-.o\.baslik {
+  pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  -webkit-background-clip: text;
-  text-transform: capitalize;
-  font-size: 1.2em;
-  transition: opacity var(--transition-duration) ease, transform 0.5s ease, filter 0.5s ease;
-  text-shadow: 0px 1px 5px black;
 }
 
 .baslik {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -webkit-background-clip: text !important;
+  font-size: 2.5vw;
+  font-weight: 700;
   text-transform: capitalize;
-  font-size: 2em;
   background: linear-gradient(135deg, #e0f2f1, #ffffff);
-  -webkit-box-orient: vertical;
-  transition: opacity var(--transition-duration) ease, transform 0.5s ease, filter 0.5s ease;
-  width: 100%;
-  text-align: center;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-shadow: var(--text-shadow-baslik);
+  transform: translateY(0);
+  font-family: var(--font-family-Neogrey);
+}
+
+.slogan {
+  font-size: 1.7vw;
+  font-family: var(--font-family-lighthouse);
+  font-weight: 500;
+  color: #FFC107;
+  text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.5);
+  transform: translateY(20px);
+}
+
+.o\.baslik {
+  font-size: 1.4vw;
+  font-weight: 400;
+  color: #f0f0f0;
+  text-shadow: 0px 1px 5px rgba(0, 0, 0, 0.6);
+  transform: translateY(30px);
+  font-family: var(--font-family-skyline);
 }
 
 .plot-container {
@@ -419,10 +484,10 @@ img:broken {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
-  align-content: center;
   justify-content: center;
   align-items: center;
   filter: drop-shadow(var(--drop-shadow-small));
+  pointer-events: none;
 }
 
 .provider-container {
@@ -453,7 +518,7 @@ img:broken {
   text-align: justify;
   text-transform: capitalize;
   overflow: hidden;
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-novaflat);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 5;
   text-shadow: var(--text-shadow-plot);
@@ -462,7 +527,7 @@ img:broken {
 
 .plotb {
   display: -webkit-box;
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-polaris);
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
   text-shadow: var(--text-shadow-plot);
@@ -502,8 +567,7 @@ img:broken {
   align-items: center;
   transition: opacity 0.3s ease-in-out;
   position: absolute;
-  left: 49.7%;
-  transform: translateX(-28.5%);
+  left: 30%;
   bottom: 0;
   width: 69%;
   height: 6%;
@@ -525,6 +589,9 @@ img:broken {
   -webkit-line-clamp: 1;
   align-content: end;
   text-shadow: 0px 1px 5px black;
+  opacity: 0;
+  animation: fadeIn var(--transition-duration) ease-out 0.7s forwards;
+  pointer-events: none;
 }
 
 .t-rating,
@@ -695,14 +762,13 @@ img:broken {
 }
 
 span.artists {
-  font-family: var(--font-family-base);
   font-size: 1em;
   color: #FFC107;
 }
 
 .yonetmen {
   display: block;
-  font-family: var(--font-family-base);
+  font-family: var( --font-family-righteous);
   font-size: 0.8em;
   color: #fdfdfd;
   text-shadow: 0px 0px 2px black;
@@ -755,6 +821,7 @@ span.artists {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
   align-content: end;
+  pointer-events: none;
 }
 
 .no-logo-container {
@@ -1154,8 +1221,7 @@ i.fa-solid.fa-sliders {
   .info-container {
     transition: opacity 0.3s ease-in-out;
     position: absolute;
-    left: 0;
-    transform: translateX(13%);
+    left: 11%;
     bottom: 40%;
     width: 80%;
     height: 10%;
@@ -1191,15 +1257,18 @@ i.fa-solid.fa-sliders {
   }
 
   .o\.baslik {
-    font-size: 0.8rem;
+    font-size: 1rem;
+    transform: translateY(0px);
   }
 
   .baslik {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .slogan {
-    font-size: 0.7rem;
+    font-size: 1rem;
+    opacity: 1;
+    transform: translateY(0px);
   }
 
   html .gradient-overlay {
@@ -1236,9 +1305,6 @@ i.fa-solid.fa-sliders {
     mask-image: linear-gradient(360deg, transparent 0, transparent 0, black 10px);
   }
 
-  .slogan {
-    opacity: 1;
-  }
 
   .trailer-btn {
     top: 72% !important;
@@ -1250,7 +1316,7 @@ i.fa-solid.fa-sliders {
     height: 20%;
     width: 99%;
     left: 0;
-    top: 72% !important;
+    top: 73% !important;
     align-items: center;
     overflow: hidden;
     display: -webkit-box;
@@ -1309,13 +1375,13 @@ i.fa-solid.fa-sliders {
     font-family: var(--font-family-base);
     text-align: center;
     color: var(--color-white);
-    width: 65%;
+    width: 70%;
     white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     text-transform: capitalize;
-    top: 32%;
+    top: 30%;
     flex-direction: column;
     align-items: center;
     height: 15% !important;
@@ -1323,7 +1389,7 @@ i.fa-solid.fa-sliders {
     opacity: 0;
     animation: fadeIn var(--transition-duration) ease-out 1.3s forwards;
     transition: opacity var(--transition-duration) ease, transform 0.5s ease, filter 0.5s ease;
-    gap: 5px;
+    gap: 1px;
     justify-self: anchor-center;
     align-self: anchor-center;
     justify-content: center;
@@ -1332,7 +1398,7 @@ i.fa-solid.fa-sliders {
   .plot {
     display: -webkit-box;
     text-align: justify;
-    font-size: 0.7em;
+    font-size: 0.875em;
     text-transform: capitalize;
     overflow: hidden;
     font-family: var(--font-family-base);
@@ -1376,7 +1442,7 @@ i.fa-solid.fa-sliders {
   .artist-container {
     padding: 0;
     height: 15%;
-    width: 100%;
+    width: 95%;
     left: 0;
     align-items: center;
     overflow: hidden;
