@@ -7,22 +7,22 @@
 }
 
 @font-face {
-  font-family: "polaris";
+  font-family: 'polaris';
   src: url('fonts/polaris.woff2') format('woff2');
 }
 
 @font-face {
-  font-family: "lighthouse";
-  src: url('fonts/lighthouse.woff2') format('woff2');
+  font-family: 'QuorumLightBT';
+  src: url('fonts/QuorumLightBT.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "Neogrey";
+  font-family: 'Neogrey';
   src: url('fonts/Neogrey.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "skyline";
+  font-family: 'skyline';
   src: url('fonts/skyline.ttf') format('truetype');
 }
 
@@ -41,13 +41,9 @@
   src: url('fonts/Sansation_Regular.ttf') format('truetype');
 }
 
-@font-face {
-  font-family: 'TheQueenMarker';
-  src: url('fonts/TheQueenMarker.ttf') format('truetype');
-}
 
 @font-face {
-  font-family: "NovaFlat";
+  font-family: 'NovaFlat';
   src: url('fonts/NovaFlat.ttf') format('truetype');
 }
 
@@ -55,13 +51,12 @@
   --font-family-base: 'Inter', sans-serif;
   --font-family-advent: 'Advent-Bold-2', sans-serif;
   --font-family-polaris: 'polaris', sans-serif;
-  --font-family-lighthouse: 'lighthouse', sans-serif;
+  --font-family-quorumlightBT: 'QuorumLightBT', sans-serif;
   --font-family-Neogrey: 'Neogrey', sans-serif;
   --font-family-skyline: 'skyline', sans-serif;
   --font-family-myhandsareholdingyou: 'MyHandsareHoldingYou', sans-serif;
   --font-family-righteous: 'Righteous', sans-serif;
   --font-family-sansation: 'Sansation', sans-serif;
-  --font-family-theQueenMarker: 'TheQueenMarker', sans-serif;
   --font-family-novaflat: 'NovaFlat', sans-serif;
   --color-text: inherit;
   --color-bg-darker: inherit;
@@ -413,7 +408,7 @@ img:broken {
   position: absolute;
   top: 40%;
   left: 0%;
-  width: 90%;
+  width: 85%;
   z-index: 5;
   display: flex;
   flex-direction: row;
@@ -434,7 +429,7 @@ img:broken {
 }
 
 .baslik {
-  font-size: 2.5vw;
+  font-size: 2.2vw;
   font-weight: 700;
   text-transform: capitalize;
   background: linear-gradient(135deg, #e0f2f1, #ffffff);
@@ -447,7 +442,7 @@ img:broken {
 
 .slogan {
   font-size: 1.7vw;
-  font-family: var(--font-family-lighthouse);
+  font-family: var(--font-family-quorumlightBT);
   font-weight: 500;
   color: #FFC107;
   text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.5);
@@ -1345,7 +1340,7 @@ i.fa-solid.fa-sliders {
 
   #slides-container {
     width: 100vw;
-    height: 50vh;
+    height: 60vh;
     position: relative;
     top: 0;
   }
