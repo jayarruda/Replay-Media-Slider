@@ -117,7 +117,6 @@ async function createSlide(item) {
   backdropImg.alt = "Backdrop";
   backdropImg.loading = "lazy";
   backdropImg.style.opacity = "0";
-  backdropImg.style.filter = "brightness(0.8)";
 
   const gradientOverlay = document.createElement("div");
   gradientOverlay.className = "gradient-overlay";
@@ -132,8 +131,8 @@ async function createSlide(item) {
     gradientOverlay.style.backgroundRepeat = 'no-repeat';
     gradientOverlay.style.backgroundPosition = '50%';
     gradientOverlay.style.backgroundSize = 'cover';
-    gradientOverlay.style.filter = "brightness(0.6)";
-    gradientOverlay.style.aspectRatio = '1 / 3';
+    gradientOverlay.style.aspectRatio = '1 / 1';
+    gradientOverlay.style.filter = "brightness(0.8)";
   }
 
   if (config.manualBackdropSelection) {
@@ -147,8 +146,22 @@ async function createSlide(item) {
 
   setGradientOverlay(selectedOverlayUrl);
 
+  const horizontalGradientOverlay = document.createElement("div");
+  horizontalGradientOverlay.className = "horizontal-gradient-overlay";
+  horizontalGradientOverlay.style.position = "absolute";
+  horizontalGradientOverlay.style.top = "0";
+  horizontalGradientOverlay.style.left = "0";
+  horizontalGradientOverlay.style.width = "100%";
+  horizontalGradientOverlay.style.height = "100%";
+  horizontalGradientOverlay.style.background = "linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)";
+  horizontalGradientOverlay.style.pointerEvents = "none";
+  horizontalGradientOverlay.style.zIndex = "3";
+  horizontalGradientOverlay.style.opacity = "0.9";
+  horizontalGradientOverlay.style.mixBlendMode = "multiply";
+
   slide.appendChild(backdropImg);
   slide.appendChild(gradientOverlay);
+  slide.appendChild(horizontalGradientOverlay);
   slidesContainer.appendChild(slide);
 
   if (config.enableTrailerPlayback && RemoteTrailers && RemoteTrailers.length > 0) {
