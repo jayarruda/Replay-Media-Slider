@@ -59,6 +59,7 @@ const themeRadios = document.querySelectorAll('input[name="theme"]');
 const allowedWritersInput = getEl('allowedWritersInput');
 const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
 progressBarWidthInput.value = parseInt(progressBarWidth);
+const cssVariantSelect = getEl('cssVariantSelect');
 
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
@@ -260,6 +261,11 @@ function updateProviderSettingsVisibility() {
   settingsLinkContainer.style.display = "block";
 }
 
+cssVariantSelect.addEventListener('change', function() {
+    localStorage.setItem('cssVariant', this.value);
+  });
+
+
 manualBackdropSelectionCheckbox.addEventListener("change", () => {
   backdropImageTypeSelect.disabled = !manualBackdropSelectionCheckbox.checked;
   minHighQualityWidthInput.disabled = manualBackdropSelectionCheckbox.checked;
@@ -359,6 +365,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initSettingsBackgroundSlider();
   addBackButtonStyles();
   setupBackButton();
+  cssVariantSelect.value = localStorage.getItem('cssVariant') || 'kompak';
 
   getEl('resetToDefaults').addEventListener('click', function() {
   if (confirm(labels.resetConfirm)) {

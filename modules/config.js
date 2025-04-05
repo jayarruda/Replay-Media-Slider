@@ -86,5 +86,6 @@ export function getConfig() {
       return [...new Set([...defaultWriters, ...storedWriters])];
     })(),
     minHighQualityWidth: parseInt(localStorage.getItem('minHighQualityWidth'), 10) || 1920,
+    cssVariant: localStorage.getItem('cssVariant') || 'kompak'
   };
 }

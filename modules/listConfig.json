@@ -1,6 +1,6 @@
 {
-  "listcustomQueryString": "IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop",
-  "listLimit": 30,
+  "listcustomQueryString": "IncludeItemTypes=Movie&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop",
+  "listLimit": 300,
   "listRefresh": 300000,
-  "itemLimit": 15
+  "itemLimit": 20
 }

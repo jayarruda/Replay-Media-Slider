@@ -1,7 +1,7 @@
 import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer, SLIDE_DURATION } from "./timer.js";
 import { getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout, setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime } from "./sliderState.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./events.js";
-import { getConfig } from './config.js'; // config.js'den ayarları al
+import { getConfig } from './config.js';
 
 let progressBar = null;
 let pausedProgress = 0;
@@ -9,7 +9,7 @@ let pausedProgress = 0;
 export function ensureProgressBarExists() {
   if (!getConfig().showProgressBar) {
     if (progressBar && document.body.contains(progressBar)) {
-      progressBar.remove(); // İlerleme çubuğunu kaldır
+      progressBar.remove();
       progressBar = null;
     }
     return null;
@@ -31,7 +31,7 @@ export function ensureProgressBarExists() {
 
 export function resetProgressBar() {
   const progressBar = ensureProgressBarExists();
-  if (!progressBar) return; // showProgressBar false ise devam etme
+  if (!progressBar) return;
   progressBar.style.transition = "none";
   progressBar.style.width = "0%";
   pausedProgress = 0;
@@ -59,7 +59,7 @@ export function resumeProgressBar() {
   const progressBar = ensureProgressBarExists();
   if (!progressBar) return;
   const remainingTime = (100 - pausedProgress) * (SLIDE_DURATION / 100);
-  progressBar.offsetWidth; // Reflow tetikleme
+  progressBar.offsetWidth;
   progressBar.style.transition = `width ${remainingTime}ms linear`;
   progressBar.style.width = getConfig().progressBarWidth;
 }
