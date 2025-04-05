@@ -259,6 +259,8 @@ export const languageLabels = {
     settingsSavedModal: "Настройки сохранены. Обновите страницу слайдера, чтобы изменения вступили в силу.",
     closeModalBtn: "ОК",
     resetToDefaults: "Значения по умолчанию",
+    kompakslider: "Компактный вид",
+    tamslider: "Полный экран",
     optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",

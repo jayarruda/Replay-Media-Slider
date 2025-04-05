@@ -258,10 +258,12 @@ export const languageLabels = {
   settingsSavedModal: "Einstellungen gespeichert. Aktualisieren Sie die Slider-Seite, damit die Änderungen wirksam werden.",
   closeModalBtn: "OK",
   resetToDefaults: "Standardwerte",
+  kompakslider: "Kompakte Ansicht",
+  tamslider: "Vollbild",
   optionTurkish: "🇹🇷 Türkçe",
-    optionEnglish: "🇬🇧 English",
-    optionGerman: "🇩🇪 Deutsch",
-    optionFrench: "🇫🇷 Français",
-    optionRussian: "🇷🇺 Русский",
+  optionEnglish: "🇬🇧 English",
+  optionGerman: "🇩🇪 Deutsch",
+  optionFrench: "🇫🇷 Français",
+  optionRussian: "🇷🇺 Русский",
 }
 };
