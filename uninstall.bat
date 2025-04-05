@@ -18,11 +18,11 @@ set "JS_FILE=C:\Program Files\Jellyfin\Server\jellyfin-web\home-html.*.chunk.js"
 :: JS dosya adını dinamik olarak bul
 for %%f in ("C:\Program Files\Jellyfin\Server\jellyfin-web\home-html.*.chunk.js") do set "JS_FILE=%%f"
 
-set "SLIDER_HTML=<script src=\"/web/slider/auth.js\"></script><link rel=\"stylesheet\" href=\"/web/slider/src/slider.css\"><script type=\"module\" async src=\"/web/slider/main.js\"></script>"
+set "SLIDER_HTML=<script src=\"/web/slider/auth.js\"></script><script type=\"module\" async src=\"/web/slider/main.js\"></script>"
 set "SLIDER_JS=<div id=\"slides-container\"></div><script>slidesInit()</script>"
 
 echo HTML dosyasindaki slider kodlari kontrol ediliyor...
-findstr /C:"slider.css" "%HTML_FILE%" >nul
+findstr /C:"slider/auth.js" "%HTML_FILE%" >nul
 if %errorlevel% equ 0 (
     powershell -Command "(Get-Content '%HTML_FILE%') -replace [regex]::Escape('%SLIDER_HTML%'), '' | Set-Content '%HTML_FILE%'"
     echo [BASARILI] HTML slider kodu kaldirildi!

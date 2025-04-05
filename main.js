@@ -24,8 +24,24 @@ import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
-
 const config = getConfig();
+
+
+function loadExternalCSS(path) {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = path;
+  document.head.appendChild(link);
+}
+
+let cssPath = "";
+if (config.cssVariant === 'fullslider') {
+  cssPath = "./slider/src/fullslider.css";
+} else {
+  cssPath = "./slider/src/slider.css";
+}
+
+loadExternalCSS(cssPath);
 
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
