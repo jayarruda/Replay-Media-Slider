@@ -13,24 +13,22 @@
 <div id="settingsBackgroundSlider" class="settings-background-slider"></div>
   <main class="container">
     <header class="settings-header">
-  <div class="language-selector">
-    <select id="defaultLanguageSelect">
-  <option value="tur" data-translate="html.optionTurkish">
-    🇹🇷 Türkçe
-  </option>
-  <option value="eng" data-translate="html.optionEnglish">
-    🇬🇧 English
-  </option>
-  <option value="deu" data-translate="html.optionGerman">
-    🇩🇪 Deutsch
-  </option>
-  <option value="fre" data-translate="html.optionFrench">
-    🇫🇷 Français
-  </option>
-  <option value="rus" data-translate="html.optionRussian">
-    🇷🇺 Русский
-  </option>
-</select>
+  <div class="left-controls">
+    <div class="language-selector">
+      <select id="defaultLanguageSelect">
+        <option value="tur" data-translate="html.optionTurkish">🇹🇷 Türkçe</option>
+        <option value="eng" data-translate="html.optionEnglish">🇬🇧 English</option>
+        <option value="deu" data-translate="html.optionGerman">🇩🇪 Deutsch</option>
+        <option value="fre" data-translate="html.optionFrench">🇫🇷 Français</option>
+        <option value="rus" data-translate="html.optionRussian">🇷🇺 Русский</option>
+      </select>
+    </div>
+    <div class="css-variant-selector">
+      <select id="cssVariantSelect">
+        <option value="kompak" data-translate="html.kompakslider">Kompak</option>
+        <option value="fullslider" data-translate="html.tamslider">Tam Ekran</option>
+      </select>
+    </div>
   </div>
   <h1 data-translate="html.sliderSettings">Slider Ayarları</h1>
   <div class="theme-switcher-fixed">
@@ -59,7 +57,6 @@
           <div class="description-text" data-translate="html.sliderDurationDescription">
             Bu ayar, ms cinsinden olmalıdır.
           </div>
-
           <div>
             <h3><label for="progressBarCheckbox">
               <input type="checkbox" id="progressBarCheckbox">
