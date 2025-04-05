@@ -13,6 +13,7 @@
   --text-dark-a: #673AB7;
   --border-color: #673AB7;
   --border-radius: 50px;
+  --border-radius-small: 5px;
   --shadow-color: rgba(0, 0, 0, 0.2);
 }
 
@@ -57,7 +58,7 @@ body {
 
 header.settings-header {
   background: rgba(255, 255, 255, 0.67);
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-small);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -66,6 +67,29 @@ header.settings-header {
   margin-bottom: 20px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+}
+
+header.settings-header .left-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+header.settings-header .language-selector select,
+header.settings-header .css-variant-selector select {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  header.settings-header .left-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
 }
 
 .dark-theme header.settings-header {
@@ -416,6 +440,22 @@ button#closeModalBtn:hover {
   transform: translateY(-2px);
 }
 
+.dark-theme header.settings-header .left-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dark-theme header.settings-header .language-selector select,
+.dark-theme header.settings-header .css-variant-selector select {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-dark);
+  color: var(--text-dark);
+  font-size: 0.9rem;
+}
+
 body.dark-theme {
   background-color: var(--bg-dark);
   color: var(--text-dark);
@@ -544,7 +584,7 @@ a:hover {
   background-color: var(--bg-light);
   color: var(--text-light);
   padding: 12px 25px;
-  border-radius: 50px;
+  border-radius: var(--border-radius-small);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   display: none;
   animation: fadeIn 0.3s ease;
