@@ -137,14 +137,16 @@ async function getRandomContentIds(userId, limit = config.itemLimit) {
     lastHistory.forEach(list => list.forEach(id => excludedIds.add(id)));
 
     const filteredItems = selectedItems.filter(item => !excludedIds.has(item.Id));
-    const finalItems = filteredItems.length >= limit
-      ? filteredItems.slice(0, limit)
-      : [
-          ...filteredItems,
-          ...shuffleArray(allItems)
-            .filter(item => !filteredItems.includes(item))
-            .slice(0, limit - filteredItems.length)
-        ];
+    const finalItems = shuffleArray([
+  ...(filteredItems.length >= limit
+    ? filteredItems.slice(0, limit)
+    : [
+        ...filteredItems,
+        ...shuffleArray(allItems)
+          .filter(item => !filteredItems.includes(item))
+          .slice(0, limit - filteredItems.length)
+      ])
+]);
 
     const ids = finalItems.map(item => item.Id);
 
