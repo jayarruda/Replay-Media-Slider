@@ -22,7 +22,8 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ## Ayarlar Sayfası / Settings Page
 
-![settings](https://github.com/user-attachments/assets/7a4ec7db-5292-4a0f-b28c-ba7fff17df1b)
+![settings](https://github.com/user-attachments/assets/e8228f2f-1a6e-4bef-89d1-202655fa1dc4)
+
 
  </details>
 
