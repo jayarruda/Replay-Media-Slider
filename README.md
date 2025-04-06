@@ -71,7 +71,20 @@ listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini g�
 .env dosyasını düzenleyerek gerekli bilgileri girin.
 
 ### Script Seçenekleri
-'updateList'	Rastgele içerikleri listeler ( değerleri değiştirmek için listConfig.json el ile yapılandırılmalı ve script yeniden başlatılmalı.)
+'updateList'	içerikleri rastgele listeler
+( değerleri değiştirmek için /modules/listConfig.json el ile yapılandırılmalı ve script yeniden başlatılmalıdır.
+
+Detaylı açıklamalar;
+
+``` itemLimit: ``` Slider'da gösterilecek maksimum öğe sayısı
+
+``` garantiLimit: ``` Her içerik türünden garanti edilecek minimum öğe sayısı
+
+``` listLimit: ``` Önceki listelerin saklanacağı maksimum sayı (tekrarları önlemek için)
+
+``` listRefresh": ``` "Listenin yenilenme aralığı (milisaniye - 300000ms = 5 dakika)
+
+``` listcustomQueryString: ``` Jellyfin API'si için özel sorgu parametreleri)
 
 # Script Çalıştırma
 
@@ -121,9 +134,22 @@ The script in the listUpdate folder updates user lists at specific intervals.
 
 Edit the .env file and insert the necessary information.
 
-# Script Options
+### Script Options
 
-updateList random content. (To change the values, manually configure the listConfig.json file and restart the script.)
+'updateList' lists the contents randomly
+( /modules/listConfig.json needs to be configured manually and the script needs to be restarted for the changes to take effect.
+
+Detailed explanations;
+
+``` itemLimit: ``` Maximum number of items to show in slider
+
+``` garantiLimit: ``` Minimum guaranteed items per content type (Movie/Series/BoxSet)
+
+``` listLimit: ``` Max number of previous lists to store (prevent duplicates)
+
+``` listRefresh: ``` Refresh interval in milliseconds (300000ms = 5 minutes)
+
+```  listcustomQueryString: ``` Custom query parameters for Jellyfin API )
 
 ### Running the Script
 
@@ -139,17 +165,17 @@ updateList random content. (To change the values, manually configure the listCon
 
 ``` node updateList.mjs ```
 
-## Uninstallation
+### Uninstallation
 
-## To remove the installation, run:
+### To remove the installation, run:
 
 ``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh && sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ``` </details>
 
-# Jellyfin Media Slider
+### Jellyfin Media Slider
 
 A customizable media slider component for Jellyfin. This project is a fork and enhancement of the original jellyfin-featured plugin. Special thanks to the original creator, BobHasNoSoul, for his work.
 
-## Features
+### Features
 
 - User-friendly media slider interface
 
