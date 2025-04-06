@@ -51,11 +51,14 @@ async function fetchAllItems(userId) {
 
     const initialData = await initialResponse.json();
     const totalRecords = initialData.TotalRecordCount || 0;
-    const limit = 2000;
+    const dynamicLimit = totalRecords < 1000 ? totalRecords :
+                        totalRecords < 5000 ? 1000 : 2000;
+
+    console.log(`ℹ️ [${userId}] Toplam ${totalRecords} içerik, limit: ${dynamicLimit}`);
 
     while (startIndex < totalRecords) {
       const response = await fetch(
-        `${JELLYFIN_URL}/Users/${userId}/Items?${config.listcustomQueryString}&Limit=${limit}&StartIndex=${startIndex}`,
+        `${JELLYFIN_URL}/Users/${userId}/Items?${config.listcustomQueryString}&Limit=${dynamicLimit}&StartIndex=${startIndex}`,
         {
           headers: {
             Authorization: `MediaBrowser Token="${JELLYFIN_TOKEN}"`,
@@ -74,7 +77,7 @@ async function fetchAllItems(userId) {
     }
     return allItems;
   } catch (error) {
-    console.error(`⛔ Fetch error: ${error.message}`);
+    console.error(`⛔ [${userId}] Fetch error: ${error.message}`);
     return [];
   }
 }
@@ -89,58 +92,78 @@ function shuffleArray(array) {
 
 async function getRandomContentIds(userId, limit = config.itemLimit) {
   try {
+    const minPerType = config.garantiLimit !== undefined ? config.garantiLimit : 1;
+
     const allItems = await fetchAllItems(userId);
     if (allItems.length === 0) {
       console.warn(`⚠️ [${userId}] Kullanıcısı için içerik bulunamadı`);
       return [];
     }
 
-    const movies = allItems.filter(item => item.Type === "Movie");
-    const series = allItems.filter(item => item.Type === "Series");
-    const boxSets = allItems.filter(item => item.Type === "BoxSet");
+    console.log(`ℹ️ [${userId}] Garanti limiti: ${minPerType} içerik/tür`);
+    const itemsByType = allItems.reduce((acc, item) => {
+      if (!acc[item.Type]) acc[item.Type] = [];
+      acc[item.Type].push(item);
+      return acc;
+    }, {});
 
-    console.log(`🎬 [${userId}] İçerik Dağılımı - Filmler: ${movies.length}, Diziler: ${series.length}, Koleksiyonlar: ${boxSets.length}`);
+    console.log(`📊 [${userId}] İçerik Dağılımı:`,
+      Object.entries(itemsByType).map(([type, items]) => `${type}: ${items.length}`).join(', '));
+    const availableTypes = Object.keys(itemsByType).filter(type => itemsByType[type].length > 0);
+    const guaranteedItems = [];
 
-    const shuffledMovies = shuffleArray(movies);
-    const shuffledSeries = shuffleArray(series);
-    const shuffledBoxSets = shuffleArray(boxSets);
+    availableTypes.forEach(type => {
+      const shuffled = shuffleArray([...itemsByType[type]]);
+      const takeCount = Math.min(minPerType, itemsByType[type].length);
+      guaranteedItems.push(...shuffled.slice(0, takeCount));
+    });
 
-    const itemsPerType = Math.floor(limit / 3);
-    const selectedMovies = shuffledMovies.slice(0, itemsPerType);
-    const selectedSeries = shuffledSeries.slice(0, itemsPerType);
-    const selectedBoxSets = shuffledBoxSets.slice(0, itemsPerType);
+    const remainingItems = shuffleArray(
+      allItems.filter(item => !guaranteedItems.includes(item))
+    );
 
-    let selectedItems = shuffleArray([...selectedMovies, ...selectedSeries, ...selectedBoxSets]);
-
-    if (selectedItems.length < limit) {
-      const remainingItems = shuffleArray([...shuffledMovies, ...shuffledSeries, ...shuffledBoxSets])
-        .filter(item => !selectedItems.includes(item))
-        .slice(0, limit - selectedItems.length);
-      selectedItems = selectedItems.concat(remainingItems);
-    }
-
-    let ids = selectedItems.map(item => item.Id);
+    const selectedItems = [
+      ...guaranteedItems,
+      ...remainingItems.slice(0, limit - guaranteedItems.length)
+    ];
 
     if (!userHistories[userId]) {
       userHistories[userId] = [];
     }
     const history = userHistories[userId];
-    const last30History = history.slice(-50);
+    const historyLimit = config.listLimit || 30;
+    const lastHistory = history.slice(-historyLimit);
     const excludedIds = new Set();
-    last30History.forEach(list => list.forEach(id => excludedIds.add(id)));
+    lastHistory.forEach(list => list.forEach(id => excludedIds.add(id)));
 
     const filteredItems = selectedItems.filter(item => !excludedIds.has(item.Id));
-    if (filteredItems.length < limit) {
-      console.warn(`⚠️ [${userId}] Yeterli yeni içerik yok, ${limit - filteredItems.length} eski içerik tekrar kullanılacak`);
-      const additionalItems = allItems.filter(item => !ids.includes(item.Id));
-      const additional = shuffleArray(additionalItems).slice(0, limit - filteredItems.length);
-      ids = ids.concat(additional.map(item => item.Id));
-    }
+    const finalItems = filteredItems.length >= limit
+      ? filteredItems.slice(0, limit)
+      : [
+          ...filteredItems,
+          ...shuffleArray(allItems)
+            .filter(item => !filteredItems.includes(item))
+            .slice(0, limit - filteredItems.length)
+        ];
+
+    const ids = finalItems.map(item => item.Id);
 
     history.push(ids);
-    if (history.length > 30) history.shift();
+    if (history.length > historyLimit) {
+      history.shift();
+    }
 
-    console.log(`✅ [${userId}] ${ids.length} rastgele içerik seçildi`);
+    const typeDistribution = finalItems.reduce((acc, item) => {
+      acc[item.Type] = (acc[item.Type] || 0) + 1;
+      return acc;
+    }, {});
+
+    console.log(`✅ [${userId}] ${ids.length} içerik seçildi (Dağılım: ${
+      Object.entries(typeDistribution)
+        .map(([type, count]) => `${type}: ${count}`)
+        .join(', ')
+    }) | Geçmiş boyutu: ${history.length}/${historyLimit}`);
+
     return ids;
   } catch (error) {
     console.error(`⛔ [${userId}] İçerik seçilirken hata:`, error.message);
@@ -155,12 +178,10 @@ async function updateListFileForUser(userId) {
     return;
   }
 
-  const limitedIds = newIds.slice(0, config.itemLimit);
-
   const listFilePath = getListFilePath(userId);
   try {
-    await fs.promises.writeFile(listFilePath, limitedIds.join('\n'), 'utf8');
-    console.log(`🔄 [${userId}] Liste dosyası güncellendi (${limitedIds.length} içerik)`);
+    await fs.promises.writeFile(listFilePath, newIds.join('\n'), 'utf8');
+    console.log(`🔄 [${userId}] Liste dosyası güncellendi (${newIds.length} içerik)`);
   } catch (error) {
     console.error(`⛔ [${userId}] Dosya yazma hatası:`, error.message);
   }
