@@ -9,7 +9,7 @@
   "itemLimit": 20,
   "garantiLimit": 5,
   "listLimit": 50,
-  "listRefresh": 300000,
-  "listcustomQueryString": "IncludeItemTypes=Movie,Series,BoxSet&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop"
+  "listRefresh": 30,
+  "listcustomQueryString": "IncludeItemTypes=Movie&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop"
 }
 

@@ -259,7 +259,7 @@ export const languageLabels = {
     settingsSavedModal: "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.",
     closeModalBtn: "Tamam",
     resetToDefaults: "Varsayılan Değerler",
-    kompakslider: "Kompakt Görünüm",
+    kompakslider: "Kompak Görünüm",
     tamslider: "Tam Ekran",
     optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
