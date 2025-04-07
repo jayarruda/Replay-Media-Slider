@@ -13,13 +13,7 @@ echo Jellyfin servisi durduruluyor...
 net stop JellyfinServer >nul 2>&1
 
 set "HTML_FILE=C:\Program Files\Jellyfin\Server\jellyfin-web\index.html"
-set "JS_FILE=C:\Program Files\Jellyfin\Server\jellyfin-web\home-html.*.chunk.js"
-
-:: JS dosya adını dinamik olarak bul
-for %%f in ("C:\Program Files\Jellyfin\Server\jellyfin-web\home-html.*.chunk.js") do set "JS_FILE=%%f"
-
 set "SLIDER_HTML=<script src=\"/web/slider/auth.js\"></script><script type=\"module\" async src=\"/web/slider/main.js\"></script>"
-set "SLIDER_JS=<div id=\"slides-container\"></div><script>slidesInit()</script>"
 
 echo HTML dosyasindaki slider kodlari kontrol ediliyor...
 findstr /C:"slider/auth.js" "%HTML_FILE%" >nul
@@ -28,15 +22,6 @@ if %errorlevel% equ 0 (
     echo [BASARILI] HTML slider kodu kaldirildi!
 ) else (
     echo [BILGI] HTML dosyasinda slider kodu bulunamadi.
-)
-
-echo JS dosyasindaki slider kodlari kontrol ediliyor...
-findstr /C:"slides-container" "%JS_FILE%" >nul
-if %errorlevel% equ 0 (
-    powershell -Command "(Get-Content '%JS_FILE%') -replace [regex]::Escape('%SLIDER_JS%'), '' | Set-Content '%JS_FILE%'"
-    echo [BASARILI] JS slider kodu kaldirildi!
-) else (
-    echo [BILGI] JS dosyasinda slider kodu bulunamadi.
 )
 
 set "SLIDER_DIR=C:\Program Files\Jellyfin\Server\jellyfin-web\slider"

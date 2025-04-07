@@ -247,4 +247,18 @@ export function slidesInit() {
   })();
 }
 
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    const indexPage = document.querySelector("#indexPage:not(.hide)");
+    if (indexPage) {
+      const slidesContainer = document.createElement("div");
+      slidesContainer.id = "slides-container";
+      indexPage.appendChild(slidesContainer);
+      slidesInit();
+    } else {
+      console.error("indexPage elementi bulunamadı!");
+    }
+  }, 500);
+});
+
 window.slidesInit = slidesInit;
