@@ -13,10 +13,10 @@ echo Jellyfin servisi durduruluyor...
 net stop JellyfinServer >nul 2>&1
 
 set "HTML_FILE=C:\Program Files\Jellyfin\Server\jellyfin-web\index.html"
-set "SLIDER_HTML=<script src=\"/web/slider/auth.js\"></script><script type=\"module\" async src=\"/web/slider/main.js\"></script>"
+set "SLIDER_HTML=<script type=\"module\" async src=\"/web/slider/main.js\"></script>"
 
 echo HTML dosyasindaki slider kodlari kontrol ediliyor...
-findstr /C:"slider/auth.js" "%HTML_FILE%" >nul
+findstr /C:"slider/main.js" "%HTML_FILE%" >nul
 if %errorlevel% equ 0 (
     powershell -Command "(Get-Content '%HTML_FILE%') -replace [regex]::Escape('%SLIDER_HTML%'), '' | Set-Content '%HTML_FILE%'"
     echo [BASARILI] HTML slider kodu kaldirildi!

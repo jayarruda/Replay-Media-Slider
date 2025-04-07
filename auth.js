@@ -1,37 +1,50 @@
-function saveCredentialsToSessionStorage(e) {
+export function saveCredentialsToSessionStorage(credentials) {
     try {
-        sessionStorage.setItem("json-credentials", JSON.stringify(e)),
-        console.log("Credentials saved to sessionStorage.")
-    } catch (e) {
-        console.error("Error saving credentials:", e)
+        sessionStorage.setItem("json-credentials", JSON.stringify(credentials));
+        console.log("Credentials saved to sessionStorage.");
+    } catch (err) {
+        console.error("Error saving credentials:", err);
     }
 }
-function saveApiKey(e) {
+
+export function saveApiKey(apiKey) {
     try {
-        sessionStorage.setItem("api-key", e),
-        console.log("API key saved to sessionStorage.")
-    } catch (e) {
-        console.error("Error saving API key:", e)
+        sessionStorage.setItem("api-key", apiKey);
+        console.log("API key saved to sessionStorage.");
+    } catch (err) {
+        console.error("Error saving API key:", err);
     }
 }
-!function() {
-    var e = console.log;
-    console.log = function(r) {
-        if (e.apply(console, arguments),
-        "string" == typeof r && r.startsWith("Stored JSON credentials:"))
-            try {
-                var s = r.substring(25);
-                saveCredentialsToSessionStorage(JSON.parse(s))
-            } catch (e) {
-                console.error("Error parsing credentials:", e)
+
+(function interceptConsoleLog() {
+    const originalLog = console.log;
+
+    console.log = function (...args) {
+        originalLog.apply(console, args);
+
+        for (const arg of args) {
+            if (typeof arg === "string") {
+                if (arg.startsWith("Stored JSON credentials:")) {
+                    try {
+                        const jsonStr = arg.substring(25);
+                        saveCredentialsToSessionStorage(JSON.parse(jsonStr));
+                    } catch (err) {
+                        console.error("Error parsing credentials:", err);
+                    }
+                }
+
+                if (arg.startsWith("opening web socket with url:")) {
+                    try {
+                        const url = arg.split("url:")[1].trim();
+                        const apiKey = new URL(url).searchParams.get("api_key");
+                        if (apiKey) {
+                            saveApiKey(apiKey);
+                        }
+                    } catch (err) {
+                        console.error("Error extracting API key:", err);
+                    }
+                }
             }
-        if ("string" == typeof r && r.startsWith("opening web socket with url:"))
-            try {
-                var o = r.split("url:")[1].trim()
-                  , t = new URL(o).searchParams.get("api_key");
-                t && saveApiKey(t)
-            } catch (e) {
-                console.error("Error extracting API key:", e)
-            }
-    }
-}();
+        }
+    };
+})();

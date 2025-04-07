@@ -1,3 +1,4 @@
+import { saveApiKey, saveCredentialsToSessionStorage } from "./auth.js";
 import { cleanupSlider } from "./modules/sliderCleanup.js";
 import { getConfig } from "./modules/config.js";
 import { getLanguageLabels, getDefaultLanguage } from './language/index.js';

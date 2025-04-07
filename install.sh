@@ -4,7 +4,7 @@ HTML_FILE="$JELLYFIN_WEB/index.html"
 SLIDER_DIR="$JELLYFIN_WEB/slider"
 SOURCE_DIR="$(dirname "$(realpath "$0")")"
 
-INSERT_HTML='<script src="/web/slider/auth.js"></script><script type="module" async src="/web/slider/main.js"></script>'
+INSERT_HTML='<script type="module" async src="/web/slider/main.js"></script>'
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Bu script root olarak çalıştırılmalıdır."
@@ -30,7 +30,7 @@ else
     exit 1
 fi
 
-if ! grep -q "slider/auth.js" "$HTML_FILE"; then
+if ! grep -q "slider/main.js" "$HTML_FILE"; then
     sed -i "s|</body>|${INSERT_HTML}</body>|g" "$HTML_FILE"
     echo "HTML snippet başarıyla eklendi!"
 else
