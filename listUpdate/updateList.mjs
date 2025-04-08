@@ -7,7 +7,7 @@ const config = require('../modules/listConfig.json');
 
 dotenv.config();
 
-const LISTS_DIR = '/usr/share/jellyfin/web/slider/list/';
+const LISTS_DIR = '../list/';
 const JELLYFIN_URL = process.env.JELLYFIN_URL;
 const JELLYFIN_TOKEN = process.env.JELLYFIN_TOKEN;
 
