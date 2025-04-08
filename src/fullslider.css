@@ -382,10 +382,10 @@ body {
 
 .logo-container {
   position: absolute;
-  top: 70px;
-  right: 20px;
+  top: 12%;
+  right: 2%;
   width: 20%;
-  height: 100px;
+  height: 100%;
   z-index: 3;
   opacity: 0;
   animation: fadeIn var(--transition-duration) ease 0.7s forwards;
@@ -423,6 +423,7 @@ img:broken {
   top: 50%;
   left: 0%;
   width: 85%;
+  height: 40%;
   z-index: 5;
   display: flex;
   flex-direction: row;
