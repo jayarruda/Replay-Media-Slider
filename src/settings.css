@@ -29,7 +29,7 @@ body {
   color: var(--text-light);
   line-height: 1.6;
   padding: 0;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -46,7 +46,7 @@ body {
   font-weight: 900;
   cursor: pointer;
   color: var(--accent-color);
-  transition: transform 0.2s ease, color 0.3s ease;
+  transition: transform 0.2s ease, color 0.15s ease;
 }
 
 .fa-solid:hover, .fas:hover {
@@ -66,7 +66,7 @@ header.settings-header {
   position: relative;
   margin-bottom: 20px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
 }
 
 header.settings-header .left-controls {
@@ -117,7 +117,7 @@ header.settings-header h1 {
   z-index: 1100;
   overflow: hidden;
   width: 30px;
-  transition: width 0.3s ease;
+  transition: width 0.15s ease;
   cursor: pointer;
   font-size: 1.5em;
 }
@@ -127,7 +127,7 @@ header.settings-header h1 {
 }
 
 .theme-switcher-fixed label {
-  transition: order 0.3s ease;
+  transition: order 0.15s ease;
 }
 
 .theme-switcher-fixed label:has(input[type="radio"]:checked) {
@@ -158,7 +158,7 @@ header.settings-header h1 {
   position: relative;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
 }
 
 .column::-webkit-scrollbar {
@@ -182,7 +182,7 @@ header.settings-header h1 {
   margin-bottom: 20px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(4px);
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -277,7 +277,7 @@ select {
   border-radius: 8px;
   font-family: inherit;
   background-color: rgba(255, 255, 255, 0.8);
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   font-size: 0.9rem;
 }
 
@@ -343,7 +343,7 @@ input[type="checkbox"]:checked::after {
   font-size: 1rem;
   font-weight: 600;
   box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -361,7 +361,7 @@ input[type="checkbox"]:checked::after {
   font-size: 1rem;
   font-weight: 600;
   box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -389,7 +389,7 @@ input[type="checkbox"]:checked::after {
   overflow: auto;
   background-color: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(5px);
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -414,7 +414,7 @@ input[type="checkbox"]:checked::after {
   justify-content: center;
   opacity: 0;
   transform: translateY(-20px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
@@ -431,7 +431,7 @@ button#closeModalBtn {
   padding: 12px 25px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   width: auto;
 }
 
@@ -535,7 +535,7 @@ body.dark-theme .column::-webkit-scrollbar-thumb {
   border: none;
   border-radius: 50px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -565,7 +565,7 @@ body.dark-theme .column::-webkit-scrollbar-thumb {
 a {
   color: var(--text-light-a);
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: color 0.15s ease;
 }
 
 .dark-theme a {
@@ -587,7 +587,7 @@ a:hover {
   border-radius: var(--border-radius-small);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   display: none;
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.15s ease;
   z-index: 1000;
 }
 
@@ -726,12 +726,12 @@ input:checked + .slider:before {
 }
 
 .setting-group {
-  animation: fadeInUp 0.5s ease forwards;
+  animation: fadeInUp 0.2s ease forwards;
   opacity: 0;
 }
 
 .setting-group:nth-child(1) { animation-delay: 0.1s; }
 .setting-group:nth-child(2) { animation-delay: 0.2s; }
-.setting-group:nth-child(3) { animation-delay: 0.3s; }
+.setting-group:nth-child(3) { animation-delay: 0.15s; }
 .setting-group:nth-child(4) { animation-delay: 0.4s; }
 .setting-group:nth-child(5) { animation-delay: 0.5s; }
