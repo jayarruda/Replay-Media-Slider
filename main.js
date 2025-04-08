@@ -257,27 +257,4 @@ export async function slidesInit() {
   })();
 }
 
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    const indexPage = document.querySelector("#indexPage:not(.hide)");
-    if (indexPage) {
-      ensureSlidesContainer(indexPage);
-      slidesInit().catch(console.error);
-    } else {
-      console.error("load: indexPage elementi bulunamadı!");
-    }
-  }, 500);
-});
-
-window.addEventListener("pageshow", (event) => {
-  const indexPage = document.querySelector("#indexPage:not(.hide)");
-  if (indexPage) {
-    cleanupSlider();
-    ensureSlidesContainer(indexPage);
-    slidesInit().catch(console.error);
-  } else {
-    console.error("pageshow: indexPage elementi bulunamadı!");
-  }
-});
-
 window.slidesInit = slidesInit;

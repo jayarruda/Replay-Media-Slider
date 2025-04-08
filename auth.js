@@ -1,3 +1,6 @@
+const JSON_PREFIX = "Stored JSON credentials:";
+const WS_PREFIX = "opening web socket with url:";
+
 export function saveCredentialsToSessionStorage(credentials) {
     try {
         sessionStorage.setItem("json-credentials", JSON.stringify(credentials));
@@ -19,29 +22,32 @@ export function saveApiKey(apiKey) {
 (function interceptConsoleLog() {
     const originalLog = console.log;
     console.log = function (...args) {
-        originalLog.apply(console, args);
-        for (const arg of args) {
+        args.forEach(arg => {
             if (typeof arg === "string") {
-                if (arg.startsWith("Stored JSON credentials:")) {
+                if (arg.startsWith(JSON_PREFIX)) {
+                    const jsonStr = arg.slice(JSON_PREFIX.length).trim();
                     try {
-                        const jsonStr = arg.substring(25);
-                        saveCredentialsToSessionStorage(JSON.parse(jsonStr));
+                        const credentials = JSON.parse(jsonStr);
+                        saveCredentialsToSessionStorage(credentials);
                     } catch (err) {
                         console.error("Kimlik bilgileri ayrıştırılırken hata:", err);
                     }
-                }
-                if (arg.startsWith("opening web socket with url:")) {
-                    try {
-                        const url = arg.split("url:")[1].trim();
-                        const apiKey = new URL(url).searchParams.get("api_key");
-                        if (apiKey) {
-                            saveApiKey(apiKey);
+                } else if (arg.startsWith(WS_PREFIX)) {
+                    const urlPart = arg.split("url:")[1]?.trim();
+                    if (urlPart) {
+                        try {
+                            const url = new URL(urlPart);
+                            const apiKey = url.searchParams.get("api_key");
+                            if (apiKey) {
+                                saveApiKey(apiKey);
+                            }
+                        } catch (err) {
+                            console.error("API anahtarı çıkarılırken hata:", err);
                         }
-                    } catch (err) {
-                        console.error("API anahtarı çıkarılırken hata:", err);
                     }
                 }
             }
-        }
+        });
+        originalLog.apply(console, args);
     };
 })();
