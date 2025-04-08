@@ -1,4 +1,4 @@
-  export function cleanupSlider() {
+export function cleanupSlider() {
   if (window.mySlider) {
     if (window.mySlider.autoSlideTimeout) {
       clearTimeout(window.mySlider.autoSlideTimeout);
@@ -9,7 +9,7 @@
     if (window.mySlider.intervalChangeSlide) {
       clearInterval(window.mySlider.intervalChangeSlide);
     }
-    window.mySlider = null;
+    window.mySlider = {};
     console.log("Global slider instance temizlendi.");
   }
   const indexPage = document.querySelector("#indexPage:not(.hide)");
@@ -20,4 +20,4 @@
       console.log("Eski slider container kaldırıldı.");
     }
   }
-};
+}

@@ -25,6 +25,8 @@ let remainingTime = 0;
 export const SLIDE_DURATION = getConfig().sliderDuration;
 
 export function startSlideTimer() {
+  window.mySlider = window.mySlider || {};
+
   remainingTime = SLIDE_DURATION;
   slideStartTime = Date.now();
   resetProgressBar();
@@ -79,6 +81,8 @@ export function startSlideTimer() {
 }
 
 export function stopSlideTimer() {
+  window.mySlider = window.mySlider || {};
+
   if (autoSlideTimeout) {
     clearTimeout(autoSlideTimeout);
     autoSlideTimeout = null;
@@ -87,6 +91,8 @@ export function stopSlideTimer() {
 }
 
 export function pauseSlideTimer() {
+  window.mySlider = window.mySlider || {};
+
   if (autoSlideTimeout) {
     clearTimeout(autoSlideTimeout);
     autoSlideTimeout = null;
@@ -97,6 +103,8 @@ export function pauseSlideTimer() {
 }
 
 export function resumeSlideTimer() {
+  window.mySlider = window.mySlider || {};
+
   if (!autoSlideTimeout && remainingTime > 0) {
     slideStartTime = Date.now();
     resumeProgressBar();

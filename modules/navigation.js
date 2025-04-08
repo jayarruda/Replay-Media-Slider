@@ -54,8 +54,15 @@ export function createDotNavigation() {
   const dotType = config.dotBackgroundImageType;
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
+
   const slidesContainer = indexPage.querySelector("#slides-container");
+  if (!slidesContainer) {
+    console.warn("slides-container bulunamadı, dot navigation oluşturulamıyor.");
+    return;
+  }
+
   const slides = slidesContainer.querySelectorAll(".slide");
+  if (!slides.length) return;
 
   let dotContainer = slidesContainer.querySelector(".dot-navigation-container");
   if (dotContainer) dotContainer.remove();
@@ -93,6 +100,7 @@ export function createDotNavigation() {
 
   slidesContainer.appendChild(dotContainer);
 }
+
 
 export function displaySlide(index) {
   console.log("displaySlide çağrıldı, index:", index);
