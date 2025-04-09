@@ -25,6 +25,7 @@ import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
+import { debounce } from "./modules/utils.js";
 
 const config = getConfig();
 
@@ -64,67 +65,59 @@ const shuffleArray = (array) => {
   return array;
 };
 
-export async function slidesInit() {
+async function slidesInit() {
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
 
-  const config = getConfig();
-  let cssPath = (config.cssVariant === 'fullslider')
-    ? "./slider/src/fullslider.css"
-    : "./slider/src/slider.css";
-
   try {
+    const config = getConfig();
+    let cssPath = config.cssVariant === 'fullslider'
+      ? "./slider/src/fullslider.css"
+      : "./slider/src/slider.css";
+
+    console.log("CSS dosyası yüklenmeye başlıyor:", cssPath);
     await loadExternalCSS(cssPath);
     console.log("CSS başarıyla yüklendi:", cssPath);
-  } catch (err) {
-    console.error("CSS yüklenemedi:", err);
-    window.sliderResetInProgress = false;
-    return;
-  }
 
-  setCurrentIndex(0);
-  clearCookies();
-  cleanupSlider();
-  window.mySlider = {};
+    setCurrentIndex(0);
+    clearCookies();
+    cleanupSlider();
+    window.mySlider = {};
 
-  if (window.intervalChangeSlide) {
-    clearInterval(window.intervalChangeSlide);
-    window.intervalChangeSlide = null;
-  }
-  if (window.sliderTimeout) {
-    clearTimeout(window.sliderTimeout);
-    window.sliderTimeout = null;
-  }
-
-  const credentials = sessionStorage.getItem("json-credentials");
-  const apiKey = sessionStorage.getItem("api-key");
-  let userId = null, accessToken = null;
-  if (credentials) {
-    try {
-      const parsed = JSON.parse(credentials);
-      userId = parsed.Servers[0].UserId;
-      accessToken = parsed.Servers[0].AccessToken;
-    } catch (error) {
-      console.error("Credential JSON hatası:", error);
+    if (window.intervalChangeSlide) {
+      clearInterval(window.intervalChangeSlide);
+      window.intervalChangeSlide = null;
     }
-  }
-  if (!userId || !apiKey) {
-    console.error("Kullanıcı bilgileri veya API key bulunamadı.");
-    window.sliderResetInProgress = false;
-    return;
-  }
+    if (window.sliderTimeout) {
+      clearTimeout(window.sliderTimeout);
+      window.sliderTimeout = null;
+    }
 
-  const savedLimit = localStorage.getItem("limit") || 20;
-  window.myUserId = userId;
-  const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
-  window.myListUrl = listUrl;
-  console.log("List URL:", listUrl);
+    const credentials = sessionStorage.getItem("json-credentials");
+    const apiKey = sessionStorage.getItem("api-key");
+    let userId = null, accessToken = null;
+    if (credentials) {
+      try {
+        const parsed = JSON.parse(credentials);
+        userId = parsed.Servers[0].UserId;
+        accessToken = parsed.Servers[0].AccessToken;
+      } catch (error) {
+        console.error("Credential JSON hatası:", error);
+      }
+    }
+    if (!userId || !apiKey) {
+      console.error("Kullanıcı bilgileri veya API key bulunamadı.");
+      return;
+    }
 
-  (async () => {
+    const savedLimit = localStorage.getItem("limit") || 20;
+    window.myUserId = userId;
+    const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
+    window.myListUrl = listUrl;
+    console.log("List URL:", listUrl);
+
     let listItems = [];
     let listContent = "";
-    const config = getConfig();
-
     if (config.useManualList && config.manualListIds) {
       listItems = config.manualListIds.split(',').map(id => id.trim()).filter(id => id);
       console.log("El ile yapılandırılmış liste kullanılıyor:", listItems);
@@ -155,7 +148,6 @@ export async function slidesInit() {
       items = (await Promise.all(itemPromises)).filter((item) => item);
     } else {
       try {
-        const config = getConfig();
         const queryString = config.customQueryString;
         const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
         const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
@@ -206,7 +198,8 @@ export async function slidesInit() {
       await createSlide(item);
     }
     console.groupEnd();
-    (function setupSliderUI() {
+
+    function setupSliderUI() {
       const hiddenIndexPage = document.querySelector("#indexPage.hide");
       if (hiddenIndexPage) {
         const container = hiddenIndexPage.querySelector("#slides-container");
@@ -252,9 +245,33 @@ export async function slidesInit() {
         }
       });
       createDotNavigation();
-      window.sliderResetInProgress = false;
-    })();
-  })();
+      console.log("Slider UI kurulumu tamamlandı.");
+    }
+
+    setupSliderUI();
+
+  } catch (err) {
+    console.error("Slider init sırasında hata oluştu:", err);
+  } finally {
+    window.sliderResetInProgress = false;
+  }
 }
 
 window.slidesInit = slidesInit;
+
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    console.log("Page cache'den yüklendi, slider yeniden başlatılıyor...");
+    slidesInit();
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pauseSlideTimer();
+    pauseProgressBar();
+  } else {
+    resumeSlideTimer();
+    resumeProgressBar();
+  }
+});
