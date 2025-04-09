@@ -452,7 +452,7 @@ if (config.showLogoOrTitle) {
   if (config.showDescriptions && config.showOriginalTitleInfo && OriginalTitle) {
     if (!config.hideOriginalTitleIfSame || title !== OriginalTitle) {
       const originalTitleSpan = document.createElement("span");
-      originalTitleSpan.className = "o.baslik";
+      originalTitleSpan.className = "o-baslik";
       originalTitleSpan.textContent = OriginalTitle;
       titleContainer.appendChild(originalTitleSpan);
     }
