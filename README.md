@@ -44,11 +44,11 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ### Windows için
 
-İndirdiğiniz sıkıştırılmış klasörü herhangi boş bir klasöre çıkarıp ``` install.bat ``` dosyasını yönetici olarak çalıştırın ve tarayıcı çerezlerini birkaç kez temizleyin.
+İndirdiğiniz sıkıştırılmış klasörü herhangi boş bir klasöre çıkarıp ``` install.bat ``` betiğini yönetici olarak çalıştırın ve tarayıcı çerezlerini birkaç kez temizleyin.
 
 ### Yüklemeyi Kaldırma
 
-``` uninstall.bat ``` dosyasını yönetici olarak çalıştırın.
+``` uninstall.bat ``` betiğini yönetici olarak çalıştırın.
 
 
 ### Linux için
@@ -112,7 +112,7 @@ Detaylı açıklamalar;
 Extract the downloaded compressed folder to any empty folder, then run the ``` install.bat ``` file as administrator and clear your browser cookies a few times.
 
 ### Uninstalling
-Run the ``` uninstall.bat ``` file as administrator.
+Run the script ``` uninstall.bat ``` as administrator.
 
 ### For Linux
 
