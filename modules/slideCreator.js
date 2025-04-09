@@ -1,4 +1,4 @@
-import { getYoutubeEmbedUrl, getProviderUrl } from "./utils.js";
+import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, debounce } from "./utils.js";
 import { updateFavoriteStatus } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
@@ -164,39 +164,65 @@ async function createSlide(item) {
   slide.appendChild(horizontalGradientOverlay);
   slidesContainer.appendChild(slide);
 
-  if (config.enableTrailerPlayback && RemoteTrailers && RemoteTrailers.length > 0) {
-    const trailer = RemoteTrailers[0];
-    const trailerIframe = document.createElement("iframe");
-    trailerIframe.title = trailer.Name;
-    trailerIframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-    trailerIframe.allowFullscreen = true;
-    Object.assign(trailerIframe.style, { width: "70%", height: "100%", border: "none", display: "none", position: "absolute", top: "0%", right: "0%" });
-    slide.appendChild(trailerIframe);
-    let trailerPlaying = false;
-    let enterTimeout = null;
-    backdropImg.addEventListener("mouseenter", () => {
-      enterTimeout = setTimeout(() => {
-        backdropImg.style.opacity = "0";
-        trailerIframe.style.display = "block";
-        trailerIframe.src = getYoutubeEmbedUrl(trailer.Url);
-        slide.classList.add("trailer-active");
-        trailerPlaying = true;
-      }, 1000);
-    });
-    backdropImg.addEventListener("mouseleave", () => {
-      if (enterTimeout) {
-        clearTimeout(enterTimeout);
-        enterTimeout = null;
-      }
-      if (trailerPlaying) {
-        trailerIframe.style.display = "none";
-        trailerIframe.src = "";
-        backdropImg.style.opacity = "1";
-        slide.classList.remove("trailer-active");
-        trailerPlaying = false;
-      }
-    });
-  }
+  if (config.enableTrailerPlayback && RemoteTrailers?.length > 0) {
+  const trailer = RemoteTrailers[0];
+  const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
+
+  if (!isValidUrl(trailerUrl)) return;
+
+  const trailerIframe = document.createElement("iframe");
+  trailerIframe.title = trailer.Name;
+  trailerIframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+  trailerIframe.allowFullscreen = true;
+
+  Object.assign(trailerIframe.style, {
+    width: "70%",
+    height: "100%",
+    border: "none",
+    display: "none",
+    position: "absolute",
+    top: "0%",
+    right: "0%"
+  });
+
+  slide.appendChild(trailerIframe);
+
+  let trailerPlaying = false;
+  let enterTimeout = null;
+
+  const handleMouseEnter = debounce(() => {
+    backdropImg.style.opacity = "0";
+    trailerIframe.style.display = "block";
+    trailerIframe.src = trailerUrl;
+    slide.classList.add("trailer-active");
+    trailerPlaying = true;
+  }, 500);
+
+  const handleMouseLeave = () => {
+    if (enterTimeout) {
+      clearTimeout(enterTimeout);
+      enterTimeout = null;
+    }
+
+    if (trailerPlaying) {
+      trailerIframe.style.display = "none";
+      trailerIframe.src = "";
+      backdropImg.style.opacity = "1";
+      slide.classList.remove("trailer-active");
+      trailerPlaying = false;
+    }
+  };
+
+  backdropImg.addEventListener("mouseenter", () => {
+    enterTimeout = setTimeout(handleMouseEnter, 1000);
+  });
+
+  backdropImg.addEventListener("mouseleave", handleMouseLeave);
+
+  slide.addEventListener("slideChange", () => {
+    handleMouseLeave();
+  });
+}
 
 const logoContainer = document.createElement("div");
 logoContainer.className = "logo-container";
