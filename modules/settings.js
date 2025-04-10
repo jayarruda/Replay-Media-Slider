@@ -60,6 +60,8 @@ const allowedWritersInput = getEl('allowedWritersInput');
 const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
 progressBarWidthInput.value = parseInt(progressBarWidth);
 const cssVariantSelect = getEl('cssVariantSelect');
+const displayOrderInput = getEl('displayOrderInput');
+const displayOrderContainer = getEl('displayOrderContainer');
 
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
@@ -118,7 +120,6 @@ function initSettingsBackgroundSlider() {
     slide.addEventListener('error', function () {
       this.style.display = 'none';
     });
-    if (Math.random() > 0.2) slide.classList.add('micro-move');
     settingsSlider.appendChild(slide);
   });
 
@@ -265,6 +266,15 @@ cssVariantSelect.addEventListener('change', function() {
     localStorage.setItem('cssVariant', this.value);
   });
 
+showLogoOrTitleCheckbox.addEventListener("change", updateDisplayOrderVisibility);
+
+function updateDisplayOrderVisibility() {
+  if (showLogoOrTitleCheckbox.checked) {
+    displayOrderContainer.style.display = "block";
+  } else {
+    displayOrderContainer.style.display = "none";
+  }
+}
 
 manualBackdropSelectionCheckbox.addEventListener("change", () => {
   backdropImageTypeSelect.disabled = !manualBackdropSelectionCheckbox.checked;
@@ -324,6 +334,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
   document.body.className = savedTheme + '-theme';
 
+  displayOrderInput.value = localStorage.getItem('displayOrder') || 'logo,disk,originalTitle';
   languageCheckbox.checked = localStorage.getItem("showLanguageInfo") !== "false";
   showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") !== "false";
   showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") !== "false";
@@ -365,6 +376,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initSettingsBackgroundSlider();
   addBackButtonStyles();
   setupBackButton();
+  updateDisplayOrderVisibility();
   cssVariantSelect.value = localStorage.getItem('cssVariant') || 'kompak';
 
   getEl('resetToDefaults').addEventListener('click', function() {
@@ -530,9 +542,9 @@ document.addEventListener("DOMContentLoaded", function () {
       defaultLanguage: defaultLanguageSelect.value,
       limit: limitInput.value,
       minHighQualityWidth: minHighQualityWidthInput.value,
-      progressBarWidth: progressBarWidthInput.value + "%"
+      progressBarWidth: progressBarWidthInput.value + "%",
+      displayOrder: displayOrderInput.value
     };
-
 
     Object.entries(settingsToSave).forEach(([key, value]) => {
       localStorage.setItem(key, value.toString());
