@@ -46,6 +46,7 @@ const showGenresInfoCheckbox = getEl("showGenresInfoCheckbox");
 const showYearInfoCheckbox = getEl("showYearInfoCheckbox");
 const showCountryInfoCheckbox = getEl("showCountryInfoCheckbox");
 const showTrailerButtonCheckbox = getEl("showTrailerButtonCheckbox");
+const showTrailerIconCheckbox = getEl("showTrailerIconCheckbox");
 const showWatchButtonCheckbox = getEl("showWatchButtonCheckbox");
 const customQueryStringInput = getEl('customQueryStringInput');
 const showFavoriteButtonCheckbox = getEl("showFavoriteButtonCheckbox");
@@ -361,6 +362,7 @@ document.addEventListener("DOMContentLoaded", function () {
   minHighQualityWidthInput.value = localStorage.getItem("minHighQualityWidth") || 1920;
   enableTrailerPlaybackCheckbox.checked = localStorage.getItem("enableTrailerPlayback") !== "false";
   showTrailerButtonCheckbox.checked = localStorage.getItem("showTrailerButton") !== "false";
+  showTrailerIconCheckbox.checked = localStorage.getItem("showTrailerIcon") !== "false";
   showWatchButtonCheckbox.checked = localStorage.getItem("showWatchButton") !== "false";
   showFavoriteButtonCheckbox.checked = localStorage.getItem("showFavoriteButton") !== "false";
   useListFileCheckbox.checked = localStorage.getItem("useListFile") !== "false";
@@ -391,7 +393,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'showOriginalTitleInfo', 'customQueryString', 'showDirectorWriter',
       'showDirector', 'showWriter', 'useListFile', 'sortingKeywords', 'showInfo',
       'showGenresInfo', 'showYearInfo', 'showCountryInfo', 'sliderDuration',
-      'artistLimit', 'showTrailerButton', 'showWatchButton', 'showFavoriteButton',
+      'artistLimit', 'showTrailerButton', 'showTrailerIcon', 'showWatchButton', 'showFavoriteButton',
       'hideOriginalTitleIfSame', 'manualBackdropSelection', 'gradientOverlayImageType',
       'backdropImageType', 'dotBackgroundImageType', 'trailerBackgroundImageType',
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
@@ -528,6 +530,7 @@ document.addEventListener("DOMContentLoaded", function () {
       sliderDuration: sliderDurationInput.value,
       artistLimit: artistLimitInput.value,
       showTrailerButton: showTrailerButtonCheckbox.checked,
+      showTrailerIcon: showTrailerIconCheckbox.checked,
       showWatchButton: showWatchButtonCheckbox.checked,
       showFavoriteButton: showFavoriteButtonCheckbox.checked,
       hideOriginalTitleIfSame: hideOriginalTitleIfSameCheckbox.checked,
