@@ -14,6 +14,7 @@ export function getConfig() {
     showLogoOrTitle: localStorage.getItem('showLogoOrTitle') !== 'false',
     showTitleOnly: localStorage.getItem('showTitleOnly') !== 'false',
     showDiscOnly: localStorage.getItem('showDiscOnly') !== 'false',
+    displayOrder: localStorage.getItem('displayOrder') || 'logo,disk,originalTitle',
     showCommunityRating: localStorage.getItem('showCommunityRating') !== 'false',
     showCriticRating: localStorage.getItem('showCriticRating') !== 'false',
     showOfficialRating: localStorage.getItem('showOfficialRating') !== 'false',
