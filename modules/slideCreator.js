@@ -238,7 +238,8 @@ async function createSlide(item) {
     discImg.alt = "";
     discImg.loading = "lazy";
     Object.assign(discImg.style, commonImageStyle, {
-      maxHeight: "100%",
+      maxHeight: "75%",
+      maxWidth: "75%",
       width: "auto",
       borderRadius: "50%"
     });
