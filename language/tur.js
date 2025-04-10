@@ -261,6 +261,8 @@ export const languageLabels = {
     resetToDefaults: "Varsayılan Değerler",
     kompakslider: "Kompak Görünüm",
     tamslider: "Tam Ekran",
+    displayOrderlabel: "Görüntüleme Sıralası",
+    displayOrderhelp: "Görseller veya Orijinal Başlık Bu Alandaki Sıralamaya Göre Gösterilecektir. (Örnek: disk,logo,originalTitle)",
     optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",
