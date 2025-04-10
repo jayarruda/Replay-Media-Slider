@@ -648,61 +648,70 @@ tryDisplayElement(0);
   }
 
   let providerContainer = null;
-  if (config.showProviderInfo && ProviderIds) {
-    const allowedProviders = ["Imdb", "Tmdb", "Tvdb"];
-    const providerDiv = document.createElement("div");
-    providerDiv.className = "provider-ids";
-    const providerIdsTranslations = {
-      Imdb: { text: "", icon: '<img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" width="24" height="24">' },
-      Tmdb: { text: "", icon: '<img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_1-5bdc75aaebeb75dc7ae79426ddd9be3b2be1e342510f8202baf6bffa71d7f5c4.svg" alt="Tmdb" width="24" height="24">' },
-      Tvdb: { text: "", icon: '<img src="https://www.thetvdb.com/images/logo.svg" alt="Tvdb" width="24" height="24">' },
-    };
-    allowedProviders.forEach(provider => {
-      if (ProviderIds[provider]) {
-        const link = document.createElement("span");
-        if (providerIdsTranslations[provider]) {
-          link.innerHTML = `${providerIdsTranslations[provider].icon} ${providerIdsTranslations[provider].text}`;
-        } else {
-          link.textContent = provider;
-        }
-        link.className = "provider-link";
-        link.style.marginRight = "10px";
-        link.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          window.open(getProviderUrl(provider, ProviderIds[provider], ProviderIds["TvdbSlug"]), "_blank", "noopener,noreferrer");
-        });
-        providerDiv.appendChild(link);
-      }
+  if (ProviderIds) {
+  const allowedProviders = ["Imdb", "Tmdb", "Tvdb"];
+  const providerDiv = document.createElement("div");
+  providerDiv.className = "provider-ids";
+
+  if (config.showTrailerIcon && RemoteTrailers && RemoteTrailers.length > 0) {
+    const trailer = RemoteTrailers[0];
+    const trailerLink = document.createElement("span");
+    trailerLink.innerHTML = '<i class="fa-brands fa-youtube fa-lg" style="color: #ff0000;"></i>';
+    trailerLink.className = "provider-link";
+    trailerLink.title = `${config.languageLabels.youtubetrailer}`;
+    trailerLink.style.cursor = "pointer";
+    trailerLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.open(trailer.Url, "_blank", "noopener,noreferrer");
     });
-    if (providerDiv.childNodes.length > 0) {
-      providerContainer = document.createElement("div");
-      providerContainer.className = "provider-container";
-      providerContainer.appendChild(providerDiv);
-    }
+    providerDiv.appendChild(trailerLink);
   }
-  if (config.showSettingsLink) {
+
+   if (config.showSettingsLink) {
     const settingsLink = document.createElement("span");
-    settingsLink.innerHTML = '<i class="fa-solid fa-sliders"></i>';
-    settingsLink.className = "provider-link";
-    settingsLink.style.marginRight = "10px";
+    settingsLink.innerHTML ='<i class="fa-solid fa-square-sliders fa-lg"></i>';
+    settingsLink.className = "youtube-link";
+    settingsLink.title = `${config.languageLabels.settingsLink}`;
     settingsLink.style.cursor = "pointer";
     settingsLink.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       window.open(`${window.location.origin}/web/slider/src/settings.html`, "_blank", "noopener,noreferrer");
     });
-    if (providerContainer) {
-      providerContainer.querySelector(".provider-ids").prepend(settingsLink);
-    } else {
-      const providerDiv = document.createElement("div");
-      providerDiv.className = "provider-ids";
-      providerDiv.appendChild(settingsLink);
-      providerContainer = document.createElement("div");
-      providerContainer.className = "provider-container";
-      providerContainer.appendChild(providerDiv);
-    }
+    providerDiv.appendChild(settingsLink);
   }
+
+  const providerIdsTranslations = {
+    Imdb: { text: "", icon: '<img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" width="24" height="24">' },
+    Tmdb: { text: "", icon: '<img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_1-5bdc75aaebeb75dc7ae79426ddd9be3b2be1e342510f8202baf6bffa71d7f5c4.svg" alt="Tmdb" width="24" height="24">' },
+    Tvdb: { text: "", icon: '<img src="https://www.thetvdb.com/images/logo.svg" alt="Tvdb" width="24" height="24">'},
+  };
+
+  allowedProviders.forEach(provider => {
+     if (config.showProviderInfo) {
+      const link = document.createElement("span");
+      if (providerIdsTranslations[provider]) {
+        link.innerHTML = `${providerIdsTranslations[provider].icon} ${providerIdsTranslations[provider].text}`;
+      } else {
+        link.textContent = provider;
+      }
+      link.className = "provider-link";
+      link.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(getProviderUrl(provider, ProviderIds[provider], ProviderIds["TvdbSlug"]), "_blank", "noopener,noreferrer");
+      });
+      providerDiv.appendChild(link);
+    }
+  });
+
+  if (providerDiv.childNodes.length > 0) {
+    providerContainer = document.createElement("div");
+    providerContainer.className = "provider-container";
+    providerContainer.appendChild(providerDiv);
+  }
+}
 
   let languageContainer = null;
   if (config.showLanguageInfo && MediaStreams && MediaStreams.length > 0 && itemType.toLowerCase() !== "series") {
