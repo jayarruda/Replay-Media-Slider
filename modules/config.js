@@ -40,6 +40,7 @@ export function getConfig() {
     showYearInfo: localStorage.getItem("showYearInfo") !== "false",
     showCountryInfo: localStorage.getItem("showCountryInfo") !== "false",
     showTrailerButton: localStorage.getItem('showTrailerButton') !== 'false',
+    showTrailerIcon: localStorage.getItem('showTrailerIcon') !== 'false',
     showWatchButton: localStorage.getItem('showWatchButton') !== 'false',
     manualBackdropSelection: localStorage.getItem('manualBackdropSelection') === 'true',
     showFavoriteButton: localStorage.getItem('showFavoriteButton') !== 'false',
