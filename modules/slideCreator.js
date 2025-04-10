@@ -5,6 +5,7 @@ import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 
 const config = getConfig();
 const settingsBackgroundSlides = [];
+
 async function createSlide(item) {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
@@ -48,12 +49,12 @@ async function createSlide(item) {
   }
 
   function storeBackdropUrl(itemId, backdropUrl) {
-  const storedUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [];
-  if (!storedUrls.includes(backdropUrl)) {
-    storedUrls.push(backdropUrl);
-    localStorage.setItem('backdropUrls', JSON.stringify(storedUrls));
+    const storedUrls = JSON.parse(localStorage.getItem('backdropUrls')) || [];
+    if (!storedUrls.includes(backdropUrl)) {
+      storedUrls.push(backdropUrl);
+      localStorage.setItem('backdropUrls', JSON.stringify(storedUrls));
+    }
   }
-}
 
   const autoBackdropUrl = `${window.location.origin}/Items/${itemId}/Images/Backdrop/${highestQualityBackdropIndex}`;
   const landscapeUrl = `${window.location.origin}/Items/${itemId}/Images/Thumb/0`;
@@ -120,13 +121,11 @@ async function createSlide(item) {
 
   const gradientOverlay = document.createElement("div");
   gradientOverlay.className = "gradient-overlay";
-
   function setGradientOverlay(imageUrl) {
     if (!imageUrl) {
       gradientOverlay.style.backgroundImage = "none";
       return;
     }
-
     gradientOverlay.style.backgroundImage = `url(${imageUrl})`;
     gradientOverlay.style.backgroundRepeat = 'no-repeat';
     gradientOverlay.style.backgroundPosition = '50%';
@@ -165,153 +164,137 @@ async function createSlide(item) {
   slidesContainer.appendChild(slide);
 
   if (config.enableTrailerPlayback && RemoteTrailers?.length > 0) {
-  const trailer = RemoteTrailers[0];
-  const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
+    const trailer = RemoteTrailers[0];
+    const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
+    if (!isValidUrl(trailerUrl)) return;
+    const trailerIframe = document.createElement("iframe");
+    trailerIframe.title = trailer.Name;
+    trailerIframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+    trailerIframe.allowFullscreen = true;
+    Object.assign(trailerIframe.style, {
+      width: "70%",
+      height: "100%",
+      border: "none",
+      display: "none",
+      position: "absolute",
+      top: "0%",
+      right: "0%"
+    });
+    slide.appendChild(trailerIframe);
+    let trailerPlaying = false;
+    let enterTimeout = null;
+    const handleMouseEnter = debounce(() => {
+      backdropImg.style.opacity = "0";
+      trailerIframe.style.display = "block";
+      trailerIframe.src = trailerUrl;
+      slide.classList.add("trailer-active");
+      trailerPlaying = true;
+    }, 500);
+    const handleMouseLeave = () => {
+      if (enterTimeout) {
+        clearTimeout(enterTimeout);
+        enterTimeout = null;
+      }
+      if (trailerPlaying) {
+        trailerIframe.style.display = "none";
+        trailerIframe.src = "";
+        backdropImg.style.opacity = "1";
+        slide.classList.remove("trailer-active");
+        trailerPlaying = false;
+      }
+    };
+    backdropImg.addEventListener("mouseenter", () => {
+      enterTimeout = setTimeout(handleMouseEnter, 1000);
+    });
+    backdropImg.addEventListener("mouseleave", handleMouseLeave);
+    slide.addEventListener("slideChange", () => {
+      handleMouseLeave();
+    });
+  }
 
-  if (!isValidUrl(trailerUrl)) return;
-
-  const trailerIframe = document.createElement("iframe");
-  trailerIframe.title = trailer.Name;
-  trailerIframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-  trailerIframe.allowFullscreen = true;
-
-  Object.assign(trailerIframe.style, {
-    width: "70%",
-    height: "100%",
-    border: "none",
-    display: "none",
-    position: "absolute",
-    top: "0%",
-    right: "0%"
-  });
-
-  slide.appendChild(trailerIframe);
-
-  let trailerPlaying = false;
-  let enterTimeout = null;
-
-  const handleMouseEnter = debounce(() => {
-    backdropImg.style.opacity = "0";
-    trailerIframe.style.display = "block";
-    trailerIframe.src = trailerUrl;
-    slide.classList.add("trailer-active");
-    trailerPlaying = true;
-  }, 500);
-
-  const handleMouseLeave = () => {
-    if (enterTimeout) {
-      clearTimeout(enterTimeout);
-      enterTimeout = null;
-    }
-
-    if (trailerPlaying) {
-      trailerIframe.style.display = "none";
-      trailerIframe.src = "";
-      backdropImg.style.opacity = "1";
-      slide.classList.remove("trailer-active");
-      trailerPlaying = false;
-    }
+  const commonImageStyle = {
+    maxWidth: "100%",
+    height: "auto",
+    objectFit: "contain",
+    aspectRatio: "1/1",
+    display: "block",
   };
 
-  backdropImg.addEventListener("mouseenter", () => {
-    enterTimeout = setTimeout(handleMouseEnter, 1000);
-  });
+  function createLogoElement(fallback) {
+    const logoImg = document.createElement("img");
+    logoImg.className = "logo";
+    logoImg.src = logoUrl;
+    logoImg.alt = "";
+    logoImg.loading = "lazy";
+    Object.assign(logoImg.style, commonImageStyle, { aspectRatio: "initial" });
+    logoImg.onerror = fallback;
+    return logoImg;
+  }
 
-  backdropImg.addEventListener("mouseleave", handleMouseLeave);
-
-  slide.addEventListener("slideChange", () => {
-    handleMouseLeave();
-  });
-}
-
-const logoContainer = document.createElement("div");
-logoContainer.className = "logo-container";
-
-const commonImageStyle = {
-  maxWidth: "100%",
-  height: "auto",
-  objectFit: "contain",
-  aspectRatio: "1/1",
-  display: "block",
-};
-
-if (config.showLogoOrTitle) {
-  const logoImg = document.createElement("img");
-  logoImg.className = "logo";
-  logoImg.src = logoUrl;
-  logoImg.alt = "";
-  logoImg.loading = "lazy";
-
-  Object.assign(logoImg.style, commonImageStyle, {
-    aspectRatio: "initial"
-  });
-
-  logoImg.onerror = () => {
-    console.log("Logo yüklenemedi, disk resmi deneniyor.");
-    logoContainer.innerHTML = "";
-
+  function createDiskElement(fallback) {
     const discImg = document.createElement("img");
     discImg.className = "disk";
     discImg.src = discUrl;
     discImg.alt = "";
     discImg.loading = "lazy";
-
     Object.assign(discImg.style, commonImageStyle, {
       maxHeight: "100%",
       width: "auto",
       borderRadius: "50%"
     });
+    discImg.onerror = fallback;
+    return discImg;
+  }
 
-    discImg.onerror = () => {
-      console.log("Disc yüklenemedi, başlık gösterilecek.");
-      const logoDiv = document.createElement("div");
-      logoDiv.className = "no-logo-container";
-      logoDiv.textContent = OriginalTitle;
-      logoDiv.style.display = "flex";
-      logoDiv.style.alignItems = "center";
-      logoDiv.style.justifyContent = "center";
-      logoContainer.appendChild(logoDiv);
-    };
+  function createTitleElement() {
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "no-logo-container";
+    titleDiv.textContent = OriginalTitle;
+    titleDiv.style.display = "flex";
+    titleDiv.style.alignItems = "center";
+    titleDiv.style.justifyContent = "center";
+    return titleDiv;
+  }
 
-    logoContainer.appendChild(discImg);
-  };
-
-  logoContainer.appendChild(logoImg);
-} else if (config.showDiscOnly) {
-  const discImg = document.createElement("img");
-  discImg.className = "disk";
-  discImg.src = discUrl;
-  discImg.alt = "";
-  discImg.loading = "lazy";
-
-  Object.assign(discImg.style, commonImageStyle, {
-    maxHeight: "100%",
-    width: "auto",
-    borderRadius: "50%"
-  });
-
-  discImg.onerror = () => {
-    const logoDiv = document.createElement("div");
-    logoDiv.className = "no-logo-container";
-    logoDiv.textContent = OriginalTitle;
-    logoDiv.style.display = "flex";
-    logoDiv.style.alignItems = "center";
-    logoDiv.style.justifyContent = "center";
-    logoContainer.appendChild(logoDiv);
-  };
-
-  logoContainer.appendChild(discImg);
+let order;
+if (config.showDiscOnly) {
+  order = ["disk"];
 } else if (config.showTitleOnly) {
-  const logoDiv = document.createElement("div");
-  logoDiv.className = "no-logo-container";
-  logoDiv.textContent = OriginalTitle;
-  logoDiv.style.display = "flex";
-  logoDiv.style.alignItems = "center";
-  logoDiv.style.justifyContent = "center";
-  logoContainer.appendChild(logoDiv);
+  order = ["originalTitle"];
+} else if (config.showLogoOrTitle) {
+  order = config.displayOrder.split(',').map(item => item.trim());
 } else {
-  logoContainer.style.display = "none";
+  order = [];
 }
+
+const logoContainer = document.createElement("div");
+logoContainer.className = "logo-container";
+
+function tryDisplayElement(index) {
+  if (index >= order.length) return;
+  const type = order[index];
+  if (type === "logo" && config.showLogoOrTitle) {
+    const element = createLogoElement(() => {
+      logoContainer.innerHTML = "";
+      tryDisplayElement(index + 1);
+    });
+    logoContainer.appendChild(element);
+  }
+  else if (type === "disk" && (config.showDiscOnly || config.showLogoOrTitle)) {
+    const element = createDiskElement(() => {
+      logoContainer.innerHTML = "";
+      tryDisplayElement(index + 1);
+    });
+    logoContainer.appendChild(element);
+  }
+  else if (type === "originalTitle" && (config.showTitleOnly || config.showLogoOrTitle)) {
+    const element = createTitleElement();
+    logoContainer.appendChild(element);
+  } else {
+    tryDisplayElement(index + 1);
+  }
+}
+tryDisplayElement(0);
 
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "button-container";
@@ -533,17 +516,17 @@ if (config.showLogoOrTitle) {
   }
 
   let actorContainer = document.createElement("div");
-actorContainer.className = "artist-container";
-if (People && config.showActorInfo) {
-  const actors = People.filter(p => p.Type === "Actor").slice(0, getConfig().artistLimit || 3);
-  if (actors.length) {
-    const actorNames = actors.map(a => a.Name).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
-    const actorsSpan = document.createElement("span");
-    actorsSpan.className = "artists";
-    actorsSpan.innerHTML = actorNames;
-    actorContainer.appendChild(actorsSpan);
+  actorContainer.className = "artist-container";
+  if (People && config.showActorInfo) {
+    const actors = People.filter(p => p.Type === "Actor").slice(0, getConfig().artistLimit || 3);
+    if (actors.length) {
+      const actorNames = actors.map(a => a.Name).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
+      const actorsSpan = document.createElement("span");
+      actorsSpan.className = "artists";
+      actorsSpan.innerHTML = actorNames;
+      actorContainer.appendChild(actorsSpan);
+    }
   }
-}
 
   const infoContainer = document.createElement("div");
   infoContainer.className = "info-container";
@@ -662,8 +645,6 @@ if (People && config.showActorInfo) {
       ratingContainer.appendChild(officialRatingSpan);
     }
   }
-  if (ratingExists) {
-  }
 
   let providerContainer = null;
   if (config.showProviderInfo && ProviderIds) {
@@ -723,74 +704,64 @@ if (People && config.showActorInfo) {
   }
 
   let languageContainer = null;
-if (config.showLanguageInfo && MediaStreams && MediaStreams.length > 0 && itemType.toLowerCase() !== "series") {
-  const audioCodecs = ["ac3", "mp3", "aac", "flac", "dts", "truehd", "eac3"];
-  const subtitleCodecs = ["srt", "ass", "vtt", "subrip"];
-  const audioStreams = MediaStreams.filter(
-    stream => stream.Codec && audioCodecs.includes(stream.Codec.toLowerCase())
-  );
-  const subtitleStreams = MediaStreams.filter(
-    stream => stream.Codec && subtitleCodecs.includes(stream.Codec.toLowerCase())
-  );
-
-  const hasTurkishAudio = audioStreams.some(
-    stream => stream.Language && stream.Language.toLowerCase() === config.defaultLanguage
-  );
-  const hasTurkishSubtitle = subtitleStreams.some(
-    stream => stream.Language && stream.Language.toLowerCase() === config.defaultLanguage
-  );
-
-  let audioLabel = "";
-  let subtitleLabel = "";
-
-  if (hasTurkishAudio) {
-    audioLabel = `<i class="fa-regular fa-language"></i> ${config.languageLabels.audio}`;
+  if (config.showLanguageInfo && MediaStreams && MediaStreams.length > 0 && itemType.toLowerCase() !== "series") {
+    const audioCodecs = ["ac3", "mp3", "aac", "flac", "dts", "truehd", "eac3"];
+    const subtitleCodecs = ["srt", "ass", "vtt", "subrip"];
+    const audioStreams = MediaStreams.filter(
+      stream => stream.Codec && audioCodecs.includes(stream.Codec.toLowerCase())
+    );
+    const subtitleStreams = MediaStreams.filter(
+      stream => stream.Codec && subtitleCodecs.includes(stream.Codec.toLowerCase())
+    );
+    const hasTurkishAudio = audioStreams.some(
+      stream => stream.Language && stream.Language.toLowerCase() === config.defaultLanguage
+    );
+    const hasTurkishSubtitle = subtitleStreams.some(
+      stream => stream.Language && stream.Language.toLowerCase() === config.defaultLanguage
+    );
+    let audioLabel = "";
+    let subtitleLabel = "";
+    if (hasTurkishAudio) {
+      audioLabel = `<i class="fa-regular fa-language"></i> ${config.languageLabels.audio}`;
+    } else {
+      const defaultAudioStream = audioStreams.find(stream => stream.IsDefault);
+      const fallbackLanguage = defaultAudioStream && defaultAudioStream.Language ? defaultAudioStream.Language : "";
+      audioLabel = `<i class="fa-regular fa-language"></i> ${config.languageLabels.original}` + (fallbackLanguage ? ` ${fallbackLanguage}` : "");
+    }
+    if (!hasTurkishAudio && hasTurkishSubtitle) {
+      subtitleLabel = `<i class="fa-solid fa-subtitles"></i> ${config.languageLabels.subtitle}`;
+    }
+    const selectedAudioStream = audioStreams.find(
+      stream => stream.Language && stream.Language.toLowerCase() === config.defaultLanguage
+    ) || audioStreams[0];
+    if (selectedAudioStream) {
+      const channelsText = selectedAudioStream.Channels ? `${selectedAudioStream.Channels} ${config.languageLabels.channel}` : "";
+      const bitRateText = selectedAudioStream.BitRate ? `${Math.floor(selectedAudioStream.BitRate / 1000)} kbps` : "";
+      const codecText = selectedAudioStream.Codec ? selectedAudioStream.Codec.toUpperCase() : "";
+      audioLabel += ` <i class="fa-solid fa-volume-high"></i> ${channelsText} - ${bitRateText} <i class="fa-solid fa-microchip"></i> ${codecText}`;
+    }
+    if (audioLabel || subtitleLabel) {
+      languageContainer = document.createElement("div");
+      languageContainer.className = "language-container";
+      if (audioLabel) {
+        const audioSpan = document.createElement("span");
+        audioSpan.className = "audio-label";
+        audioSpan.innerHTML = audioLabel;
+        languageContainer.appendChild(audioSpan);
+      }
+      if (subtitleLabel) {
+        const subtitleSpan = document.createElement("span");
+        subtitleSpan.className = "subtitle-label";
+        subtitleSpan.innerHTML = subtitleLabel;
+        languageContainer.appendChild(subtitleSpan);
+      }
+    }
   } else {
-    const defaultAudioStream = audioStreams.find(stream => stream.IsDefault);
-    const fallbackLanguage = defaultAudioStream && defaultAudioStream.Language ? defaultAudioStream.Language : "";
-    audioLabel = `<i class="fa-regular fa-language"></i> ${config.languageLabels.original}` + (fallbackLanguage ? ` ${fallbackLanguage}` : "");
+    console.log("Dil - Ses ve Altyazı bilgileri gösterilmiyor veya bilgi mevcut değil.");
   }
-
-  if (!hasTurkishAudio && hasTurkishSubtitle) {
-    subtitleLabel = `<i class="fa-solid fa-subtitles"></i> ${config.languageLabels.subtitle}`;
-  }
-
-  const selectedAudioStream = audioStreams.find(
-    stream => stream.Language && stream.Language.toLowerCase() === config.defaultLanguage
-  ) || audioStreams[0];
-
-  if (selectedAudioStream) {
-    const channelsText = selectedAudioStream.Channels ? `${selectedAudioStream.Channels} ${config.languageLabels.channel}` : "";
-    const bitRateText = selectedAudioStream.BitRate ? `${Math.floor(selectedAudioStream.BitRate / 1000)} kbps` : "";
-    const codecText = selectedAudioStream.Codec ? selectedAudioStream.Codec.toUpperCase() : "";
-    audioLabel += ` <i class="fa-solid fa-volume-high"></i> ${channelsText} - ${bitRateText} <i class="fa-solid fa-microchip"></i> ${codecText}`;
-  }
-
-  if (audioLabel || subtitleLabel) {
-    languageContainer = document.createElement("div");
-    languageContainer.className = "language-container";
-
-    if (audioLabel) {
-      const audioSpan = document.createElement("span");
-      audioSpan.className = "audio-label";
-      audioSpan.innerHTML = audioLabel;
-      languageContainer.appendChild(audioSpan);
-    }
-
-    if (subtitleLabel) {
-      const subtitleSpan = document.createElement("span");
-      subtitleSpan.className = "subtitle-label";
-      subtitleSpan.innerHTML = subtitleLabel;
-      languageContainer.appendChild(subtitleSpan);
-    }
-  }
-} else {
-  console.log("Dil - Ses ve Altyazı bilgileri gösterilmiyor veya bilgi mevcut değil.");
-}
 
   const metaContainer = document.createElement("div");
   metaContainer.className = "meta-container";
-
   if (statusContainer) metaContainer.appendChild(statusContainer);
   if (languageContainer) metaContainer.appendChild(languageContainer);
   if (ratingExists) metaContainer.appendChild(ratingContainer);
@@ -799,53 +770,50 @@ if (config.showLanguageInfo && MediaStreams && MediaStreams.length > 0 && itemTy
   const mainContentContainer = document.createElement("div");
   mainContentContainer.className = "main-content-container";
   mainContentContainer.append(
-  logoContainer,
-  titleContainer,
-  plotContainer,
-  providerContainer
-);
+    logoContainer,
+    titleContainer,
+    plotContainer,
+    providerContainer
+  );
 
   slide.append(
-  gradientOverlay,
-  infoContainer,
-  directorContainer,
-  backdropImg,
-  metaContainer,
-  mainContentContainer,
-  buttonContainer
+    gradientOverlay,
+    infoContainer,
+    directorContainer,
+    backdropImg,
+    metaContainer,
+    mainContentContainer,
+    buttonContainer
   );
   slidesContainer.appendChild(slide);
 
   console.log(`Item ${itemId} slide eklendi.`);
   if (slidesContainer.children.length === 1) {
-  import("./navigation.js").then(mod => mod.displaySlide(0));
+    import("./navigation.js").then(mod => mod.displaySlide(0));
   }
 }
 
-    function addSlideToSettingsBackground(itemId, backdropUrl) {
-    const settingsSlider = document.getElementById('settingsBackgroundSlider');
-    if (!settingsSlider) return;
-    const existingSlide = settingsSlider.querySelector(`[data-item-id="${itemId}"]`);
-    if (existingSlide) return;
-
-    const slide = document.createElement('div');
-    slide.className = 'slide';
-    slide.dataset.itemId = itemId;
-    slide.style.backgroundImage = `url('${backdropUrl}')`;
-
-    const img = new Image();
-    img.src = backdropUrl;
-    img.onerror = () => {
-      if (slide.parentNode) {
-        slide.parentNode.removeChild(slide);
-      }
-    };
-
-    settingsSlider.appendChild(slide);
-    if (settingsSlider.children.length === 1) {
-      slide.classList.add('active');
+function addSlideToSettingsBackground(itemId, backdropUrl) {
+  const settingsSlider = document.getElementById('settingsBackgroundSlider');
+  if (!settingsSlider) return;
+  const existingSlide = settingsSlider.querySelector(`[data-item-id="${itemId}"]`);
+  if (existingSlide) return;
+  const slide = document.createElement('div');
+  slide.className = 'slide';
+  slide.dataset.itemId = itemId;
+  slide.style.backgroundImage = `url('${backdropUrl}')`;
+  const img = new Image();
+  img.src = backdropUrl;
+  img.onerror = () => {
+    if (slide.parentNode) {
+      slide.parentNode.removeChild(slide);
     }
+  };
+  settingsSlider.appendChild(slide);
+  if (settingsSlider.children.length === 1) {
+    slide.classList.add('active');
   }
+}
 
 function openTrailerModal(trailerUrl, trailerName) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
@@ -886,4 +854,4 @@ function openTrailerModal(trailerUrl, trailerName) {
   document.addEventListener("keydown", escListener);
 }
 
-export { createSlide, openTrailerModal};
+export { createSlide, openTrailerModal };
