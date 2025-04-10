@@ -260,6 +260,8 @@ export const languageLabels = {
   resetToDefaults: "Default Values",
   kompakslider: "Compact View",
   tamslider: "Full Screen",
+  displayOrderlabel: "Display Order",
+  displayOrderhelp: "Images or the Original Title will be shown in the order specified here. (Example: disk,logo,originalTitle)",
   optionTurkish: "🇹🇷 Türkçe",
   optionEnglish: "🇬🇧 English",
   optionGerman: "🇩🇪 Deutsch",
