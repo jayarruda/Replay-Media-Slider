@@ -25,24 +25,37 @@ import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
+import { debounce } from "./modules/utils.js";
+
 const config = getConfig();
 
-
 function loadExternalCSS(path) {
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = path;
-  document.head.appendChild(link);
+  return new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = path;
+    link.onload = () => resolve();
+    link.onerror = () => reject(new Error(`CSS yüklenemedi: ${path}`));
+    document.head.appendChild(link);
+  });
 }
 
-let cssPath = "";
-if (config.cssVariant === 'fullslider') {
-  cssPath = "./slider/src/fullslider.css";
-} else {
-  cssPath = "./slider/src/slider.css";
+function clearCookies() {
+  document.cookie.split(";").forEach((cookie) => {
+    const [name] = cookie.split("=");
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
+  });
 }
 
-loadExternalCSS(cssPath);
+function ensureSlidesContainer(indexPage) {
+  let slidesContainer = indexPage.querySelector("#slides-container");
+  if (!slidesContainer) {
+    slidesContainer = document.createElement("div");
+    slidesContainer.id = "slides-container";
+    indexPage.insertAdjacentElement("afterbegin", slidesContainer);
+  }
+  return slidesContainer;
+}
 
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
@@ -52,62 +65,63 @@ const shuffleArray = (array) => {
   return array;
 };
 
-export function slidesInit() {
+async function slidesInit() {
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
-  setCurrentIndex(0);
-  document.cookie.split(";").forEach((cookie) => {
-    const [name] = cookie.split("=");
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
-  });
 
-  cleanupSlider();
-  window.mySlider = {};
-  if (window.intervalChangeSlide) {
-    clearInterval(window.intervalChangeSlide);
-    window.intervalChangeSlide = null;
-  }
-  if (window.sliderTimeout) {
-    clearTimeout(window.sliderTimeout);
-    window.sliderTimeout = null;
-  }
+  try {
+    const config = getConfig();
+    let cssPath = config.cssVariant === 'fullslider'
+      ? "./slider/src/fullslider.css"
+      : "./slider/src/slider.css";
 
-  const credentials = sessionStorage.getItem("json-credentials");
-  const apiKey = sessionStorage.getItem("api-key");
-  let userId = null,
-    accessToken = null;
-  if (credentials) {
-    try {
-      const parsed = JSON.parse(credentials);
-      userId = parsed.Servers[0].UserId;
-      accessToken = parsed.Servers[0].AccessToken;
-    } catch (error) {
-      console.error("Credential JSON hatası:", error);
+    console.log("CSS dosyası yüklenmeye başlıyor:", cssPath);
+    await loadExternalCSS(cssPath);
+    console.log("CSS başarıyla yüklendi:", cssPath);
+
+    setCurrentIndex(0);
+    clearCookies();
+    cleanupSlider();
+    window.mySlider = {};
+
+    if (window.intervalChangeSlide) {
+      clearInterval(window.intervalChangeSlide);
+      window.intervalChangeSlide = null;
     }
-  }
-  if (!userId || !apiKey) {
-    console.error("Kullanıcı bilgileri veya API key bulunamadı.");
-    window.sliderResetInProgress = false;
-    return;
-  }
+    if (window.sliderTimeout) {
+      clearTimeout(window.sliderTimeout);
+      window.sliderTimeout = null;
+    }
 
-  const savedLimit = localStorage.getItem("limit") || 20;
-  window.myUserId = userId;
+    const credentials = sessionStorage.getItem("json-credentials");
+    const apiKey = sessionStorage.getItem("api-key");
+    let userId = null, accessToken = null;
+    if (credentials) {
+      try {
+        const parsed = JSON.parse(credentials);
+        userId = parsed.Servers[0].UserId;
+        accessToken = parsed.Servers[0].AccessToken;
+      } catch (error) {
+        console.error("Credential JSON hatası:", error);
+      }
+    }
+    if (!userId || !apiKey) {
+      console.error("Kullanıcı bilgileri veya API key bulunamadı.");
+      return;
+    }
 
-  const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
-  window.myListUrl = listUrl;
-  console.log("List URL:", listUrl);
+    const savedLimit = localStorage.getItem("limit") || 20;
+    window.myUserId = userId;
+    const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
+    window.myListUrl = listUrl;
+    console.log("List URL:", listUrl);
 
-  (async () => {
     let listItems = [];
     let listContent = "";
-
-    const config = getConfig();
     if (config.useManualList && config.manualListIds) {
       listItems = config.manualListIds.split(',').map(id => id.trim()).filter(id => id);
       console.log("El ile yapılandırılmış liste kullanılıyor:", listItems);
-    }
-    else if (config.useListFile) {
+    } else if (config.useListFile) {
       try {
         const res = await fetch(window.myListUrl);
         if (!res.ok) throw new Error("list.txt getirilemedi");
@@ -134,11 +148,9 @@ export function slidesInit() {
       items = (await Promise.all(itemPromises)).filter((item) => item);
     } else {
       try {
-        const config = getConfig();
         const queryString = config.customQueryString;
         const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
         const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
-
         const res = await fetch(
           `${window.location.origin}/Users/${userId}/Items?${queryString}`,
           {
@@ -164,9 +176,7 @@ export function slidesInit() {
           const limitedBoxSet = shuffledBoxSets.slice(0, slideLimit);
 
           let fallbackItems = [...limitedMovies, ...limitedSeries, ...limitedBoxSet];
-          fallbackItems = shuffleArray(fallbackItems);
-          fallbackItems = fallbackItems.slice(0, slideLimit);
-
+          fallbackItems = shuffleArray(fallbackItems).slice(0, slideLimit);
           const detailedItems = await Promise.all(
             fallbackItems.map((item) => fetchItemDetails(item.Id))
           );
@@ -189,7 +199,7 @@ export function slidesInit() {
     }
     console.groupEnd();
 
-    (() => {
+    function setupSliderUI() {
       const hiddenIndexPage = document.querySelector("#indexPage.hide");
       if (hiddenIndexPage) {
         const container = hiddenIndexPage.querySelector("#slides-container");
@@ -197,30 +207,22 @@ export function slidesInit() {
       }
       const indexPage = document.querySelector("#indexPage:not(.hide)");
       if (!indexPage) return;
+
       const slides = indexPage.querySelectorAll(".slide");
       const slidesContainer = indexPage.querySelector("#slides-container");
-      let focusedSlide = null,
-        keyboardActive = false;
+      let focusedSlide = null, keyboardActive = false;
 
       startSlideTimer();
       attachMouseEvents();
 
       slides.forEach((slide) => {
-        slide.addEventListener(
-          "focus",
-          () => {
-            focusedSlide = slide;
-            slidesContainer.classList.remove("disable-interaction");
-          },
-          true
-        );
-        slide.addEventListener(
-          "blur",
-          () => {
-            if (focusedSlide === slide) focusedSlide = null;
-          },
-          true
-        );
+        slide.addEventListener("focus", () => {
+          focusedSlide = slide;
+          slidesContainer.classList.remove("disable-interaction");
+        }, true);
+        slide.addEventListener("blur", () => {
+          if (focusedSlide === slide) focusedSlide = null;
+        }, true);
       });
       indexPage.addEventListener("keydown", (e) => {
         if (keyboardActive) {
@@ -243,23 +245,36 @@ export function slidesInit() {
         }
       });
       createDotNavigation();
-      window.sliderResetInProgress = false;
-    })();
-  })();
+      console.log("Slider UI kurulumu tamamlandı.");
+    }
+
+    setupSliderUI();
+
+  } catch (err) {
+    console.error("Slider init sırasında hata oluştu:", err);
+  } finally {
+    window.sliderResetInProgress = false;
+  }
 }
 
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    const indexPage = document.querySelector("#indexPage:not(.hide)");
-    if (indexPage) {
-      const slidesContainer = document.createElement("div");
-      slidesContainer.id = "slides-container";
-      indexPage.appendChild(slidesContainer);
-      slidesInit();
-    } else {
-      console.error("indexPage elementi bulunamadı!");
-    }
-  }, 500);
+window.slidesInit = slidesInit;
+
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) {
+    console.log("Page cache'den yüklendi, slider yeniden başlatılıyor...");
+    slidesInit();
+  }
 });
 
-window.slidesInit = slidesInit;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pauseSlideTimer();
+    pauseProgressBar();
+  } else {
+    resumeSlideTimer();
+    resumeProgressBar();
+  }
+});
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(slidesInit, 500);
+});
