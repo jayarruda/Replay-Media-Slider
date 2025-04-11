@@ -300,6 +300,19 @@ tryDisplayElement(0);
   const buttonContainer = document.createElement("div");
   buttonContainer.className = "button-container";
 
+  const buttonGradientOverlay = document.createElement("div");
+  buttonGradientOverlay.className = "buttonGradient";
+  buttonGradientOverlay.style.position = "absolute";
+  buttonGradientOverlay.style.top = "0";
+  buttonGradientOverlay.style.left = "0";
+  buttonGradientOverlay.style.width = "100%";
+  buttonGradientOverlay.style.height = "100%";
+  buttonGradientOverlay.style.background = "linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)";
+  buttonGradientOverlay.style.pointerEvents = "none";
+  buttonGradientOverlay.style.zIndex = "3";
+  buttonGradientOverlay.style.opacity = "0.9";
+  buttonGradientOverlay.style.mixBlendMode = "multiply";
+
   if (config.showFavoriteButton) {
     const isFavorited = UserData && UserData.IsFavorite;
     const favoriteBtn = document.createElement("button");
@@ -309,96 +322,129 @@ tryDisplayElement(0);
     if (favoriBgType !== "none") {
       favoriBgImage = slide.dataset[favoriBgType];
     }
-    if (favoriBgImage) {
-      favoriteBtn.style.backgroundImage = `linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0)), url(${favoriBgImage})`;
-    } else {
-      favoriteBtn.style.backgroundImage = "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0))";
-    }
-    favoriteBtn.style.backgroundRepeat = 'no-repeat, no-repeat';
-    favoriteBtn.style.backgroundPosition = 'left center, left 20%';
-    favoriteBtn.style.backgroundSize = '100% 100%, 100% auto';
-    favoriteBtn.innerHTML = isFavorited
-      ? '<i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>'
-      : '<i class="fa-light fa-heart fa-xl"></i>';
-    if (isFavorited) favoriteBtn.classList.add("favorited");
-    favoriteBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (favoriteBtn.classList.contains("favorited")) {
-        favoriteBtn.classList.remove("favorited");
-        favoriteBtn.innerHTML = '<i class="fa-light fa-heart fa-xl"></i>';
-        updateFavoriteStatus(itemId, false);
-      } else {
-        favoriteBtn.classList.add("favorited");
-        favoriteBtn.innerHTML = '<i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>';
-        updateFavoriteStatus(itemId, true);
-      }
-    });
-    buttonContainer.appendChild(favoriteBtn);
+
+  const favoriteBtnContainer = document.createElement("div");
+  favoriteBtnContainer.className = "btn-container";
+  favoriteBtnContainer.style.position = "relative";
+  favoriteBtnContainer.style.display = "inline-block";
+
+  if (favoriBgImage) {
+    favoriteBtn.style.backgroundImage = `url(${favoriBgImage})`;
+    favoriteBtn.style.backgroundRepeat = 'no-repeat';
+    favoriteBtn.style.backgroundSize = 'cover';
+    favoriteBtn.style.backgroundPosition = 'center';
   }
 
-  if (config.showWatchButton) {
-    const watchBtn = document.createElement("button");
-    watchBtn.className = "watch-btn";
-    const watchBgType = config.watchBackgroundImageType || "backdropUrl";
-    let watchBgImage = "";
-    if (watchBgType !== "none") {
-      watchBgImage = slide.dataset[watchBgType];
-    }
-    if (watchBgImage) {
-      watchBtn.style.backgroundImage = `linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0)), url(${watchBgImage})`;
+  favoriteBtn.innerHTML = isFavorited
+    ? '<i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>'
+    : '<i class="fa-light fa-heart fa-xl"></i>';
+  if (isFavorited) favoriteBtn.classList.add("favorited");
+  favoriteBtn.style.transition = 'all 1s ease-in-out';
+
+  const favoriteGradient = buttonGradientOverlay.cloneNode(true);
+  favoriteBtnContainer.appendChild(favoriteBtn);
+  favoriteBtnContainer.appendChild(favoriteGradient);
+
+  favoriteBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (favoriteBtn.classList.contains("favorited")) {
+      favoriteBtn.classList.remove("favorited");
+      favoriteBtn.innerHTML = '<i class="fa-light fa-heart fa-xl"></i>';
+      updateFavoriteStatus(itemId, false);
     } else {
-      watchBtn.style.backgroundImage = "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0))";
+      favoriteBtn.classList.add("favorited");
+      favoriteBtn.innerHTML = '<i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>';
+      updateFavoriteStatus(itemId, true);
     }
-    watchBtn.style.backgroundRepeat = 'no-repeat, no-repeat';
-    watchBtn.style.backgroundPosition = 'left center, left 20%';
-    watchBtn.style.backgroundSize = '100% 100%, 100% auto';
-    watchBtn.innerHTML = `
-      <span class="icon-wrapper">
-        <i class="fa-regular fa-circle-play fa-xl icon" style="margin-right: 8px;"></i>
-      </span>
-      <span class="btn-text">${config.languageLabels.izle}</span>
-    `;
-    watchBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      window.location.href = slide.dataset.detailUrl;
-    });
-    buttonContainer.appendChild(watchBtn);
+  });
+  buttonContainer.appendChild(favoriteBtnContainer);
+}
+
+if (config.showWatchButton) {
+  const watchBtn = document.createElement("button");
+  watchBtn.className = "watch-btn";
+  const watchBgType = config.watchBackgroundImageType || "backdropUrl";
+  let watchBgImage = "";
+  if (watchBgType !== "none") {
+    watchBgImage = slide.dataset[watchBgType];
   }
 
-  if (config.showTrailerButton && RemoteTrailers && RemoteTrailers.length > 0) {
-    const trailer = RemoteTrailers[0];
-    const trailerBtn = document.createElement("button");
-    trailerBtn.className = "trailer-btn";
-    const trailerBgType = config.trailerBackgroundImageType || "backdropUrl";
-    let trailerBgImage = "";
-    if (trailerBgType !== "none") {
-      trailerBgImage = slide.dataset[trailerBgType];
-    }
-    if (trailerBgImage) {
-      trailerBtn.style.backgroundImage = `linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0)), url(${trailerBgImage})`;
-    } else {
-      trailerBtn.style.backgroundImage = "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0))";
-    }
-    trailerBtn.style.backgroundRepeat = 'no-repeat, no-repeat';
-    trailerBtn.style.backgroundPosition = 'left center, left 20%';
-    trailerBtn.style.backgroundSize = '100% 100%, 100% auto';
-    trailerBtn.innerHTML = `
-      <span class="icon-wrapper">
-        <i class="fa-solid fa-film fa-xl icon"></i>
-      </span>
-      <span class="btn-text">${config.languageLabels.fragman}</span>
-    `;
-    trailerBtn.style.transition = 'all 1s ease-in-out';
-    trailerBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openTrailerModal(trailer.Url, trailer.Name);
-    });
-    buttonContainer.appendChild(trailerBtn);
+  const watchBtnContainer = document.createElement("div");
+  watchBtnContainer.className = "btn-container";
+  watchBtnContainer.style.position = "relative";
+  watchBtnContainer.style.display = "inline-block";
+
+  if (watchBgImage) {
+    watchBtn.style.backgroundImage = `url(${watchBgImage})`;
+    watchBtn.style.backgroundRepeat = 'no-repeat';
+    watchBtn.style.backgroundSize = 'cover';
+    watchBtn.style.backgroundPosition = 'center';
   }
-  document.body.appendChild(buttonContainer);
+
+  watchBtn.innerHTML = `
+    <span class="icon-wrapper">
+      <i class="fa-regular fa-circle-play fa-xl icon" style="margin-right: 8px;"></i>
+    </span>
+    <span class="btn-text">${config.languageLabels.izle}</span>
+  `;
+  watchBtn.style.transition = 'all 1s ease-in-out';
+
+  const watchGradient = buttonGradientOverlay.cloneNode(true);
+  watchBtnContainer.appendChild(watchBtn);
+  watchBtnContainer.appendChild(watchGradient);
+
+  watchBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = slide.dataset.detailUrl;
+  });
+  buttonContainer.appendChild(watchBtnContainer);
+}
+
+if (config.showTrailerButton && RemoteTrailers && RemoteTrailers.length > 0) {
+  const trailer = RemoteTrailers[0];
+  const trailerBtn = document.createElement("button");
+  trailerBtn.className = "trailer-btn";
+  const trailerBgType = config.trailerBackgroundImageType || "backdropUrl";
+  let trailerBgImage = "";
+  if (trailerBgType !== "none") {
+    trailerBgImage = slide.dataset[trailerBgType];
+  }
+
+  const trailerBtnContainer = document.createElement("div");
+  trailerBtnContainer.className = "btn-container";
+  trailerBtnContainer.style.position = "relative";
+  trailerBtnContainer.style.display = "inline-block";
+
+  if (trailerBgImage) {
+    trailerBtn.style.backgroundImage = `url(${trailerBgImage})`;
+    trailerBtn.style.backgroundRepeat = 'no-repeat';
+    trailerBtn.style.backgroundSize = 'cover';
+    trailerBtn.style.backgroundPosition = 'center';
+  }
+
+  trailerBtn.innerHTML = `
+    <span class="icon-wrapper">
+      <i class="fa-solid fa-film fa-xl icon"></i>
+    </span>
+    <span class="btn-text">${config.languageLabels.fragman}</span>
+  `;
+  trailerBtn.style.transition = 'all 1s ease-in-out';
+
+  const trailerGradient = buttonGradientOverlay.cloneNode(true);
+  trailerBtnContainer.appendChild(trailerBtn);
+  trailerBtnContainer.appendChild(trailerGradient);
+
+  trailerBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openTrailerModal(trailer.Url, trailer.Name);
+  });
+  buttonContainer.appendChild(trailerBtnContainer);
+}
+
+document.body.appendChild(buttonContainer);
 
   const plotContainer = document.createElement("div");
   plotContainer.className = "plot-container";
