@@ -694,29 +694,16 @@ document.body.appendChild(buttonContainer);
   }
 
   let providerContainer = null;
-  if (ProviderIds) {
+if (ProviderIds) {
   const allowedProviders = ["Imdb", "Tmdb", "Tvdb"];
   const providerDiv = document.createElement("div");
   providerDiv.className = "provider-ids";
 
-  if (config.showTrailerIcon && RemoteTrailers && RemoteTrailers.length > 0) {
-    const trailer = RemoteTrailers[0];
-    const trailerLink = document.createElement("span");
-    trailerLink.innerHTML = '<i class="fa-brands fa-youtube fa-lg" style="color: #ff0000;"></i>';
-    trailerLink.className = "provider-link";
-    trailerLink.title = `${config.languageLabels.youtubetrailer}`;
-    trailerLink.style.cursor = "pointer";
-    trailerLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      window.open(trailer.Url, "_blank", "noopener,noreferrer");
-    });
-    providerDiv.appendChild(trailerLink);
-  }
+  const iconStyle = "width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;";
 
-   if (config.showSettingsLink) {
+    if (config.showSettingsLink) {
     const settingsLink = document.createElement("span");
-    settingsLink.innerHTML ='<i class="fa-solid fa-square-sliders fa-lg"></i>';
+    settingsLink.innerHTML = `<i class="fa-solid fa-square-sliders fa-lg" style="${iconStyle}"></i>`;
     settingsLink.className = "youtube-link";
     settingsLink.title = `${config.languageLabels.settingsLink}`;
     settingsLink.style.cursor = "pointer";
@@ -728,14 +715,29 @@ document.body.appendChild(buttonContainer);
     providerDiv.appendChild(settingsLink);
   }
 
+  if (config.showTrailerIcon && RemoteTrailers && RemoteTrailers.length > 0) {
+    const trailer = RemoteTrailers[0];
+    const trailerLink = document.createElement("span");
+    trailerLink.innerHTML = `<i class="fa-brands fa-youtube fa-lg" style="color: #ff0000; ${iconStyle}"></i>`;
+    trailerLink.className = "provider-link";
+    trailerLink.title = `${config.languageLabels.youtubetrailer}`;
+    trailerLink.style.cursor = "pointer";
+    trailerLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.open(trailer.Url, "_blank", "noopener,noreferrer");
+    });
+    providerDiv.appendChild(trailerLink);
+  }
+
   const providerIdsTranslations = {
-    Imdb: { text: "", icon: '<img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" width="24" height="24">' },
-    Tmdb: { text: "", icon: '<img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_1-5bdc75aaebeb75dc7ae79426ddd9be3b2be1e342510f8202baf6bffa71d7f5c4.svg" alt="Tmdb" width="24" height="24">' },
-    Tvdb: { text: "", icon: '<img src="https://www.thetvdb.com/images/logo.svg" alt="Tvdb" width="24" height="24">'},
+    Imdb: { text: "", icon: '<img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" style="width: 24px; height: 24px;">' },
+    Tmdb: { text: "", icon: '<img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_1-5bdc75aaebeb75dc7ae79426ddd9be3b2be1e342510f8202baf6bffa71d7f5c4.svg" alt="Tmdb" style="width: 24px; height: 24px;">' },
+    Tvdb: { text: "", icon: '<img src="https://www.thetvdb.com/images/logo.svg" alt="Tvdb" style="width: 24px; height: 24px;">'},
   };
 
   allowedProviders.forEach(provider => {
-     if (config.showProviderInfo) {
+    if (config.showProviderInfo) {
       const link = document.createElement("span");
       if (providerIdsTranslations[provider]) {
         link.innerHTML = `${providerIdsTranslations[provider].icon} ${providerIdsTranslations[provider].text}`;
