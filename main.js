@@ -28,32 +28,6 @@ import { fetchItemDetails } from "./modules/api.js";
 
 const config = getConfig();
 
-function loadExternalCSS(path) {
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = path;
-  document.head.appendChild(link);
-}
-
-let cssPath = "";
-if (config.cssVariant === 'fullslider') {
-  cssPath = "./slider/src/fullslider.css";
-} else {
-  cssPath = "./slider/src/slider.css";
-}
-
-loadExternalCSS(cssPath);
-
-const shuffleArray = (array) => {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-};
-
-let isOnHomePage = true;
-
 function fullSliderReset() {
   if (window.intervalChangeSlide) {
     clearInterval(window.intervalChangeSlide);
@@ -66,28 +40,48 @@ function fullSliderReset() {
 
   setCurrentIndex(0);
   stopSlideTimer();
-
   cleanupSlider();
 
   window.mySlider = {};
   window.cachedListContent = "";
+  console.log("Slider tamamen resetlendi.");
 }
+
+function loadExternalCSS(path) {
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = path;
+  document.head.appendChild(link);
+}
+
+const cssPath =
+  config.cssVariant === 'fullslider'
+    ? "./slider/src/fullslider.css"
+    : "./slider/src/slider.css";
+loadExternalCSS(cssPath);
+
+const shuffleArray = (array) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
+
+let isOnHomePage = true;
 
 export function slidesInit() {
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
-
   fullSliderReset();
-
-  document.cookie.split(";").forEach((cookie) => {
+  document.cookie.split(";").forEach(cookie => {
     const [name] = cookie.split("=");
     document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
   });
 
   const credentials = sessionStorage.getItem("json-credentials");
   const apiKey = sessionStorage.getItem("api-key");
-  let userId = null,
-    accessToken = null;
+  let userId = null, accessToken = null;
 
   if (credentials) {
     try {
@@ -107,7 +101,6 @@ export function slidesInit() {
 
   const savedLimit = localStorage.getItem("limit") || 20;
   window.myUserId = userId;
-
   const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
   window.myListUrl = listUrl;
   console.log("Liste URL'si:", listUrl);
@@ -115,13 +108,15 @@ export function slidesInit() {
   (async () => {
     let listItems = [];
     let listContent = "";
-
     const config = getConfig();
+
     if (config.useManualList && config.manualListIds) {
-      listItems = config.manualListIds.split(',').map(id => id.trim()).filter(id => id);
+      listItems = config.manualListIds
+        .split(',')
+        .map(id => id.trim())
+        .filter(id => id);
       console.log("Manuel olarak yapılandırılmış liste kullanılıyor:", listItems);
-    }
-    else if (config.useListFile) {
+    } else if (config.useListFile) {
       try {
         const res = await fetch(window.myListUrl);
         if (!res.ok) throw new Error("list.txt dosyası alınamadı");
@@ -132,7 +127,9 @@ export function slidesInit() {
           console.warn("list.txt dosyası 10 bayttan küçük, API çağrısı kullanılacak.");
           listItems = [];
         } else {
-          listItems = listContent.split("\n").map(line => line.trim()).filter(line => line);
+          listItems = listContent.split("\n")
+            .map(line => line.trim())
+            .filter(line => line);
         }
       } catch (err) {
         console.warn("list.txt hatası:", err);
@@ -144,15 +141,13 @@ export function slidesInit() {
 
     let items = [];
     if (listItems.length > 0) {
-      const itemPromises = listItems.map((id) => fetchItemDetails(id));
-      items = (await Promise.all(itemPromises)).filter((item) => item);
+      const itemPromises = listItems.map(id => fetchItemDetails(id));
+      items = (await Promise.all(itemPromises)).filter(item => item);
     } else {
       try {
-        const config = getConfig();
         const queryString = config.customQueryString;
         const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
         const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
-
         const res = await fetch(
           `${window.location.origin}/Users/${userId}/Items?${queryString}`,
           {
@@ -165,32 +160,26 @@ export function slidesInit() {
         const slideLimit = savedLimit;
 
         if (shouldShuffle) {
-          const movies = data.Items.filter((item) => item.Type === "Movie");
-          const series = data.Items.filter((item) => item.Type === "Series");
-          const boxSets = data.Items.filter((item) => item.Type === "BoxSet");
+          const movies = data.Items.filter(item => item.Type === "Movie");
+          const series = data.Items.filter(item => item.Type === "Series");
+          const boxSets = data.Items.filter(item => item.Type === "BoxSet");
+          const limitedMovies = shuffleArray(movies).slice(0, slideLimit);
+          const limitedSeries = shuffleArray(series).slice(0, slideLimit);
+          const limitedBoxSet = shuffleArray(boxSets).slice(0, slideLimit);
 
-          const shuffledMovies = shuffleArray(movies);
-          const shuffledSeries = shuffleArray(series);
-          const shuffledBoxSets = shuffleArray(boxSets);
-
-          const limitedMovies = shuffledMovies.slice(0, slideLimit);
-          const limitedSeries = shuffledSeries.slice(0, slideLimit);
-          const limitedBoxSet = shuffledBoxSets.slice(0, slideLimit);
-
-          let fallbackItems = [...limitedMovies, ...limitedSeries, ...limitedBoxSet];
-          fallbackItems = shuffleArray(fallbackItems);
-          fallbackItems = fallbackItems.slice(0, slideLimit);
+          let fallbackItems = shuffleArray([...limitedMovies, ...limitedSeries, ...limitedBoxSet])
+            .slice(0, slideLimit);
 
           const detailedItems = await Promise.all(
-            fallbackItems.map((item) => fetchItemDetails(item.Id))
+            fallbackItems.map(item => fetchItemDetails(item.Id))
           );
-          items = detailedItems.filter((item) => item);
+          items = detailedItems.filter(item => item);
         } else {
           const defaultItems = data.Items.slice(0, slideLimit);
           const detailedItems = await Promise.all(
-            defaultItems.map((item) => fetchItemDetails(item.Id))
+            defaultItems.map(item => fetchItemDetails(item.Id))
           );
-          items = detailedItems.filter((item) => item);
+          items = detailedItems.filter(item => item);
         }
       } catch (error) {
         console.error("Öğe alınırken hata oluştu:", error);
@@ -215,28 +204,20 @@ function initializeSlider() {
 
   const slides = indexPage.querySelectorAll(".slide");
   const slidesContainer = indexPage.querySelector("#slides-container");
-  let focusedSlide = null,
-    keyboardActive = false;
+  let focusedSlide = null;
+  let keyboardActive = false;
 
   startSlideTimer();
   attachMouseEvents();
 
-  slides.forEach((slide) => {
-    slide.addEventListener(
-      "focus",
-      () => {
-        focusedSlide = slide;
-        slidesContainer.classList.remove("disable-interaction");
-      },
-      true
-    );
-    slide.addEventListener(
-      "blur",
-      () => {
-        if (focusedSlide === slide) focusedSlide = null;
-      },
-      true
-    );
+  slides.forEach(slide => {
+    slide.addEventListener("focus", () => {
+      focusedSlide = slide;
+      slidesContainer.classList.remove("disable-interaction");
+    }, true);
+    slide.addEventListener("blur", () => {
+      if (focusedSlide === slide) focusedSlide = null;
+    }, true);
   });
 
   indexPage.addEventListener("keydown", (e) => {
@@ -267,23 +248,21 @@ function initializeSlider() {
 }
 
 function setupNavigationObserver() {
-  const observeUrlChanges = () => {
-    let previousUrl = window.location.href;
-
-    setInterval(() => {
-      if (window.location.href !== previousUrl) {
-        previousUrl = window.location.href;
+  let previousUrl = window.location.href;
+  setInterval(() => {
+    if (window.location.href !== previousUrl) {
+      previousUrl = window.location.href;
+      const indexPage = document.querySelector("#indexPage:not(.hide)");
+      if (indexPage) {
+        console.log("Ana sayfaya dönüldü, slider resetleniyor.");
         fullSliderReset();
-        setTimeout(() => {
-          slidesInit();
-        }, 500);
+        slidesInit();
+      } else {
+        console.log("URL değişikliği (ana sayfa değil), reset yapılmadı.");
       }
-    }, 500);
-  };
-
-  observeUrlChanges();
+    }
+  }, 500);
 }
-
 
 function initializeSliderOnHome() {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
@@ -297,11 +276,21 @@ function initializeSliderOnHome() {
   }
 }
 
-window.addEventListener("load", () => {
-  setTimeout(() => {
+function waitForDomAndIndexPage() {
+  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  if ((document.readyState === "complete" || document.readyState === "interactive") && indexPage) {
     initializeSliderOnHome();
     setupNavigationObserver();
-  }, 500);
-});
+  }
+}
+
+const domCheckInterval = setInterval(() => {
+  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  if ((document.readyState === "complete" || document.readyState === "interactive") && indexPage) {
+    initializeSliderOnHome();
+    setupNavigationObserver();
+    clearInterval(domCheckInterval);
+  }
+}, 100);
 
 window.slidesInit = slidesInit;
