@@ -275,6 +275,43 @@ document.addEventListener("visibilitychange", () => {
     resumeProgressBar();
   }
 });
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(slidesInit, 500);
+
+function tryInitializeSlider() {
+  const indexPage = document.querySelector("#indexPage");
+  if (indexPage) {
+    ensureSlidesContainer(indexPage);
+    slidesInit();
+  } else {
+    console.warn("#indexPage henüz DOM'da yok, tekrar deneniyor...");
+    setTimeout(tryInitializeSlider, 500);
+  }
+}
+
+function resetAndReinitializeSlider() {
+  console.log("Slider yeniden başlatılıyor...");
+  if (window.intervalChangeSlide) {
+    clearInterval(window.intervalChangeSlide);
+    window.intervalChangeSlide = null;
+  }
+  if (window.sliderTimeout) {
+    clearTimeout(window.sliderTimeout);
+    window.sliderTimeout = null;
+  }
+  cleanupSlider();
+  tryInitializeSlider();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  tryInitializeSlider();
 });
+
+window.addEventListener("pageshow", (event) => {
+  console.log("pageshow tetiklendi.");
+  resetAndReinitializeSlider();
+});
+
+window.addEventListener("popstate", (event) => {
+  console.log("popstate tetiklendi.");
+  resetAndReinitializeSlider();
+});
+
