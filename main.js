@@ -25,37 +25,24 @@ import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
-import { debounce } from "./modules/utils.js";
 
 const config = getConfig();
 
 function loadExternalCSS(path) {
-  return new Promise((resolve, reject) => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = path;
-    link.onload = () => resolve();
-    link.onerror = () => reject(new Error(`CSS yüklenemedi: ${path}`));
-    document.head.appendChild(link);
-  });
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = path;
+  document.head.appendChild(link);
 }
 
-function clearCookies() {
-  document.cookie.split(";").forEach((cookie) => {
-    const [name] = cookie.split("=");
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
-  });
+let cssPath = "";
+if (config.cssVariant === 'fullslider') {
+  cssPath = "./slider/src/fullslider.css";
+} else {
+  cssPath = "./slider/src/slider.css";
 }
 
-function ensureSlidesContainer(indexPage) {
-  let slidesContainer = indexPage.querySelector("#slides-container");
-  if (!slidesContainer) {
-    slidesContainer = document.createElement("div");
-    slidesContainer.id = "slides-container";
-    indexPage.insertAdjacentElement("afterbegin", slidesContainer);
-  }
-  return slidesContainer;
-}
+loadExternalCSS(cssPath);
 
 const shuffleArray = (array) => {
   for (let i = array.length - 1; i > 0; i--) {
@@ -65,71 +52,84 @@ const shuffleArray = (array) => {
   return array;
 };
 
-async function slidesInit() {
+let isOnHomePage = true;
+
+function fullSliderReset() {
+  if (window.intervalChangeSlide) {
+    clearInterval(window.intervalChangeSlide);
+    window.intervalChangeSlide = null;
+  }
+  if (window.sliderTimeout) {
+    clearTimeout(window.sliderTimeout);
+    window.sliderTimeout = null;
+  }
+
+  setCurrentIndex(0);
+  stopSlideTimer();
+
+  cleanupSlider();
+
+  window.mySlider = {};
+  window.cachedListContent = "";
+}
+
+export function slidesInit() {
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
 
-  try {
-    const config = getConfig();
-    let cssPath = config.cssVariant === 'fullslider'
-      ? "./slider/src/fullslider.css"
-      : "./slider/src/slider.css";
+  fullSliderReset();
 
-    console.log("CSS dosyası yüklenmeye başlıyor:", cssPath);
-    await loadExternalCSS(cssPath);
-    console.log("CSS başarıyla yüklendi:", cssPath);
+  document.cookie.split(";").forEach((cookie) => {
+    const [name] = cookie.split("=");
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
+  });
 
-    setCurrentIndex(0);
-    clearCookies();
-    cleanupSlider();
-    window.mySlider = {};
+  const credentials = sessionStorage.getItem("json-credentials");
+  const apiKey = sessionStorage.getItem("api-key");
+  let userId = null,
+    accessToken = null;
 
-    if (window.intervalChangeSlide) {
-      clearInterval(window.intervalChangeSlide);
-      window.intervalChangeSlide = null;
+  if (credentials) {
+    try {
+      const parsed = JSON.parse(credentials);
+      userId = parsed.Servers[0].UserId;
+      accessToken = parsed.Servers[0].AccessToken;
+    } catch (error) {
+      console.error("Credential JSON hatası:", error);
     }
-    if (window.sliderTimeout) {
-      clearTimeout(window.sliderTimeout);
-      window.sliderTimeout = null;
-    }
+  }
 
-    const credentials = sessionStorage.getItem("json-credentials");
-    const apiKey = sessionStorage.getItem("api-key");
-    let userId = null, accessToken = null;
-    if (credentials) {
-      try {
-        const parsed = JSON.parse(credentials);
-        userId = parsed.Servers[0].UserId;
-        accessToken = parsed.Servers[0].AccessToken;
-      } catch (error) {
-        console.error("Credential JSON hatası:", error);
-      }
-    }
-    if (!userId || !apiKey) {
-      console.error("Kullanıcı bilgileri veya API key bulunamadı.");
-      return;
-    }
+  if (!userId || !apiKey) {
+    console.error("Kullanıcı bilgisi veya API anahtarı bulunamadı.");
+    window.sliderResetInProgress = false;
+    return;
+  }
 
-    const savedLimit = localStorage.getItem("limit") || 20;
-    window.myUserId = userId;
-    const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
-    window.myListUrl = listUrl;
-    console.log("List URL:", listUrl);
+  const savedLimit = localStorage.getItem("limit") || 20;
+  window.myUserId = userId;
 
+  const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
+  window.myListUrl = listUrl;
+  console.log("Liste URL'si:", listUrl);
+
+  (async () => {
     let listItems = [];
     let listContent = "";
+
+    const config = getConfig();
     if (config.useManualList && config.manualListIds) {
       listItems = config.manualListIds.split(',').map(id => id.trim()).filter(id => id);
-      console.log("El ile yapılandırılmış liste kullanılıyor:", listItems);
-    } else if (config.useListFile) {
+      console.log("Manuel olarak yapılandırılmış liste kullanılıyor:", listItems);
+    }
+    else if (config.useListFile) {
       try {
         const res = await fetch(window.myListUrl);
-        if (!res.ok) throw new Error("list.txt getirilemedi");
+        if (!res.ok) throw new Error("list.txt dosyası alınamadı");
         listContent = await res.text();
         console.log("list.txt içeriği:", listContent);
         window.cachedListContent = listContent;
         if (listContent.length < 10) {
-          console.warn("list.txt dosyası 10 byte'dan küçük, API çağrısı kullanılacak.");
+          console.warn("list.txt dosyası 10 bayttan küçük, API çağrısı kullanılacak.");
           listItems = [];
         } else {
           listItems = listContent.split("\n").map(line => line.trim()).filter(line => line);
@@ -139,7 +139,7 @@ async function slidesInit() {
         window.cachedListContent = "";
       }
     } else {
-      console.log("Config ayarı pasif: list.txt kullanılmayacak.");
+      console.log("Yapılandırma ayarı etkisiz: list.txt kullanılmayacak.");
     }
 
     let items = [];
@@ -148,9 +148,11 @@ async function slidesInit() {
       items = (await Promise.all(itemPromises)).filter((item) => item);
     } else {
       try {
+        const config = getConfig();
         const queryString = config.customQueryString;
         const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
         const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
+
         const res = await fetch(
           `${window.location.origin}/Users/${userId}/Items?${queryString}`,
           {
@@ -176,7 +178,9 @@ async function slidesInit() {
           const limitedBoxSet = shuffledBoxSets.slice(0, slideLimit);
 
           let fallbackItems = [...limitedMovies, ...limitedSeries, ...limitedBoxSet];
-          fallbackItems = shuffleArray(fallbackItems).slice(0, slideLimit);
+          fallbackItems = shuffleArray(fallbackItems);
+          fallbackItems = fallbackItems.slice(0, slideLimit);
+
           const detailedItems = await Promise.all(
             fallbackItems.map((item) => fetchItemDetails(item.Id))
           );
@@ -189,7 +193,7 @@ async function slidesInit() {
           items = detailedItems.filter((item) => item);
         }
       } catch (error) {
-        console.error("Itemlar getirilirken hata oluştu:", error);
+        console.error("Öğe alınırken hata oluştu:", error);
       }
     }
 
@@ -198,120 +202,106 @@ async function slidesInit() {
       await createSlide(item);
     }
     console.groupEnd();
+    initializeSlider();
+  })();
+}
 
-    function setupSliderUI() {
-      const hiddenIndexPage = document.querySelector("#indexPage.hide");
-      if (hiddenIndexPage) {
-        const container = hiddenIndexPage.querySelector("#slides-container");
-        if (container) container.remove();
-      }
-      const indexPage = document.querySelector("#indexPage:not(.hide)");
-      if (!indexPage) return;
-
-      const slides = indexPage.querySelectorAll(".slide");
-      const slidesContainer = indexPage.querySelector("#slides-container");
-      let focusedSlide = null, keyboardActive = false;
-
-      startSlideTimer();
-      attachMouseEvents();
-
-      slides.forEach((slide) => {
-        slide.addEventListener("focus", () => {
-          focusedSlide = slide;
-          slidesContainer.classList.remove("disable-interaction");
-        }, true);
-        slide.addEventListener("blur", () => {
-          if (focusedSlide === slide) focusedSlide = null;
-        }, true);
-      });
-      indexPage.addEventListener("keydown", (e) => {
-        if (keyboardActive) {
-          if (e.keyCode === 37) changeSlide(-1);
-          else if (e.keyCode === 39) changeSlide(1);
-          else if (e.keyCode === 13 && focusedSlide)
-            window.location.href = focusedSlide.dataset.detailUrl;
-        }
-      });
-      indexPage.addEventListener("focusin", (e) => {
-        if (e.target.closest("#slides-container")) {
-          keyboardActive = true;
-          slidesContainer.classList.remove("disable-interaction");
-        }
-      });
-      indexPage.addEventListener("focusout", (e) => {
-        if (!e.target.closest("#slides-container")) {
-          keyboardActive = false;
-          slidesContainer.classList.add("disable-interaction");
-        }
-      });
-      createDotNavigation();
-      console.log("Slider UI kurulumu tamamlandı.");
-    }
-
-    setupSliderUI();
-
-  } catch (err) {
-    console.error("Slider init sırasında hata oluştu:", err);
-  } finally {
+function initializeSlider() {
+  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  if (!indexPage) {
     window.sliderResetInProgress = false;
+    return;
+  }
+
+  const slides = indexPage.querySelectorAll(".slide");
+  const slidesContainer = indexPage.querySelector("#slides-container");
+  let focusedSlide = null,
+    keyboardActive = false;
+
+  startSlideTimer();
+  attachMouseEvents();
+
+  slides.forEach((slide) => {
+    slide.addEventListener(
+      "focus",
+      () => {
+        focusedSlide = slide;
+        slidesContainer.classList.remove("disable-interaction");
+      },
+      true
+    );
+    slide.addEventListener(
+      "blur",
+      () => {
+        if (focusedSlide === slide) focusedSlide = null;
+      },
+      true
+    );
+  });
+
+  indexPage.addEventListener("keydown", (e) => {
+    if (keyboardActive) {
+      if (e.keyCode === 37) changeSlide(-1);
+      else if (e.keyCode === 39) changeSlide(1);
+      else if (e.keyCode === 13 && focusedSlide)
+        window.location.href = focusedSlide.dataset.detailUrl;
+    }
+  });
+
+  indexPage.addEventListener("focusin", (e) => {
+    if (e.target.closest("#slides-container")) {
+      keyboardActive = true;
+      slidesContainer.classList.remove("disable-interaction");
+    }
+  });
+
+  indexPage.addEventListener("focusout", (e) => {
+    if (!e.target.closest("#slides-container")) {
+      keyboardActive = false;
+      slidesContainer.classList.add("disable-interaction");
+    }
+  });
+
+  createDotNavigation();
+  window.sliderResetInProgress = false;
+}
+
+function setupNavigationObserver() {
+  const observeUrlChanges = () => {
+    let previousUrl = window.location.href;
+
+    setInterval(() => {
+      if (window.location.href !== previousUrl) {
+        previousUrl = window.location.href;
+        fullSliderReset();
+        setTimeout(() => {
+          slidesInit();
+        }, 500);
+      }
+    }, 500);
+  };
+
+  observeUrlChanges();
+}
+
+
+function initializeSliderOnHome() {
+  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  if (indexPage) {
+    if (!indexPage.querySelector("#slides-container")) {
+      const slidesContainer = document.createElement("div");
+      slidesContainer.id = "slides-container";
+      indexPage.appendChild(slidesContainer);
+    }
+    slidesInit();
   }
 }
+
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    initializeSliderOnHome();
+    setupNavigationObserver();
+  }, 500);
+});
 
 window.slidesInit = slidesInit;
-
-window.addEventListener("pageshow", (event) => {
-  if (event.persisted) {
-    console.log("Page cache'den yüklendi, slider yeniden başlatılıyor...");
-    slidesInit();
-  }
-});
-
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    pauseSlideTimer();
-    pauseProgressBar();
-  } else {
-    resumeSlideTimer();
-    resumeProgressBar();
-  }
-});
-
-function tryInitializeSlider() {
-  const indexPage = document.querySelector("#indexPage");
-  if (indexPage) {
-    ensureSlidesContainer(indexPage);
-    slidesInit();
-  } else {
-    console.warn("#indexPage henüz DOM'da yok, tekrar deneniyor...");
-    setTimeout(tryInitializeSlider, 500);
-  }
-}
-
-function resetAndReinitializeSlider() {
-  console.log("Slider yeniden başlatılıyor...");
-  if (window.intervalChangeSlide) {
-    clearInterval(window.intervalChangeSlide);
-    window.intervalChangeSlide = null;
-  }
-  if (window.sliderTimeout) {
-    clearTimeout(window.sliderTimeout);
-    window.sliderTimeout = null;
-  }
-  cleanupSlider();
-  tryInitializeSlider();
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  tryInitializeSlider();
-});
-
-window.addEventListener("pageshow", (event) => {
-  console.log("pageshow tetiklendi.");
-  resetAndReinitializeSlider();
-});
-
-window.addEventListener("popstate", (event) => {
-  console.log("popstate tetiklendi.");
-  resetAndReinitializeSlider();
-});
-
