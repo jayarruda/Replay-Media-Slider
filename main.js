@@ -41,6 +41,7 @@ function fullSliderReset() {
   setCurrentIndex(0);
   stopSlideTimer();
   cleanupSlider();
+  resetProgressBar();
 
   window.mySlider = {};
   window.cachedListContent = "";
@@ -105,94 +106,94 @@ export function slidesInit() {
   window.myListUrl = listUrl;
   console.log("Liste URL'si:", listUrl);
 
-  (async () => {
-    let listItems = [];
-    let listContent = "";
-    const config = getConfig();
+(async () => {
+  let listItems = [];
+  let listContent = "";
 
-    if (config.useManualList && config.manualListIds) {
-      listItems = config.manualListIds
-        .split(',')
-        .map(id => id.trim())
-        .filter(id => id);
-      console.log("Manuel olarak yapılandırılmış liste kullanılıyor:", listItems);
-    } else if (config.useListFile) {
-      try {
-        const res = await fetch(window.myListUrl);
-        if (!res.ok) throw new Error("list.txt dosyası alınamadı");
-        listContent = await res.text();
-        console.log("list.txt içeriği:", listContent);
-        window.cachedListContent = listContent;
-        if (listContent.length < 10) {
-          console.warn("list.txt dosyası 10 bayttan küçük, API çağrısı kullanılacak.");
-          listItems = [];
-        } else {
-          listItems = listContent.split("\n")
-            .map(line => line.trim())
-            .filter(line => line);
-        }
-      } catch (err) {
-        console.warn("list.txt hatası:", err);
-        window.cachedListContent = "";
+  if (config.useManualList && config.manualListIds) {
+    listItems = config.manualListIds
+      .split(',')
+      .map(id => id.trim())
+      .filter(id => id);
+    console.log("Manuel olarak yapılandırılmış liste kullanılıyor:", listItems);
+  } else if (config.useListFile) {
+    try {
+      const res = await fetch(window.myListUrl);
+      if (!res.ok) throw new Error("list.txt dosyası alınamadı");
+      listContent = await res.text();
+      console.log("list.txt içeriği:", listContent);
+      window.cachedListContent = listContent;
+      if (listContent.length < 10) {
+        console.warn("list.txt dosyası 10 bayttan küçük, API çağrısı kullanılacak.");
+        listItems = [];
+      } else {
+        listItems = listContent.split("\n")
+          .map(line => line.trim())
+          .filter(line => line);
       }
-    } else {
-      console.log("Yapılandırma ayarı etkisiz: list.txt kullanılmayacak.");
+    } catch (err) {
+      console.warn("list.txt hatası:", err);
+      window.cachedListContent = "";
     }
+  } else {
+    console.log("Yapılandırma ayarı etkisiz: list.txt kullanılmayacak.");
+  }
 
-    let items = [];
-    if (listItems.length > 0) {
-      const itemPromises = listItems.map(id => fetchItemDetails(id));
-      items = (await Promise.all(itemPromises)).filter(item => item);
-    } else {
-      try {
-        const queryString = config.customQueryString;
-        const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
-        const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
-        const res = await fetch(
-          `${window.location.origin}/Users/${userId}/Items?${queryString}`,
-          {
-            headers: {
-              Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`,
-            },
-          }
+  let items = [];
+  if (listItems.length > 0) {
+    const itemPromises = listItems.map(id => fetchItemDetails(id));
+    items = (await Promise.all(itemPromises)).filter(item => item);
+  } else {
+    try {
+      const queryString = config.customQueryString;
+      const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
+      const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
+      const res = await fetch(
+        `${window.location.origin}/Users/${userId}/Items?${queryString}`,
+        {
+          headers: {
+            Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`,
+          },
+        }
+      );
+      const data = await res.json();
+      const slideLimit = savedLimit;
+
+      if (shouldShuffle) {
+        const movies = data.Items.filter(item => item.Type === "Movie");
+        const series = data.Items.filter(item => item.Type === "Series");
+        const boxSets = data.Items.filter(item => item.Type === "BoxSet");
+        const limitedMovies = shuffleArray(movies).slice(0, slideLimit);
+        const limitedSeries = shuffleArray(series).slice(0, slideLimit);
+        const limitedBoxSet = shuffleArray(boxSets).slice(0, slideLimit);
+
+        let fallbackItems = shuffleArray([...limitedMovies, ...limitedSeries, ...limitedBoxSet])
+          .slice(0, slideLimit);
+
+        const detailedItems = await Promise.all(
+          fallbackItems.map(item => fetchItemDetails(item.Id))
         );
-        const data = await res.json();
-        const slideLimit = savedLimit;
-
-        if (shouldShuffle) {
-          const movies = data.Items.filter(item => item.Type === "Movie");
-          const series = data.Items.filter(item => item.Type === "Series");
-          const boxSets = data.Items.filter(item => item.Type === "BoxSet");
-          const limitedMovies = shuffleArray(movies).slice(0, slideLimit);
-          const limitedSeries = shuffleArray(series).slice(0, slideLimit);
-          const limitedBoxSet = shuffleArray(boxSets).slice(0, slideLimit);
-
-          let fallbackItems = shuffleArray([...limitedMovies, ...limitedSeries, ...limitedBoxSet])
-            .slice(0, slideLimit);
-
-          const detailedItems = await Promise.all(
-            fallbackItems.map(item => fetchItemDetails(item.Id))
-          );
-          items = detailedItems.filter(item => item);
-        } else {
-          const defaultItems = data.Items.slice(0, slideLimit);
-          const detailedItems = await Promise.all(
-            defaultItems.map(item => fetchItemDetails(item.Id))
-          );
-          items = detailedItems.filter(item => item);
-        }
-      } catch (error) {
-        console.error("Öğe alınırken hata oluştu:", error);
+        items = detailedItems.filter(item => item);
+      } else {
+        const defaultItems = data.Items.slice(0, slideLimit);
+        const detailedItems = await Promise.all(
+          defaultItems.map(item => fetchItemDetails(item.Id))
+        );
+        items = detailedItems.filter(item => item);
       }
+    } catch (error) {
+      console.error("Öğe alınırken hata oluştu:", error);
     }
+  }
 
-    console.groupCollapsed("Slide Oluşturma");
-    for (const item of items) {
-      await createSlide(item);
-    }
-    console.groupEnd();
-    initializeSlider();
-  })();
+  console.groupCollapsed("Slide Oluşturma");
+  for (const item of items) {
+    console.log("Slider API Bilgisi:", item);
+    await createSlide(item);
+  }
+  console.groupEnd();
+  initializeSlider();
+})();
 }
 
 function initializeSlider() {
@@ -202,6 +203,8 @@ function initializeSlider() {
     return;
   }
 
+  ensureProgressBarExists();
+
   const slides = indexPage.querySelectorAll(".slide");
   const slidesContainer = indexPage.querySelector("#slides-container");
   let focusedSlide = null;
@@ -209,6 +212,7 @@ function initializeSlider() {
 
   startSlideTimer();
   attachMouseEvents();
+  startProgressBarWithDuration(SLIDE_DURATION);
 
   slides.forEach(slide => {
     slide.addEventListener("focus", () => {
