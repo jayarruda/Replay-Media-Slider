@@ -599,10 +599,22 @@ if (People) {
       actorImg.className = "actor-image";
       actorImg.src = `${window.location.origin}/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
       actorImg.alt = actor.Name;
+
+      const imageContainer = document.createElement("div");
+      imageContainer.style.position = "relative";
+      imageContainer.style.display = "inline-block";
+
+      const star = document.createElement("div");
+      star.className = "actor-star";
+      star.innerHTML = "⭐";
       actorImg.onerror = () => {
         actorImg.style.display = "none";
+        star.style.display = "none";
       };
-      actorLink.appendChild(actorImg);
+
+      imageContainer.appendChild(actorImg);
+      imageContainer.appendChild(star);
+      actorLink.appendChild(imageContainer);
     }
 
     if (config.showActorInfo) {
