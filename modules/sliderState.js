@@ -40,3 +40,22 @@ export function setRemainingTime(time) {
 export function getRemainingTime() {
   return remainingTime;
 }
+
+let sliderMemory = {
+  lastIndex: 0,
+  remainingTime: 0
+};
+
+export const saveSliderState = () => {
+  sliderMemory = {
+    lastIndex: getCurrentIndex(),
+    remainingTime: getRemainingTime()
+  };
+};
+
+export const restoreSliderState = () => {
+  if (sliderMemory) {
+    setCurrentIndex(sliderMemory.lastIndex);
+    setRemainingTime(sliderMemory.remainingTime);
+  }
+};

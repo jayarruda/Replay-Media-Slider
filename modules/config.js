@@ -26,6 +26,7 @@ export function getConfig() {
     showProgressBar: localStorage.getItem('showProgressBar') !== 'false',
     showQualityDetail: localStorage.getItem('showQualityDetail') !== 'false',
     showActorInfo: localStorage.getItem('showActorInfo') !== 'false',
+    showActorImg: localStorage.getItem('showActorImg') !== 'false',
     showDescriptions: localStorage.getItem('showDescriptions') !== 'false',
     showPlotInfo: localStorage.getItem('showPlotInfo') !== 'false',
     showbPlotInfo: localStorage.getItem('showbPlotInfo') !== 'false',

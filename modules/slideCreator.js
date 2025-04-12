@@ -350,11 +350,22 @@ tryDisplayElement(0);
     event.stopPropagation();
     if (favoriteBtn.classList.contains("favorited")) {
       favoriteBtn.classList.remove("favorited");
-      favoriteBtn.innerHTML = '<i class="fa-light fa-heart fa-xl"></i>';
+      favoriteBtn.innerHTML = `
+    <span class="icon-wrapper">
+    <i class="fa-light fa-heart fa-xl"></i>
+    </span>
+    </span>
+    <span class="btn-text">${config.languageLabels.favori}</span>
+  `;
       updateFavoriteStatus(itemId, false);
     } else {
       favoriteBtn.classList.add("favorited");
-      favoriteBtn.innerHTML = '<i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>';
+      favoriteBtn.innerHTML =  `
+    <span class="icon-wrapper">
+      <i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>
+    </span>
+    <span class="btn-text">${config.languageLabels.favorilendi}</span>
+  `;
       updateFavoriteStatus(itemId, true);
     }
   });
@@ -562,18 +573,51 @@ document.body.appendChild(buttonContainer);
     statusContainer.appendChild(qualitySpan);
   }
 
-  let actorContainer = document.createElement("div");
-  actorContainer.className = "artist-container";
-  if (People && config.showActorInfo) {
-    const actors = People.filter(p => p.Type === "Actor").slice(0, getConfig().artistLimit || 3);
-    if (actors.length) {
-      const actorNames = actors.map(a => a.Name).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
-      const actorsSpan = document.createElement("span");
-      actorsSpan.className = "artists";
-      actorsSpan.innerHTML = actorNames;
-      actorContainer.appendChild(actorsSpan);
+  const actorContainer = document.createElement("div");
+actorContainer.className = "artist-container";
+
+if (People) {
+  const artistsPerSlider = getConfig().artistLimit || 3;
+  const allActors = People.filter(p => p.Type === "Actor");
+  const actorsForSlide = allActors.slice(0, artistsPerSlider);
+
+  actorsForSlide.forEach((actor, index) => {
+    const actorDiv = document.createElement("div");
+    actorDiv.className = "actor-item";
+
+    const actorLink = document.createElement("a");
+    actorLink.href = `${window.location.origin}/web/#/details?id=${actor.Id}`;
+    actorLink.style.textDecoration = "none";
+    actorLink.style.display = "flex";
+    actorLink.style.flexDirection = "column";
+    actorLink.style.alignItems = "center";
+    actorLink.style.justifyContent = "center";
+    actorLink.style.gap = "4px";
+
+    if (config.showActorImg && actor.PrimaryImageTag) {
+      const actorImg = document.createElement("img");
+      actorImg.className = "actor-image";
+      actorImg.src = `${window.location.origin}/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
+      actorImg.alt = actor.Name;
+      actorImg.onerror = () => {
+        actorImg.style.display = "none";
+      };
+      actorLink.appendChild(actorImg);
     }
-  }
+
+    if (config.showActorInfo) {
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "actor-name";
+      const isLast = index === actorsForSlide.length - 1;
+      nameSpan.innerHTML = actor.Name + (isLast ? "" : ' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
+      actorLink.appendChild(nameSpan);
+    }
+
+    actorDiv.appendChild(actorLink);
+    actorContainer.appendChild(actorDiv);
+  });
+}
+
 
   const infoContainer = document.createElement("div");
   infoContainer.className = "info-container";

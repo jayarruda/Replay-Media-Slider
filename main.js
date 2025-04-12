@@ -41,7 +41,6 @@ function fullSliderReset() {
   setCurrentIndex(0);
   stopSlideTimer();
   cleanupSlider();
-  resetProgressBar();
 
   window.mySlider = {};
   window.cachedListContent = "";
@@ -212,7 +211,6 @@ function initializeSlider() {
 
   startSlideTimer();
   attachMouseEvents();
-  startProgressBarWithDuration(SLIDE_DURATION);
 
   slides.forEach(slide => {
     slide.addEventListener("focus", () => {

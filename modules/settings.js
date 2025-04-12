@@ -20,6 +20,7 @@ const descriptionsSubOptions = getEl("descriptionsSubOptions");
 const sliderDurationInput = getEl("sliderDurationInput");
 const artistLimitInput = getEl("artistLimitInput");
 const showActorInfoCheckbox = getEl("showActorInfoCheckbox");
+const showActorImgCheckbox = getEl("showActorImgCheckbox");
 const showTitleOnlyLabel = getEl("showTitleOnlyLabel");
 const showDiscOnlyLabel = getEl("showDiscOnlyLabel");
 const showPlotOnlyLabel = getEl("showPlotOnlyLabel");
@@ -335,7 +336,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
   document.body.className = savedTheme + '-theme';
 
-  displayOrderInput.value = localStorage.getItem('displayOrder') || 'logo,disk,originalTitle';
+  displayOrderInput.value = localStorage.getItem('displayOrder') || "logo,disk,originalTitle";
   languageCheckbox.checked = localStorage.getItem("showLanguageInfo") !== "false";
   showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") !== "false";
   showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") !== "false";
@@ -347,6 +348,7 @@ document.addEventListener("DOMContentLoaded", function () {
   showSettingsLinkCheckbox.checked = localStorage.getItem("showSettingsLink") !== "false";
   showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") !== "false";
   showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") !== "false";
+  showActorImgCheckbox.checked = localStorage.getItem("showActorImg") !== "false";
   descriptionsCheckbox.checked = localStorage.getItem("showDescriptions") !== "false";
   hideOriginalTitleIfSameCheckbox.checked = localStorage.getItem("hideOriginalTitleIfSame") !== "false";
   manualBackdropSelectionCheckbox.checked = localStorage.getItem("manualBackdropSelection") === "true";
@@ -388,7 +390,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'showDotNavigation', 'showSettingsLink', 'showLogoOrTitle', 'showTitleOnly',
       'showDiscOnly', 'showCommunityRating', 'showCriticRating', 'showOfficialRating',
       'showStatusInfo', 'showTypeInfo', 'showWatchedInfo', 'showRuntimeInfo',
-      'showQualityInfo', 'showQualityDetail', 'showActorInfo', 'showDescriptions',
+      'showQualityInfo', 'showQualityDetail', 'showActorInfo', 'showActorImg', 'showDescriptions',
       'showPlotInfo', 'showbPlotInfo', 'showSloganInfo', 'showTitleInfo',
       'showOriginalTitleInfo', 'customQueryString', 'showDirectorWriter',
       'showDirector', 'showWriter', 'useListFile', 'sortingKeywords', 'showInfo',
@@ -511,6 +513,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showQualityInfo: getEl("showQualityInfoCheckbox").checked,
       showQualityDetail: getEl("showQualityDetailCheckbox").checked,
       showActorInfo: showActorInfoCheckbox.checked,
+      showActorImg: showActorImgCheckbox.checked,
       showDescriptions: descriptionsCheckbox.checked,
       showPlotInfo: plotInfoCheckbox.checked,
       showbPlotInfo: getEl('showbPlotInfoCheckbox').checked,
