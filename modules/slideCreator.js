@@ -601,6 +601,7 @@ if (People) {
 
     const actorLink = document.createElement("a");
     actorLink.href = `${window.location.origin}/web/#/details?id=${actor.Id}`;
+    actorLink.target = "_blank";
     actorLink.style.cssText = "text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; position: relative;";
 
     if (config.showActorImg && actor.PrimaryImageTag) {
