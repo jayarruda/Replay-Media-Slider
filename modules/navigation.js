@@ -23,25 +23,28 @@ import {
 export function changeSlide(direction) {
   const slides = document.querySelectorAll(".slide");
   if (!slides.length) return;
+
+  stopSlideTimer();
+  resetProgressBar();
+
   const currentIndex = getCurrentIndex();
   const newIndex = (currentIndex + direction + slides.length) % slides.length;
   setCurrentIndex(newIndex);
-  console.log("Slide değişiyor, currentIndex:", newIndex);
+
+  console.log("Slayt değişiyor, yeni indeks:", newIndex);
   displaySlide(newIndex);
+
+  setRemainingTime(SLIDE_DURATION);
+  startSlideTimer();
 }
 
 export function updateActiveDot() {
   const currentIndex = getCurrentIndex();
   const dots = document.querySelectorAll(".dot");
   dots.forEach((dot, index) => {
-    if (index === currentIndex) {
-      dot.classList.add("active");
-    } else {
-      dot.classList.remove("active");
-    }
+    dot.classList.toggle("active", index === currentIndex);
   });
 }
-
 
 export function createDotNavigation() {
   const config = getConfig();
@@ -57,7 +60,7 @@ export function createDotNavigation() {
 
   const slidesContainer = indexPage.querySelector("#slides-container");
   if (!slidesContainer) {
-    console.warn("slides-container bulunamadı, dot navigation oluşturulamıyor.");
+    console.warn("Slayt konteynırı bulunamadı, nokta navigasyonu oluşturulamıyor");
     return;
   }
 
@@ -74,77 +77,101 @@ export function createDotNavigation() {
   slides.forEach((slide, index) => {
     const dot = document.createElement("span");
     dot.className = "dot";
-    let imageUrl = "";
-    if (dotType === "none") {
-      imageUrl = "";
-    } else if (dotType === "useSlideBackground") {
-      imageUrl = slide.dataset.background;
-    } else {
-      imageUrl = slide.dataset[dotType];
+
+    if (dotType !== "none") {
+      const imageUrl = dotType === "useSlideBackground"
+        ? slide.dataset.background
+        : slide.dataset[dotType];
+      if (imageUrl) {
+        dot.style.backgroundImage = `url(${imageUrl})`;
+        dot.style.backgroundSize = "cover";
+        dot.style.backgroundPosition = "center";
+      }
     }
 
-    if (imageUrl) {
-      dot.style.backgroundImage = `url(${imageUrl})`;
-      dot.style.backgroundSize = "cover";
-      dot.style.backgroundPosition = "center";
-    }
-    if (index === currentIndex) {
-      dot.classList.add("active");
-    }
+    dot.classList.toggle("active", index === currentIndex);
     dot.addEventListener("click", () => {
-      setCurrentIndex(index);
-      displaySlide(index);
+      if (index !== currentIndex) {
+        changeSlide(index - currentIndex);
+      }
     });
     dotContainer.appendChild(dot);
   });
-
   slidesContainer.appendChild(dotContainer);
 }
 
-
 export function displaySlide(index) {
-  console.log("displaySlide çağrıldı, index:", index);
+  console.log(`Slayt gösteriliyor: ${index}`);
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
+
   const slides = indexPage.querySelectorAll(".slide");
+  const currentSlide = slides[index];
 
-  slides.forEach((slide, i) => {
-    if (i === index) {
-      slide.style.opacity = "0";
-      slide.style.display = "block";
-      setTimeout(() => {
-        slide.style.opacity = "1";
-        slide.classList.add("active");
-        const directorContainer = slide.querySelector(".director-container");
-        if (directorContainer) {
-          directorContainer.style.transition = "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease";
-          directorContainer.style.transform = "scale(0.95)";
-          directorContainer.style.opacity = "0";
-          directorContainer.style.display = "none";
-
-          setTimeout(() => {
-            directorContainer.style.display = "flex";
-            setTimeout(() => {
-              directorContainer.style.transform = "scale(1)";
-              directorContainer.style.opacity = "1";
-            }, 50);
-            setTimeout(() => {
-              directorContainer.style.opacity = "0";
-            }, 7500);
-          }, 1000);
-        }
-      }, 50);
-    } else {
-      slide.style.opacity = "0";
-      slide.classList.remove("active");
-      setTimeout(() => (slide.style.display = "none"), 1000);
-    }
+  slides.forEach(slide => {
+    slide.style.opacity = "0";
+    slide.classList.remove("active");
+    setTimeout(() => {
+      if (!slide.classList.contains("active")) {
+        slide.style.display = "none";
+      }
+    }, 300);
   });
 
-  resetProgressBar();
-  stopSlideTimer();
-  setRemainingTime(SLIDE_DURATION);
-  startSlideTimer();
+  currentSlide.style.display = "block";
+  setTimeout(() => {
+    currentSlide.style.opacity = "1";
+    currentSlide.classList.add("active");
+    currentSlide.dispatchEvent(new CustomEvent("slideActive"));
+
+    const directorContainer = currentSlide.querySelector(".director-container");
+    if (directorContainer) {
+      directorContainer.style.transition = "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease";
+      directorContainer.style.transform = "scale(0.95)";
+      directorContainer.style.opacity = "0";
+      directorContainer.style.display = "none";
+
+      setTimeout(() => {
+        directorContainer.style.display = "flex";
+        setTimeout(() => {
+          directorContainer.style.transform = "scale(1)";
+          directorContainer.style.opacity = "1";
+        }, 50);
+        setTimeout(() => {
+          directorContainer.style.opacity = "0";
+        }, 7500);
+      }, 1000);
+    }
+  }, 50);
+
   updateActiveDot();
   createDotNavigation();
+  initSliderArrows(currentSlide);
+}
+
+function initSliderArrows(slide) {
+  const actorContainer = slide.querySelector(".artist-container");
+  const leftArrow = slide.querySelector(".slider-arrow.left");
+  const rightArrow = slide.querySelector(".slider-arrow.right");
+
+  if (!actorContainer || !leftArrow || !rightArrow) return;
+
+  const updateArrows = () => {
+    const maxScrollLeft = actorContainer.scrollWidth - actorContainer.clientWidth;
+    leftArrow.classList.toggle("hidden", actorContainer.scrollLeft <= 0);
+    rightArrow.classList.toggle("hidden", actorContainer.scrollLeft >= maxScrollLeft - 1);
+  };
+
+  leftArrow.onclick = () => {
+    actorContainer.scrollBy({ left: -actorContainer.clientWidth, behavior: "smooth" });
+    setTimeout(updateArrows, 300);
+  };
+
+  rightArrow.onclick = () => {
+    actorContainer.scrollBy({ left: actorContainer.clientWidth, behavior: "smooth" });
+    setTimeout(updateArrows, 300);
+  };
+
+  actorContainer.addEventListener("scroll", updateArrows);
+  setTimeout(updateArrows, 100);
 }
