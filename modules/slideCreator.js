@@ -573,181 +573,192 @@ document.body.appendChild(buttonContainer);
     statusContainer.appendChild(qualitySpan);
   }
 
-  const actorContainer = document.createElement("div");
+const sliderWrapper = document.createElement("div");
+sliderWrapper.className = "slider-wrapper";
+
+const actorContainer = document.createElement("div");
 actorContainer.className = "artist-container";
 
-if (People) {
-  const artistsPerSlider = getConfig().artistLimit || 3;
-  const allActors = People.filter(p => p.Type === "Actor");
-  const actorsForSlide = allActors.slice(0, artistsPerSlider);
+const leftArrow = document.createElement("button");
+leftArrow.className = "slider-arrow left hidden";
+leftArrow.innerHTML = "←";
 
-  actorsForSlide.forEach((actor, index) => {
+const rightArrow = document.createElement("button");
+rightArrow.className = "slider-arrow right hidden";
+rightArrow.innerHTML = "→";
+
+sliderWrapper.appendChild(leftArrow);
+sliderWrapper.appendChild(actorContainer);
+sliderWrapper.appendChild(rightArrow);
+
+if (People) {
+  const allActors = People.filter(p => p.Type === "Actor");
+  const actorsForSlide = allActors.slice(0, getConfig().artistLimit || 3);
+
+  actorsForSlide.forEach(actor => {
     const actorDiv = document.createElement("div");
     actorDiv.className = "actor-item";
 
     const actorLink = document.createElement("a");
     actorLink.href = `${window.location.origin}/web/#/details?id=${actor.Id}`;
-    actorLink.style.textDecoration = "none";
-    actorLink.style.display = "flex";
-    actorLink.style.flexDirection = "column";
-    actorLink.style.alignItems = "center";
-    actorLink.style.justifyContent = "center";
-    actorLink.style.gap = "4px";
+    actorLink.style.cssText = "text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; position: relative;";
 
     if (config.showActorImg && actor.PrimaryImageTag) {
       const actorImg = document.createElement("img");
       actorImg.className = "actor-image";
       actorImg.src = `${window.location.origin}/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
       actorImg.alt = actor.Name;
-
-      const imageContainer = document.createElement("div");
-      imageContainer.style.position = "relative";
-      imageContainer.style.display = "inline-block";
-
-      const star = document.createElement("div");
-      star.className = "actor-star";
-      star.innerHTML = "⭐";
       actorImg.onerror = () => {
-        actorImg.style.display = "none";
-        star.style.display = "none";
+        actorImg.src = "slider/src/images/nofoto.png";
       };
 
-      imageContainer.appendChild(actorImg);
-      imageContainer.appendChild(star);
-      actorLink.appendChild(imageContainer);
+      actorLink.appendChild(actorImg);
     }
 
     if (config.showActorInfo) {
       const nameSpan = document.createElement("span");
       nameSpan.className = "actor-name";
-      const isLast = index === actorsForSlide.length - 1;
-      nameSpan.innerHTML = actor.Name + (isLast ? "" : ' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ');
+      nameSpan.innerHTML = actor.Name;
       actorLink.appendChild(nameSpan);
     }
 
+    if (config.showActorRole) {
+        const roleSpan = document.createElement("span");
+        roleSpan.className = "actor-role";
+        roleSpan.innerHTML = actor.Role;
+        actorLink.appendChild(roleSpan);
+      }
     actorDiv.appendChild(actorLink);
     actorContainer.appendChild(actorDiv);
   });
+
+  const updateArrows = () => {
+    const maxScrollLeft = actorContainer.scrollWidth - actorContainer.clientWidth;
+    leftArrow.classList.toggle("hidden", actorContainer.scrollLeft <= 0);
+    rightArrow.classList.toggle("hidden", actorContainer.scrollLeft >= maxScrollLeft - 1);
+  };
+
+  leftArrow.onclick = () => {
+    actorContainer.scrollBy({ left: -actorContainer.clientWidth, behavior: "smooth" });
+  };
+
+  rightArrow.onclick = () => {
+    actorContainer.scrollBy({ left: actorContainer.clientWidth, behavior: "smooth" });
+  };
+
+  actorContainer.addEventListener("scroll", updateArrows);
+  setTimeout(updateArrows, 100);
 }
 
+const infoContainer = document.createElement("div");
+infoContainer.className = "info-container";
 
-  const infoContainer = document.createElement("div");
-  infoContainer.className = "info-container";
+if (Genres && Genres.length && config.showGenresInfo) {
+  const genresSpan = document.createElement("span");
+  genresSpan.className = "genres";
+  genresSpan.innerHTML = `<i class="fa-regular fa-masks-theater"></i> ${Genres.map(genre => config.languageLabels.turler[genre] || genre).join(', ')} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
+  infoContainer.appendChild(genresSpan);
+}
 
-  if (Genres && Genres.length && config.showGenresInfo) {
-    const genresSpan = document.createElement("span");
-    genresSpan.className = "genres";
-    genresSpan.innerHTML = `<i class="fa-regular fa-masks-theater"></i> ${Genres
-      .map(genre => config.languageLabels.turler[genre] || genre)
-      .join(', ')} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
-    infoContainer.appendChild(genresSpan);
-  }
+if (ProductionYear && config.showYearInfo) {
+  const yearSpan = document.createElement("span");
+  yearSpan.className = "yil";
+  yearSpan.innerHTML = `<i class="fa-regular fa-calendar"></i> ${
+    Array.isArray(ProductionYear) ? ProductionYear.join('<i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>') : ProductionYear
+  } <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
+  infoContainer.appendChild(yearSpan);
+}
 
-  if (ProductionYear && config.showYearInfo) {
-    const yearSpan = document.createElement("span");
-    yearSpan.className = "yil";
-    yearSpan.innerHTML = `<i class="fa-regular fa-calendar"></i> ${
-      Array.isArray(ProductionYear)
-        ? ProductionYear.join('<i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>')
-        : ProductionYear
-    } <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
-    infoContainer.appendChild(yearSpan);
-  }
+if (ProductionLocations && config.showCountryInfo) {
+  const countrySpan = document.createElement("span");
+  countrySpan.className = "ulke";
+  const getFlagEmoji = (code) =>
+    code ? code.toUpperCase().split('').map(char => String.fromCodePoint(127397 + char.charCodeAt())).join('') : '';
 
-  if (ProductionLocations && config.showCountryInfo) {
-    const countrySpan = document.createElement("span");
-    countrySpan.className = "ulke";
-    function getFlagEmoji(countryCode) {
-      return countryCode
-        ? countryCode.toUpperCase().split('').map(char => String.fromCodePoint(127397 + char.charCodeAt())).join('')
-        : '';
-    }
-    countrySpan.innerHTML = `<i class="fa-regular fa-location-dot"></i> ${
-      Array.isArray(ProductionLocations)
-        ? ProductionLocations.map(c => {
-            const info = config.languageLabels.ulke[c] || { code: c.slice(0, 2).toUpperCase(), name: c };
-            return `${getFlagEmoji(info.code)} ${info.name}`;
-          }).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ')
-        : (() => {
-            const info = config.languageLabels.ulke[ProductionLocations] || { code: ProductionLocations.slice(0, 2).toUpperCase(), name: ProductionLocations };
-            return `${getFlagEmoji(info.code)} ${info.name}`;
-          })()
-    }`;
-    infoContainer.appendChild(countrySpan);
-  }
+  countrySpan.innerHTML = `<i class="fa-regular fa-location-dot"></i> ${
+    Array.isArray(ProductionLocations)
+      ? ProductionLocations.map(c => {
+          const info = config.languageLabels.ulke[c] || { code: c.slice(0, 2).toUpperCase(), name: c };
+          return `${getFlagEmoji(info.code)} ${info.name}`;
+        }).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ')
+      : (() => {
+          const info = config.languageLabels.ulke[ProductionLocations] || { code: ProductionLocations.slice(0, 2).toUpperCase(), name: ProductionLocations };
+          return `${getFlagEmoji(info.code)} ${info.name}`;
+        })()
+  }`;
+  infoContainer.appendChild(countrySpan);
+}
 
-  const directorContainer = document.createElement("div");
-  directorContainer.className = "director-container";
-  if (People && People.length > 0 && config.showDirectorWriter) {
-    if (config.showDirector) {
-      const directors = People.filter(person => person.Type && person.Type.toLowerCase() === "director");
-      if (directors.length) {
-        const directorNames = directors.map(director => director.Name).join(", ");
-        const yonetmenSpan = document.createElement("span");
-        yonetmenSpan.className = "yonetmen";
-        yonetmenSpan.textContent = `${config.languageLabels.yonetmen}: ${directorNames}`;
-        directorContainer.appendChild(yonetmenSpan);
-      }
-    }
-    if (config.showWriter) {
-      const writers = People.filter(person => person.Type && person.Type.toLowerCase() === "writer");
-      const matchingWriters = writers.filter(writer => config.allowedWriters.includes(writer.Name.toLowerCase()));
-      if (matchingWriters.length) {
-        const writerNames = matchingWriters.map(writer => writer.Name).join(", ");
-        const writerSpan = document.createElement("span");
-        writerSpan.className = "writer";
-        writerSpan.textContent = `${writerNames} ${config.languageLabels.yazar}  ...`;
-        directorContainer.appendChild(writerSpan);
-      }
+const directorContainer = document.createElement("div");
+directorContainer.className = "director-container";
+
+if (People && People.length > 0 && config.showDirectorWriter) {
+  if (config.showDirector) {
+    const directors = People.filter(p => p.Type?.toLowerCase() === "director");
+    if (directors.length) {
+      const directorNames = directors.map(d => d.Name).join(", ");
+      const directorSpan = document.createElement("span");
+      directorSpan.className = "yonetmen";
+      directorSpan.textContent = `${config.languageLabels.yonetmen}: ${directorNames}`;
+      directorContainer.appendChild(directorSpan);
     }
   }
+  if (config.showWriter) {
+    const writers = People.filter(p => p.Type?.toLowerCase() === "writer");
+    const matchingWriters = writers.filter(w => config.allowedWriters.includes(w.Name.toLowerCase()));
+    if (matchingWriters.length) {
+      const writerNames = matchingWriters.map(w => w.Name).join(", ");
+      const writerSpan = document.createElement("span");
+      writerSpan.className = "writer";
+      writerSpan.textContent = `${writerNames} ${config.languageLabels.yazar}  ...`;
+      directorContainer.appendChild(writerSpan);
+    }
+  }
+}
 
-  let ratingExists = false;
-  const ratingContainer = document.createElement("div");
-  ratingContainer.className = "rating-container";
-  if (config.showRatingInfo) {
-    if (config.showCommunityRating && CommunityRating) {
-      let ratingValue;
-      if (Array.isArray(CommunityRating)) {
-        const avg = CommunityRating.reduce((acc, num) => acc + num, 0) / CommunityRating.length;
-        ratingValue = Math.round(avg * 10) / 10;
-      } else {
-        ratingValue = Math.round(CommunityRating * 10) / 10;
-      }
-      ratingExists = true;
-      const ratingPercentage = (typeof ratingValue === "number") ? (ratingValue * 9.5) : 0;
-      const ratingSpan = document.createElement("span");
-      ratingSpan.className = "rating";
-      ratingSpan.innerHTML = `
-        <span class="star-rating" style="position: relative; display: inline-block; font-size: 1em; color: #ccc;">
-          <i class="fa-regular fa-star"></i>
-          <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: 100%; color: gold; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
-            <i class="fa-solid fa-star" style="display: block;"></i>
-          </span>
+let ratingExists = false;
+const ratingContainer = document.createElement("div");
+ratingContainer.className = "rating-container";
+
+if (config.showRatingInfo) {
+  if (config.showCommunityRating && CommunityRating) {
+    let ratingValue = Array.isArray(CommunityRating)
+      ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
+      : Math.round(CommunityRating * 10) / 10;
+    ratingExists = true;
+    const ratingPercentage = ratingValue * 9.5;
+    const ratingSpan = document.createElement("span");
+    ratingSpan.className = "rating";
+    ratingSpan.innerHTML = `
+      <span class="star-rating" style="position: relative; display: inline-block; font-size: 1em; color: #ccc;">
+        <i class="fa-regular fa-star"></i>
+        <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: 100%; color: gold; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
+          <i class="fa-solid fa-star" style="display: block;"></i>
         </span>
-        ${ratingValue} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>
-      `;
-      ratingContainer.appendChild(ratingSpan);
-    }
-    if (config.showCriticRating && CriticRating) {
-      ratingExists = true;
-      const tomatoRatingSpan = document.createElement("span");
-      tomatoRatingSpan.className = "t-rating";
-      tomatoRatingSpan.innerHTML = `<i class="fa-duotone fa-solid fa-tomato" style="--fa-primary-color: #01902e; --fa-secondary-color: #f93208; --fa-secondary-opacity: 1;"></i> ${
-        Array.isArray(CriticRating) ? CriticRating.join(", ") : CriticRating
-      } <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
-      ratingContainer.appendChild(tomatoRatingSpan);
-    }
-    if (config.showOfficialRating && OfficialRating) {
-      ratingExists = true;
-      const officialRatingSpan = document.createElement("span");
-      officialRatingSpan.className = "officialrating";
-      officialRatingSpan.innerHTML = `<i class="fa-solid fa-family"></i> ${
-        Array.isArray(OfficialRating) ? OfficialRating.join(", ") : OfficialRating
-      }`;
-      ratingContainer.appendChild(officialRatingSpan);
-    }
+      </span> ${ratingValue} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
+    ratingContainer.appendChild(ratingSpan);
   }
+
+  if (config.showCriticRating && CriticRating) {
+    ratingExists = true;
+    const criticSpan = document.createElement("span");
+    criticSpan.className = "t-rating";
+    criticSpan.innerHTML = `<i class="fa-duotone fa-solid fa-tomato" style="--fa-primary-color: #01902e; --fa-secondary-color: #f93208; --fa-secondary-opacity: 1;"></i> ${
+      Array.isArray(CriticRating) ? CriticRating.join(", ") : CriticRating
+    } <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
+    ratingContainer.appendChild(criticSpan);
+  }
+
+  if (config.showOfficialRating && OfficialRating) {
+    ratingExists = true;
+    const officialRatingSpan = document.createElement("span");
+    officialRatingSpan.className = "officialrating";
+    officialRatingSpan.innerHTML = `<i class="fa-solid fa-family"></i> ${
+      Array.isArray(OfficialRating) ? OfficialRating.join(", ") : OfficialRating
+    }`;
+    ratingContainer.appendChild(officialRatingSpan);
+  }
+}
 
   let providerContainer = null;
 if (ProviderIds) {
@@ -879,7 +890,6 @@ if (ProviderIds) {
   if (statusContainer) metaContainer.appendChild(statusContainer);
   if (languageContainer) metaContainer.appendChild(languageContainer);
   if (ratingExists) metaContainer.appendChild(ratingContainer);
-  if (actorContainer) metaContainer.appendChild(actorContainer);
 
   const mainContentContainer = document.createElement("div");
   mainContentContainer.className = "main-content-container";
@@ -897,7 +907,8 @@ if (ProviderIds) {
     backdropImg,
     metaContainer,
     mainContentContainer,
-    buttonContainer
+    buttonContainer,
+    sliderWrapper
   );
   slidesContainer.appendChild(slide);
 
