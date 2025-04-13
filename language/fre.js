@@ -193,6 +193,7 @@ export const languageLabels = {
   actorInfo: "Acteur",
   showActorInfo: "Afficher les Noms des Acteurs",
   showActorImg: "Afficher les images des acteurs",
+  showActorRole: "Afficher les rôles des acteurs",
   artistLimit: "Limite d'Affichage des Noms",
   actorInfoDescription: "Ce paramètre contrôle le nombre de noms d'acteurs affichés.",
   buttons: "Paramètres des boutons",
