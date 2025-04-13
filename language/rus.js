@@ -265,7 +265,7 @@ export const languageLabels = {
     settingsSavedModal: "Настройки сохранены. Обновите страницу слайдера, чтобы изменения вступили в силу.",
     closeModalBtn: "ОК",
     resetToDefaults: "Значения по умолчанию",
-    kompakslider: "Компактный вид",
+    kompaktslider: "Компактный вид",
     tamslider: "Полный экран",
     displayOrderlabel: "Порядок Отображения",
     displayOrderhelp: "Изображения или оригинальное название будут отображаться в указанном порядке. (Пример: disk,logo,originalTitle)",
