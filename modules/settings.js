@@ -21,6 +21,7 @@ const sliderDurationInput = getEl("sliderDurationInput");
 const artistLimitInput = getEl("artistLimitInput");
 const showActorInfoCheckbox = getEl("showActorInfoCheckbox");
 const showActorImgCheckbox = getEl("showActorImgCheckbox");
+const showActorRoleCheckbox = getEl("showActorRoleCheckbox");
 const showTitleOnlyLabel = getEl("showTitleOnlyLabel");
 const showDiscOnlyLabel = getEl("showDiscOnlyLabel");
 const showPlotOnlyLabel = getEl("showPlotOnlyLabel");
@@ -349,6 +350,7 @@ document.addEventListener("DOMContentLoaded", function () {
   showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") !== "false";
   showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") !== "false";
   showActorImgCheckbox.checked = localStorage.getItem("showActorImg") !== "false";
+  showActorRoleCheckbox.checked = localStorage.getItem("showActorRole") !== "false";
   descriptionsCheckbox.checked = localStorage.getItem("showDescriptions") !== "false";
   hideOriginalTitleIfSameCheckbox.checked = localStorage.getItem("hideOriginalTitleIfSame") !== "false";
   manualBackdropSelectionCheckbox.checked = localStorage.getItem("manualBackdropSelection") === "true";
@@ -390,7 +392,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'showDotNavigation', 'showSettingsLink', 'showLogoOrTitle', 'showTitleOnly',
       'showDiscOnly', 'showCommunityRating', 'showCriticRating', 'showOfficialRating',
       'showStatusInfo', 'showTypeInfo', 'showWatchedInfo', 'showRuntimeInfo',
-      'showQualityInfo', 'showQualityDetail', 'showActorInfo', 'showActorImg', 'showDescriptions',
+      'showQualityInfo', 'showQualityDetail', 'showActorInfo', 'showActorImg', 'showActorRole', 'showDescriptions',
       'showPlotInfo', 'showbPlotInfo', 'showSloganInfo', 'showTitleInfo',
       'showOriginalTitleInfo', 'customQueryString', 'showDirectorWriter',
       'showDirector', 'showWriter', 'useListFile', 'sortingKeywords', 'showInfo',
@@ -514,6 +516,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showQualityDetail: getEl("showQualityDetailCheckbox").checked,
       showActorInfo: showActorInfoCheckbox.checked,
       showActorImg: showActorImgCheckbox.checked,
+      showActorRole: showActorRoleCheckbox.checked,
       showDescriptions: descriptionsCheckbox.checked,
       showPlotInfo: plotInfoCheckbox.checked,
       showbPlotInfo: getEl('showbPlotInfoCheckbox').checked,
