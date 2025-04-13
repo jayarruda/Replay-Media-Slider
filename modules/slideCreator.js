@@ -581,11 +581,11 @@ actorContainer.className = "artist-container";
 
 const leftArrow = document.createElement("button");
 leftArrow.className = "slider-arrow left hidden";
-leftArrow.innerHTML = "←";
+leftArrow.innerHTML = `<i class="fa-light fa-left-to-line"></i>`;
 
 const rightArrow = document.createElement("button");
 rightArrow.className = "slider-arrow right hidden";
-rightArrow.innerHTML = "→";
+rightArrow.innerHTML = `<i class="fa-light fa-right-to-line"></i>`;
 
 sliderWrapper.appendChild(leftArrow);
 sliderWrapper.appendChild(actorContainer);
@@ -631,23 +631,6 @@ if (People) {
     actorDiv.appendChild(actorLink);
     actorContainer.appendChild(actorDiv);
   });
-
-  const updateArrows = () => {
-    const maxScrollLeft = actorContainer.scrollWidth - actorContainer.clientWidth;
-    leftArrow.classList.toggle("hidden", actorContainer.scrollLeft <= 0);
-    rightArrow.classList.toggle("hidden", actorContainer.scrollLeft >= maxScrollLeft - 1);
-  };
-
-  leftArrow.onclick = () => {
-    actorContainer.scrollBy({ left: -actorContainer.clientWidth, behavior: "smooth" });
-  };
-
-  rightArrow.onclick = () => {
-    actorContainer.scrollBy({ left: actorContainer.clientWidth, behavior: "smooth" });
-  };
-
-  actorContainer.addEventListener("scroll", updateArrows);
-  setTimeout(updateArrows, 100);
 }
 
 const infoContainer = document.createElement("div");
