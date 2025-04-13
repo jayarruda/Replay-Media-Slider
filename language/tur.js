@@ -265,7 +265,7 @@ export const languageLabels = {
     settingsSavedModal: "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.",
     closeModalBtn: "Tamam",
     resetToDefaults: "Varsayılan Değerler",
-    kompakslider: "Kompak Görünüm",
+    kompaktslider: "Kompakt Görünüm",
     tamslider: "Tam Ekran",
     displayOrderlabel: "Görüntüleme Sıralası",
     displayOrderhelp: "Görseller veya Orijinal Başlık Bu Alandaki Sıralamaya Göre Gösterilecektir. (Örnek: disk,logo,originalTitle)",
