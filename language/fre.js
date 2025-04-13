@@ -264,7 +264,7 @@ export const languageLabels = {
   settingsSavedModal: "Paramètres enregistrés. Actualisez la page du slider pour que les modifications prennent effet.",
   closeModalBtn: "OK",
   resetToDefaults : "Valeurs par défaut",
-  kompakslider: "Vue compacte",
+  kompaktslider: "Vue compacte",
   tamslider: "Plein écran",
   displayOrderlabel: "Ordre d’Affichage",
   displayOrderhelp: "Les images ou le titre original seront affichés dans l’ordre spécifié ici. (Exemple : disk,logo,originalTitle)",
