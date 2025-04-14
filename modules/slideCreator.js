@@ -1,5 +1,5 @@
 import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, debounce } from "./utils.js";
-import { updateFavoriteStatus } from "./api.js";
+import { updateFavoriteStatus, updatePlayedStatus } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 
@@ -313,6 +313,67 @@ tryDisplayElement(0);
   buttonGradientOverlay.style.opacity = "0.9";
   buttonGradientOverlay.style.mixBlendMode = "multiply";
 
+
+  if (config.showPlayedButton) {
+  const isPlayed = UserData && UserData.Played;
+  const playedBtn = document.createElement("button");
+  playedBtn.className = "played-btn";
+  playedBtn.title = config.languageLabels.playedinfo;
+
+  const playedBgType = config.playedBackgroundImageType || "backdropUrl";
+  let playedBgImage = "";
+  if (playedBgType !== "none") {
+    playedBgImage = slide.dataset[playedBgType];
+  }
+
+  const playedBtnContainer = document.createElement("div");
+  playedBtnContainer.className = "btn-container";
+  playedBtnContainer.style.position = "relative";
+  playedBtnContainer.style.display = "inline-block";
+
+  if (playedBgImage) {
+    playedBtn.style.backgroundImage = `url(${playedBgImage})`;
+    playedBtn.style.backgroundRepeat = 'no-repeat';
+    playedBtn.style.backgroundSize = 'cover';
+    playedBtn.style.backgroundPosition = 'center';
+  }
+
+  playedBtn.innerHTML = isPlayed
+    ? '<i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>'
+    : '<i class="fa-light fa-check fa-xl"></i>';
+  if (isPlayed) playedBtn.classList.add("played");
+  playedBtn.style.transition = 'all 1s ease-in-out';
+
+  const playedGradient = buttonGradientOverlay.cloneNode(true);
+  playedBtnContainer.appendChild(playedBtn);
+  playedBtnContainer.appendChild(playedGradient);
+
+  playedBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (playedBtn.classList.contains("played")) {
+      playedBtn.classList.remove("played");
+      playedBtn.innerHTML = `
+        <span class="icon-wrapper">
+          <i class="fa-light fa-check fa-xl"></i>
+        </span>
+        <span class="btn-text"></span>
+      `;
+      updatePlayedStatus(itemId, false);
+    } else {
+      playedBtn.classList.add("played");
+      playedBtn.innerHTML = `
+        <span class="icon-wrapper">
+          <i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>
+        </span>
+        <span class="btn-text"></span>
+      `;
+      updatePlayedStatus(itemId, true);
+    }
+  });
+  buttonContainer.appendChild(playedBtnContainer);
+}
+
   if (config.showFavoriteButton) {
     const isFavorited = UserData && UserData.IsFavorite;
     const favoriteBtn = document.createElement("button");
@@ -336,7 +397,7 @@ tryDisplayElement(0);
   }
 
   favoriteBtn.innerHTML = isFavorited
-    ? '<i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>'
+    ? '<i class="fa-solid fa-heart fa-xl" style="color: #FFC107;"></i>'
     : '<i class="fa-light fa-heart fa-xl"></i>';
   if (isFavorited) favoriteBtn.classList.add("favorited");
   favoriteBtn.style.transition = 'all 1s ease-in-out';
@@ -362,7 +423,7 @@ tryDisplayElement(0);
       favoriteBtn.classList.add("favorited");
       favoriteBtn.innerHTML =  `
     <span class="icon-wrapper">
-      <i class="fa-solid fa-heart fa-xl" style="color: #d60a47;"></i>
+      <i class="fa-solid fa-heart fa-xl" style="color: #FFC107;"></i>
     </span>
     <span class="btn-text">${config.languageLabels.favorilendi}</span>
   `;
