@@ -189,7 +189,7 @@ async function createSlide(item) {
       trailerIframe.src = trailerUrl;
       slide.classList.add("trailer-active");
       trailerPlaying = true;
-    }, 500);
+    }, 1000);
     const handleMouseLeave = () => {
       if (enterTimeout) {
         clearTimeout(enterTimeout);
@@ -666,42 +666,51 @@ if (People) {
   const actorsForSlide = allActors.slice(0, getConfig().artistLimit || 3);
 
   actorsForSlide.forEach(actor => {
-    const actorDiv = document.createElement("div");
-    actorDiv.className = "actor-item";
+  const actorDiv = document.createElement("div");
+  actorDiv.className = "actor-item";
 
-    const actorLink = document.createElement("a");
-    actorLink.href = `${window.location.origin}/web/#/details?id=${actor.Id}`;
-    actorLink.target = "_blank";
-    actorLink.style.cssText = "text-decoration: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; position: relative;";
+  const actorContent = document.createElement("div");
+  actorContent.className = "actor-content";
 
-    if (config.showActorImg && actor.PrimaryImageTag) {
-      const actorImg = document.createElement("img");
-      actorImg.className = "actor-image";
-      actorImg.src = `${window.location.origin}/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
-      actorImg.alt = actor.Name;
-      actorImg.onerror = () => {
-        actorImg.src = "slider/src/images/nofoto.png";
-      };
+  const actorLink = document.createElement("a");
+  actorLink.href = `${window.location.origin}/web/#/details?id=${actor.Id}`;
+  actorLink.target = "_blank";
+  actorLink.style.textDecoration = "none";
 
-      actorLink.appendChild(actorImg);
-    }
+  if (config.showActorImg) {
+  if (actor.PrimaryImageTag) {
+    const actorImg = document.createElement("img");
+    actorImg.className = "actor-image";
+    actorImg.src = `${window.location.origin}/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
+    actorImg.alt = actor.Name;
+    actorImg.onerror = () => {
+      actorImg.src = "slider/src/images/nofoto.png";
+    };
+    actorLink.appendChild(actorImg);
+  } else {
+    const fallbackImg = document.createElement("img");
+    fallbackImg.className = "actor-image";
+    fallbackImg.src = "slider/src/images/nofoto.png";
+    fallbackImg.alt = "No Image";
+    actorLink.appendChild(fallbackImg);
+  }
+}
 
-    if (config.showActorInfo) {
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "actor-name";
-      nameSpan.innerHTML = actor.Name;
-      actorLink.appendChild(nameSpan);
-    }
+  actorContent.appendChild(actorLink);
 
-    if (config.showActorRole) {
-        const roleSpan = document.createElement("span");
-        roleSpan.className = "actor-role";
-        roleSpan.innerHTML = actor.Role;
-        actorLink.appendChild(roleSpan);
-      }
-    actorDiv.appendChild(actorLink);
-    actorContainer.appendChild(actorDiv);
-  });
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "actor-name";
+  nameSpan.textContent = config.showActorInfo ? actor.Name || "" : "";
+  actorContent.appendChild(nameSpan);
+
+  const roleSpan = document.createElement("span");
+  roleSpan.className = "actor-role";
+  roleSpan.textContent = config.showActorRole ? actor.Role || "" : "";
+  actorContent.appendChild(roleSpan);
+
+  actorDiv.appendChild(actorContent);
+  actorContainer.appendChild(actorDiv);
+});
 }
 
 const infoContainer = document.createElement("div");
