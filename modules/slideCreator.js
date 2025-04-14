@@ -528,7 +528,16 @@ document.body.appendChild(buttonContainer);
       ? `<i class="fa-light fa-circle-check"></i> ${config.languageLabels.izlendi}`
       : `<i class="fa-light fa-circle-xmark"></i> ${config.languageLabels.izlenmedi}`;
     statusContainer.appendChild(watchedSpan);
+
+
+  if (UserData.Played && UserData.PlayCount > 0) {
+    statusContainer.appendChild(document.createTextNode(" "));
+    const izlenmeSpan = document.createElement("span");
+    izlenmeSpan.className = "izlenme-status";
+    izlenmeSpan.innerHTML = `(${UserData.PlayCount})`;
+    statusContainer.appendChild(izlenmeSpan);
   }
+}
 
   if (RunTimeTicks && config.showRuntimeInfo) {
     const runtimeSpan = document.createElement("span");
