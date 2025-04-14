@@ -64,6 +64,18 @@ export async function updateFavoriteStatus(itemId, isFavorite) {
   });
 }
 
+export async function updatePlayedStatus(itemId, played) {
+  const { userId } = getSessionInfo();
+  return makeApiRequest(`${window.location.origin}/Users/${userId}/Items/${itemId}/UserData`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ Played: played })
+  });
+}
+
+
 export async function getImageDimensions(url) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
