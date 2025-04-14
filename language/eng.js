@@ -18,7 +18,6 @@ export const languageLabels = {
   dk: "m",
   sonucyok: "Unknown",
   izle: "Watch",
-  favori: "Favorite",
   favorilendi: "Favorited",
   playedinfo: "It is used to toggle the content's 'Watched or Not Watched' status.",
   fragman: "Trailer",
