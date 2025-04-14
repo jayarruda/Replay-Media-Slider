@@ -366,7 +366,7 @@ tryDisplayElement(0);
         <span class="icon-wrapper">
           <i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>
         </span>
-        <span class="btn-text"></span>
+        <span class="btn-text">${config.languageLabels.izlendi}</span>
       `;
       updatePlayedStatus(itemId, true);
     }
@@ -416,7 +416,7 @@ tryDisplayElement(0);
     <i class="fa-light fa-heart fa-xl"></i>
     </span>
     </span>
-    <span class="btn-text">${config.languageLabels.favori}</span>
+    <span class="btn-text"></span>
   `;
       updateFavoriteStatus(itemId, false);
     } else {
