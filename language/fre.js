@@ -18,7 +18,6 @@ export const languageLabels = {
   dk: "min",
   sonucyok: "Inconnu",
   izle: "Regarder",
-  favori: "Favori",
   favorilendi: "Favoris",
   playedinfo: "Il permet de changer l'état 'Vu ou Non Vu' du contenu.",
   fragman: "Bande-annonce",
