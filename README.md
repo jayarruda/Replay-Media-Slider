@@ -10,13 +10,14 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
 
 ## Kompakt Görünüm / Compact View
 
-![kompak1](https://github.com/user-attachments/assets/8064fc83-1b14-4315-b254-678f1706ee18)
+![1](https://github.com/user-attachments/assets/e18593d9-38fc-4ab1-9203-bf71d41d7145)
 
 ![kompak2](https://github.com/user-attachments/assets/54f145d0-8799-4fb2-abf5-b7394c358909)
 
 ## Tam Ekran / Full Screen
 
-![full1](https://github.com/user-attachments/assets/8afefa71-2a38-4338-85e3-6c6450f0cfab)
+![2](https://github.com/user-attachments/assets/0bb2aaa7-c495-4d8a-9ffd-c4ad7e818a54)
+
 
 ![full2](https://github.com/user-attachments/assets/1d368599-9b0f-45c1-86f7-1e8420edbf19)
 
