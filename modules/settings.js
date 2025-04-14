@@ -32,6 +32,7 @@ const dotBackgroundImageTypeSelect = getEl("dotBackgroundImageTypeSelect");
 const trailerBackgroundImageTypeSelect = getEl("trailerBackgroundImageTypeSelect");
 const watchBackgroundImageTypeSelect = getEl("watchBackgroundImageTypeSelect");
 const favoriBackgroundImageTypeSelect = getEl("favoriBackgroundImageTypeSelect");
+const playedBackgroundImageTypeSelect = getEl("playedBackgroundImageTypeSelect");
 const defaultLanguageSelect = getEl('defaultLanguageSelect');
 const limitInput = getEl("limitInput");
 const plotInfoCheckbox = getEl("showPlotInfoCheckbox");
@@ -52,6 +53,7 @@ const showTrailerIconCheckbox = getEl("showTrailerIconCheckbox");
 const showWatchButtonCheckbox = getEl("showWatchButtonCheckbox");
 const customQueryStringInput = getEl('customQueryStringInput');
 const showFavoriteButtonCheckbox = getEl("showFavoriteButtonCheckbox");
+const showPlayedButtonCheckbox = getEl("showPlayedButtonCheckbox");
 const useListFileCheckbox = getEl('useListFileCheckbox');
 const useManualListCheckbox = getEl('useManualListCheckbox');
 const manualListIdsInput = getEl('manualListIdsInput');
@@ -298,6 +300,9 @@ showWatchButtonCheckbox.addEventListener("change", () => {
 showFavoriteButtonCheckbox.addEventListener("change", () => {
   favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
 });
+showPlayedButtonCheckbox.addEventListener("change", () => {
+  playedBackgroundImageTypeSelect.disabled = !showPlayedButtonCheckbox.checked;
+});
 useListFileCheckbox.addEventListener("change", () => {
   const disableState = useListFileCheckbox.checked || useManualListCheckbox.checked;
   limitInput.disabled = disableState;
@@ -362,6 +367,7 @@ document.addEventListener("DOMContentLoaded", function () {
   trailerBackgroundImageTypeSelect.value = localStorage.getItem('trailerBackgroundImageType') || 'none';
   watchBackgroundImageTypeSelect.value = localStorage.getItem('watchBackgroundImageType') || 'none';
   favoriBackgroundImageTypeSelect.value = localStorage.getItem('favoriBackgroundImageType') || 'none';
+  playedBackgroundImageTypeSelect.value = localStorage.getItem('playedBackgroundImageType') || 'none';
   defaultLanguageSelect.value = localStorage.getItem('defaultLanguage') || 'tur';
   minHighQualityWidthInput.value = localStorage.getItem("minHighQualityWidth") || 1920;
   enableTrailerPlaybackCheckbox.checked = localStorage.getItem("enableTrailerPlayback") !== "false";
@@ -369,6 +375,7 @@ document.addEventListener("DOMContentLoaded", function () {
   showTrailerIconCheckbox.checked = localStorage.getItem("showTrailerIcon") !== "false";
   showWatchButtonCheckbox.checked = localStorage.getItem("showWatchButton") !== "false";
   showFavoriteButtonCheckbox.checked = localStorage.getItem("showFavoriteButton") !== "false";
+  showPlayedButtonCheckbox.checked = localStorage.getItem("showPlayedButton") !== "false";
   useListFileCheckbox.checked = localStorage.getItem("useListFile") !== "false";
   customQueryStringInput.disabled = useListFileCheckbox.checked;
   limitInput.disabled = useListFileCheckbox.checked;
@@ -377,6 +384,7 @@ document.addEventListener("DOMContentLoaded", function () {
   trailerBackgroundImageTypeSelect.disabled = !showTrailerButtonCheckbox.checked;
   watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
   favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
+  playedBackgroundImageTypeSelect.disabled = !showPlayedButtonCheckbox.checked;
   customQueryStringInput.value = localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop';
   sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
   initSettingsBackgroundSlider();
@@ -402,7 +410,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'backdropImageType', 'dotBackgroundImageType', 'trailerBackgroundImageType',
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
-      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls'
+      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -539,6 +547,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showTrailerIcon: showTrailerIconCheckbox.checked,
       showWatchButton: showWatchButtonCheckbox.checked,
       showFavoriteButton: showFavoriteButtonCheckbox.checked,
+      showPlayedButton: showPlayedButtonCheckbox.checked,
       hideOriginalTitleIfSame: hideOriginalTitleIfSameCheckbox.checked,
       manualBackdropSelection: manualBackdropSelectionCheckbox.checked,
       gradientOverlayImageType: gradientOverlayImageTypeSelect.value,
@@ -547,6 +556,7 @@ document.addEventListener("DOMContentLoaded", function () {
       trailerBackgroundImageType: trailerBackgroundImageTypeSelect.value,
       watchBackgroundImageType: watchBackgroundImageTypeSelect.value,
       favoriBackgroundImageType: favoriBackgroundImageTypeSelect.value,
+      playedBackgroundImageType: playedBackgroundImageTypeSelect.value,
       enableTrailerPlayback: enableTrailerPlaybackCheckbox.checked,
       defaultLanguage: defaultLanguageSelect.value,
       limit: limitInput.value,
