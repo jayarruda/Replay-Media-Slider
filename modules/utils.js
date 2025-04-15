@@ -1,3 +1,7 @@
+import { getConfig } from "./config.js";
+
+const config = getConfig();
+
 export function getYoutubeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return url;
 
@@ -71,4 +75,63 @@ export function isValidUrl(url) {
   } catch (e) {
     return false;
   }
+}
+
+export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg }) {
+  if (!config.enableTrailerPlayback || !RemoteTrailers?.length) return;
+
+  const trailer = RemoteTrailers[0];
+  const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
+  if (!isValidUrl(trailerUrl)) return;
+
+  const trailerIframe = document.createElement("iframe");
+  trailerIframe.title = trailer.Name;
+  trailerIframe.allow =
+    "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+  trailerIframe.allowFullscreen = true;
+
+  Object.assign(trailerIframe.style, {
+    width: "70%",
+    height: "100%",
+    border: "none",
+    display: "none",
+    position: "absolute",
+    top: "0%",
+    right: "0%"
+  });
+
+  slide.appendChild(trailerIframe);
+
+  let trailerPlaying = false;
+  let enterTimeout = null;
+
+  const handleMouseEnter = debounce(() => {
+    backdropImg.style.opacity = "0";
+    trailerIframe.style.display = "block";
+    trailerIframe.src = trailerUrl;
+    slide.classList.add("trailer-active");
+    trailerPlaying = true;
+  }, 0);
+
+  const handleMouseLeave = () => {
+    if (enterTimeout) {
+      clearTimeout(enterTimeout);
+      enterTimeout = null;
+    }
+    if (trailerPlaying) {
+      trailerIframe.style.display = "none";
+      trailerIframe.src = "";
+      backdropImg.style.opacity = "1";
+      slide.classList.remove("trailer-active");
+      trailerPlaying = false;
+    }
+  };
+
+  backdropImg.addEventListener("mouseenter", () => {
+    enterTimeout = setTimeout(handleMouseEnter, config.gecikmeSure || 500);
+  });
+
+  backdropImg.addEventListener("mouseleave", handleMouseLeave);
+
+  slide.addEventListener("slideChange", handleMouseLeave);
 }

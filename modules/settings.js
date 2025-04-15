@@ -67,6 +67,7 @@ progressBarWidthInput.value = parseInt(progressBarWidth);
 const cssVariantSelect = getEl('cssVariantSelect');
 const displayOrderInput = getEl('displayOrderInput');
 const displayOrderContainer = getEl('displayOrderContainer');
+const gecikmeSureInput = getEl("gecikmeSureInput");
 
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
@@ -303,6 +304,10 @@ showFavoriteButtonCheckbox.addEventListener("change", () => {
 showPlayedButtonCheckbox.addEventListener("change", () => {
   playedBackgroundImageTypeSelect.disabled = !showPlayedButtonCheckbox.checked;
 });
+enableTrailerPlaybackCheckbox.addEventListener("change", () => {
+  gradientOverlayImageTypeSelect.disabled = !enableTrailerPlaybackCheckbox.checked;
+  gecikmeSureInput.disabled = !enableTrailerPlaybackCheckbox.checked;
+});
 useListFileCheckbox.addEventListener("change", () => {
   const disableState = useListFileCheckbox.checked || useManualListCheckbox.checked;
   limitInput.disabled = disableState;
@@ -410,7 +415,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'backdropImageType', 'dotBackgroundImageType', 'trailerBackgroundImageType',
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
-      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton'
+      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -466,8 +471,9 @@ document.addEventListener("DOMContentLoaded", function () {
   showYearInfoCheckbox.checked = localStorage.getItem("showYearInfo") !== "false";
   showCountryInfoCheckbox.checked = localStorage.getItem("showCountryInfo") !== "false";
   sliderDurationInput.value = localStorage.getItem("sliderDuration") || 15000;
-  artistLimitInput.value = localStorage.getItem("artistLimit") || 3;
+  artistLimitInput.value = localStorage.getItem("artistLimit") || 8;
   limitInput.value = localStorage.getItem("limit") || 10;
+  gecikmeSureInput.value = localStorage.getItem("gecikmeSure") || 500;
 
   updateGroup(showStatusInfoCheckbox, statusSubOptions);
   updateGroup(ratingCheckbox, ratingSubOptions);
@@ -562,7 +568,8 @@ document.addEventListener("DOMContentLoaded", function () {
       limit: limitInput.value,
       minHighQualityWidth: minHighQualityWidthInput.value,
       progressBarWidth: progressBarWidthInput.value + "%",
-      displayOrder: displayOrderInput.value
+      displayOrder: displayOrderInput.value,
+      gecikmeSure: gecikmeSureInput.value,
     };
 
     Object.entries(settingsToSave).forEach(([key, value]) => {
