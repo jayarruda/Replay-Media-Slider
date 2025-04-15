@@ -271,6 +271,7 @@ export const languageLabels = {
     displayOrderhelp: "Görseller veya Orijinal Başlık Bu Alandaki Sıralamaya Göre Gösterilecektir. (Örnek: disk,logo,originalTitle)",
     showTrailerIcon: "Youtube Bağlantı İkonunu Göster",
     showPlayedButton: "İzlenme Durumu Kontrol Butonunu Göster",
+    gecikmeInput: "Üzerine gelindiğinde fragman oynatma süresi (ms)",
     optionTurkish: "🇹🇷 Türkçe",
     optionEnglish: "🇬🇧 English",
     optionGerman: "🇩🇪 Deutsch",
