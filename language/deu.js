@@ -270,6 +270,7 @@ export const languageLabels = {
   displayOrderhelp: "Bilder oder der Originaltitel werden in der hier angegebenen Reihenfolge angezeigt. (Beispiel: disk,logo,originalTitle)",
   showTrailerIcon: "YouTube-Link-Symbol anzeigen",
   showPlayedButton: "Schaltfläche zur Anzeige des Betrachtungsstatus anzeigen",
+  gecikmeInput: "Verzögerungszeit für Trailer-Wiedergabe bei Mouseover (ms)",
   optionTurkish: "🇹🇷 Türkçe",
   optionEnglish: "🇬🇧 English",
   optionGerman: "🇩🇪 Deutsch",

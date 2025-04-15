@@ -270,6 +270,7 @@ export const languageLabels = {
   displayOrderhelp: "Les images ou le titre original seront affichés dans l’ordre spécifié ici. (Exemple : disk,logo,originalTitle)",
   showTrailerIcon: "Afficher l'icône du lien YouTube",
   showPlayedButton: "Afficher le bouton de vérification de l'état des vues",
+  gecikmeInput: "Délai de lecture de la bande-annonce au survol (ms)",
   optionTurkish: "🇹🇷 Türkçe",
   optionEnglish: "🇬🇧 English",
   optionGerman: "🇩🇪 Deutsch",

@@ -270,6 +270,7 @@ export const languageLabels = {
   displayOrderhelp: "Images or the Original Title will be shown in the order specified here. (Example: disk,logo,originalTitle)",
   showTrailerIcon: "Show YouTube Link Icon",
   showPlayedButton: "Show Watch Status Check Button",
+  gecikmeInput: "Embedded Trailer Hover Delay Time (ms)",
   optionTurkish: "🇹🇷 Türkçe",
   optionEnglish: "🇬🇧 English",
   optionGerman: "🇩🇪 Deutsch",
