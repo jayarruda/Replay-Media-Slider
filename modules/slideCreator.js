@@ -189,7 +189,7 @@ async function createSlide(item) {
       trailerIframe.src = trailerUrl;
       slide.classList.add("trailer-active");
       trailerPlaying = true;
-    }, 1000);
+    }, 0);
     const handleMouseLeave = () => {
       if (enterTimeout) {
         clearTimeout(enterTimeout);
@@ -204,7 +204,7 @@ async function createSlide(item) {
       }
     };
     backdropImg.addEventListener("mouseenter", () => {
-      enterTimeout = setTimeout(handleMouseEnter, 1000);
+      enterTimeout = setTimeout(handleMouseEnter, getConfig().gecikmeSure || 500);
     });
     backdropImg.addEventListener("mouseleave", handleMouseLeave);
     slide.addEventListener("slideChange", () => {
@@ -698,15 +698,15 @@ if (People) {
 
   actorContent.appendChild(actorLink);
 
-  const nameSpan = document.createElement("span");
-  nameSpan.className = "actor-name";
-  nameSpan.textContent = config.showActorInfo ? actor.Name || "" : "";
-  actorContent.appendChild(nameSpan);
-
   const roleSpan = document.createElement("span");
   roleSpan.className = "actor-role";
   roleSpan.textContent = config.showActorRole ? actor.Role || "" : "";
   actorContent.appendChild(roleSpan);
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "actor-name";
+  nameSpan.textContent = config.showActorInfo ? actor.Name || "" : "";
+  actorContent.appendChild(nameSpan);
 
   actorDiv.appendChild(actorContent);
   actorContainer.appendChild(actorDiv);
