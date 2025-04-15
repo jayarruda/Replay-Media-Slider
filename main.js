@@ -25,6 +25,23 @@ import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
+import {
+  createSlidesContainer,
+  createGradientOverlay,
+  createHorizontalGradientOverlay,
+  createLogoContainer,
+  createButtonContainer,
+  createActorSlider,
+  createInfoContainer,
+  createDirectorContainer,
+  createRatingContainer,
+  createProviderContainer,
+  createLanguageContainer,
+  createMetaContainer,
+  createMainContentContainer,
+  createPlotContainer,
+  createTitleContainer
+} from "./modules/containerUtils.js";
 
 const config = getConfig();
 
