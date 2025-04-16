@@ -1,5 +1,8 @@
 import { getConfig } from "./config.js";
+import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
+
 const config = getConfig();
+
 export function createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal) {
   const buttonContainer = document.createElement('div');
   buttonContainer.className = 'button-container';
@@ -154,11 +157,15 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
 
     watchBtnContainer.appendChild(watchBtn);
     watchBtnContainer.appendChild(buttonGradientOverlay.cloneNode(true));
-
-    watchBtn.addEventListener("click", (e) => {
+    watchBtn.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      window.location.href = slide.dataset.detailUrl;
+      try {
+        await castToBestAvailableDevice(itemId);
+      } catch (error) {
+        console.error("Cast işlemi başarısız:", error);
+        window.location.href = slide.dataset.detailUrl;
+      }
     });
     buttonContainer.appendChild(watchBtnContainer);
   }
@@ -205,4 +212,78 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
   }
 
   return buttonContainer;
+}
+
+async function castToBestAvailableDevice(itemId) {
+  try {
+    const { userId } = getSessionInfo();
+    const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
+
+    const videoDevices = sessions.filter(s =>
+      s.Capabilities?.PlayableMediaTypes?.includes('Video')
+    );
+
+    if (videoDevices.length === 0) {
+      showNotification(config.languageLabels.castbulunamadi, 'error');
+      return;
+    }
+
+    const activeDevice = videoDevices.find(d => d.NowPlayingItem) || videoDevices[0];
+    const success = await startPlayback(itemId, activeDevice.Id);
+    if (!success) {
+      showNotification(config.languageLabels.casthata, 'error');
+    }
+  } catch (error) {
+    console.error('Cihazlar yüklenirken hata:', error);
+    dropdown.innerHTML = `<div class="error-message">${config.languageLabels.casthata}: ${error.message}</div>`;
+  }
+}
+
+async function startPlayback(itemId, sessionId) {
+  try {
+    const playUrl = `/Sessions/${sessionId}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
+
+    const response = await fetch(playUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": getAuthHeader()
+      }
+    });
+
+   if (!response.ok) {
+      throw new Error(`${config.languageLabels.castoynatmahata}: ${response.statusText}`);
+    }
+
+    showNotification(config.languageLabels.castbasarili, 'success');
+    return true;
+  } catch (error) {
+    console.error("Oynatma hatası:", error);
+    showNotification(`${config.languageLabels.castoynatmahata}: ${error.message}`, 'error');
+    return false;
+  }
+}
+
+function showNotification(message, type) {
+  const notification = document.createElement('div');
+  notification.className = `playback-notification ${type}`;
+  notification.textContent = message;
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.classList.add('fade-out');
+    setTimeout(() => {
+      notification.remove();
+    }, 500);
+  }, 3000);
+}
+
+function hideNotification() {
+  const notification = document.querySelector('.playback-notification');
+  if (notification) {
+    notification.classList.add('fade-out');
+    setTimeout(() => {
+      notification.remove();
+    }, 500);
+  }
 }

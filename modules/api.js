@@ -150,3 +150,43 @@ export async function getHighestQualityBackdropIndex(itemId) {
   );
   return bestImage.index;
 }
+
+
+export async function playNow(itemId) {
+  let session;
+  try {
+    const { deviceId, userId } = getSessionInfo();
+    const sessions = await makeApiRequest(`${window.location.origin}/Sessions?userId=${userId}`);
+    const supportedPlayers = sessions.filter(s =>
+      s.Capabilities?.PlayableMediaTypes?.includes('Video')
+    );
+    session = supportedPlayers.find(s => s.DeviceId === deviceId) || supportedPlayers[0];
+
+    if (!session || !session.Id) {
+      throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
+    }
+
+    const playUrl = `${window.location.origin}/Sessions/${session.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
+    const playResponse = await fetch(playUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": getAuthHeader()
+      }
+    });
+
+    if (!playResponse.ok) {
+      throw new Error(`Oynatma komutu gönderilemedi: ${playResponse.statusText}`);
+    }
+
+    console.log("Oynatma komutu başarıyla gönderildi, oturum:", session.Id);
+    return true;
+  } catch (error) {
+    console.error("Oynatma komutu gönderilirken hata:", error);
+    return false;
+  }
+}
+export {
+  getSessionInfo,
+  getAuthHeader,
+  makeApiRequest,
+};

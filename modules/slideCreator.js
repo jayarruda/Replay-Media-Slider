@@ -31,6 +31,7 @@ import {
   createTitleContainer
 } from "./containerUtils.js";
 import { createButtons } from './buttons.js';
+import { createDeviceSelector } from "./castModule.js";
 
 const config = getConfig();
 const settingsBackgroundSlides = [];
@@ -141,6 +142,10 @@ async function createSlide(item) {
   backdropImg.alt = "Backdrop";
   backdropImg.loading = "lazy";
   backdropImg.style.opacity = "0";
+
+  backdropImg.addEventListener("click", () => {
+    window.location.href = slide.dataset.detailUrl;
+  });
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
@@ -320,6 +325,8 @@ async function createSlide(item) {
 
   const mainContentContainer = createMainContentContainer();
   mainContentContainer.append(logoContainer, titleContainer, plotContainer, providerContainer);
+  const castContainer = await createDeviceSelector(itemId);
+
 
   slide.append(
     gradientOverlay,
@@ -329,7 +336,8 @@ async function createSlide(item) {
     metaContainer,
     mainContentContainer,
     buttonContainer,
-    actorSlider
+    actorSlider,
+    castContainer
   );
   slidesContainer.appendChild(slide);
 

@@ -68,6 +68,7 @@ const cssVariantSelect = getEl('cssVariantSelect');
 const displayOrderInput = getEl('displayOrderInput');
 const displayOrderContainer = getEl('displayOrderContainer');
 const gecikmeSureInput = getEl("gecikmeSureInput");
+const showCastCheckbox = getEl("showCastCheckbox");
 
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
@@ -397,6 +398,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setupBackButton();
   updateDisplayOrderVisibility();
   cssVariantSelect.value = localStorage.getItem('cssVariant') || 'kompak';
+  showCastCheckbox.checked = localStorage.getItem('showCast') !== "false";
 
   getEl('resetToDefaults').addEventListener('click', function() {
   if (confirm(labels.resetConfirm)) {
@@ -415,7 +417,8 @@ document.addEventListener("DOMContentLoaded", function () {
       'backdropImageType', 'dotBackgroundImageType', 'trailerBackgroundImageType',
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
-      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure'
+      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure',
+      'showCast'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -554,6 +557,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showWatchButton: showWatchButtonCheckbox.checked,
       showFavoriteButton: showFavoriteButtonCheckbox.checked,
       showPlayedButton: showPlayedButtonCheckbox.checked,
+      showCast: showCastCheckbox.checked,
       hideOriginalTitleIfSame: hideOriginalTitleIfSameCheckbox.checked,
       manualBackdropSelection: manualBackdropSelectionCheckbox.checked,
       gradientOverlayImageType: gradientOverlayImageTypeSelect.value,

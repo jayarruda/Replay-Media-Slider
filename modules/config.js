@@ -47,6 +47,8 @@ export function getConfig() {
     manualBackdropSelection: localStorage.getItem('manualBackdropSelection') === 'true',
     showFavoriteButton: localStorage.getItem('showFavoriteButton') !== 'false',
     showPlayedButton: localStorage.getItem('showPlayedButton') !== 'false',
+    showCast: localStorage.getItem('showCast') !== 'false',
+    detailUrl: localStorage.getItem('detailUrl') !== 'false',
     hideOriginalTitleIfSame: localStorage.getItem('hideOriginalTitleIfSame') === 'true',
     gradientOverlayImageType: localStorage.getItem('gradientOverlayImageType') || 'backdropUrl',
     backdropImageType: localStorage.getItem('backdropImageType') || 'backdropUrl',
