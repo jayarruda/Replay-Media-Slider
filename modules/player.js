@@ -40,7 +40,8 @@ export const musicPlayerState = {
   lyricsCache: {},
   metaContainer: null,
   mediaSession: null,
-  currentArtwork: []
+  currentArtwork: [],
+  id3TagsCache: {}
 };
 
 function getAuthToken() {
@@ -422,33 +423,6 @@ function filterPlaylistItems(searchTerm) {
     });
 }
 
-async function getEmbeddedLyrics(trackId) {
-  try {
-    if (musicPlayerState.lyricsCache[trackId]) {
-      return musicPlayerState.lyricsCache[trackId];
-    }
-
-    const token = getAuthToken();
-    const response = await fetch(`${window.location.origin}/Audio/${trackId}/stream.mp3?Static=true`, {
-      headers: { "X-Emby-Token": token }
-    });
-
-    if (!response.ok) throw new Error("Müzik dosyası alınamadı");
-
-    const arrayBuffer = await response.arrayBuffer();
-    const lyrics = await parseID3Tags(arrayBuffer);
-
-    if (lyrics) {
-      musicPlayerState.lyricsCache[trackId] = lyrics;
-      return lyrics;
-    }
-    return null;
-  } catch (err) {
-    console.error("Gömülü sözler okunamadı:", err);
-    return null;
-  }
-}
-
 async function parseID3Tags(arrayBuffer) {
   try {
     if (!window.jsmediatags) {
@@ -487,6 +461,11 @@ async function fetchLyrics() {
     musicPlayerState.currentLyrics = [];
 
     try {
+        if (musicPlayerState.id3TagsCache[currentTrack.Id]?.USLT) {
+            displayLyrics(musicPlayerState.id3TagsCache[currentTrack.Id].USLT.data.lyrics);
+            return;
+        }
+
         const token = getAuthToken();
         const localResponse = await fetch(`${window.location.origin}/Items/${currentTrack.Id}/Lyrics`, {
             headers: { "X-Emby-Token": token }
@@ -500,13 +479,6 @@ async function fetchLyrics() {
                 return;
             }
         }
-
-        const embeddedLyrics = await getEmbeddedLyrics(currentTrack.Id);
-        if (embeddedLyrics) {
-            displayLyrics(embeddedLyrics);
-            return;
-        }
-
         showNoLyricsMessage();
     } catch (err) {
         console.error("Şarkı sözleri yüklenirken hata:", err);
@@ -726,7 +698,55 @@ async function updateModernTrackInfo(track) {
         yearSpan.innerHTML = `<i class="fas fa-calendar-alt"></i> ${track.ProductionYear}`;
         metaContainer.appendChild(yearSpan);
     }
+
+    loadAlbumArt(track);
+    processID3TagsInBackground(track);
+    updateMediaMetadata(track);
+}
+
+async function loadAlbumArt(track) {
     try {
+        const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
+        if (imageTag) {
+            const imageId = track.AlbumId || track.Id;
+            const imageUrl = `${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}`;
+            musicPlayerState.albumArtEl.style.backgroundImage = `url('${imageUrl}')`;
+            musicPlayerState.currentArtwork = [{
+                src: imageUrl,
+                sizes: '300x300',
+                type: 'image/jpeg'
+            }];
+        } else {
+            const embeddedImage = await getEmbeddedImage(track.Id);
+            if (embeddedImage) {
+                musicPlayerState.albumArtEl.style.backgroundImage = `url('${embeddedImage}')`;
+                musicPlayerState.currentArtwork = [{
+                    src: embeddedImage,
+                    sizes: '300x300',
+                    type: 'image/jpeg'
+                }];
+            } else {
+                musicPlayerState.albumArtEl.style.backgroundImage = "url('default-album-art.png')";
+                musicPlayerState.currentArtwork = [];
+            }
+        }
+    } catch (err) {
+        console.error("Albüm kapağı yüklenirken hata:", err);
+        musicPlayerState.albumArtEl.style.backgroundImage = "url('default-album-art.png')";
+        musicPlayerState.currentArtwork = [];
+    }
+}
+
+async function processID3TagsInBackground(track) {
+    try {
+        if (musicPlayerState.id3TagsCache[track.Id]) {
+            applyCachedID3Tags(track);
+            return;
+        }
+        if (!window.jsmediatags) {
+            await loadJSMediaTags();
+        }
+
         const token = getAuthToken();
         const response = await fetch(`${window.location.origin}/Audio/${track.Id}/stream.mp3?Static=true`, {
             headers: { "X-Emby-Token": token }
@@ -736,53 +756,121 @@ async function updateModernTrackInfo(track) {
             const arrayBuffer = await response.arrayBuffer();
             const tags = await new Promise((resolve) => {
                 window.jsmediatags.read(new Blob([arrayBuffer]), {
-                    onSuccess: resolve,
-                    onError: (error) => resolve(null)
+                    onSuccess: function(tag) {
+                        resolve(tag.tags || null);
+                    },
+                    onError: function(error) {
+                        console.error("ID3 okuma hatası:", error);
+                        resolve(null);
+                    }
                 });
             });
 
-            if (tags?.tags?.genre) {
-                const genreSpan = document.createElement("span");
-                genreSpan.title = config.languageLabels.genres;
-                genreSpan.innerHTML = `<i class="fas fa-music"></i> ${tags.tags.genre}`;
-                metaContainer.appendChild(genreSpan);
+            if (tags) {
+                musicPlayerState.id3TagsCache[track.Id] = tags;
+                applyID3Tags(track, tags);
+                if (musicPlayerState.lyricsActive && tags.USLT) {
+                    displayLyrics(tags.USLT.data.lyrics);
+                }
             }
         }
     } catch (err) {
-        console.error("ID3 tag okuma hatası:", err);
+        console.error("ID3 etiketleri işlenirken hata:", err);
     }
+}
 
-    try {
-        const embeddedImage = await getEmbeddedImage(track.Id);
-        if (embeddedImage) {
-            musicPlayerState.albumArtEl.style.backgroundImage = `url('${embeddedImage}')`;
-            musicPlayerState.currentArtwork.push({
-              src: embeddedImage,
-              sizes: '300x300',
-              type: 'image/jpeg'
-            });
-            updateMediaMetadata(track);
+async function loadJSMediaTags() {
+    return new Promise((resolve, reject) => {
+        if (window.jsmediatags) {
+            resolve();
             return;
         }
+
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/jsmediatags@3.9.7/dist/jsmediatags.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+async function getEmbeddedLyrics(trackId) {
+    try {
+        if (musicPlayerState.lyricsCache[trackId]) {
+            return musicPlayerState.lyricsCache[trackId];
+        }
+
+        if (!window.jsmediatags) {
+            await loadJSMediaTags();
+        }
+
+        const token = getAuthToken();
+        const response = await fetch(`${window.location.origin}/Audio/${trackId}/stream.mp3?Static=true`, {
+            headers: { "X-Emby-Token": token }
+        });
+
+        if (!response.ok) throw new Error("Müzik dosyası alınamadı");
+
+        const arrayBuffer = await response.arrayBuffer();
+        const tags = await new Promise((resolve) => {
+            window.jsmediatags.read(new Blob([arrayBuffer]), {
+                onSuccess: function(tag) {
+                    const usltLyrics = tag.tags?.USLT?.data?.lyrics;
+                    const customLyrics = tag.tags?.lyrics?.lyrics;
+                    resolve(usltLyrics || customLyrics || null);
+                },
+                onError: function(error) {
+                    console.error("ID3 okuma hatası:", error);
+                    resolve(null);
+                }
+            });
+        });
+
+        if (tags) {
+            musicPlayerState.lyricsCache[trackId] = tags;
+            return tags;
+        }
+        return null;
     } catch (err) {
-        console.error("Gömülü resim okunurken hata:", err);
+        console.error("Gömülü sözler okunamadı:", err);
+        return null;
+    }
+}
+
+function applyCachedID3Tags(track) {
+    const tags = musicPlayerState.id3TagsCache[track.Id];
+    if (tags) {
+        applyID3Tags(track, tags);
+        if (musicPlayerState.lyricsActive && tags.USLT) {
+            displayLyrics(tags.USLT.data.lyrics);
+        }
+    }
+}
+
+function applyID3Tags(track, tags) {
+    const metaContainer = musicPlayerState.metaContainer;
+
+    if (tags.genre) {
+        if (!metaContainer.querySelector('.genre-meta')) {
+            const genreSpan = document.createElement("span");
+            genreSpan.className = "genre-meta";
+            genreSpan.title = config.languageLabels.genres;
+            genreSpan.innerHTML = `<i class="fas fa-music"></i> ${tags.genre}`;
+            metaContainer.appendChild(genreSpan);
+        }
     }
 
-    const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
-    if (imageTag) {
-        const imageId = track.AlbumId || track.Id;
-        const imageUrl = `${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}`;
+    if (tags.picture && !musicPlayerState.currentArtwork.length) {
+        const base64String = arrayBufferToBase64(tags.picture.data);
+        const imageUrl = `data:${tags.picture.format};base64,${base64String}`;
         musicPlayerState.albumArtEl.style.backgroundImage = `url('${imageUrl}')`;
         musicPlayerState.currentArtwork = [{
-          src: imageUrl,
-          sizes: '300x300',
-          type: 'image/jpeg'
+            src: imageUrl,
+            sizes: '300x300',
+            type: tags.picture.format
         }];
-    } else {
-        musicPlayerState.albumArtEl.style.backgroundImage = "url('default-album-art.png')";
-        musicPlayerState.currentArtwork = [];
+        updateMediaMetadata(track);
     }
-    updateMediaMetadata(track);
 }
 
 async function getEmbeddedImage(trackId) {
