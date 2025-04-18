@@ -266,6 +266,7 @@ export function createModernPlayerUI() {
   lyricsContainer.id = "player-lyrics-container";
   lyricsContainer.className = "lyrics-hidden";
   player.appendChild(lyricsContainer);
+
   player.appendChild(albumArt);
   player.appendChild(trackInfo);
   player.appendChild(lyricsContainer);
@@ -423,6 +424,7 @@ async function parseID3Tags(arrayBuffer) {
         document.head.appendChild(script);
       });
     }
+
     return new Promise((resolve) => {
       window.jsmediatags.read(new Blob([arrayBuffer]), {
         onSuccess: function(tag) {
@@ -600,8 +602,10 @@ function togglePlaylistModal(e) {
       const y = e.clientY;
       const modalWidth = 300;
       const modalHeight = 400;
+
       const left = Math.min(x, window.innerWidth - modalWidth - 20);
       const top = Math.min(y, window.innerHeight - modalHeight - 20);
+
       modal.style.left = `${left}px`;
       modal.style.top = `${top}px`;
     } else {
@@ -676,52 +680,37 @@ async function updateModernTrackInfo(track) {
         metaContainer = document.createElement("div");
         metaContainer.className = "player-track-meta";
         musicPlayerState.modernArtistEl.after(metaContainer);
-        musicPlayerState.metaContainer = metaContainer;
+        musicPlayerState.metaContainer = metaContainer; // State'e kaydet
     }
 
     metaContainer.innerHTML = '';
+
     if (track?.Album) {
         const albumSpan = document.createElement("span");
         albumSpan.title = config.languageLabels.album;
         albumSpan.innerHTML = `<i class="fas fa-compact-disc"></i> ${track.Album}`;
         metaContainer.appendChild(albumSpan);
     }
+
     if (track?.IndexNumber) {
         const trackSpan = document.createElement("span");
         trackSpan.title = config.languageLabels.trackNumber;
         trackSpan.innerHTML = `<i class="fas fa-list-ol"></i> ${track.IndexNumber}`;
         metaContainer.appendChild(trackSpan);
     }
+
     if (track?.ProductionYear) {
         const yearSpan = document.createElement("span");
         yearSpan.title = config.languageLabels.year;
         yearSpan.innerHTML = `<i class="fas fa-calendar-alt"></i> ${track.ProductionYear}`;
         metaContainer.appendChild(yearSpan);
     }
-    try {
-        const token = getAuthToken();
-        const response = await fetch(`${window.location.origin}/Audio/${track.Id}/stream.mp3?Static=true`, {
-            headers: { "X-Emby-Token": token }
-        });
 
-        if (response.ok) {
-            const arrayBuffer = await response.arrayBuffer();
-            const tags = await new Promise((resolve) => {
-                window.jsmediatags.read(new Blob([arrayBuffer]), {
-                    onSuccess: resolve,
-                    onError: (error) => resolve(null)
-                });
-            });
-
-            if (tags?.tags?.genre) {
-                const genreSpan = document.createElement("span");
-                genreSpan.title = config.languageLabels.genres;
-                genreSpan.innerHTML = `<i class="fas fa-music"></i> ${tags.tags.genre}`;
-                metaContainer.appendChild(genreSpan);
-            }
-        }
-    } catch (err) {
-        console.error("ID3 tag okuma hatası:", err);
+    if (track?.Genres?.length) {
+        const genreSpan = document.createElement("span");
+        genreSpan.title = config.languageLabels.genres;
+        genreSpan.innerHTML = `<i class="fas fa-music"></i> ${track.Genres.join(", ")}`;
+        metaContainer.appendChild(genreSpan);
     }
 
     try {
