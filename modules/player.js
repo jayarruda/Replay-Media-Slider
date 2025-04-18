@@ -1,10 +1,10 @@
 /*!
  * G-Grbz © Tüm hakları saklıdır. | All rights reserved.
- *
+ *(BETA)
  * Bu dosya G-Grbz tarafından oluşturulmuştur.
  * İzin alınmadan kopyalanamaz, çoğaltılamaz veya değiştirilemez.
  * Harici bir eklenti olarak kullanılması için önceden izin alınmalıdır.
- *
+ * (BETA)
  * This file was created by G-Grbz.
  * It may not be copied, reproduced, or modified without permission.
  * Prior authorization is required to use this file as an external plugin.
@@ -39,6 +39,8 @@ export const musicPlayerState = {
   currentLyrics: [],
   lyricsCache: {},
   metaContainer: null,
+  mediaSession: null,
+  currentArtwork: []
 };
 
 function getAuthToken() {
@@ -58,6 +60,41 @@ function shuffleArray(array) {
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
   }
   return newArray;
+}
+
+function initMediaSession() {
+  if ('mediaSession' in navigator) {
+    musicPlayerState.mediaSession = navigator.mediaSession;
+    musicPlayerState.mediaSession.setActionHandler('play', togglePlayPause);
+    musicPlayerState.mediaSession.setActionHandler('pause', togglePlayPause);
+    musicPlayerState.mediaSession.setActionHandler('previoustrack', playPrevious);
+    musicPlayerState.mediaSession.setActionHandler('nexttrack', playNext);
+    musicPlayerState.mediaSession.setActionHandler('seekbackward', () => {
+      musicPlayerState.audio.currentTime = Math.max(0, musicPlayerState.audio.currentTime - 10);
+    });
+    musicPlayerState.mediaSession.setActionHandler('seekforward', () => {
+      musicPlayerState.audio.currentTime = Math.min(
+        musicPlayerState.audio.duration,
+        musicPlayerState.audio.currentTime + 10
+      );
+    });
+    musicPlayerState.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.seekTime) {
+        musicPlayerState.audio.currentTime = details.seekTime;
+      }
+    });
+  }
+}
+
+function updateMediaMetadata(track) {
+  if (!musicPlayerState.mediaSession) return;
+
+  musicPlayerState.mediaSession.metadata = new MediaMetadata({
+    title: track?.Name || config.languageLabels.unknownTrack,
+    artist: track?.Artists?.join(", ") || config.languageLabels.unknownArtist,
+    album: track?.Album || '',
+    artwork: musicPlayerState.currentArtwork
+  });
 }
 
 export async function refreshPlaylist() {
@@ -266,7 +303,6 @@ export function createModernPlayerUI() {
   lyricsContainer.id = "player-lyrics-container";
   lyricsContainer.className = "lyrics-hidden";
   player.appendChild(lyricsContainer);
-
   player.appendChild(albumArt);
   player.appendChild(trackInfo);
   player.appendChild(lyricsContainer);
@@ -424,7 +460,6 @@ async function parseID3Tags(arrayBuffer) {
         document.head.appendChild(script);
       });
     }
-
     return new Promise((resolve) => {
       window.jsmediatags.read(new Blob([arrayBuffer]), {
         onSuccess: function(tag) {
@@ -602,10 +637,8 @@ function togglePlaylistModal(e) {
       const y = e.clientY;
       const modalWidth = 300;
       const modalHeight = 400;
-
       const left = Math.min(x, window.innerWidth - modalWidth - 20);
       const top = Math.min(y, window.innerHeight - modalHeight - 20);
-
       modal.style.left = `${left}px`;
       modal.style.top = `${top}px`;
     } else {
@@ -637,7 +670,7 @@ function updatePlaylistModal() {
 
     const title = document.createElement("div");
     title.className = "playlist-item-title";
-    title.textContent = track.Name || config.languageLabels.unknownTrack;
+    title.textContent = `${index+1}. ${track.Name || config.languageLabels.unknownTrack}`
 
     const artist = document.createElement("div");
     artist.className = "playlist-item-artist";
@@ -649,16 +682,6 @@ function updatePlaylistModal() {
     item.appendChild(info);
     itemsContainer.appendChild(item);
   });
-}
-
-export function togglePlayPause() {
-  if (musicPlayerState.audio.paused) {
-    musicPlayerState.audio.play();
-    musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-  } else {
-    musicPlayerState.audio.pause();
-    musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-  }
 }
 
 export function playPrevious() {
@@ -674,49 +697,71 @@ export function playNext() {
 async function updateModernTrackInfo(track) {
     musicPlayerState.modernTitleEl.textContent = track?.Name || config.languageLabels.unknownTrack;
     musicPlayerState.modernArtistEl.textContent = track?.Artists?.join(", ") || config.languageLabels.unknownArtist;
+    musicPlayerState.currentArtwork = [];
 
     let metaContainer = musicPlayerState.metaContainer;
     if (!metaContainer) {
         metaContainer = document.createElement("div");
         metaContainer.className = "player-track-meta";
         musicPlayerState.modernArtistEl.after(metaContainer);
-        musicPlayerState.metaContainer = metaContainer; // State'e kaydet
+        musicPlayerState.metaContainer = metaContainer;
     }
 
     metaContainer.innerHTML = '';
-
     if (track?.Album) {
         const albumSpan = document.createElement("span");
         albumSpan.title = config.languageLabels.album;
         albumSpan.innerHTML = `<i class="fas fa-compact-disc"></i> ${track.Album}`;
         metaContainer.appendChild(albumSpan);
     }
-
     if (track?.IndexNumber) {
         const trackSpan = document.createElement("span");
         trackSpan.title = config.languageLabels.trackNumber;
         trackSpan.innerHTML = `<i class="fas fa-list-ol"></i> ${track.IndexNumber}`;
         metaContainer.appendChild(trackSpan);
     }
-
     if (track?.ProductionYear) {
         const yearSpan = document.createElement("span");
         yearSpan.title = config.languageLabels.year;
         yearSpan.innerHTML = `<i class="fas fa-calendar-alt"></i> ${track.ProductionYear}`;
         metaContainer.appendChild(yearSpan);
     }
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${window.location.origin}/Audio/${track.Id}/stream.mp3?Static=true`, {
+            headers: { "X-Emby-Token": token }
+        });
 
-    if (track?.Genres?.length) {
-        const genreSpan = document.createElement("span");
-        genreSpan.title = config.languageLabels.genres;
-        genreSpan.innerHTML = `<i class="fas fa-music"></i> ${track.Genres.join(", ")}`;
-        metaContainer.appendChild(genreSpan);
+        if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const tags = await new Promise((resolve) => {
+                window.jsmediatags.read(new Blob([arrayBuffer]), {
+                    onSuccess: resolve,
+                    onError: (error) => resolve(null)
+                });
+            });
+
+            if (tags?.tags?.genre) {
+                const genreSpan = document.createElement("span");
+                genreSpan.title = config.languageLabels.genres;
+                genreSpan.innerHTML = `<i class="fas fa-music"></i> ${tags.tags.genre}`;
+                metaContainer.appendChild(genreSpan);
+            }
+        }
+    } catch (err) {
+        console.error("ID3 tag okuma hatası:", err);
     }
 
     try {
         const embeddedImage = await getEmbeddedImage(track.Id);
         if (embeddedImage) {
             musicPlayerState.albumArtEl.style.backgroundImage = `url('${embeddedImage}')`;
+            musicPlayerState.currentArtwork.push({
+              src: embeddedImage,
+              sizes: '300x300',
+              type: 'image/jpeg'
+            });
+            updateMediaMetadata(track);
             return;
         }
     } catch (err) {
@@ -726,10 +771,18 @@ async function updateModernTrackInfo(track) {
     const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
     if (imageTag) {
         const imageId = track.AlbumId || track.Id;
-        musicPlayerState.albumArtEl.style.backgroundImage = `url('${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}')`;
+        const imageUrl = `${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}`;
+        musicPlayerState.albumArtEl.style.backgroundImage = `url('${imageUrl}')`;
+        musicPlayerState.currentArtwork = [{
+          src: imageUrl,
+          sizes: '300x300',
+          type: 'image/jpeg'
+        }];
     } else {
         musicPlayerState.albumArtEl.style.backgroundImage = "url('default-album-art.png')";
+        musicPlayerState.currentArtwork = [];
     }
+    updateMediaMetadata(track);
 }
 
 async function getEmbeddedImage(trackId) {
@@ -887,12 +940,19 @@ function playTrack(index) {
   musicPlayerState.audio.addEventListener('error', handlePlayError);
   setupAudioListeners();
 
+  if (musicPlayerState.mediaSession) {
+    musicPlayerState.mediaSession.playbackState = 'none';
+  }
+
   musicPlayerState.audio.load();
 
   function handleCanPlay() {
     musicPlayerState.audio.play()
       .then(() => {
         musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        if (musicPlayerState.mediaSession) {
+          musicPlayerState.mediaSession.playbackState = 'playing';
+        }
       })
       .catch(err => {
         console.error("Oynatma hatası:", err);
@@ -915,8 +975,27 @@ function playTrack(index) {
   }
 }
 
+export function togglePlayPause() {
+  if (musicPlayerState.audio.paused) {
+    musicPlayerState.audio.play()
+      .then(() => {
+        musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        if (musicPlayerState.mediaSession) {
+          musicPlayerState.mediaSession.playbackState = 'playing';
+        }
+      });
+  } else {
+    musicPlayerState.audio.pause();
+    musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+    if (musicPlayerState.mediaSession) {
+      musicPlayerState.mediaSession.playbackState = 'paused';
+    }
+  }
+}
+
 export async function initPlayer() {
   const playerElements = createModernPlayerUI();
+  initMediaSession();
   await refreshPlaylist();
   return playerElements;
 }
