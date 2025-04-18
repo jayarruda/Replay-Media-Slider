@@ -1,3 +1,13 @@
+/*!
+ * G-Grbz © Tüm hakları saklıdır. | All rights reserved.
+ *
+ * Bu dosya G-Grbz tarafından oluşturulmuştur.
+ * İzin alınmadan kopyalanamaz, çoğaltılamaz veya değiştirilemez.
+ *
+ * This file was created by G-Grbz.
+ * It may not be copied, reproduced, or modified without permission.
+ */
+
 import { saveApiKey, saveCredentialsToSessionStorage } from "./auth.js";
 import { cleanupSlider } from "./modules/sliderCleanup.js";
 import { getConfig } from "./modules/config.js";
