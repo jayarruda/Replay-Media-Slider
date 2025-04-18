@@ -37,7 +37,8 @@ export const musicPlayerState = {
   lyricsBtn: null,
   lyricsActive: false,
   currentLyrics: [],
-  lyricsCache: {}
+  lyricsCache: {},
+  metaContainer: null,
 };
 
 function getAuthToken() {
@@ -674,24 +675,63 @@ async function updateModernTrackInfo(track) {
     musicPlayerState.modernTitleEl.textContent = track?.Name || config.languageLabels.unknownTrack;
     musicPlayerState.modernArtistEl.textContent = track?.Artists?.join(", ") || config.languageLabels.unknownArtist;
 
-  try {
-    const embeddedImage = await getEmbeddedImage(track.Id);
-    if (embeddedImage) {
-      musicPlayerState.albumArtEl.style.backgroundImage = `url('${embeddedImage}')`;
-      return;
+    let metaContainer = musicPlayerState.metaContainer;
+    if (!metaContainer) {
+        metaContainer = document.createElement("div");
+        metaContainer.className = "player-track-meta";
+        musicPlayerState.modernArtistEl.after(metaContainer);
+        musicPlayerState.metaContainer = metaContainer; // State'e kaydet
     }
-  } catch (err) {
-    console.error("Gömülü resim okunurken hata:", err);
-  }
 
-  const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
-  if (imageTag) {
-    const imageId = track.AlbumId || track.Id;
-    musicPlayerState.albumArtEl.style.backgroundImage = `url('${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}')`;
-  } else {
-    musicPlayerState.albumArtEl.style.backgroundImage = "url('default-album-art.png')";
-  }
+    metaContainer.innerHTML = '';
+
+    if (track?.Album) {
+        const albumSpan = document.createElement("span");
+        albumSpan.title = config.languageLabels.album;
+        albumSpan.innerHTML = `<i class="fas fa-compact-disc"></i> ${track.Album}`;
+        metaContainer.appendChild(albumSpan);
+    }
+
+    if (track?.IndexNumber) {
+        const trackSpan = document.createElement("span");
+        trackSpan.title = config.languageLabels.trackNumber;
+        trackSpan.innerHTML = `<i class="fas fa-list-ol"></i> ${track.IndexNumber}`;
+        metaContainer.appendChild(trackSpan);
+    }
+
+    if (track?.ProductionYear) {
+        const yearSpan = document.createElement("span");
+        yearSpan.title = config.languageLabels.year;
+        yearSpan.innerHTML = `<i class="fas fa-calendar-alt"></i> ${track.ProductionYear}`;
+        metaContainer.appendChild(yearSpan);
+    }
+
+    if (track?.Genres?.length) {
+        const genreSpan = document.createElement("span");
+        genreSpan.title = config.languageLabels.genres;
+        genreSpan.innerHTML = `<i class="fas fa-music"></i> ${track.Genres.join(", ")}`;
+        metaContainer.appendChild(genreSpan);
+    }
+
+    try {
+        const embeddedImage = await getEmbeddedImage(track.Id);
+        if (embeddedImage) {
+            musicPlayerState.albumArtEl.style.backgroundImage = `url('${embeddedImage}')`;
+            return;
+        }
+    } catch (err) {
+        console.error("Gömülü resim okunurken hata:", err);
+    }
+
+    const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
+    if (imageTag) {
+        const imageId = track.AlbumId || track.Id;
+        musicPlayerState.albumArtEl.style.backgroundImage = `url('${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}')`;
+    } else {
+        musicPlayerState.albumArtEl.style.backgroundImage = "url('default-album-art.png')";
+    }
 }
+
 async function getEmbeddedImage(trackId) {
   try {
     const token = getAuthToken();
