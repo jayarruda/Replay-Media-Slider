@@ -60,6 +60,10 @@ export const languageLabels = {
   unknownTrack: "Unknown Track",
   unknownArtist: "Unknown Artist",
   searchTracks: "Search Song...",
+  album: "Album",
+  trackNumber: "Track No",
+  year: "Year",
+  genres: "Genre",
   ulke: {
   Afghanistan: { code: "AF", name: "Afghanistan" },
     Argentina: { code: "AR", name: "Argentina" },
