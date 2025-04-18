@@ -11,6 +11,7 @@ export function getConfig() {
     showProviderInfo: localStorage.getItem('showProviderInfo') !== 'false',
     showDotNavigation: localStorage.getItem('showDotNavigation') !== 'false',
     showSettingsLink: localStorage.getItem("showSettingsLink") !== "false",
+    showMusicIcon: localStorage.getItem("showMusicIcon") !== "false",
     showLogoOrTitle: localStorage.getItem('showLogoOrTitle') !== 'false',
     showTitleOnly: localStorage.getItem('showTitleOnly') !== 'false',
     showDiscOnly: localStorage.getItem('showDiscOnly') !== 'false',
@@ -72,6 +73,7 @@ export function getConfig() {
     artistLimit: parseInt(localStorage.getItem('artistLimit')) || 8,
     gecikmeSure: parseInt(localStorage.getItem('gecikmeSure')) || 500,
     limit: parseInt(localStorage.getItem('limit'), 10) || 20,
+    muziklimit: parseInt(localStorage.getItem('muziklimit'), 30) || 30,
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",

@@ -10,6 +10,7 @@ const progressCheckbox = getEl('progressBarCheckbox');
 const providerCheckbox = getEl("providerCheckbox");
 const dotNavigationCheckbox = getEl("dotNavigationCheckbox");
 const showSettingsLinkCheckbox = getEl("showSettingsLinkCheckbox");
+const showMusicIconCheckbox = getEl("showMusicIconCheckbox");
 const settingsLinkContainer = getEl("settingsLinkContainer");
 const showStatusInfoCheckbox = getEl("showStatusInfoCheckbox");
 const statusSubOptions = getEl("statusSubOptions");
@@ -35,6 +36,7 @@ const favoriBackgroundImageTypeSelect = getEl("favoriBackgroundImageTypeSelect")
 const playedBackgroundImageTypeSelect = getEl("playedBackgroundImageTypeSelect");
 const defaultLanguageSelect = getEl('defaultLanguageSelect');
 const limitInput = getEl("limitInput");
+const muziklimitInput = getEl("muziklimitInput");
 const plotInfoCheckbox = getEl("showPlotInfoCheckbox");
 const minHighQualityWidthInput = getEl("minHighQualityWidthInput");
 const manualBackdropSelectionCheckbox = getEl("manualBackdropSelectionCheckbox");
@@ -358,6 +360,7 @@ document.addEventListener("DOMContentLoaded", function () {
   providerCheckbox.checked = localStorage.getItem("showProviderInfo") !== "false";
   dotNavigationCheckbox.checked = localStorage.getItem("showDotNavigation") !== "false";
   showSettingsLinkCheckbox.checked = localStorage.getItem("showSettingsLink") !== "false";
+  showMusicIconCheckbox.checked = localStorage.getItem("showMusicIcon") !== "false";
   showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") !== "false";
   showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") !== "false";
   showActorImgCheckbox.checked = localStorage.getItem("showActorImg") !== "false";
@@ -418,7 +421,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
       'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure',
-      'showCast'
+      'showCast', 'showMusicIcon', 'muziklimit'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -476,6 +479,7 @@ document.addEventListener("DOMContentLoaded", function () {
   sliderDurationInput.value = localStorage.getItem("sliderDuration") || 15000;
   artistLimitInput.value = localStorage.getItem("artistLimit") || 8;
   limitInput.value = localStorage.getItem("limit") || 10;
+  muziklimitInput.value = localStorage.getItem("muziklimit") || 30;
   gecikmeSureInput.value = localStorage.getItem("gecikmeSure") || 500;
 
   updateGroup(showStatusInfoCheckbox, statusSubOptions);
@@ -519,6 +523,7 @@ document.addEventListener("DOMContentLoaded", function () {
       showProviderInfo: providerCheckbox.checked,
       showDotNavigation: dotNavigationCheckbox.checked,
       showSettingsLink: showSettingsLinkCheckbox.checked,
+      showMusicIcon: showMusicIconCheckbox.checked,
       showLogoOrTitle: showLogoOrTitleCheckbox.checked,
       showTitleOnly: showTitleOnlyCheckbox.checked,
       showDiscOnly: showDiscOnlyCheckbox.checked,
@@ -570,6 +575,7 @@ document.addEventListener("DOMContentLoaded", function () {
       enableTrailerPlayback: enableTrailerPlaybackCheckbox.checked,
       defaultLanguage: defaultLanguageSelect.value,
       limit: limitInput.value,
+      muziklimit: muziklimitInput.value,
       minHighQualityWidth: minHighQualityWidthInput.value,
       progressBarWidth: progressBarWidthInput.value + "%",
       displayOrder: displayOrderInput.value,

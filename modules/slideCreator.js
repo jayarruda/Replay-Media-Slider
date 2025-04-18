@@ -32,6 +32,7 @@ import {
 } from "./containerUtils.js";
 import { createButtons } from './buttons.js';
 import { createDeviceSelector } from "./castModule.js";
+import { createPlayButton } from "./player.js";
 
 const config = getConfig();
 const settingsBackgroundSlides = [];
@@ -326,7 +327,6 @@ async function createSlide(item) {
   const mainContentContainer = createMainContentContainer();
   mainContentContainer.append(logoContainer, titleContainer, plotContainer, providerContainer);
   const castContainer = await createDeviceSelector(itemId);
-
 
   slide.append(
     gradientOverlay,

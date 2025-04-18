@@ -1,5 +1,14 @@
 import { getConfig } from "./config.js";
 import { getProviderUrl } from "./utils.js";
+import {
+  musicPlayerState,
+  initPlayer,
+  togglePlayerVisibility,
+  togglePlayPause,
+  playPrevious,
+  playNext,
+  refreshPlaylist
+} from './player.js';
 
 const config = getConfig();
 
@@ -374,6 +383,35 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers })
   const iconStyle =
     "width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;";
 
+  if (config.showMusicIcon) {
+  const musicButton = document.createElement("span");
+  musicButton.innerHTML = `<i class="fa-solid fa-music fa-lg" style="${iconStyle}"></i>`;
+  musicButton.className = "music-button";
+  musicButton.title = "Müzik Çal";
+  musicButton.style.cursor = "pointer";
+  musicButton.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+  if (!window.musicPlayerInitialized) {
+    await initPlayer();
+    window.musicPlayerInitialized = true;
+    musicPlayerState.isPlayerVisible = true;
+  } else {
+    if (musicPlayerState.isPlayerVisible) {
+      togglePlayerVisibility();
+    } else {
+      togglePlayerVisibility();
+      if (musicPlayerState.playlist.length > 0 && musicPlayerState.audio.paused) {
+        musicPlayerState.audio.play();
+        musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+      }
+    }
+  }
+});
+  providerDiv.appendChild(musicButton);
+  }
+
   if (config.showSettingsLink) {
     const settingsLink = document.createElement("span");
     settingsLink.innerHTML = `<i class="fa-solid fa-square-sliders fa-lg" style="${iconStyle}"></i>`;
@@ -410,15 +448,15 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers })
   const providerIdsTranslations = {
     Imdb: {
       text: "",
-      icon: '<img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" style="width: 24px; height: 24px;">'
+      icon: '<img src="slider/src/images/imdb.svg" alt="IMDb" style="width: 24px; height: 24px;">'
     },
     Tmdb: {
       text: "",
-      icon: '<img src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_1-5bdc75aaebeb75dc7ae79426ddd9be3b2be1e342510f8202baf6bffa71d7f5c4.svg" alt="TMDb" style="width: 24px; height: 24px;">'
+      icon: '<img src="slider/src/images/tmdb.svg" alt="TMDb" style="width: 24px; height: 24px;">'
     },
     Tvdb: {
       text: "",
-      icon: '<img src="https://www.thetvdb.com/images/logo.svg" alt="TVDb" style="width: 24px; height: 24px;">'
+      icon: '<img src="slider/src/images/tvdb.svg" alt="TVDb" style="width: 24px; height: 24px;">'
     }
   };
 
@@ -448,7 +486,6 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers })
 
   return container;
 }
-
 
 export function createLanguageContainer({ config, MediaStreams, itemType }) {
   const container = document.createElement("div");
