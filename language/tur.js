@@ -60,6 +60,10 @@ export const languageLabels = {
   unknownTrack: "Bilinmeyen Parça",
   unknownArtist: "Bilinmeyen Sanatçı",
   searchTracks: "Şarkı Ara...",
+  album: "Albüm",
+  trackNumber: "Parça No",
+  year: "Yıl",
+  genres: "Tür",
   ulke: {
   Afghanistan: { code: "AF", name: "Afganistan" },
     Argentina: { code: "AR", name: "Arjantin" },
