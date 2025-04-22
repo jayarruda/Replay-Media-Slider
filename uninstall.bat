@@ -13,15 +13,13 @@ echo Jellyfin servisi durduruluyor...
 net stop JellyfinServer >nul 2>&1
 
 set "HTML_FILE=C:\Program Files\Jellyfin\Server\jellyfin-web\index.html"
-set "SLIDER_HTML=<script type=\"module\" async src=\"/web/slider/main.js\"></script>"
 
-echo HTML dosyasindaki slider kodlari kontrol ediliyor...
-findstr /C:"slider/main.js" "%HTML_FILE%" >nul
-if %errorlevel% equ 0 (
-    powershell -Command "(Get-Content '%HTML_FILE%') -replace [regex]::Escape('%SLIDER_HTML%'), '' | Set-Content '%HTML_FILE%'"
-    echo [BASARILI] HTML slider kodu kaldirildi!
+echo HTML dosyasindaki slider kodlari kaldiriliyor...
+if exist "%HTML_FILE%" (
+    powershell -Command "$content = Get-Content -Raw '%HTML_FILE%'; $content = $content -replace '<script[^>]*slider[^>]*></script>', ''; Set-Content -Encoding UTF8 -Path '%HTML_FILE%' -Value $content"
+    echo [BASARILI] HTML slider kodlari kaldirildi!
 ) else (
-    echo [BILGI] HTML dosyasinda slider kodu bulunamadi.
+    echo [HATA] HTML dosyasi bulunamadi: %HTML_FILE%
 )
 
 set "SLIDER_DIR=C:\Program Files\Jellyfin\Server\jellyfin-web\slider"

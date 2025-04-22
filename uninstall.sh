@@ -3,7 +3,10 @@ JELLYFIN_WEB="/usr/share/jellyfin/web"
 HTML_FILE="$JELLYFIN_WEB/index.html"
 SLIDER_DIR="$JELLYFIN_WEB/slider"
 
-SLIDER_HTML='<script type="module" async src="/web/slider/main.js"></script>'
+SLIDER_SCRIPTS=(
+    '<script type="module" async src="/web/slider/main.js"></script>'
+    '<script type="module" async src="/web/slider/modules/player/main.js"></script>'
+)
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "Bu script root olarak çalıştırılmalıdır."
@@ -14,11 +17,19 @@ echo "Jellyfin servisi durduruluyor..."
 systemctl stop jellyfin
 
 echo "HTML dosyasındaki slider kodları kaldırılıyor..."
-if grep -q "slider/main.js" "$HTML_FILE"; then
-    sed -i "s|$SLIDER_HTML||g" "$HTML_FILE"
-    echo "HTML slider kodları başarıyla kaldırıldı!"
+REMOVED_ANY=false
+for script in "${SLIDER_SCRIPTS[@]}"; do
+    if grep -qF "$script" "$HTML_FILE"; then
+        sed -i "s|$script||g" "$HTML_FILE"
+        echo "Script kaldırıldı: $script"
+        REMOVED_ANY=true
+    fi
+done
+
+if [ "$REMOVED_ANY" = false ]; then
+    echo "HTML dosyasında slider kodları bulunamadı."
 else
-    echo "HTML dosyasında slider kodu bulunamadı."
+    echo "HTML slider kodları başarıyla kaldırıldı!"
 fi
 
 echo "Slider dosyaları siliniyor..."
