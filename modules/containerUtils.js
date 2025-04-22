@@ -1,14 +1,5 @@
 import { getConfig } from "./config.js";
 import { getProviderUrl } from "./utils.js";
-import {
-  musicPlayerState,
-  initPlayer,
-  togglePlayerVisibility,
-  togglePlayPause,
-  playPrevious,
-  playNext,
-  refreshPlaylist
-} from './player.js';
 
 const config = getConfig();
 
@@ -383,34 +374,6 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers })
   const iconStyle =
     "width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;";
 
-  if (config.showMusicIcon) {
-  const musicButton = document.createElement("span");
-  musicButton.innerHTML = `<i class="fa-solid fa-music fa-lg" style="${iconStyle}"></i>`;
-  musicButton.className = "music-button";
-  musicButton.title = "Müzik Çal";
-  musicButton.style.cursor = "pointer";
-  musicButton.addEventListener("click", async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-  if (!window.musicPlayerInitialized) {
-    await initPlayer();
-    window.musicPlayerInitialized = true;
-    musicPlayerState.isPlayerVisible = true;
-  } else {
-    if (musicPlayerState.isPlayerVisible) {
-      togglePlayerVisibility();
-    } else {
-      togglePlayerVisibility();
-      if (musicPlayerState.playlist.length > 0 && musicPlayerState.audio.paused) {
-        musicPlayerState.audio.play();
-        musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-      }
-    }
-  }
-});
-  providerDiv.appendChild(musicButton);
-  }
 
   if (config.showSettingsLink) {
     const settingsLink = document.createElement("span");

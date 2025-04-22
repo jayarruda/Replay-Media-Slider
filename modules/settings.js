@@ -10,7 +10,6 @@ const progressCheckbox = getEl('progressBarCheckbox');
 const providerCheckbox = getEl("providerCheckbox");
 const dotNavigationCheckbox = getEl("dotNavigationCheckbox");
 const showSettingsLinkCheckbox = getEl("showSettingsLinkCheckbox");
-const showMusicIconCheckbox = getEl("showMusicIconCheckbox");
 const settingsLinkContainer = getEl("settingsLinkContainer");
 const showStatusInfoCheckbox = getEl("showStatusInfoCheckbox");
 const statusSubOptions = getEl("statusSubOptions");
@@ -360,7 +359,6 @@ document.addEventListener("DOMContentLoaded", function () {
   providerCheckbox.checked = localStorage.getItem("showProviderInfo") !== "false";
   dotNavigationCheckbox.checked = localStorage.getItem("showDotNavigation") !== "false";
   showSettingsLinkCheckbox.checked = localStorage.getItem("showSettingsLink") !== "false";
-  showMusicIconCheckbox.checked = localStorage.getItem("showMusicIcon") !== "false";
   showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") !== "false";
   showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") !== "false";
   showActorImgCheckbox.checked = localStorage.getItem("showActorImg") !== "false";
@@ -421,7 +419,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
       'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure',
-      'showCast', 'showMusicIcon', 'muziklimit'
+      'showCast', 'muziklimit'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -523,7 +521,6 @@ document.addEventListener("DOMContentLoaded", function () {
       showProviderInfo: providerCheckbox.checked,
       showDotNavigation: dotNavigationCheckbox.checked,
       showSettingsLink: showSettingsLinkCheckbox.checked,
-      showMusicIcon: showMusicIconCheckbox.checked,
       showLogoOrTitle: showLogoOrTitleCheckbox.checked,
       showTitleOnly: showTitleOnlyCheckbox.checked,
       showDiscOnly: showDiscOnlyCheckbox.checked,

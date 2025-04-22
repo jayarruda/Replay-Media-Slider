@@ -32,7 +32,6 @@ import {
 } from "./containerUtils.js";
 import { createButtons } from './buttons.js';
 import { createDeviceSelector } from "./castModule.js";
-import { createPlayButton } from "./player.js";
 
 const config = getConfig();
 const settingsBackgroundSlides = [];
