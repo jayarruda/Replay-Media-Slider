@@ -114,6 +114,11 @@ export function playPrevious() {
   const { currentIndex, playlist, audio } = musicPlayerState;
   if (audio.currentTime > 3) {
     audio.currentTime = 0;
+    showNotification(
+  `${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
+  1500,
+  'playnow'
+);
     return;
   }
 
@@ -135,7 +140,11 @@ export function playNext() {
     } while (shuffleHistory.includes(randomIndex) && playlist.length > 1);
     musicPlayerState.shuffleHistory = [...shuffleHistory, randomIndex];
     playTrack(randomIndex);
-    showNotification(`Karışık mod: ${playlist[randomIndex].Name || playlist[randomIndex].title}`);
+    showNotification(
+  `Karışık mod: ${playlist[randomIndex].Name || playlist[randomIndex].title}`,
+  1500,
+  'playmode'
+);
     return;
   }
 
@@ -328,6 +337,12 @@ export function playTrack(index) {
   musicPlayerState.currentIndex = index;
   musicPlayerState.currentTrackName = track.Name || track.title || "Bilinmeyen Şarkı";
   musicPlayerState.currentAlbumName = track.Album || "Bilinmeyen Albüm";
+
+  showNotification(
+  `${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
+  1500,
+  'playnow'
+);
 
   updateModernTrackInfo(track);
   updatePlaylistModal();
