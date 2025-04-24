@@ -1,5 +1,5 @@
 import { musicPlayerState, loadUserSettings } from "../core/state.js";
-import { initMediaSession } from "../core/mediaSession.js";
+import { updateMediaMetadata, initMediaSession, updatePositionState } from "../core/mediaSession.js";
 import { refreshPlaylist } from "../core/playlist.js";
 import { createModernPlayerUI } from "../ui/playerUI.js";
 import { setupMobileTouchControls } from "./domUtils.js";

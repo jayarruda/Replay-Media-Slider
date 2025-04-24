@@ -1,5 +1,5 @@
 import { musicPlayerState } from "./state.js";
-import { togglePlayPause, playPrevious, playNext, playTrack, updateModernTrackInfo } from "../player/playback.js";
+import { togglePlayPause, playPrevious, playNext } from "../player/playback.js";
 
 const DEFAULT_ARTWORK_URL = '/web/slider/src/images/defaultArt.png';
 

@@ -1,7 +1,7 @@
 import { musicPlayerState } from "../core/state.js";
 import { getConfig } from "../../config.js";
 import { getAuthToken } from "../core/auth.js";
-import { updateMediaMetadata, initMediaSession } from "../core/mediaSession.js";
+import { updateMediaMetadata, initMediaSession, updatePositionState } from "../core/mediaSession.js";
 import { getFromOfflineCache, cacheForOffline } from "../core/offlineCache.js";
 import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
 import { fetchLyrics, updateSyncedLyrics } from "../lyrics/lyrics.js";
