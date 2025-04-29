@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  sirada: "Die Nächsten",
   unauthorizedAccess: "Unbefugter Zugriff - Bitte überprüfen Sie Ihre Authentifizierung",
   accessForbidden: "Zugriff verboten - Sie haben möglicherweise nicht die erforderlichen Berechtigungen",
   playlistNotFound: "Playlist nicht gefunden",
