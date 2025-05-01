@@ -109,7 +109,7 @@ export function playPrevious() {
     audio.currentTime = 0;
     showNotification(
       `${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
-      1500,
+      2000,
       'playnow'
     );
     return;
@@ -134,7 +134,7 @@ export function playNext() {
     playTrack(randomIndex);
     showNotification(
       `Karışık mod: ${playlist[randomIndex].Name || playlist[randomIndex].title}`,
-      1500,
+      2000,
       'playmode'
     );
     return;
@@ -339,7 +339,7 @@ export function playTrack(index) {
 
   showNotification(
     `${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
-    1500,
+    2000,
     'playnow'
   );
 
