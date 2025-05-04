@@ -39,6 +39,11 @@ export const musicPlayerState = {
   showRemaining: false,
   selectionMode: false,
   selectedItems: [],
+  userAddedTracks: [],
+  combinedPlaylist: [],
+  isUserModified: false,
+  effectivePlaylist: [],
+  isShuffled: false,
   audio: (() => {
   const audio = new Audio();
   audio.preload = 'metadata';

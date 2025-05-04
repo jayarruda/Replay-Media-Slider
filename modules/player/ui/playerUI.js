@@ -75,6 +75,19 @@ export function createModernPlayerUI() {
 
   const albumArt = document.createElement("div");
   albumArt.id = "player-album-art";
+  albumArt.addEventListener("click", () => {
+    const currentTrack = musicPlayerState.playlist?.[musicPlayerState.currentIndex];
+    if (!currentTrack) return;
+
+    const artistId = currentTrack.AlbumArtistId ||
+                   currentTrack.ArtistItems?.[0]?.Id ||
+                   currentTrack.ArtistId;
+
+    if (artistId) {
+    const jellyfinServer = window.location.origin;
+    window.location.href = `${jellyfinServer}/web/#/details?id=${artistId}`;
+  }
+});
 
   const trackInfo = document.createElement("div");
   trackInfo.className = "player-track-info";
