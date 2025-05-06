@@ -10,7 +10,7 @@ import { refreshPlaylist } from "../core/playlist.js";
 import { showJellyfinPlaylistsModal } from "../core/jellyfinPlaylists.js";
 import { togglePlayerVisibility } from "../utils/mainIndex.js";
 import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
-import { setupArtistClickHandler } from "../ui/artistModal.js";
+import { setupArtistClickHandler, checkForNewMusic } from "../ui/artistModal.js";
 
 
 const config = getConfig();
