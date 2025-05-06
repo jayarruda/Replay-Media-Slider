@@ -36,6 +36,9 @@ const playedBackgroundImageTypeSelect = getEl("playedBackgroundImageTypeSelect")
 const defaultLanguageSelect = getEl('defaultLanguageSelect');
 const limitInput = getEl("limitInput");
 const muziklimitInput = getEl("muziklimitInput");
+const sarkilimitInput = getEl("sarkilimitInput");
+const albumlimitInput = getEl("albumlimitInput");
+const gruplimitInput = getEl("gruplimitInput");
 const plotInfoCheckbox = getEl("showPlotInfoCheckbox");
 const minHighQualityWidthInput = getEl("minHighQualityWidthInput");
 const manualBackdropSelectionCheckbox = getEl("manualBackdropSelectionCheckbox");
@@ -419,7 +422,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
       'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure',
-      'showCast', 'muziklimit'
+      'showCast', 'muziklimit', 'albumlimit', 'sarkilimit', 'gruplimit'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -478,6 +481,9 @@ document.addEventListener("DOMContentLoaded", function () {
   artistLimitInput.value = localStorage.getItem("artistLimit") || 8;
   limitInput.value = localStorage.getItem("limit") || 10;
   muziklimitInput.value = localStorage.getItem("muziklimit") || 30;
+  sarkilimitInput.value = localStorage.getItem("sarkilimit") || 200;
+  albumlimitInput.value = localStorage.getItem("albumlimit") || 20;
+  gruplimitInput.value = localStorage.getItem("gruplimit") || 200;
   gecikmeSureInput.value = localStorage.getItem("gecikmeSure") || 500;
 
   updateGroup(showStatusInfoCheckbox, statusSubOptions);
@@ -573,6 +579,9 @@ document.addEventListener("DOMContentLoaded", function () {
       defaultLanguage: defaultLanguageSelect.value,
       limit: limitInput.value,
       muziklimit: muziklimitInput.value,
+      sarkilimit: sarkilimitInput.value,
+      albumlimit: albumlimitInput.value,
+      gruplimit: gruplimitInput.value,
       minHighQualityWidth: minHighQualityWidthInput.value,
       progressBarWidth: progressBarWidthInput.value + "%",
       displayOrder: displayOrderInput.value,

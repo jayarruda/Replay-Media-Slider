@@ -74,6 +74,9 @@ export function getConfig() {
     gecikmeSure: parseInt(localStorage.getItem('gecikmeSure')) || 500,
     limit: parseInt(localStorage.getItem('limit'), 10) || 20,
     muziklimit: parseInt(localStorage.getItem('muziklimit'), 10) || 30,
+    albumlimit: parseInt(localStorage.getItem('albumlimit'), 10) || 20,
+    sarkilimit: parseInt(localStorage.getItem('sarkilimit'), 10) || 200,
+    gruplimit: parseInt(localStorage.getItem('gruplimit'), 10) || 30,
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",
@@ -85,6 +88,7 @@ export function getConfig() {
         "j.r.r. tolkien",
         "andrew kevin walker",
         "christopher nolan",
+        "cem yılmaz",
         "thomas harris"
       ];
       let storedWriters = [];
