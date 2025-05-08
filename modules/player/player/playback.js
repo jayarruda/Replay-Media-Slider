@@ -3,8 +3,8 @@ import { getConfig } from "../../config.js";
 import { getAuthToken } from "../core/auth.js";
 import { updateMediaMetadata, initMediaSession, updatePositionState } from "../core/mediaSession.js";
 import { getFromOfflineCache, cacheForOffline } from "../core/offlineCache.js";
-import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
-import { fetchLyrics, updateSyncedLyrics } from "../lyrics/lyrics.js";
+import { readID3Tags } from "../lyrics/id3Reader.js";
+import { fetchLyrics, updateSyncedLyrics, startLyricsSync } from "../lyrics/lyrics.js";
 import { updatePlaylistModal } from "../ui/playlistModal.js";
 import { showNotification } from "../ui/notification.js";
 import { updateProgress, updateDuration, setupAudioListeners } from "./progress.js";
@@ -58,7 +58,6 @@ function cleanupAudioListeners() {
   audio.removeAttribute('src');
   audio.load();
   audio.onended = null;
-
 }
 
 function handleSongEnd() {
@@ -143,10 +142,7 @@ export async function updateModernTrackInfo(track) {
   }
 
   const title = track.Name || config.languageLabels.unknownTrack;
-  const artists = track.Artists ||
-                   (track.ArtistItems?.map(a => a.Name) || []) ||
-                   (track.artist ? [track.artist] : []) ||
-                   [config.languageLabels.unknownArtist];
+  const artists = track.Artists || (track.ArtistItems?.map(a => a.Name) || []) || (track.artist ? [track.artist] : []) || [config.languageLabels.unknownArtist];
 
   musicPlayerState.modernTitleEl.textContent = title;
   musicPlayerState.modernArtistEl.textContent = artists.join(", ");
@@ -201,7 +197,7 @@ function setAlbumArt(imageUrl) {
   if (!imageUrl || imageUrl === 'undefined') {
     musicPlayerState.albumArtEl.style.backgroundImage = DEFAULT_ARTWORK;
     musicPlayerState.currentArtwork = [{
-      src: DEFAULT_ARTWORK.replace("url('", "").replace("')", ""),
+      src: DEFAULT_ARTWORK.replace("url('/", "").replace("')", ""),
       sizes: '300x300',
       type: 'image/png'
     }];
@@ -218,21 +214,11 @@ function setAlbumArt(imageUrl) {
     return;
   }
 
-  if (imageUrl.startsWith('data:')) {
-    musicPlayerState.albumArtEl.style.backgroundImage = `url('${imageUrl}')`;
-    musicPlayerState.currentArtwork = [{
-      src: imageUrl,
-      sizes: '300x300',
-      type: imageUrl.split(';')[0].split(':')[1]
-    }];
-    return;
-  }
-
   musicPlayerState.albumArtEl.style.backgroundImage = `url('${imageUrl}')`;
   musicPlayerState.currentArtwork = [{
     src: imageUrl,
     sizes: '300x300',
-    type: 'image/jpeg'
+    type: imageUrl.startsWith('data:') ? imageUrl.split(';')[0].split(':')[1] : 'image/jpeg'
   }];
 }
 
@@ -264,7 +250,7 @@ async function loadAlbumArt(track) {
     const artwork = await getArtworkFromSources(track);
     setAlbumArt(artwork);
 
-    if (artwork !== DEFAULT_ARTWORK) {
+    if (artwork && artwork !== DEFAULT_ARTWORK) {
       cacheForOffline(track.Id, 'artwork', artwork);
     }
   } catch (err) {
@@ -275,19 +261,19 @@ async function loadAlbumArt(track) {
 
 async function getArtworkFromSources(track) {
   try {
-    const cachedArtwork = await getFromOfflineCache(track.Id, 'artwork');
-    if (cachedArtwork) return cachedArtwork;
+    const fromCache = await getFromOfflineCache(track.Id, 'artwork');
+    if (fromCache) return fromCache;
 
-    const embeddedImage = await getEmbeddedImage(track.Id);
-    if (embeddedImage) return embeddedImage;
+    const embedded = await getEmbeddedImage(track.Id);
+    if (embedded) return embedded;
 
     const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
     if (imageTag) {
       const imageId = track.AlbumId || track.Id;
       const serverUrl = window.ApiClient?.serverAddress() || window.location.origin;
-      const artworkUrl = `${serverUrl}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}`;
-      const valid = await checkImageExists(artworkUrl);
-      return valid ? artworkUrl : DEFAULT_ARTWORK;
+      const url = `${serverUrl}/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=90&tag=${imageTag}`;
+      const valid = await checkImageExists(url);
+      return valid ? url : DEFAULT_ARTWORK;
     }
 
     return DEFAULT_ARTWORK;
@@ -308,10 +294,7 @@ function checkImageExists(url) {
 
 async function getEmbeddedImage(trackId) {
   const tags = await readID3Tags(trackId);
-  if (tags?.picture) {
-    return `data:${tags.picture.format};base64,${arrayBufferToBase64(tags.picture.data)}`;
-  }
-  return null;
+  return tags?.pictureUri || null;
 }
 
 export function playTrack(index) {
@@ -327,9 +310,9 @@ export function playTrack(index) {
   const track = musicPlayerState.isUserModified ?
     musicPlayerState.combinedPlaylist[index] :
     musicPlayerState.playlist[index];
-    musicPlayerState.currentIndex = index;
-    musicPlayerState.currentTrackName = track.Name || config.languageLabels.unknownTrack;
-    musicPlayerState.currentAlbumName = track.Album || config.languageLabels.unknownTrack;
+  musicPlayerState.currentIndex = index;
+  musicPlayerState.currentTrackName = track.Name || config.languageLabels.unknownTrack;
+  musicPlayerState.currentAlbumName = track.Album || config.languageLabels.unknownAlbum;
 
   showNotification(
     `${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
@@ -339,6 +322,7 @@ export function playTrack(index) {
 
   updateModernTrackInfo(track);
   updatePlaylistModal();
+  startLyricsSync();
 
   const audio = musicPlayerState.audio;
   audio.onended = handleSongEnd;
@@ -347,21 +331,13 @@ export function playTrack(index) {
   audio.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
   setupAudioListeners();
 
-  if (/Linux/i.test(navigator.userAgent)) {
-    const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
-    if (imageTag) {
-      const imageId = track.AlbumId || track.Id;
-      const artworkUrl = `${window.location.origin}/Items/${imageId}/Images/Primary?fillHeight=512&fillWidth=512&quality=90&tag=${imageTag}`;
-      musicPlayerState.currentArtwork = [{ src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }];
-    }
-  }
-
   const audioUrl = `${window.location.origin}/Audio/${track.Id}/stream.mp3?Static=true`;
   audio.src = audioUrl;
   audio.load();
 
   if (musicPlayerState.lyricsActive) {
     fetchLyrics();
+    startLyricsSync();
   }
   updateNextTracks();
 }

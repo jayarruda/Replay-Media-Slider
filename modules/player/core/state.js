@@ -4,7 +4,6 @@ import { updateVolumeIcon } from "../ui/controls.js";
 const config = getConfig();
 
 export const musicPlayerState = {
-  audio: new Audio(),
   playlist: [],
   originalPlaylist: [],
   currentIndex: 0,
@@ -43,6 +42,7 @@ export const musicPlayerState = {
   combinedPlaylist: [],
   isUserModified: false,
   effectivePlaylist: [],
+  onTrackChanged: [],
   isShuffled: false,
   audio: (() => {
   const audio = new Audio();
