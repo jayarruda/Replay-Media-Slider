@@ -39,6 +39,7 @@ const muziklimitInput = getEl("muziklimitInput");
 const sarkilimitInput = getEl("sarkilimitInput");
 const albumlimitInput = getEl("albumlimitInput");
 const gruplimitInput = getEl("gruplimitInput");
+const id3limitInput = getEl("id3limitInput");
 const plotInfoCheckbox = getEl("showPlotInfoCheckbox");
 const minHighQualityWidthInput = getEl("minHighQualityWidthInput");
 const manualBackdropSelectionCheckbox = getEl("manualBackdropSelectionCheckbox");
@@ -422,7 +423,7 @@ document.addEventListener("DOMContentLoaded", function () {
       'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
       'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
       'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure',
-      'showCast', 'muziklimit', 'albumlimit', 'sarkilimit', 'gruplimit'
+      'showCast', 'muziklimit', 'albumlimit', 'sarkilimit', 'gruplimit', 'id3limit'
     ];
 
     keysToRemove.forEach(key => localStorage.removeItem(key));
@@ -483,7 +484,8 @@ document.addEventListener("DOMContentLoaded", function () {
   muziklimitInput.value = localStorage.getItem("muziklimit") || 30;
   sarkilimitInput.value = localStorage.getItem("sarkilimit") || 200;
   albumlimitInput.value = localStorage.getItem("albumlimit") || 20;
-  gruplimitInput.value = localStorage.getItem("gruplimit") || 200;
+  gruplimitInput.value = localStorage.getItem("gruplimit") || 100;
+  id3limitInput.value = localStorage.getItem("id3limit") || 5;
   gecikmeSureInput.value = localStorage.getItem("gecikmeSure") || 500;
 
   updateGroup(showStatusInfoCheckbox, statusSubOptions);
@@ -582,6 +584,7 @@ document.addEventListener("DOMContentLoaded", function () {
       sarkilimit: sarkilimitInput.value,
       albumlimit: albumlimitInput.value,
       gruplimit: gruplimitInput.value,
+      id3limit: id3limitInput.value,
       minHighQualityWidth: minHighQualityWidthInput.value,
       progressBarWidth: progressBarWidthInput.value + "%",
       displayOrder: displayOrderInput.value,

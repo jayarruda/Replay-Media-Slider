@@ -76,7 +76,8 @@ export function getConfig() {
     muziklimit: parseInt(localStorage.getItem('muziklimit'), 10) || 30,
     albumlimit: parseInt(localStorage.getItem('albumlimit'), 10) || 20,
     sarkilimit: parseInt(localStorage.getItem('sarkilimit'), 10) || 200,
-    gruplimit: parseInt(localStorage.getItem('gruplimit'), 10) || 30,
+    gruplimit: parseInt(localStorage.getItem('gruplimit'), 10) || 100,
+    id3limit: parseInt(localStorage.getItem('id3limit'), 10) || 5,
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",
