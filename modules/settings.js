@@ -1,5 +1,6 @@
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
+import { showNotification } from "./player/ui/notification.js";
 
 let settingsModal = null;
 
@@ -168,6 +169,7 @@ export function createSettingsModal() {
 
     applyBtn.onclick = () => {
         applySettings(false);
+        showNotification(config.languageLabels.settingsSavedModal || "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.", 3000, 'save');
     };
 
     btnDiv.append(saveBtn, applyBtn, resetBtn);
