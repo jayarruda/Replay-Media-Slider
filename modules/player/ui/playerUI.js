@@ -10,6 +10,7 @@ import { showJellyfinPlaylistsModal } from "../core/jellyfinPlaylists.js";
 import { togglePlayerVisibility } from "../utils/mainIndex.js";
 import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
 import { setupArtistClickHandler, checkForNewMusic } from "../ui/artistModal.js";
+import { initSettings } from '../../settings.js';
 
 
 const config = getConfig();
@@ -55,11 +56,13 @@ export function createModernPlayerUI() {
   const buttonsTop = [
     { className: "playlist-btn", iconClass: "fas fa-list", title: config.languageLabels.playlist, onClick: togglePlaylistModal },
     { className: "jplaylist-btn", iconClass: "fas fa-list-music", title: config.languageLabels.jellyfinPlaylists || "Jellyfin Oynatma Listesi", onClick: showJellyfinPlaylistsModal },
-    // { className: "settingsLink", iconClass: "fas fa-cog", title: config.languageLabels.ayarlar || "Ayarlar", onClick: initSettings.onclick = (e) => {
-    // e.preventDefault();
-    // const settings = initSettings();
-    // settings.open();
-    // } },
+    {
+    className: "settingsLink", iconClass: "fas fa-cog", title: config.languageLabels.ayarlar || "Ayarlar", onClick: (e) => {
+        e.preventDefault();
+        const settings = initSettings();
+        settings.open('music');
+    }
+},
     { className: "kapat-btn", iconClass: "fas fa-times", title: config.languageLabels.close || "Close", onClick: togglePlayerVisibility },
   ];
 

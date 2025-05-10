@@ -1,5 +1,6 @@
 import { getConfig } from "./config.js";
 import { getProviderUrl } from "./utils.js";
+import { initSettings } from './settings.js';
 
 const config = getConfig();
 
@@ -381,17 +382,16 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers })
     settingsLink.className = "youtube-link";
     settingsLink.title = `${config.languageLabels.settingsLink}`;
     settingsLink.style.cursor = "pointer";
-    settingsLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      window.open(
-        `${window.location.origin}/web/slider/src/settings.html`,
-        "_blank",
-        "noopener,noreferrer"
-      );
-    });
-    providerDiv.appendChild(settingsLink);
-  }
+
+    settingsLink.onclick = (e) => {
+      e.preventDefault();
+      const settings = initSettings();
+      settings.open('slider');
+    };
+
+  providerDiv.appendChild(settingsLink);
+}
+
 
   if (config.showTrailerIcon && RemoteTrailers?.length > 0) {
     const trailer = RemoteTrailers[0];

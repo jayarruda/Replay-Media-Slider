@@ -1,618 +1,1399 @@
+import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
-const labels = getLanguageLabels(getDefaultLanguage());
-const getEl = id => document.getElementById(id);
-const languageCheckbox = getEl('languageInfoCheckbox');
-const showLogoOrTitleCheckbox = getEl("showLogoOrTitleCheckbox");
-const showTitleOnlyCheckbox = getEl("showTitleOnlyCheckbox");
-const showDiscOnlyCheckbox = getEl("showDiscOnlyCheckbox");
-const ratingCheckbox = getEl('ratingInfoCheckbox');
-const progressCheckbox = getEl('progressBarCheckbox');
-const providerCheckbox = getEl("providerCheckbox");
-const dotNavigationCheckbox = getEl("dotNavigationCheckbox");
-const showSettingsLinkCheckbox = getEl("showSettingsLinkCheckbox");
-const settingsLinkContainer = getEl("settingsLinkContainer");
-const showStatusInfoCheckbox = getEl("showStatusInfoCheckbox");
-const statusSubOptions = getEl("statusSubOptions");
-const qualitDetailSubOptions = getEl("qualitDetailSubOptions");
-const ratingSubOptions = getEl("ratingSubOptions");
-const descriptionsCheckbox = getEl("showDescriptionsCheckbox");
-const descriptionsSubOptions = getEl("descriptionsSubOptions");
-const sliderDurationInput = getEl("sliderDurationInput");
-const artistLimitInput = getEl("artistLimitInput");
-const showActorInfoCheckbox = getEl("showActorInfoCheckbox");
-const showActorImgCheckbox = getEl("showActorImgCheckbox");
-const showActorRoleCheckbox = getEl("showActorRoleCheckbox");
-const showTitleOnlyLabel = getEl("showTitleOnlyLabel");
-const showDiscOnlyLabel = getEl("showDiscOnlyLabel");
-const showPlotOnlyLabel = getEl("showPlotOnlyLabel");
-const hideOriginalTitleIfSameCheckbox = getEl("hideOriginalTitleIfSameCheckbox");
-const gradientOverlayImageTypeSelect = getEl("gradientOverlayImageTypeSelect");
-const backdropImageTypeSelect = getEl("backdropImageTypeSelect");
-const dotBackgroundImageTypeSelect = getEl("dotBackgroundImageTypeSelect");
-const trailerBackgroundImageTypeSelect = getEl("trailerBackgroundImageTypeSelect");
-const watchBackgroundImageTypeSelect = getEl("watchBackgroundImageTypeSelect");
-const favoriBackgroundImageTypeSelect = getEl("favoriBackgroundImageTypeSelect");
-const playedBackgroundImageTypeSelect = getEl("playedBackgroundImageTypeSelect");
-const defaultLanguageSelect = getEl('defaultLanguageSelect');
-const limitInput = getEl("limitInput");
-const muziklimitInput = getEl("muziklimitInput");
-const sarkilimitInput = getEl("sarkilimitInput");
-const albumlimitInput = getEl("albumlimitInput");
-const gruplimitInput = getEl("gruplimitInput");
-const id3limitInput = getEl("id3limitInput");
-const plotInfoCheckbox = getEl("showPlotInfoCheckbox");
-const minHighQualityWidthInput = getEl("minHighQualityWidthInput");
-const manualBackdropSelectionCheckbox = getEl("manualBackdropSelectionCheckbox");
-const enableTrailerPlaybackCheckbox = getEl("enableTrailerPlaybackCheckbox");
-const showDirectorWriterCheckbox = getEl("showDirectorWriterCheckbox");
-const directorWriterSubOptions = getEl("directorWriterSubOptions");
-const showDirectorCheckbox = getEl("showDirectorCheckbox");
-const showWriterCheckbox = getEl("showWriterCheckbox");
-const showInfoCheckbox = getEl("showInfoCheckbox");
-const infoSubOptions = getEl("infoSubOptions");
-const showGenresInfoCheckbox = getEl("showGenresInfoCheckbox");
-const showYearInfoCheckbox = getEl("showYearInfoCheckbox");
-const showCountryInfoCheckbox = getEl("showCountryInfoCheckbox");
-const showTrailerButtonCheckbox = getEl("showTrailerButtonCheckbox");
-const showTrailerIconCheckbox = getEl("showTrailerIconCheckbox");
-const showWatchButtonCheckbox = getEl("showWatchButtonCheckbox");
-const customQueryStringInput = getEl('customQueryStringInput');
-const showFavoriteButtonCheckbox = getEl("showFavoriteButtonCheckbox");
-const showPlayedButtonCheckbox = getEl("showPlayedButtonCheckbox");
-const useListFileCheckbox = getEl('useListFileCheckbox');
-const useManualListCheckbox = getEl('useManualListCheckbox');
-const manualListIdsInput = getEl('manualListIdsInput');
-const manualListIdsContainer = getEl('manualListIdsContainer');
-const progressBarWidthInput = getEl("progressBarWidthInput");
-const sortingKeywordsInput = getEl('sortingKeywordsInput');
-const themeRadios = document.querySelectorAll('input[name="theme"]');
-const allowedWritersInput = getEl('allowedWritersInput');
-const progressBarWidth = localStorage.getItem("progressBarWidth") || "100%";
-progressBarWidthInput.value = parseInt(progressBarWidth);
-const cssVariantSelect = getEl('cssVariantSelect');
-const displayOrderInput = getEl('displayOrderInput');
-const displayOrderContainer = getEl('displayOrderContainer');
-const gecikmeSureInput = getEl("gecikmeSureInput");
-const showCastCheckbox = getEl("showCastCheckbox");
 
-const savedTheme = localStorage.getItem('theme') || 'light';
-document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
-document.body.className = savedTheme + '-theme';
-themeRadios.forEach(radio => {
-  radio.addEventListener('change', function () {
-    const selectedTheme = this.value;
-    document.body.className = selectedTheme + '-theme';
-    localStorage.setItem('theme', selectedTheme);
-  });
-});
+let settingsModal = null;
 
-function updateGroup(parentCheckbox, container) {
-  container.style.display = "block";
-  const subCheckboxes = container.querySelectorAll('input[type="checkbox"]');
-  if (parentCheckbox.checked) {
-    subCheckboxes.forEach(cb => (cb.disabled = false));
-  } else {
-    subCheckboxes.forEach(cb => {
-      cb.disabled = true;
-      cb.checked = false;
-    });
-  }
-}
-
-function initSettingsBackgroundSlider() {
-  const settingsSlider = getEl('settingsBackgroundSlider');
-  if (!settingsSlider) return;
-
-  settingsSlider.innerHTML = '';
-  settingsSlider.style.backgroundImage = '';
-  settingsSlider.style.zIndex = '0';
-
-  const validBackdropUrls = (JSON.parse(localStorage.getItem('backdropUrls')) || [])
-    .filter(url => url && typeof url === 'string' && url.trim() && !url.endsWith('/null'));
-
-  if (!validBackdropUrls.length) {
-    settingsSlider.style.backgroundImage = 'linear-gradient(to right, #434343 0%, black 100%)';
-    return;
-  }
-
-  const shuffleArray = array => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+export function createSettingsModal() {
+    const existing = document.getElementById('settings-modal');
+    if (existing) {
+        existing.remove();
+        settingsModal = null;
     }
-    return shuffled;
-  };
 
-  const shuffledUrls = validBackdropUrls.length > 1 ? shuffleArray(validBackdropUrls) : validBackdropUrls;
-  shuffledUrls.forEach(url => {
-    const slide = document.createElement('div');
-    slide.className = 'slide';
-    slide.setAttribute('data-bg', url);
-    slide.addEventListener('error', function () {
-      this.style.display = 'none';
-    });
-    settingsSlider.appendChild(slide);
-  });
-
-  const loadSlideImage = slide => {
-    if (!slide.style.backgroundImage) {
-      const url = slide.getAttribute('data-bg');
-      slide.style.backgroundImage = `url('${url}')`;
+    if (settingsModal) {
+        return settingsModal;
     }
-  };
 
-  const slides = settingsSlider.querySelectorAll('.slide');
-  if (slides.length) {
-    let currentIndex = 0, previousIndex = -1, previousPreviousIndex = -1;
-    loadSlideImage(slides[0]);
-    slides[0].offsetHeight;
-    slides[0].classList.add('active');
+    const config = getConfig();
+    const currentLang = config.defaultLanguage || getDefaultLanguage();
+    const labels = getLanguageLabels(currentLang) || {};
 
-    const fadeDuration = 1000;
-    const changeSlide = () => {
-      slides[currentIndex].classList.remove('active');
-      let nextIndex, attempts = 0, maxAttempts = slides.length * 3;
-      do {
-        nextIndex = Math.floor(Math.random() * slides.length);
-        attempts++;
-        if (attempts > maxAttempts) {
-          nextIndex = (currentIndex + 1) % slides.length;
-          break;
+    const modal = document.createElement('div');
+    modal.id = 'settings-modal';
+    modal.className = 'settings-modal';
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
         }
-      } while (
-        (nextIndex === currentIndex && slides.length > 1) ||
-        (nextIndex === previousIndex && slides.length > 2) ||
-        (nextIndex === previousPreviousIndex && slides.length > 3)
-      );
-      previousPreviousIndex = previousIndex;
-      previousIndex = currentIndex;
-      currentIndex = nextIndex;
+    });
 
-      loadSlideImage(slides[currentIndex]);
-      slides[currentIndex].classList.add('active');
-      loadSlideImage(slides[(currentIndex + 1) % slides.length]);
-      let delay = parseInt(sliderDurationInput.value) || 8000;
-      slideTimer = setTimeout(changeSlide, delay);
+    const modalContent = document.createElement('div');
+    modalContent.className = 'settings-modal-content';
+
+    modalContent.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'settings-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => modal.style.display = 'none';
+
+    const title = document.createElement('h2');
+    title.textContent = labels.sliderSettings || 'Slider Ayarları';
+
+    const tabContainer = document.createElement('div');
+    tabContainer.className = 'settings-tabs';
+
+    const tabContent = document.createElement('div');
+    tabContent.className = 'settings-tab-content';
+
+    const sliderTab = createTab('slider', labels.sliderSettings || 'Slider Ayarları', true);
+    const musicTab = createTab('music', labels.gmmpSettings || 'GMMP Ayarları');
+    const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi');
+    const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık');
+    const statusRatingTab = createTab('status-rating', labels.statusRatingInfo || 'Durum ve Puan Bilgileri');
+    const actorTab = createTab('actor', labels.actorInfo || 'Artist Bilgileri');
+    const directorTab = createTab('director', labels.directorWriter || 'Yönetmen ve Yazar');
+    const languageTab = createTab('language', labels.languageInfoHeader || 'Ses ve Altyazı');
+    const descriptionTab = createTab('description', labels.descriptionsHeader || 'Açıklamalar');
+    const providerTab = createTab('provider', labels.providerHeader || 'Dış Bağlantılar');
+    const buttonsTab = createTab('buttons', labels.buttons || 'Butonlar');
+    const infoTab = createTab('info', labels.infoHeader || 'Tür, Yıl ve Ülke');
+    const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında');
+
+    tabContainer.append(
+        sliderTab, musicTab, queryTab, statusRatingTab,
+        actorTab, directorTab, languageTab, logoTitleTab,
+        descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
+    );
+
+    const sliderPanel = createSliderPanel(config, labels);
+    const musicPanel = createMusicPanel(config, labels);
+    const queryPanel = createQueryPanel(config, labels);
+    const statusRatingPanel = createStatusRatingPanel(config, labels);
+    const actorPanel = createActorPanel(config, labels);
+    const directorPanel = createDirectorPanel(config, labels);
+    const languagePanel = createLanguagePanel(config, labels);
+    const logoTitlePanel = createLogoTitlePanel(config, labels);
+    const descriptionPanel = createDescriptionPanel(config, labels);
+    const providerPanel = createProviderPanel(config, labels);
+    const buttonsPanel = createButtonsPanel(config, labels);
+    const infoPanel = createInfoPanel(config, labels);
+    const aboutPanel = createAboutPanel(labels);
+
+    [
+        sliderPanel, musicPanel, statusRatingPanel, actorPanel,
+        directorPanel, queryPanel, languagePanel, logoTitlePanel,
+        descriptionPanel, providerPanel, buttonsPanel, infoPanel, aboutPanel
+    ].forEach(panel => {
+        panel.style.display = 'none';
+    });
+    sliderPanel.style.display = 'block';
+
+    tabContent.append(
+        sliderPanel, musicPanel, statusRatingPanel, actorPanel,
+        directorPanel, queryPanel, languagePanel, logoTitlePanel,
+        descriptionPanel, providerPanel, buttonsPanel, infoPanel, aboutPanel
+    );
+
+    [
+        sliderTab, musicTab, queryTab, statusRatingTab,
+        actorTab, directorTab, languageTab, logoTitleTab,
+        descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
+    ].forEach(tab => {
+        tab.addEventListener('click', () => {
+            [
+        sliderTab, musicTab, queryTab, statusRatingTab,
+        actorTab, directorTab, languageTab, logoTitleTab,
+        descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
+            ].forEach(t => {
+                t.classList.remove('active');
+            });
+            [
+                sliderPanel, statusRatingPanel, actorPanel, directorPanel,
+                musicPanel, queryPanel, languagePanel, logoTitlePanel,
+                descriptionPanel, providerPanel, buttonsPanel, infoPanel, aboutPanel
+            ].forEach(panel => {
+                panel.style.display = 'none';
+            });
+
+            tab.classList.add('active');
+            const panelId = tab.getAttribute('data-tab');
+            document.getElementById(`${panelId}-panel`).style.display = 'block';
+
+            setTimeout(() => {
+                tab.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'center'
+                });
+            }, 10);
+        });
+    });
+
+    const form = document.createElement('form');
+    form.append(tabContainer, tabContent);
+
+    const btnDiv = document.createElement('div');
+    btnDiv.className = 'btn-item';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'submit';
+    saveBtn.textContent = labels.saveSettings || 'Kaydet';
+
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.textContent = labels.uygula || 'Uygula';
+    applyBtn.style.marginLeft = '10px';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.textContent = labels.resetToDefaults || 'Sıfırla';
+    resetBtn.style.marginLeft = '10px';
+    resetBtn.className = 'reset-btn';
+    resetBtn.onclick = () => {
+        createConfirmationModal(
+            labels.resetConfirm || 'Tüm ayarları varsayılan değerlere sıfırlamak istediğinize emin misiniz?',
+            resetAllSettings,
+            labels
+        );
     };
 
-    let delay = parseInt(sliderDurationInput.value) || 8000;
-    let slideTimer = setTimeout(changeSlide, delay - fadeDuration);
-    window.addEventListener('beforeunload', () => clearTimeout(slideTimer));
-  }
-}
+    form.onsubmit = (e) => {
+        e.preventDefault();
+        applySettings(true);
+    };
 
-function updateTitleOnlyVisibility() {
-  if (showLogoOrTitleCheckbox.checked) {
-    showTitleOnlyLabel.style.display = "none";
-    showTitleOnlyCheckbox.disabled = true;
-    showTitleOnlyCheckbox.checked = false;
-    showDiscOnlyLabel.style.display = "none";
-    showDiscOnlyCheckbox.disabled = true;
-    showDiscOnlyCheckbox.checked = false;
-  } else {
-    showTitleOnlyLabel.style.display = "block";
-    showTitleOnlyCheckbox.disabled = false;
-    showDiscOnlyLabel.style.display = "block";
-    showDiscOnlyCheckbox.disabled = false;
+    applyBtn.onclick = () => {
+        applySettings(false);
+    };
 
-    if (showTitleOnlyCheckbox.checked) {
-      showDiscOnlyCheckbox.checked = false;
+    btnDiv.append(saveBtn, applyBtn, resetBtn);
+    form.appendChild(btnDiv);
+
+    modalContent.append(closeBtn, title, form);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+
+    function applySettings(reload = false) {
+        const formData = new FormData(form);
+        const updatedConfig = {
+            ...config,
+            defaultLanguage: formData.get('defaultLanguage'),
+            sliderDuration: parseInt(formData.get('sliderDuration'), 10),
+            limit: parseInt(formData.get('limit'), 10),
+            gecikmeSure: parseInt(formData.get('gecikmeSure'), 10),
+            cssVariant: formData.get('cssVariant'),
+
+            showCast: formData.get('showCast') === 'on',
+            showProgressBar: formData.get('showProgressBar') === 'on',
+            progressBarWidth: formData.get('progressBarWidth') + '%',
+            enableTrailerPlayback: formData.get('enableTrailerPlayback') === 'on',
+            gradientOverlayImageType: formData.get('gradientOverlayImageType'),
+            manualBackdropSelection: formData.get('manualBackdropSelection') === 'on',
+            backdropImageType: formData.get('backdropImageType'),
+            minHighQualityWidth: parseInt(formData.get('minHighQualityWidth'), 10),
+            showDotNavigation: formData.get('showDotNavigation') === 'on',
+            dotBackgroundImageType: formData.get('dotBackgroundImageType'),
+
+            showStatusInfo: formData.get('showStatusInfo') === 'on',
+            showTypeInfo: formData.get('showTypeInfo') === 'on',
+            showWatchedInfo: formData.get('showWatchedInfo') === 'on',
+            showRuntimeInfo: formData.get('showRuntimeInfo') === 'on',
+            showQualityInfo: formData.get('showQualityInfo') === 'on',
+            showQualityDetail: formData.get('showQualityDetail') === 'on',
+            showRatingInfo: formData.get('showRatingInfo') === 'on',
+            showCommunityRating: formData.get('showCommunityRating') === 'on',
+            showCriticRating: formData.get('showCriticRating') === 'on',
+            showOfficialRating: formData.get('showOfficialRating') === 'on',
+
+            showActorInfo: formData.get('showActorInfo') === 'on',
+            showActorImg: formData.get('showActorImg') === 'on',
+            showActorRole: formData.get('showActorRole') === 'on',
+            artistLimit: parseInt(formData.get('artistLimit'), 10),
+
+            showDirectorWriter: formData.get('showDirectorWriter') === 'on',
+            showDirector: formData.get('showDirector') === 'on',
+            showWriter: formData.get('showWriter') === 'on',
+            allowedWriters: formData.get('allowedWriters') ?
+                formData.get('allowedWriters').split(',').map(w => w.trim()) : [],
+
+            muziklimit: parseInt(formData.get('muziklimit'), 10),
+            sarkilimit: parseInt(formData.get('sarkilimit'), 10),
+            id3limit: parseInt(formData.get('id3limit'), 10),
+            albumlimit: parseInt(formData.get('albumlimit'), 10),
+            gruplimit: parseInt(formData.get('gruplimit'), 10),
+
+            useListFile: formData.get('useListFile') === 'on',
+            useManualList: formData.get('useManualList') === 'on',
+            manualListIds: formData.get('manualListIds'),
+            customQueryString: formData.get('customQueryString'),
+            sortingKeywords: formData.get('sortingKeywords'),
+
+            showLanguageInfo: formData.get('showLanguageInfo') === 'on',
+
+            showLogoOrTitle: formData.get('showLogoOrTitle') === 'on',
+            displayOrder: formData.get('displayOrder'),
+            showTitleOnly: formData.get('showTitleOnly') === 'on',
+            showDiscOnly: formData.get('showDiscOnly') === 'on',
+
+            showDescriptions: formData.get('showDescriptions') === 'on',
+            showSloganInfo: formData.get('showSloganInfo') === 'on',
+            showTitleInfo: formData.get('showTitleInfo') === 'on',
+            showOriginalTitleInfo: formData.get('showOriginalTitleInfo') === 'on',
+            hideOriginalTitleIfSame: formData.get('hideOriginalTitleIfSame') === 'on',
+            showPlotInfo: formData.get('showPlotInfo') === 'on',
+            showbPlotInfo: formData.get('showbPlotInfo') === 'on',
+
+            showProviderInfo: formData.get('showProviderInfo') === 'on',
+            showSettingsLink: formData.get('showSettingsLink') === 'on',
+            showTrailerIcon: formData.get('showTrailerIcon') === 'on',
+
+            showTrailerButton: formData.get('showTrailerButton') === 'on',
+            trailerBackgroundImageType: formData.get('trailerBackgroundImageType'),
+            showWatchButton: formData.get('showWatchButton') === 'on',
+            watchBackgroundImageType: formData.get('watchBackgroundImageType'),
+            showFavoriteButton: formData.get('showFavoriteButton') === 'on',
+            favoriBackgroundImageType: formData.get('favoriBackgroundImageType'),
+            showPlayedButton: formData.get('showPlayedButton') === 'on',
+            playedBackgroundImageType: formData.get('playedBackgroundImageType'),
+
+            showInfo: formData.get('showInfo') === 'on',
+            showGenresInfo: formData.get('showGenresInfo') === 'on',
+            showYearInfo: formData.get('showYearInfo') === 'on',
+            showCountryInfo: formData.get('showCountryInfo') === 'on'
+        };
+
+        updateConfig(updatedConfig);
+
+        if (reload) {
+            location.reload();
+        }
     }
-    if (showDiscOnlyCheckbox.checked) {
-      showTitleOnlyCheckbox.checked = false;
+
+    function resetAllSettings() {
+        Object.keys(config).forEach(key => {
+            localStorage.removeItem(key);
+        });
+        location.reload();
     }
-  }
+
+    return modal;
 }
 
-function setupBackButton() {
-  const backButton = document.createElement('button');
-  backButton.id = 'backButton';
-  backButton.className = 'back-button';
-  backButton.innerHTML = '<i class="fas fa-arrow-left"></i> ' + (labels.backButton || '');
+function createConfirmationModal(message, callback, labels) {
+        const modal = document.createElement('div');
+        modal.className = 'confirmation-modal';
+        modal.style.display = 'block';
 
-  const footer = document.querySelector('.settings-footer');
-  if (footer) {
-    footer.insertBefore(backButton, footer.firstChild);
-  }
+        const modalContent = document.createElement('div');
+        modalContent.className = 'confirmation-modal-content';
 
-  backButton.addEventListener('click', handleBackAction);
+        const messageEl = document.createElement('p');
+        messageEl.textContent = message;
 
-  document.addEventListener('backbutton', handleBackAction, false);
-}
+        const btnContainer = document.createElement('div');
+        btnContainer.className = 'confirmation-btn-container';
 
-function handleBackAction() {
-  const modal = document.getElementById('settingsSavedModal');
-  if (modal && modal.style.display === 'flex') {
-    modal.style.display = 'none';
-    return;
-  }
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'confirm-btn';
+        confirmBtn.textContent = labels.yes || 'Evet';
+        confirmBtn.onclick = () => {
+            callback();
+            modal.remove();
+        };
 
-  if (window.Jellyfin && window.Jellyfin.App) {
-    window.Jellyfin.App.back();
-  }
-  else if (window.NativeShell && window.NativeShell.goBack) {
-    window.NativeShell.goBack();
-  }
-  else {
-    window.history.back();
-  }
-}
-function addBackButtonStyles() {
-  const style = document.createElement('style');
-  document.head.appendChild(style);
-}
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'cancel-btn';
+        cancelBtn.textContent = labels.no || 'Hayır';
+        cancelBtn.onclick = () => modal.remove();
 
+        btnContainer.append(confirmBtn, cancelBtn);
+        modalContent.append(messageEl, btnContainer);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
 
-function updatePlotOnlyVisibility() {
-  const showbPlotInfoCheckbox = getEl("showbPlotInfoCheckbox");
-  if (plotInfoCheckbox.checked) {
-    showPlotOnlyLabel.style.display = "block";
-    showbPlotInfoCheckbox.disabled = false;
-  } else {
-    showPlotOnlyLabel.style.display = "none";
-    showbPlotInfoCheckbox.disabled = true;
-    showbPlotInfoCheckbox.checked = false;
-  }
-}
+        return modal;
+    }
 
-function updateQualityDetailOnlyVisibility() {
-  const showQualityInfoCheckbox = getEl("showQualityInfoCheckbox");
-  const showQualityDetailCheckbox = getEl("showQualityDetailCheckbox");
-  if (showQualityInfoCheckbox.checked) {
-    qualitDetailSubOptions.style.display = "block";
-    showQualityDetailCheckbox.disabled = false;
-  } else {
-    qualitDetailSubOptions.style.display = "none";
-    showQualityDetailCheckbox.disabled = true;
-    showQualityDetailCheckbox.checked = false;
-  }
-}
+function createSliderPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'slider-panel';
+    panel.className = 'settings-panel';
 
-function updateProviderSettingsVisibility() {
-  showSettingsLinkCheckbox.disabled = false;
-  settingsLinkContainer.style.display = "block";
-}
+    const languageDiv = document.createElement('div');
+    languageDiv.className = 'setting-item';
+    const languageLabel = document.createElement('label');
+    languageLabel.textContent = labels.defaultLanguage || 'Dil:';
+    const languageSelect = document.createElement('select');
+    languageSelect.name = 'defaultLanguage';
 
-cssVariantSelect.addEventListener('change', function() {
-    localStorage.setItem('cssVariant', this.value);
-  });
-
-showLogoOrTitleCheckbox.addEventListener("change", updateDisplayOrderVisibility);
-
-function updateDisplayOrderVisibility() {
-  if (showLogoOrTitleCheckbox.checked) {
-    displayOrderContainer.style.display = "block";
-  } else {
-    displayOrderContainer.style.display = "none";
-  }
-}
-
-manualBackdropSelectionCheckbox.addEventListener("change", () => {
-  backdropImageTypeSelect.disabled = !manualBackdropSelectionCheckbox.checked;
-  minHighQualityWidthInput.disabled = manualBackdropSelectionCheckbox.checked;
-});
-progressCheckbox.addEventListener("change", () => {
-  progressBarWidthInput.disabled = !progressCheckbox.checked;
-});
-dotNavigationCheckbox.addEventListener("change", () => {
-  dotBackgroundImageTypeSelect.disabled = !dotNavigationCheckbox.checked;
-});
-showTrailerButtonCheckbox.addEventListener("change", () => {
-  trailerBackgroundImageTypeSelect.disabled = !showTrailerButtonCheckbox.checked;
-});
-showWatchButtonCheckbox.addEventListener("change", () => {
-  watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
-});
-showFavoriteButtonCheckbox.addEventListener("change", () => {
-  favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
-});
-showPlayedButtonCheckbox.addEventListener("change", () => {
-  playedBackgroundImageTypeSelect.disabled = !showPlayedButtonCheckbox.checked;
-});
-enableTrailerPlaybackCheckbox.addEventListener("change", () => {
-  gradientOverlayImageTypeSelect.disabled = !enableTrailerPlaybackCheckbox.checked;
-  gecikmeSureInput.disabled = !enableTrailerPlaybackCheckbox.checked;
-});
-useListFileCheckbox.addEventListener("change", () => {
-  const disableState = useListFileCheckbox.checked || useManualListCheckbox.checked;
-  limitInput.disabled = disableState;
-  customQueryStringInput.disabled = disableState;
-  sortingKeywordsInput.disabled = disableState;
-  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
-});
-useManualListCheckbox.addEventListener("change", () => {
-  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
-  limitInput.disabled = useManualListCheckbox.checked;
-  sortingKeywordsInput.disabled = useManualListCheckbox.checked;
-  customQueryStringInput.disabled = useManualListCheckbox.checked;
-  useListFileCheckbox.disabled = useManualListCheckbox.checked;
-  if (useManualListCheckbox.checked) {
-    useListFileCheckbox.checked = false;
-  } else {
-    useListFileCheckbox.disabled = false;
-  }
-});
-
-showTitleOnlyCheckbox.addEventListener('change', function() {
-  if (this.checked) {
-    showDiscOnlyCheckbox.checked = false;
-  }
-  updateTitleOnlyVisibility();
-});
-
-showDiscOnlyCheckbox.addEventListener('change', function() {
-  if (this.checked) {
-    showTitleOnlyCheckbox.checked = false;
-  }
-  updateTitleOnlyVisibility();
-});
-
-document.addEventListener("DOMContentLoaded", function () {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.querySelector(`input[name="theme"][value="${savedTheme}"]`).checked = true;
-  document.body.className = savedTheme + '-theme';
-
-  displayOrderInput.value = localStorage.getItem('displayOrder') || "logo,disk,originalTitle";
-  languageCheckbox.checked = localStorage.getItem("showLanguageInfo") !== "false";
-  showLogoOrTitleCheckbox.checked = localStorage.getItem("showLogoOrTitle") !== "false";
-  showTitleOnlyCheckbox.checked = localStorage.getItem("showTitleOnly") !== "false";
-  showDiscOnlyCheckbox.checked = localStorage.getItem("showDiscOnly") !== "false";
-  ratingCheckbox.checked = localStorage.getItem("showRatingInfo") !== "false";
-  progressCheckbox.checked = localStorage.getItem("showProgressBar") !== "false";
-  providerCheckbox.checked = localStorage.getItem("showProviderInfo") !== "false";
-  dotNavigationCheckbox.checked = localStorage.getItem("showDotNavigation") !== "false";
-  showSettingsLinkCheckbox.checked = localStorage.getItem("showSettingsLink") !== "false";
-  showStatusInfoCheckbox.checked = localStorage.getItem("showStatusInfo") !== "false";
-  showActorInfoCheckbox.checked = localStorage.getItem("showActorInfo") !== "false";
-  showActorImgCheckbox.checked = localStorage.getItem("showActorImg") !== "false";
-  showActorRoleCheckbox.checked = localStorage.getItem("showActorRole") !== "false";
-  descriptionsCheckbox.checked = localStorage.getItem("showDescriptions") !== "false";
-  hideOriginalTitleIfSameCheckbox.checked = localStorage.getItem("hideOriginalTitleIfSame") !== "false";
-  manualBackdropSelectionCheckbox.checked = localStorage.getItem("manualBackdropSelection") === "true";
-  plotInfoCheckbox.checked = localStorage.getItem("showPlotInfo") !== "false";
-  gradientOverlayImageTypeSelect.value = localStorage.getItem('gradientOverlayImageType') || 'backdropUrl';
-  backdropImageTypeSelect.value = localStorage.getItem('backdropImageType') || 'backdropUrl';
-  getEl("showbPlotInfoCheckbox").checked = localStorage.getItem('showbPlotInfo') !== "false";
-  dotBackgroundImageTypeSelect.value = localStorage.getItem('dotBackgroundImageType') || 'none';
-  trailerBackgroundImageTypeSelect.value = localStorage.getItem('trailerBackgroundImageType') || 'none';
-  watchBackgroundImageTypeSelect.value = localStorage.getItem('watchBackgroundImageType') || 'none';
-  favoriBackgroundImageTypeSelect.value = localStorage.getItem('favoriBackgroundImageType') || 'none';
-  playedBackgroundImageTypeSelect.value = localStorage.getItem('playedBackgroundImageType') || 'none';
-  defaultLanguageSelect.value = localStorage.getItem('defaultLanguage') || 'tur';
-  minHighQualityWidthInput.value = localStorage.getItem("minHighQualityWidth") || 1920;
-  enableTrailerPlaybackCheckbox.checked = localStorage.getItem("enableTrailerPlayback") !== "false";
-  showTrailerButtonCheckbox.checked = localStorage.getItem("showTrailerButton") !== "false";
-  showTrailerIconCheckbox.checked = localStorage.getItem("showTrailerIcon") !== "false";
-  showWatchButtonCheckbox.checked = localStorage.getItem("showWatchButton") !== "false";
-  showFavoriteButtonCheckbox.checked = localStorage.getItem("showFavoriteButton") !== "false";
-  showPlayedButtonCheckbox.checked = localStorage.getItem("showPlayedButton") !== "false";
-  useListFileCheckbox.checked = localStorage.getItem("useListFile") !== "false";
-  customQueryStringInput.disabled = useListFileCheckbox.checked;
-  limitInput.disabled = useListFileCheckbox.checked;
-  progressBarWidthInput.disabled = !progressCheckbox.checked;
-  dotBackgroundImageTypeSelect.disabled = !dotNavigationCheckbox.checked;
-  trailerBackgroundImageTypeSelect.disabled = !showTrailerButtonCheckbox.checked;
-  watchBackgroundImageTypeSelect.disabled = !showWatchButtonCheckbox.checked;
-  favoriBackgroundImageTypeSelect.disabled = !showFavoriteButtonCheckbox.checked;
-  playedBackgroundImageTypeSelect.disabled = !showPlayedButtonCheckbox.checked;
-  customQueryStringInput.value = localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop';
-  sortingKeywordsInput.value = localStorage.getItem('sortingKeywords') || "DateCreated, PremiereDate, ProductionYear, Random";
-  initSettingsBackgroundSlider();
-  addBackButtonStyles();
-  setupBackButton();
-  updateDisplayOrderVisibility();
-  cssVariantSelect.value = localStorage.getItem('cssVariant') || 'kompak';
-  showCastCheckbox.checked = localStorage.getItem('showCast') !== "false";
-
-  getEl('resetToDefaults').addEventListener('click', function() {
-  if (confirm(labels.resetConfirm)) {
-    const keysToRemove = [
-      'theme', 'showLanguageInfo', 'showRatingInfo', 'showProgressBar', 'showProviderInfo',
-      'showDotNavigation', 'showSettingsLink', 'showLogoOrTitle', 'showTitleOnly',
-      'showDiscOnly', 'showCommunityRating', 'showCriticRating', 'showOfficialRating',
-      'showStatusInfo', 'showTypeInfo', 'showWatchedInfo', 'showRuntimeInfo',
-      'showQualityInfo', 'showQualityDetail', 'showActorInfo', 'showActorImg', 'showActorRole', 'showDescriptions',
-      'showPlotInfo', 'showbPlotInfo', 'showSloganInfo', 'showTitleInfo',
-      'showOriginalTitleInfo', 'customQueryString', 'showDirectorWriter',
-      'showDirector', 'showWriter', 'useListFile', 'sortingKeywords', 'showInfo',
-      'showGenresInfo', 'showYearInfo', 'showCountryInfo', 'sliderDuration',
-      'artistLimit', 'showTrailerButton', 'showTrailerIcon', 'showWatchButton', 'showFavoriteButton',
-      'hideOriginalTitleIfSame', 'manualBackdropSelection', 'gradientOverlayImageType',
-      'backdropImageType', 'dotBackgroundImageType', 'trailerBackgroundImageType',
-      'watchBackgroundImageType', 'favoriBackgroundImageType', 'enableTrailerPlayback',
-      'defaultLanguage', 'limit', 'minHighQualityWidth', 'progressBarWidth',
-      'allowedWriters', 'useManualList', 'manualListIds', 'backdropUrls', 'showPlayedButton', 'gecikmeSure',
-      'showCast', 'muziklimit', 'albumlimit', 'sarkilimit', 'gruplimit', 'id3limit'
+    const languages = [
+        { value: 'tur', label: labels.optionTurkish || '🇹🇷 Türkçe' },
+        { value: 'eng', label: labels.optionEnglish || '🇬🇧 English' },
+        { value: 'deu', label: labels.optionGerman || '🇩🇪 Deutsch' },
+        { value: 'fre', label: labels.optionFrench || '🇫🇷 Français' },
+        { value: 'rus', label: labels.optionRussian || '🇷🇺 Русский' },
     ];
 
-    keysToRemove.forEach(key => localStorage.removeItem(key));
-    let messageDiv = document.getElementById('reset-message');
-    if (!messageDiv) {
-      messageDiv = document.createElement('div');
-      messageDiv.id = 'reset-message';
-      document.body.appendChild(messageDiv);
+    languages.forEach(lang => {
+        const option = document.createElement('option');
+        option.value = lang.value;
+        option.textContent = lang.label;
+        if (lang.value === config.defaultLanguage) {
+            option.selected = true;
+        }
+        languageSelect.appendChild(option);
+    });
+
+    languageDiv.append(languageLabel, languageSelect);
+
+    const cssDiv = document.createElement('div');
+    cssDiv.className = 'fsetting-item';
+    const cssLabel = document.createElement('label');
+    cssLabel.textContent = labels.gorunum || 'CSS Varyantı:';
+    const cssSelect = document.createElement('select');
+    cssSelect.name = 'cssVariant';
+
+    const variants = [
+        { value: 'kompak', label: labels.kompaktslider || 'Kompakt' },
+        { value: 'fullslider', label: labels.tamslider || 'Tam Ekran' },
+    ];
+
+    variants.forEach(variant => {
+        const option = document.createElement('option');
+        option.value = variant.value;
+        option.textContent = variant.label;
+        if (variant.value === config.cssVariant) {
+            option.selected = true;
+        }
+        cssSelect.appendChild(option);
+    });
+
+    cssDiv.append(cssLabel, cssSelect);
+
+    const sliderDiv = document.createElement('div');
+    sliderDiv.className = 'fsetting-item';
+    const sliderLabel = document.createElement('label');
+    sliderLabel.textContent = labels.sliderDuration || 'Slider Süresi (ms):';
+    const sliderInput = document.createElement('input');
+    sliderInput.type = 'number';
+    sliderInput.value = config.sliderDuration || 15000;
+    sliderInput.name = 'sliderDuration';
+    sliderInput.min = 1000;
+    sliderInput.step = 500;
+    sliderDiv.append(sliderLabel, sliderInput);
+
+    const sliderDesc = document.createElement('div');
+    sliderDesc.className = 'description-text';
+    sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
+    sliderDiv.appendChild(sliderDesc);
+
+    sliderDiv.appendChild(createCheckbox('showCast', labels.showCast || 'Chromecast\'ı Göster', config.showCast));
+
+    const showProgressCheckbox = createCheckbox('showProgressBar', labels.progressBar || 'ProgressBar\'ı Göster', config.showProgressBar);
+    sliderDiv.appendChild(showProgressCheckbox);
+
+    const progressWidthDiv = document.createElement('div');
+    progressWidthDiv.className = 'fsetting-item progress-bar-container';
+
+    const progressWidthLabel = document.createElement('label');
+    progressWidthLabel.textContent = labels.progressBarWidthInput || 'İlerleme Çubuğu Genişliği (%):';
+
+    const progressWidthInput = document.createElement('input');
+    progressWidthInput.type = 'number';
+    progressWidthInput.value = (config.progressBarWidth || '100').replace('%', '');
+    progressWidthInput.name = 'progressBarWidth';
+    progressWidthInput.min = 0;
+    progressWidthInput.max = 100;
+    progressWidthInput.step = 1;
+
+    progressWidthDiv.append(progressWidthLabel, progressWidthInput);
+    sliderDiv.appendChild(progressWidthDiv);
+
+    bindCheckboxKontrol('#showProgressBar', '.progress-bar-container', 0.6, [progressWidthInput]);
+
+    const trailerPlaybackCheckbox = createCheckbox(
+        'enableTrailerPlayback',
+        labels.enableTrailerPlayback || 'Yerleşik Fragman Oynatımına İzin Ver',
+        config.enableTrailerPlayback
+    );
+    sliderDiv.appendChild(trailerPlaybackCheckbox);
+
+    const delayDiv = document.createElement('div');
+    delayDiv.className = 'fsetting-item trailer-delay-container';
+    const delayLabel = document.createElement('label');
+    delayLabel.textContent = labels.gecikmeInput || 'Yerleşik Fragman Gecikme Süresi (ms):';
+    const delayInput = document.createElement('input');
+    delayInput.type = 'number';
+    delayInput.value = config.gecikmeSure || 500;
+    delayInput.name = 'gecikmeSure';
+    delayInput.min = 0;
+    delayInput.max = 10000;
+    delayInput.step = 100;
+    delayDiv.append(delayLabel, delayInput);
+    sliderDiv.appendChild(delayDiv);
+
+    const gradientDiv = document.createElement('div');
+    gradientDiv.className = 'fsetting-item gradient-overlay-container';
+    const gradientLabel = document.createElement('label');
+    gradientLabel.textContent = labels.gradientOverlayImageType || 'Yerleşik Fragman Oynatıldığında Gösterilecek Görsel Türü:';
+    const gradientSelect = createImageTypeSelect('gradientOverlayImageType', config.gradientOverlayImageType || 'backdropUrl', true);
+    gradientDiv.append(gradientLabel, gradientSelect);
+    sliderDiv.appendChild(gradientDiv);
+
+    bindCheckboxKontrol('#enableTrailerPlayback', '.trailer-delay-container', 0.6, [delayInput]);
+    bindCheckboxKontrol('#enableTrailerPlayback', '.gradient-overlay-container', 0.6, [gradientSelect]);
+
+    const manualBackdropCheckbox = createCheckbox(
+        'manualBackdropSelection',
+        labels.manualBackdropSelection || 'Slide Arkaplanı Değiştir',
+        config.manualBackdropSelection
+    );
+    sliderDiv.appendChild(manualBackdropCheckbox);
+
+    const backdropDiv = document.createElement('div');
+    backdropDiv.className = 'fsetting-item backdrop-container';
+    const backdropLabel = document.createElement('label');
+    backdropLabel.textContent = labels.slideBackgroundImageType || 'Slider Arka Plan Görsel Türü:';
+    const backdropSelect = createImageTypeSelect('backdropImageType', config.backdropImageType || 'backdropUrl', true);
+    backdropDiv.append(backdropLabel, backdropSelect);
+    sliderDiv.appendChild(backdropDiv);
+
+    const minQualityDiv = document.createElement('div');
+    minQualityDiv.className = 'fsetting-item min-quality-container';
+    const minQualityLabel = document.createElement('label');
+    minQualityLabel.textContent = labels.minHighQualityWidthInput || 'Minimum Genişlik (px):';
+
+    const minQualityInput = document.createElement('input');
+    minQualityInput.type = 'number';
+    minQualityInput.value = config.minHighQualityWidth || 1920;
+    minQualityInput.name = 'minHighQualityWidth';
+    minQualityInput.min = 1;
+
+    const minQualityDesc = document.createElement('div');
+    minQualityDesc.className = 'description-text';
+    minQualityDesc.textContent = labels.minHighQualitydescriptiontext ||
+        'Bu ayar, arkaplan olarak atanacak görselin minimum genişliğini belirler.("Slide Arkaplanı Değiştir" aktif ise çalışmaz. Eğer belirlenen genişlikte görsel yok ise en kalitelisi seçilecektir.)';
+
+    minQualityDiv.append(minQualityLabel, minQualityInput, minQualityDesc);
+    sliderDiv.appendChild(minQualityDiv);
+
+    bindCheckboxKontrol('#manualBackdropSelection', '.backdrop-container', 0.6, [backdropSelect]);
+    bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minQualityInput]);
+
+    const dotNavCheckbox = createCheckbox(
+        'showDotNavigation',
+        labels.showDotNavigation || 'Dot Navigasyonu Göster',
+        config.showDotNavigation
+    );
+        sliderDiv.appendChild(dotNavCheckbox);
+
+    const dotBgDiv = document.createElement('div');
+    dotBgDiv.className = 'fsetting-item dot-bg-container';
+    const dotBgLabel = document.createElement('label');
+    dotBgLabel.textContent = labels.dotBackgroundImageType || 'Dot Arka Plan Görsel Türü:';
+    const dotBgSelect = createImageTypeSelect(
+        'dotBackgroundImageType',
+        config.dotBackgroundImageType || 'useSlideBackground',
+        true,
+        true
+    );
+        dotBgDiv.append(dotBgLabel, dotBgSelect);
+        sliderDiv.appendChild(dotBgDiv);
+
+    bindCheckboxKontrol('#showDotNavigation', '.dot-bg-container', 0.6, [dotBgSelect, dotBgLabel]);
+
+        panel.append(languageDiv, cssDiv, sliderDiv);
+        return panel;
     }
 
-    messageDiv.textContent = labels.resetSuccess || 'Tüm ayarlar sıfırlandı. Sayfa yenileniyor...';
-    messageDiv.style.display = 'block';
+    function createStatusRatingPanel(config, labels) {
+        const panel = document.createElement('div');
+        panel.id = 'status-rating-panel';
+        panel.className = 'settings-panel';
 
+        const statusSection = createSection(labels.showStatusInfo || 'Durum Bilgileri');
+        const statusCheckbox = createCheckbox('showStatusInfo', labels.showStatusInfo || 'Durum Bilgilerini Göster', config.showStatusInfo);
+        statusSection.appendChild(statusCheckbox);
+
+        const statusSubOptions = document.createElement('div');
+        statusSubOptions.className = 'sub-options status-sub-options';
+        statusSubOptions.appendChild(createCheckbox('showTypeInfo', labels.showTypeInfo || 'Medya Türü', config.showTypeInfo));
+        statusSubOptions.appendChild(createCheckbox('showWatchedInfo', labels.showWatchedInfo || 'İzlenme', config.showWatchedInfo));
+        statusSubOptions.appendChild(createCheckbox('showRuntimeInfo', labels.showRuntimeInfo || 'Süre', config.showRuntimeInfo));
+        statusSubOptions.appendChild(createCheckbox('showQualityInfo', labels.showQualityInfo || 'Kalite', config.showQualityInfo));
+
+        const qualityDetailSubOptions = document.createElement('div');
+        qualityDetailSubOptions.className = 'sub-options quality-detail-options';
+        qualityDetailSubOptions.appendChild(createCheckbox('showQualityDetail', labels.showQualityDetail || 'Kalite Detayı', config.showQualityDetail));
+        statusSubOptions.appendChild(qualityDetailSubOptions);
+        statusSection.appendChild(statusSubOptions);
+
+        bindCheckboxKontrol('#showStatusInfo', '.status-sub-options');
+        bindCheckboxKontrol('#showQualityInfo', '.quality-detail-options');
+
+        const ratingSection = createSection(labels.ratingInfoHeader || 'Puan Bilgileri');
+        const ratingCheckbox = createCheckbox('showRatingInfo', labels.ratingInfo || 'Derecelendirmeleri Göster', config.showRatingInfo);
+        ratingSection.appendChild(ratingCheckbox);
+
+        const ratingSubOptions = document.createElement('div');
+        ratingSubOptions.className = 'sub-options rating-sub-options';
+        ratingSubOptions.appendChild(createCheckbox('showCommunityRating', labels.showCommunityRating || 'Topluluk', config.showCommunityRating));
+        ratingSubOptions.appendChild(createCheckbox('showCriticRating', labels.showCriticRating || 'Rotten Tomato', config.showCriticRating));
+        ratingSubOptions.appendChild(createCheckbox('showOfficialRating', labels.showOfficialRating || 'Sertifikasyon', config.showOfficialRating));
+        ratingSection.appendChild(ratingSubOptions);
+
+        bindCheckboxKontrol('#showRatingInfo', '.rating-sub-options');
+
+        const description = document.createElement('div');
+        description.className = 'description-text';
+        description.textContent = labels.statusRatingDescription || 'Bu ayar, içeriğin kalite, izlenme durumu, medya türü, süre ve puanlama bilgilerinin görünürlüğünü kontrol eder.';
+        ratingSection.appendChild(description);
+
+        panel.append(statusSection, ratingSection);
+        return panel;
+    }
+
+    function createActorPanel(config, labels) {
+        const panel = document.createElement('div');
+        panel.id = 'actor-panel';
+        panel.className = 'settings-panel';
+
+        const section = createSection(labels.actorInfo || 'Artist Bilgileri');
+        const actorCheckbox = createCheckbox('showActorInfo', labels.showActorInfo || 'Artist İsimlerini Göster', config.showActorInfo);
+        section.appendChild(actorCheckbox);
+
+        const actorSubOptions = document.createElement('div');
+        actorSubOptions.className = 'sub-options actor-sub-options';
+        actorSubOptions.appendChild(createCheckbox('showActorImg', labels.showActorImg || 'Artist Resimlerini Göster', config.showActorImg));
+        section.appendChild(actorSubOptions);
+
+        const actorRolOptions = document.createElement('div');
+        actorRolOptions.className = 'sub-options actor-rol-options';
+        actorRolOptions.appendChild(createCheckbox('showActorRole', labels.showActorRole || 'Artist Rollerini Göster', config.showActorRole));
+        section.appendChild(actorRolOptions);
+
+        const artistLimitDiv = document.createElement('div');
+        artistLimitDiv.className = 'setting-item artist-limit-container';
+        const artistLimitLabel = document.createElement('label');
+        artistLimitLabel.textContent = labels.artistLimit || 'Gösterilecek Aktör Sayısı:';
+        const artistLimitInput = document.createElement('input');
+        artistLimitInput.type = 'number';
+        artistLimitInput.value = config.artistLimit || 3;
+        artistLimitInput.name = 'artistLimit';
+        artistLimitInput.min = 1;
+        artistLimitInput.step = 1;
+        artistLimitDiv.append(artistLimitLabel, artistLimitInput);
+        section.appendChild(artistLimitDiv);
+
+        const description = document.createElement('div');
+        description.className = 'description-text';
+        description.textContent = labels.actorInfoDescription || 'Bu ayar, içeriğin ilk 3 artist bilgilerinin görünürlüğünü kontrol eder.';
+        section.appendChild(description);
+
+        panel.appendChild(section);
+        return panel;
+    }
+
+    function createDirectorPanel(config, labels) {
+        const panel = document.createElement('div');
+        panel.id = 'director-panel';
+        panel.className = 'settings-panel';
+
+        const section = createSection(labels.directorWriter || 'Yönetmen ve Yazar Ayarları');
+        const directorCheckbox = createCheckbox('showDirectorWriter', labels.showDirectorWriter || 'Yönetmen ve Yazar Bilgilerini Göster', config.showDirectorWriter);
+        section.appendChild(directorCheckbox);
+
+        const subOptions = document.createElement('div');
+        subOptions.className = 'sub-options director-sub-options';
+        subOptions.appendChild(createCheckbox('showDirector', labels.showDirector || 'Yönetmen', config.showDirector));
+        subOptions.appendChild(createCheckbox('showWriter', labels.showWriter || 'Yazar', config.showWriter));
+        section.appendChild(subOptions);
+
+        bindCheckboxKontrol('#showDirectorWriter', '.director-sub-options');
+
+        const description = document.createElement('div');
+        description.className = 'description-text';
+        description.textContent = labels.directorWriterDescription || 'Bu ayar, içeriğin yazar ve yönetmen görünürlüğünü kontrol eder. (Yazar bilgisi sadece aşağıdaki listede var ise)';
+        section.appendChild(description);
+
+        const writersHeader = document.createElement('h2');
+        writersHeader.textContent = labels.writersListHeader || 'Yazarlar Listesi';
+        section.appendChild(writersHeader);
+
+        const writersDiv = document.createElement('div');
+        writersDiv.className = 'setting-item writersLabel';
+        const writersLabel = document.createElement('label');
+        writersLabel.textContent = labels.writersListLabel || 'İsimleri virgül ile ayırınız:';
+        const writersInput = document.createElement('textarea');
+        writersInput.id = 'allowedWritersInput';
+        writersInput.name = 'allowedWriters';
+        writersInput.rows = 4;
+        writersInput.placeholder = labels.writersListPlaceholder || 'Örnek: Quentin TARANTINO, Nuri Bilge CEYLAN';
+        writersInput.value = config.allowedWriters ? config.allowedWriters.join(', ') : '';
+        writersDiv.append(writersLabel, writersInput);
+        section.appendChild(writersDiv);
+
+        panel.appendChild(section);
+        return panel;
+    }
+
+function createMusicPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'music-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.gmmpSettings || 'GMMP Ayarları');
+
+    const musicLimitDiv = document.createElement('div');
+    musicLimitDiv.className = 'setting-item';
+    const musicLimitLabel = document.createElement('label');
+    musicLimitLabel.textContent = labels.muziklimit || 'Oynatma Listesi Öğe Sayısı:';
+    const musicLimitInput = document.createElement('input');
+    musicLimitInput.type = 'number';
+    musicLimitInput.value = config.muziklimit || 30;
+    musicLimitInput.name = 'muziklimit';
+    musicLimitInput.min = 1;
+    musicLimitInput.max = 9999;
+    musicLimitDiv.append(musicLimitLabel, musicLimitInput);
+    section.appendChild(musicLimitDiv);
+
+    const songLimitDiv = document.createElement('div');
+    songLimitDiv.className = 'setting-item';
+    const songLimitLabel = document.createElement('label');
+    songLimitLabel.textContent = labels.sarkilimit || 'Sayfa başına şarkı sayısı:';
+    const songLimitInput = document.createElement('input');
+    songLimitInput.type = 'number';
+    songLimitInput.value = config.sarkilimit || 200;
+    songLimitInput.name = 'sarkilimit';
+    songLimitInput.min = 1;
+    songLimitInput.max = 9999;
+    songLimitDiv.append(songLimitLabel, songLimitInput);
+    section.appendChild(songLimitDiv);
+
+    const id3LimitDiv = document.createElement('div');
+    id3LimitDiv.className = 'setting-item';
+    const id3LimitLabel = document.createElement('label');
+    id3LimitLabel.textContent = labels.id3limit || 'Gruplama Limiti:';
+    id3LimitLabel.title = labels.id3limitTitle || 'Id3 etiket sorgulamanın eş zamanlı olarak kaç tane yapılacağı belirleyen değer';
+    const id3LimitInput = document.createElement('input');
+    id3LimitInput.type = 'number';
+    id3LimitInput.value = config.id3limit || 5;
+    id3LimitInput.name = 'id3limit';
+    id3LimitInput.min = 1;
+    id3LimitInput.max = 200;
+    id3LimitInput.title = labels.id3limitTitle || 'Id3 etiket sorgulamanın eş zamanlı olarak kaç tane yapılacağı belirleyen değer';
+    id3LimitDiv.append(id3LimitLabel, id3LimitInput);
+    section.appendChild(id3LimitDiv);
+
+    const albumLimitDiv = document.createElement('div');
+    albumLimitDiv.className = 'setting-item';
+    const albumLimitLabel = document.createElement('label');
+    albumLimitLabel.textContent = labels.albumlimit || 'Sayfa başına albüm sayısı:';
+    const albumLimitInput = document.createElement('input');
+    albumLimitInput.type = 'number';
+    albumLimitInput.value = config.albumlimit || 20;
+    albumLimitInput.name = 'albumlimit';
+    albumLimitInput.min = 1;
+    albumLimitInput.max = 9999;
+    albumLimitDiv.append(albumLimitLabel, albumLimitInput);
+    section.appendChild(albumLimitDiv);
+
+    const groupLimitDiv = document.createElement('div');
+    groupLimitDiv.className = 'setting-item';
+    const groupLimitLabel = document.createElement('label');
+    groupLimitLabel.textContent = labels.gruplimit || 'Gruplama Limiti:';
+    groupLimitLabel.title = labels.gruplimitTitle || 'Mevcut oynatma listesine ekleme yapılırken gruplama limiti';
+    const groupLimitInput = document.createElement('input');
+    groupLimitInput.type = 'number';
+    groupLimitInput.value = config.gruplimit || 100;
+    groupLimitInput.name = 'gruplimit';
+    groupLimitInput.min = 1;
+    groupLimitInput.max = 400;
+    groupLimitInput.title = labels.gruplimitTitle || 'Mevcut oynatma listesine ekleme yapılırken gruplama limiti';
+    groupLimitDiv.append(groupLimitLabel, groupLimitInput);
+    section.appendChild(groupLimitDiv);
+    panel.appendChild(section);
+    return panel;
+}
+
+function createQueryPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'query-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.queryStringInput || 'Api Sorgu Parametresi');
+    const randomContentDiv = document.createElement('div');
+    const randomContentCheckbox = createCheckbox(
+        'useRandomContent',
+        labels.useRandomContent || 'Rastgele İçerik',
+        false
+    );
+    randomContentDiv.appendChild(randomContentCheckbox);
+    section.appendChild(randomContentDiv);
+
+    const useListFileCheckbox = createCheckbox(
+      'useListFile',
+      labels.useListFile || 'list.txt kullan',
+      config.useListFile
+    );
+    section.appendChild(useListFileCheckbox);
+
+    const manualListDiv = document.createElement('div');
+    manualListDiv.className = 'form-group';
+    const useManualListCheckbox = createCheckbox(
+      'useManualList',
+      labels.useManualList || 'Özel Liste Hazırla',
+      config.useManualList
+    );
+    manualListDiv.appendChild(useManualListCheckbox);
+
+    const manualListIdsDiv = document.createElement('div');
+    manualListIdsDiv.className = 'form-group manual-list-container';
+    manualListIdsDiv.id = 'manualListIdsContainer';
+    manualListIdsDiv.style.display = config.useManualList ? 'block' : 'none';
+
+    const manualListIdsLabel = document.createElement('label');
+    manualListIdsLabel.textContent = labels.manualListIdsInput || 'İçerik ID\'leri (virgülle ayırın):';
+
+    const manualListIdsInput = document.createElement('textarea');
+    manualListIdsInput.className = 'form-control';
+    manualListIdsInput.rows = 4;
+    manualListIdsInput.name = 'manualListIds';
+    manualListIdsInput.value = config.manualListIds || '';
+
+    manualListIdsDiv.append(manualListIdsLabel, manualListIdsInput);
+
+    section.appendChild(manualListDiv);
+    section.appendChild(manualListIdsDiv);
+
+    const limitDiv = document.createElement('div');
+    limitDiv.className = 'setting-item limit-container';
+
+    const limitLabel = document.createElement('label');
+    limitLabel.textContent = labels.limit || 'Slider Limiti:';
+
+    const limitInput = document.createElement('input');
+    limitInput.type = 'number';
+    limitInput.value = typeof config.limit !== 'undefined' ? config.limit : 20;
+    limitInput.name = 'limit';
+    limitInput.min = 1;
+    limitInput.max = 100;
+
+    limitDiv.append(limitLabel, limitInput);
+    section.appendChild(limitDiv);
+
+    const queryStringHeader = document.createElement('h3');
+    const queryStringLabel = document.createElement('label');
+    queryStringLabel.className = 'customQueryStringInput query-string-label';
+    queryStringLabel.textContent = labels.customQueryString || 'Api Sorgu Dizesi:';
+    queryStringHeader.appendChild(queryStringLabel);
+    section.appendChild(queryStringHeader);
+
+    const queryStringDesc = document.createElement('div');
+    queryStringDesc.className = 'description-text';
+    queryStringDesc.textContent = labels.customQueryStringNote ||
+      '(Ne yaptığınız hakkında fikriniz yok ise bu alanı değiştirmeyin ve sadece list.txt kullanılmadıkça etkin olduğunu unutmayın.)';
+    section.appendChild(queryStringDesc);
+
+    const queryStringTextarea = document.createElement('textarea');
+    queryStringTextarea.id = 'customQueryStringInput';
+    queryStringTextarea.className = 'query-string-input';
+    queryStringTextarea.rows = 4;
+    queryStringTextarea.name = 'customQueryString';
+    queryStringTextarea.placeholder = labels.customQueryStringPlaceholder ||
+      'Örnek: IncludeItemTypes=Movie&hasOverview=true&imageTypes=Backdrop';
+    queryStringTextarea.value = config.customQueryString ||
+                               config.listcustomQueryString;
+    section.appendChild(queryStringTextarea);
+
+    const sortingLabel = document.createElement('label');
+    sortingLabel.textContent = labels.sortingKeywords || 'Anahtar Kelimeler (virgül ile ayırınız)';
+    section.appendChild(sortingLabel);
+
+    const sortingTextarea = document.createElement('textarea');
+    sortingTextarea.id = 'sortingKeywordsInput';
+    sortingTextarea.name = 'sortingKeywords';
+    sortingTextarea.placeholder = 'DateCreated,PremiereDate,ProductionYear';
+    sortingTextarea.value = config.sortingKeywords || '';
+    section.appendChild(sortingTextarea);
+
+    const finalDesc = document.createElement('div');
+    finalDesc.className = 'description-text';
+    finalDesc.innerHTML = labels.customQueryStringDescription ||
+      'Bu ayar, slider için özel bir sorgu dizesi belirlemenizi sağlar. Tanımlı \'IncludeItemTypes\' itemleri: Movie, BoxSet ve Series\'dir. Anahtar Kelimeler alanı ise karıştırma yapılmaması gereken değerler içindir. Detaylar İçin <a href="https://api.jellyfin.org" target="_blank">burayı ziyaret edin.</a>.';
+    section.appendChild(finalDesc);
+
+    function handleSelection(selectedCheckbox) {
+        const checkboxes = [
+            randomContentCheckbox.querySelector('input'),
+            useListFileCheckbox.querySelector('input'),
+            useManualListCheckbox.querySelector('input')
+        ];
+
+        checkboxes.forEach(cb => {
+            if (cb !== selectedCheckbox) cb.checked = false;
+        });
+
+        const isRandom = (selectedCheckbox === checkboxes[0]);
+        queryStringTextarea.disabled = !isRandom;
+        limitInput.disabled = !isRandom;
+        sortingTextarea.disabled = !isRandom;
+        queryStringLabel.style.opacity = isRandom ? '1' : '0.6';
+
+        manualListIdsDiv.style.display = (selectedCheckbox === checkboxes[2]) ? 'flex' : 'none';
+        manualListIdsInput.disabled = (selectedCheckbox !== checkboxes[2]);
+    }
+
+    [randomContentCheckbox, useListFileCheckbox, useManualListCheckbox].forEach(chkDiv => {
+        chkDiv.querySelector('input').addEventListener('change', function() {
+            if (this.checked) handleSelection(this);
+        });
+    });
+
+    if (config.useListFile) {
+        useListFileCheckbox.querySelector('input').checked = true;
+        handleSelection(useListFileCheckbox.querySelector('input'));
+    } else if (config.useManualList) {
+        useManualListCheckbox.querySelector('input').checked = true;
+        handleSelection(useManualListCheckbox.querySelector('input'));
+    } else {
+        randomContentCheckbox.querySelector('input').checked = true;
+        handleSelection(randomContentCheckbox.querySelector('input'));
+    }
+
+    panel.appendChild(section);
+    return panel;
+}
+
+
+function createLanguagePanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'language-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.languageInfoHeader || 'Ses ve Altyazı Bilgileri');
+    section.appendChild(createCheckbox('showLanguageInfo', labels.languageInfo || 'Ses ve Altyazı Bilgilerini Göster', config.showLanguageInfo));
+
+    const description = document.createElement('div');
+    description.className = 'description-text';
+    description.textContent = labels.languageInfoDescription || 'Bu ayar aktifleştirildiğinde seçilen dile ait ses bilgileri içerikte mevcut ise yazdırılır. Dilinize ait ses bulunamazsa altyazı bilgileri aranır. Dilinize ait altyazı mevcut ise bilgi yazdırır.';
+    section.appendChild(description);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+function createLogoTitlePanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'logo-title-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.logoOrTitleHeader || 'Logo / Başlık Ayarları');
+    const logoCheckbox = createCheckbox('showLogoOrTitle', labels.showLogoOrTitle || 'Logo Görselini Göster', config.showLogoOrTitle);
+    section.appendChild(logoCheckbox);
+
+    const displayOrderDiv = document.createElement('div');
+    displayOrderDiv.className = 'sub-options logo-sub-options';
+    displayOrderDiv.id = 'displayOrderContainer';
+    const displayOrderLabel = document.createElement('label');
+    const displayOrderSpan = document.createElement('span');
+    displayOrderSpan.textContent = labels.displayOrderlabel || 'Görüntüleme Sırası:';
+    const displayOrderInput = document.createElement('input');
+    displayOrderInput.type = 'text';
+    displayOrderInput.id = 'displayOrderInput';
+    displayOrderInput.name = 'displayOrder';
+    displayOrderInput.placeholder = 'logo,disk,originalTitle';
+    displayOrderInput.value = config.displayOrder || '';
+    const displayOrderSmall = document.createElement('small');
+    displayOrderSmall.textContent = labels.displayOrderhelp || '(Örnek: logo,disk,originalTitle)';
+    displayOrderLabel.append(displayOrderSpan, displayOrderInput, displayOrderSmall);
+    displayOrderDiv.appendChild(displayOrderLabel);
+    section.appendChild(displayOrderDiv);
+
+    const titleOnlyCheckbox = createCheckbox('showTitleOnly', labels.showTitleOnly || 'Logo Yerine Orijinal Başlık Göster', config.showTitleOnly);
+    const titleOnlyDiv = document.createElement('div');
+    titleOnlyDiv.className = 'sub-options title-sub-options';
+    titleOnlyDiv.id = 'showTitleOnlyLabel';
+    titleOnlyDiv.appendChild(titleOnlyCheckbox);
+    section.appendChild(titleOnlyDiv);
+
+    const discOnlyCheckbox = createCheckbox('showDiscOnly', labels.showDiscOnly || 'Logo Yerine Disk Görseli Göster', config.showDiscOnly);
+    const discOnlyDiv = document.createElement('div');
+    discOnlyDiv.className = 'sub-options disc-sub-options';
+    discOnlyDiv.id = 'showDiscOnlyLabel';
+    discOnlyDiv.appendChild(discOnlyCheckbox);
+    section.appendChild(discOnlyDiv);
+
+    function setupMutuallyExclusive(checkbox1, checkbox2) {
+        const cb1 = checkbox1.querySelector('input');
+        const cb2 = checkbox2.querySelector('input');
+
+        cb1.addEventListener('change', function() {
+            if (this.checked) {
+                cb2.checked = false;
+            }
+        });
+
+        cb2.addEventListener('change', function() {
+            if (this.checked) {
+                cb1.checked = false;
+            }
+        });
+    }
+
+    setupMutuallyExclusive(titleOnlyCheckbox, discOnlyCheckbox);
+
+    bindCheckboxKontrol('#showLogoOrTitle', '.logo-sub-options');
+    bindTersCheckboxKontrol('#showLogoOrTitle', '.title-sub-options');
+    bindTersCheckboxKontrol('#showLogoOrTitle', '.disc-sub-options');
+
+    if (titleOnlyCheckbox.querySelector('input').checked && discOnlyCheckbox.querySelector('input').checked) {
+        discOnlyCheckbox.querySelector('input').checked = false;
+    }
+
+    const description = document.createElement('div');
+    description.className = 'description-text';
+    description.textContent = labels.logoOrTitleDescription || 'Bu ayar, slider üzerinde logo veya orijinal başlık görünürlüğünü kontrol eder.';
+    section.appendChild(description);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+function createDescriptionPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'description-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.descriptionsHeader || 'Açıklama Ayarları');
+    const descCheckbox = createCheckbox('showDescriptions', labels.showDescriptions || 'Bilgileri Göster', config.showDescriptions);
+    section.appendChild(descCheckbox);
+
+    const subOptions = document.createElement('div');
+    subOptions.className = 'sub-options desc-sub-options';
+    subOptions.appendChild(createCheckbox('showSloganInfo', labels.showSloganInfo || 'Slogan', config.showSloganInfo));
+    subOptions.appendChild(createCheckbox('showTitleInfo', labels.showTitleInfo || 'Başlık', config.showTitleInfo));
+    subOptions.appendChild(createCheckbox('showOriginalTitleInfo', labels.showOriginalTitleInfo || 'Orijinal Başlık', config.showOriginalTitleInfo));
+
+    const hideIfSameWrapper = document.createElement('div');
+    hideIfSameWrapper.className = 'hide-original-if-same-wrapper';
+    hideIfSameWrapper.appendChild(createCheckbox('hideOriginalTitleIfSame', labels.hideOriginalTitleIfSame || 'Başlık ile Aynı İse Orijinal Başlığı Gösterme', config.hideOriginalTitleIfSame));
+    subOptions.appendChild(hideIfSameWrapper);
+
+    subOptions.appendChild(createCheckbox('showPlotInfo', labels.showPlotInfo || 'Konu Metni', config.showPlotInfo));
+
+    const plotOnlyDiv = document.createElement('div');
+    plotOnlyDiv.className = 'sub-options plot-sub-options';
+    plotOnlyDiv.id = 'showPlotOnlyLabel';
+    plotOnlyDiv.appendChild(createCheckbox('showbPlotInfo', labels.showbPlotInfo || 'Konu Başlığı', config.showbPlotInfo));
+    subOptions.appendChild(plotOnlyDiv);
+
+    section.appendChild(subOptions);
+
+    bindCheckboxKontrol('#showDescriptions', '.desc-sub-options');
+    bindCheckboxKontrol('#showPlotInfo', '.plot-sub-options');
+    bindCheckboxKontrol('#showOriginalTitleInfo', '.hide-original-if-same-wrapper');
+
+    const description = document.createElement('div');
+    description.className = 'description-text';
+    description.textContent = labels.descriptionsDescription || 'Bu ayar, içeriğin konu, slogan, başlık ve orijinal başlık bilgilerinin görünürlüğünü kontrol eder.';
+    section.appendChild(description);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+
+function createProviderPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'provider-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.providerHeader || 'Dış Bağlantılar / Sağlayıcı Ayarları');
+    section.appendChild(createCheckbox('showProviderInfo', labels.showProviderInfo || 'Metaveri Bağlantıları Göster', config.showProviderInfo));
+
+    const settingsLinkDiv = document.createElement('div');
+    settingsLinkDiv.id = 'settingsLinkContainer';
+    settingsLinkDiv.appendChild(createCheckbox('showSettingsLink', labels.showSettingsLink || 'Ayarlar Kısayolunu Göster', config.showSettingsLink));
+    section.appendChild(settingsLinkDiv);
+
+    const trailerIconDiv = document.createElement('div');
+    trailerIconDiv.appendChild(createCheckbox('showTrailerIcon', labels.showTrailerIcon || 'Fragman İkonunu Göster', config.showTrailerIcon));
+    section.appendChild(trailerIconDiv);
+
+    const description = document.createElement('div');
+    description.className = 'description-text';
+    description.textContent = labels.providerDescription || 'Bu ayar, metaveri bağlantılarının görünürlüğünü kontrol eder.';
+    section.appendChild(description);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+function createAboutPanel(labels) {
+    const panel = document.createElement('div');
+    panel.id = 'about-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection('JELLYFIN MEDIA SLIDER');
+
+    const info = document.createElement('div');
+    info.className = 'ggrbz-info';
+    info.textContent = labels.aboutHeader || 'Hakkında';
+    section.appendChild(info);
+
+    const aboutContent = document.createElement('div');
+    aboutContent.className = 'about-content';
+
+    const creatorInfo = document.createElement('p');
+    creatorInfo.textContent = ` G-GRBZ ${labels.aboutCreator || 'Tarafından Hazarlanmıştır'}`;
+    creatorInfo.style.fontWeight = 'bold';
+    creatorInfo.style.marginBottom = '20px';
+
+    const supportInfo = document.createElement('p');
+    supportInfo.textContent = labels.aboutSupport || 'Öneri, istek veya sorunlar için:';
+    supportInfo.style.marginBottom = '10px';
+
+    const githubLink = document.createElement('a');
+    githubLink.href = 'https://github.com/G-grbz/';
+    githubLink.target = '_blank';
+    githubLink.textContent = labels.aboutGithub || 'GitHub: https://github.com/G-grbz/';
+    githubLink.style.display = 'block';
+    githubLink.style.marginBottom = '10px';
+    githubLink.style.color = '#00a8ff';
+
+    const emailLink = document.createElement('a');
+    emailLink.href = 'mailto:gkhn.gurbuz@hotmail.com';
+    emailLink.innerHTML = `${labels.aboutEmail || 'E Posta:'} gkhn.gurbuz@hotmail.com`;
+    emailLink.style.display = 'block';
+    emailLink.style.color = '#00a8ff';
+
+    aboutContent.append(creatorInfo, supportInfo, githubLink, emailLink);
+    section.appendChild(aboutContent);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+function createButtonsPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'buttons-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.buttons || 'Buton Ayarları');
+
+    const trailerButtonDiv = document.createElement('div');
+    trailerButtonDiv.appendChild(createCheckbox('showTrailerButton', labels.showTrailerButton || 'Fragman Butonunu Göster', config.showTrailerButton));
+    section.appendChild(trailerButtonDiv);
+
+    const trailerBgDiv = document.createElement('div');
+    trailerBgDiv.className = 'setting-item trailer-bg-container';
+    const trailerBgLabel = document.createElement('label');
+    trailerBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
+    const trailerBgSelect = createImageTypeSelect('trailerBackgroundImageType', config.trailerBackgroundImageType || 'backdropUrl', true);
+    trailerBgDiv.append(trailerBgLabel, trailerBgSelect);
+    section.appendChild(trailerBgDiv);
+
+    bindCheckboxKontrol('#showTrailerButton', '.trailer-bg-container', 0.6, [trailerBgSelect]);
+
+    const watchButtonDiv = document.createElement('div');
+    watchButtonDiv.appendChild(createCheckbox('showWatchButton', labels.showWatchButton || 'İzle Butonunu Göster', config.showWatchButton));
+    section.appendChild(watchButtonDiv);
+
+    const watchBgDiv = document.createElement('div');
+    watchBgDiv.className = 'setting-item watch-bg-container';
+    const watchBgLabel = document.createElement('label');
+    watchBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
+    const watchBgSelect = createImageTypeSelect('watchBackgroundImageType', config.watchBackgroundImageType || 'backdropUrl', true);
+    watchBgDiv.append(watchBgLabel, watchBgSelect);
+    section.appendChild(watchBgDiv);
+
+    bindCheckboxKontrol('#showWatchButton', '.watch-bg-container', 0.6, [watchBgSelect]);
+
+    const favoriteButtonDiv = document.createElement('div');
+    favoriteButtonDiv.appendChild(createCheckbox('showFavoriteButton', labels.showFavoriteButton || 'Favori Butonunu Göster', config.showFavoriteButton));
+    section.appendChild(favoriteButtonDiv);
+
+    const favoriBgDiv = document.createElement('div');
+    favoriBgDiv.className = 'setting-item favorite-bg-container';
+    const favoriBgLabel = document.createElement('label');
+    favoriBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
+    const favoriBgSelect = createImageTypeSelect('favoriBackgroundImageType', config.favoriBackgroundImageType || 'backdropUrl', true);
+    favoriBgDiv.append(favoriBgLabel, favoriBgSelect);
+    section.appendChild(favoriBgDiv);
+
+    bindCheckboxKontrol('#showFavoriteButton', '.favorite-bg-container', 0.6, [favoriBgSelect]);
+
+    const playedButtonDiv = document.createElement('div');
+    playedButtonDiv.appendChild(createCheckbox('showPlayedButton', labels.showPlayedButton || 'İzlenme Durumu Kontrol Butonunu Göster', config.showPlayedButton));
+    section.appendChild(playedButtonDiv);
+
+    const playedBgDiv = document.createElement('div');
+    playedBgDiv.className = 'setting-item played-bg-container';
+    const playedBgLabel = document.createElement('label');
+    playedBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
+    const playedBgSelect = createImageTypeSelect('playedBackgroundImageType', config.playedBackgroundImageType || 'backdropUrl', true);
+    playedBgDiv.append(playedBgLabel, playedBgSelect);
+    section.appendChild(playedBgDiv);
+
+    bindCheckboxKontrol('#showPlayedButton', '.played-bg-container', 0.6, [playedBgSelect]);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+function createInfoPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'info-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.infoHeader || 'Tür, Yıl ve Ülke Bilgileri');
+    const infoCheckbox = createCheckbox('showInfo', labels.showInfo || 'Tür, Yıl ve Ülke Bilgilerini Göster', config.showInfo);
+    section.appendChild(infoCheckbox);
+
+    const subOptions = document.createElement('div');
+    subOptions.className = 'sub-options info-sub-options';
+    subOptions.appendChild(createCheckbox('showGenresInfo', labels.showGenresInfo || 'Tür', config.showGenresInfo));
+    subOptions.appendChild(createCheckbox('showYearInfo', labels.showYearInfo || 'Yıl', config.showYearInfo));
+    subOptions.appendChild(createCheckbox('showCountryInfo', labels.showCountryInfo || 'Ülke', config.showCountryInfo));
+    section.appendChild(subOptions);
+
+    bindCheckboxKontrol('#showInfo', '.info-sub-options');
+
+    const description = document.createElement('div');
+    description.className = 'description-text';
+    description.textContent = labels.infoDescription || 'Bu ayar, içeriğin türü, yapım yılı ve yapımcı ülke bilgilerinin görünürlüğünü kontrol eder.';
+    section.appendChild(description);
+
+    panel.appendChild(section);
+    return panel;
+}
+
+function createTab(id, label, isActive = false) {
+    const tab = document.createElement('div');
+    tab.className = `settings-tab ${isActive ? 'active' : ''}`;
+    tab.setAttribute('data-tab', id);
+    tab.textContent = label;
+    return tab;
+}
+
+function createSection(title) {
+    const section = document.createElement('div');
+    section.className = 'settings-section';
+
+    if (title) {
+        const sectionTitle = document.createElement('h3');
+        sectionTitle.textContent = title;
+        section.appendChild(sectionTitle);
+    }
+
+    return section;
+}
+
+function createCheckbox(name, label, isChecked) {
+    const container = document.createElement('div');
+    container.className = 'setting-item';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.name = name;
+    checkbox.id = name;
+
+    const storedValue = localStorage.getItem(name);
+    if (storedValue !== null) {
+        checkbox.checked = storedValue === 'true';
+    } else {
+        checkbox.checked = isChecked !== false;
+    }
+
+    const checkboxLabel = document.createElement('label');
+    checkboxLabel.htmlFor = name;
+    checkboxLabel.textContent = label;
+
+    container.append(checkbox, checkboxLabel);
+    return container;
+}
+
+function createImageTypeSelect(name, selectedValue, includeExtended = false, includeUseSlide = false) {
+    const select = document.createElement('select');
+    select.name = name;
+
+    const config = getConfig();
+    const currentLang = config.defaultLanguage || getDefaultLanguage();
+    const labels = getLanguageLabels(currentLang) || {};
+
+    const options = [
+        {
+            value: 'none',
+            label: labels.imageTypeNone || 'Hiçbiri'
+        },
+        {
+            value: 'backdropUrl',
+            label: labels.imageTypeBackdrop || 'Backdrop Görseli'
+        },
+        {
+            value: 'landscapeUrl',
+            label: labels.imageTypeLandscape || 'Landscape Görseli'
+        },
+        {
+            value: 'primaryUrl',
+            label: labels.imageTypePoster || 'Poster Görseli'
+        },
+        {
+            value: 'logoUrl',
+            label: labels.imageTypeLogo || 'Logo Görseli'
+        },
+        {
+            value: 'bannerUrl',
+            label: labels.imageTypeBanner || 'Banner Görseli'
+        },
+        {
+            value: 'artUrl',
+            label: labels.imageTypeArt || 'Art Görseli'
+        },
+        {
+            value: 'discUrl',
+            label: labels.imageTypeDisc || 'Disk Görseli'
+        }
+    ];
+
+    const storedValue = localStorage.getItem(name);
+    const finalSelectedValue = storedValue !== null ? storedValue : selectedValue;
+
+    options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.label;
+        if (option.value === finalSelectedValue) {
+            optionElement.selected = true;
+        }
+        select.appendChild(optionElement);
+    });
+
+    return select;
+}
+
+function bindCheckboxKontrol(
+    mainCheckboxSelector,
+    subContainerSelector,
+    disabledOpacity = 0.5,
+    additionalElements = []
+) {
     setTimeout(() => {
-      location.reload();
-    }, 2000);
-  }
-});
+        const mainCheckbox = document.querySelector(mainCheckboxSelector);
+        const subContainer = document.querySelector(subContainerSelector);
 
+        if (!mainCheckbox) return;
+        const allElements = [];
+        if (subContainer) {
+            allElements.push(
+                ...subContainer.querySelectorAll('input'),
+                ...subContainer.querySelectorAll('select'),
+                ...subContainer.querySelectorAll('textarea'),
+                ...subContainer.querySelectorAll('label')
+            );
+        }
+        additionalElements.forEach(el => el && allElements.push(el));
 
-  const defaultWriters = [
-    "quentin tarantino",
-    "nuri bilge ceylan",
-    "zeki demirkubuz",
-    "yavuz turgul",
-    "stephen king",
-    "martin scorsese",
-    "j.r.r. tolkien",
-    "andrew kevin walker",
-    "christopher nolan",
-    "thomas harris"
-  ];
-  let storedWriters = [];
-  try {
-    const stored = localStorage.getItem('allowedWriters');
-    storedWriters = stored ? JSON.parse(stored) : [];
-  } catch (e) {
-    storedWriters = [];
-  }
-  allowedWritersInput.value = [...new Set([...defaultWriters, ...storedWriters])].join(', ');
+        const updateElementsState = () => {
+            const isMainChecked = mainCheckbox.checked;
 
-  ["showCommunityRatingCheckbox", "showCriticRatingCheckbox", "showOfficialRatingCheckbox",
-   "showTypeInfoCheckbox", "showWatchedInfoCheckbox", "showRuntimeInfoCheckbox",
-   "showQualityInfoCheckbox", "showQualityDetailCheckbox", "showSloganInfoCheckbox",
-   "showTitleInfoCheckbox", "showOriginalTitleInfoCheckbox"].forEach(id => {
-    getEl(id).checked = localStorage.getItem(id.replace("Checkbox", "")) !== "false";
-  });
-  showDirectorWriterCheckbox.checked = localStorage.getItem("showDirectorWriter") !== "false";
-  showDirectorCheckbox.checked = localStorage.getItem("showDirector") !== "false";
-  showWriterCheckbox.checked = localStorage.getItem("showWriter") !== "false";
-  showInfoCheckbox.checked = localStorage.getItem("showInfo") !== "false";
-  showGenresInfoCheckbox.checked = localStorage.getItem("showGenresInfo") !== "false";
-  showYearInfoCheckbox.checked = localStorage.getItem("showYearInfo") !== "false";
-  showCountryInfoCheckbox.checked = localStorage.getItem("showCountryInfo") !== "false";
-  sliderDurationInput.value = localStorage.getItem("sliderDuration") || 15000;
-  artistLimitInput.value = localStorage.getItem("artistLimit") || 8;
-  limitInput.value = localStorage.getItem("limit") || 10;
-  muziklimitInput.value = localStorage.getItem("muziklimit") || 30;
-  sarkilimitInput.value = localStorage.getItem("sarkilimit") || 200;
-  albumlimitInput.value = localStorage.getItem("albumlimit") || 20;
-  gruplimitInput.value = localStorage.getItem("gruplimit") || 100;
-  id3limitInput.value = localStorage.getItem("id3limit") || 5;
-  gecikmeSureInput.value = localStorage.getItem("gecikmeSure") || 500;
+            allElements.forEach(element => {
+                if (element.tagName === 'LABEL') {
+                    element.style.opacity = isMainChecked ? '1' : disabledOpacity;
+                } else {
+                    element.disabled = !isMainChecked;
+                    element.style.opacity = isMainChecked ? '1' : disabledOpacity;
+                }
+            });
+            if (subContainer) {
+                subContainer.style.opacity = isMainChecked ? '1' : disabledOpacity;
+                subContainer.classList.toggle('disabled', !isMainChecked);
+            }
+        };
+        updateElementsState();
+        mainCheckbox.addEventListener('change', updateElementsState);
+    }, 50);
+}
 
-  updateGroup(showStatusInfoCheckbox, statusSubOptions);
-  updateGroup(ratingCheckbox, ratingSubOptions);
-  updateGroup(descriptionsCheckbox, descriptionsSubOptions);
-  updateGroup(showDirectorWriterCheckbox, directorWriterSubOptions);
-  updateGroup(showInfoCheckbox, infoSubOptions);
-  updateGroup(languageCheckbox, defaultLanguageSelect);
-  updateTitleOnlyVisibility();
-  updatePlotOnlyVisibility();
-  updateProviderSettingsVisibility();
-  updateQualityDetailOnlyVisibility();
+function bindTersCheckboxKontrol(
+    mainCheckboxSelector,
+    targetContainerSelector,
+    disabledOpacity = 0.6,
+    targetElements = []
+) {
+    setTimeout(() => {
+        const mainCheckbox = document.querySelector(mainCheckboxSelector);
+        const targetContainer = document.querySelector(targetContainerSelector);
 
-  showStatusInfoCheckbox.addEventListener("change", () => updateGroup(showStatusInfoCheckbox, statusSubOptions));
-  ratingCheckbox.addEventListener("change", () => updateGroup(ratingCheckbox, ratingSubOptions));
-  descriptionsCheckbox.addEventListener("change", () => updateGroup(descriptionsCheckbox, descriptionsSubOptions));
-  showDirectorWriterCheckbox.addEventListener("change", () => updateGroup(showDirectorWriterCheckbox, directorWriterSubOptions));
-  showInfoCheckbox.addEventListener("change", () => updateGroup(showInfoCheckbox, infoSubOptions));
-  showLogoOrTitleCheckbox.addEventListener("change", updateTitleOnlyVisibility);
-  plotInfoCheckbox.addEventListener("change", updatePlotOnlyVisibility);
-  getEl("showQualityInfoCheckbox").addEventListener("change", updateQualityDetailOnlyVisibility);
-  languageCheckbox.addEventListener("change", () => updateGroup(languageCheckbox, defaultLanguageSelect));
+        if (!mainCheckbox) return;
+        const allElements = targetElements.slice();
+        if (targetContainer) {
+            allElements.push(
+                ...targetContainer.querySelectorAll('input'),
+                ...targetContainer.querySelectorAll('select'),
+                ...targetContainer.querySelectorAll('textarea')
+            );
+        }
 
-  useManualListCheckbox.checked = localStorage.getItem('useManualList') === 'true';
-  manualListIdsInput.value = localStorage.getItem('manualListIds') || '';
-  manualListIdsContainer.style.display = useManualListCheckbox.checked ? "block" : "none";
+        const updateElementsState = () => {
+            const isMainChecked = mainCheckbox.checked;
+            allElements.forEach(element => {
+                element.disabled = isMainChecked;
+                element.style.opacity = isMainChecked ? disabledOpacity : '1';
+            });
 
-  getEl('saveSettings').addEventListener("click", function () {
-    const allowedWritersList = allowedWritersInput.value
-      .split(',')
-      .map(name => name.trim().toLowerCase())
-      .filter(name => name);
-    localStorage.setItem("allowedWriters", JSON.stringify(allowedWritersList));
+            if (targetContainer) {
+                targetContainer.style.opacity = isMainChecked ? disabledOpacity : '1';
+                targetContainer.classList.toggle('disabled', isMainChecked);
+            }
+        };
+        updateElementsState();
+        mainCheckbox.addEventListener('change', updateElementsState);
+    }, 50);
+}
 
+export function initSettings(defaultTab = 'slider') {
+    const modal = createSettingsModal();
 
-    const settingsToSave = {
-      theme: document.querySelector('input[name="theme"]:checked').value,
-      showLanguageInfo: languageCheckbox.checked,
-      showRatingInfo: ratingCheckbox.checked,
-      showProgressBar: progressCheckbox.checked,
-      showProviderInfo: providerCheckbox.checked,
-      showDotNavigation: dotNavigationCheckbox.checked,
-      showSettingsLink: showSettingsLinkCheckbox.checked,
-      showLogoOrTitle: showLogoOrTitleCheckbox.checked,
-      showTitleOnly: showTitleOnlyCheckbox.checked,
-      showDiscOnly: showDiscOnlyCheckbox.checked,
-      showCommunityRating: getEl("showCommunityRatingCheckbox").checked,
-      showCriticRating: getEl("showCriticRatingCheckbox").checked,
-      showOfficialRating: getEl("showOfficialRatingCheckbox").checked,
-      showStatusInfo: showStatusInfoCheckbox.checked,
-      showTypeInfo: getEl("showTypeInfoCheckbox").checked,
-      showWatchedInfo: getEl("showWatchedInfoCheckbox").checked,
-      showRuntimeInfo: getEl("showRuntimeInfoCheckbox").checked,
-      showQualityInfo: getEl("showQualityInfoCheckbox").checked,
-      showQualityDetail: getEl("showQualityDetailCheckbox").checked,
-      showActorInfo: showActorInfoCheckbox.checked,
-      showActorImg: showActorImgCheckbox.checked,
-      showActorRole: showActorRoleCheckbox.checked,
-      showDescriptions: descriptionsCheckbox.checked,
-      showPlotInfo: plotInfoCheckbox.checked,
-      showbPlotInfo: getEl('showbPlotInfoCheckbox').checked,
-      showSloganInfo: getEl("showSloganInfoCheckbox").checked,
-      showTitleInfo: getEl("showTitleInfoCheckbox").checked,
-      showOriginalTitleInfo: getEl("showOriginalTitleInfoCheckbox").checked,
-      customQueryString: customQueryStringInput.value,
-      showDirectorWriter: showDirectorWriterCheckbox.checked,
-      showDirector: showDirectorCheckbox.checked,
-      showWriter: showWriterCheckbox.checked,
-      useListFile: useListFileCheckbox.checked,
-      sortingKeywords: sortingKeywordsInput.value,
-      showInfo: showInfoCheckbox.checked,
-      showGenresInfo: showGenresInfoCheckbox.checked,
-      showYearInfo: showYearInfoCheckbox.checked,
-      showCountryInfo: showCountryInfoCheckbox.checked,
-      sliderDuration: sliderDurationInput.value,
-      artistLimit: artistLimitInput.value,
-      showTrailerButton: showTrailerButtonCheckbox.checked,
-      showTrailerIcon: showTrailerIconCheckbox.checked,
-      showWatchButton: showWatchButtonCheckbox.checked,
-      showFavoriteButton: showFavoriteButtonCheckbox.checked,
-      showPlayedButton: showPlayedButtonCheckbox.checked,
-      showCast: showCastCheckbox.checked,
-      hideOriginalTitleIfSame: hideOriginalTitleIfSameCheckbox.checked,
-      manualBackdropSelection: manualBackdropSelectionCheckbox.checked,
-      gradientOverlayImageType: gradientOverlayImageTypeSelect.value,
-      backdropImageType: backdropImageTypeSelect.value,
-      dotBackgroundImageType: dotBackgroundImageTypeSelect.value,
-      trailerBackgroundImageType: trailerBackgroundImageTypeSelect.value,
-      watchBackgroundImageType: watchBackgroundImageTypeSelect.value,
-      favoriBackgroundImageType: favoriBackgroundImageTypeSelect.value,
-      playedBackgroundImageType: playedBackgroundImageTypeSelect.value,
-      enableTrailerPlayback: enableTrailerPlaybackCheckbox.checked,
-      defaultLanguage: defaultLanguageSelect.value,
-      limit: limitInput.value,
-      muziklimit: muziklimitInput.value,
-      sarkilimit: sarkilimitInput.value,
-      albumlimit: albumlimitInput.value,
-      gruplimit: gruplimitInput.value,
-      id3limit: id3limitInput.value,
-      minHighQualityWidth: minHighQualityWidthInput.value,
-      progressBarWidth: progressBarWidthInput.value + "%",
-      displayOrder: displayOrderInput.value,
-      gecikmeSure: gecikmeSureInput.value,
+    return {
+        open: (tab = defaultTab) => {
+            const tabs = modal.querySelectorAll('.settings-tab');
+            const panels = modal.querySelectorAll('.settings-panel');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            panels.forEach(panel => panel.style.display = 'none');
+            const targetTab = modal.querySelector(`.settings-tab[data-tab="${tab}"]`);
+            const targetPanel = modal.querySelector(`#${tab}-panel`);
+
+            if (targetTab && targetPanel) {
+                targetTab.classList.add('active');
+                targetPanel.style.display = 'block';
+            } else {
+                const sliderTab = modal.querySelector('.settings-tab[data-tab="slider"]');
+                const sliderPanel = modal.querySelector('#slider-panel');
+                sliderTab.classList.add('active');
+                sliderPanel.style.display = 'block';
+            }
+
+            modal.style.display = 'block';
+        },
+        close: () => { modal.style.display = 'none'; }
     };
+}
 
-    Object.entries(settingsToSave).forEach(([key, value]) => {
-      localStorage.setItem(key, value.toString());
+function updateConfig(updatedConfig) {
+    Object.entries(updatedConfig).forEach(([key, value]) => {
+        if (typeof value === 'boolean') {
+            localStorage.setItem(key, value ? 'true' : 'false');
+        } else if (Array.isArray(value)) {
+            localStorage.setItem(key, JSON.stringify(value));
+        } else if (value !== undefined && value !== null) {
+            localStorage.setItem(key, value);
+        }
     });
-    localStorage.setItem("useManualList", useManualListCheckbox.checked ? "true" : "false");
-    localStorage.setItem("manualListIds", manualListIdsInput.value);
-
-    const modal = getEl("settingsSavedModal");
-    let autoCloseTimer;
-    function showModal() {
-      modal.style.display = "flex";
-      setTimeout(() => modal.classList.add("show"), 1);
-      if (autoCloseTimer) clearTimeout(autoCloseTimer);
-      autoCloseTimer = setTimeout(hideModal, 2000);
-    }
-    function hideModal() {
-      modal.classList.remove("show");
-      setTimeout(() => (modal.style.display = "none"), 300);
-    }
-    showModal();
-    getEl("closeModalBtn").addEventListener("click", function () {
-      clearTimeout(autoCloseTimer);
-      hideModal();
-    });
-  });
-});
+}
