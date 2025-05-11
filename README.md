@@ -217,7 +217,7 @@ To overwrite existing lyrics files, append the --overwrite flag:
 
 ```sh lrclib.sh /Path/To/Your/Music/Directory --overwrite```
 
-If your file path contains spaces, enclose it in double quotes, e.g., sh lrclib.sh "/Path/To/Your/Music Path" --overwrite (Supported formats: mp3 and flac)
+If your file path contains spaces, enclose it in double quotes, e.g., ``` sh lrclib.sh "/Path/To/Your/Music Path" --overwrite ``` (Supported formats: mp3 and flac)
 
 </details>
 
