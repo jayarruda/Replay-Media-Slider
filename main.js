@@ -297,11 +297,14 @@ function initializeSliderOnHome() {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (indexPage) {
     if (!indexPage.querySelector("#slides-container")) {
-      const slidesContainer = document.createElement("div");
-      slidesContainer.id = "slides-container";
-      indexPage.appendChild(slidesContainer);
-    }
-    slidesInit();
+    const slidesContainer = document.createElement("div");
+    slidesContainer.id = "slides-container";
+    indexPage.appendChild(slidesContainer);
+  }
+  ensureProgressBarExists();
+  startSlideTimer();
+  attachMouseEvents();
+  slidesInit();
   }
 }
 
