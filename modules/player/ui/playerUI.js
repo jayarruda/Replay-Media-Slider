@@ -4,13 +4,13 @@ import { getConfig } from "../../config.js";
 import { togglePlayPause, playPrevious, playNext, playTrack } from "../player/playback.js";
 import { setupProgressControls } from "../player/progress.js";
 import { toggleLyrics } from "../lyrics/lyrics.js";
-import { toggleRepeatMode, toggleShuffle, toggleMute } from "./controls.js";
+import { toggleRepeatMode, toggleShuffle, toggleMute, toggleRemoveOnPlayMode } from "./controls.js";
 import { refreshPlaylist } from "../core/playlist.js";
 import { showJellyfinPlaylistsModal } from "../core/jellyfinPlaylists.js";
 import { togglePlayerVisibility } from "../utils/mainIndex.js";
 import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
-import { setupArtistClickHandler, checkForNewMusic } from "../ui/artistModal.js";
 import { initSettings } from '../../settings.js';
+import { toggleArtistModal, setupArtistClickHandler, checkForNewMusic } from "./artistModal.js";
 
 
 const config = getConfig();
@@ -62,7 +62,7 @@ export function createModernPlayerUI() {
         const settings = initSettings();
         settings.open('music');
     }
-},
+    },
     { className: "kapat-btn", iconClass: "fas fa-times", title: config.languageLabels.close || "Close", onClick: togglePlayerVisibility },
   ];
 
@@ -106,6 +106,7 @@ export function createModernPlayerUI() {
   const artist = document.createElement("div");
   artist.id = "player-track-artist";
   artist.textContent = config.languageLabels.artistUnknown;
+  artist.onclick = () => toggleArtistModal(true, config.languageLabels.artistUnknown, null);
 
   trackInfo.append(titleContainer, artist);
 
@@ -113,6 +114,18 @@ export function createModernPlayerUI() {
 
   const repeatBtn = createButton({ iconClass: "fas fa-repeat", title: config.languageLabels.repeatModOff, onClick: toggleRepeatMode });
   const shuffleBtn = createButton({ iconClass: "fas fa-random", title: `${config.languageLabels.shuffle}: ${config.languageLabels.shuffleOff}`, onClick: toggleShuffle });
+  const removeOnPlayBtn = createButton({
+   className: "remove-on-play-btn",
+   iconClass: "fas fa-trash-list",
+   title: musicPlayerState.userSettings.removeOnPlay
+     ? config.languageLabels.removeOnPlayOn || "Çaldıktan sonra sil: Açık"
+     : config.languageLabels.removeOnPlayOff || "Çaldıktan sonra sil: Kapalı",
+   onClick: toggleRemoveOnPlayMode
+ });
+
+ if (musicPlayerState.userSettings.removeOnPlay) {
+   removeOnPlayBtn.innerHTML = '<i class="fas fa-trash-list" style="color:#e91e63"></i>';
+ }
   const refreshBtn = createButton({ iconClass: "fas fa-sync-alt", title: config.languageLabels.refreshPlaylist, onClick: refreshPlaylist });
   const prevBtn = createButton({ iconClass: "fas fa-step-backward", title: config.languageLabels.previousTrack, onClick: playPrevious });
   const playPauseBtn = createButton({ className: "main", iconClass: "fas fa-play", title: config.languageLabels.playPause, onClick: togglePlayPause, id: "play-pause-btn" });
@@ -151,7 +164,7 @@ export function createModernPlayerUI() {
   const controls = document.createElement("div");
   controls.className = "player-controls";
 
-  const controlElements = [repeatBtn, shuffleBtn, refreshBtn, prevBtn, playPauseBtn, nextBtn, lyricsBtn, volumeBtn];
+  const controlElements = [repeatBtn, shuffleBtn, removeOnPlayBtn, refreshBtn, prevBtn, playPauseBtn, nextBtn, lyricsBtn, volumeBtn];
 
   if (isMobile) {
     const scrollableControls = document.createElement("div");
@@ -242,9 +255,20 @@ export async function updateNextTracks() {
   const { nextTracksList, playlist, currentIndex, nextTracksContainer } = musicPlayerState;
   if (!nextTracksList || !playlist) return;
 
-  nextTracksList.querySelectorAll('.next-track-item').forEach(item => {
-    item.classList.remove('visible');
-    setTimeout(() => item.remove(), 300);
+  const existingItems = Array.from(nextTracksList.querySelectorAll('.next-track-item'));
+  const existingTrackIds = existingItems.map(item => item.dataset.trackId);
+
+  existingItems.forEach(item => {
+    const trackId = item.dataset.trackId;
+    const shouldKeep = playlist.some((track, index) => {
+      const relativeIndex = (index - currentIndex + playlist.length) % playlist.length;
+      return track.Id === trackId && relativeIndex > 0 && relativeIndex <= 3;
+    });
+
+    if (!shouldKeep) {
+      item.classList.remove('visible');
+      setTimeout(() => item.remove(), 300);
+    }
   });
 
   const nextTracksName = nextTracksContainer.querySelector('.next-tracks-name');
@@ -260,9 +284,15 @@ export async function updateNextTracks() {
     const track = playlist[nextIndex];
     if (!track) continue;
 
+    if (existingTrackIds.includes(track.Id)) {
+      tracksLoaded++;
+      continue;
+    }
+
     const trackElement = document.createElement('div');
     trackElement.className = 'next-track-item hidden';
     trackElement.title = track.Name || config.languageLabels.unknownTrack;
+    trackElement.dataset.trackId = track.Id;
 
     const coverElement = document.createElement('div');
     coverElement.className = 'next-track-cover';
