@@ -4,6 +4,7 @@ import { updateProgress, updateDuration } from "./player/progress.js";
 import { checkForNewMusic } from "./ui/artistModal.js";
 import { loadJSMediaTags } from "./lyrics/id3Reader.js";
 
+
 function waitForElement(selector, timeout = 5000) {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(selector);
