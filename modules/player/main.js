@@ -3,7 +3,9 @@ import { refreshPlaylist } from "./core/playlist.js";
 import { updateProgress, updateDuration } from "./player/progress.js";
 import { checkForNewMusic } from "./ui/artistModal.js";
 import { loadJSMediaTags } from "./lyrics/id3Reader.js";
+import { getConfig } from "../config.js";
 
+const config = getConfig();
 
 function waitForElement(selector, timeout = 5000) {
   return new Promise((resolve, reject) => {
@@ -26,13 +28,19 @@ function waitForElement(selector, timeout = 5000) {
   });
 }
 
-// function loadCSS() {
-//   const cssPath = "./src/index.css";
-//   const link = document.createElement("link");
-//   link.rel = "stylesheet";
-//   link.href = cssPath;
-//   document.head.appendChild(link);
-// }
+export function loadCSS() {
+  const config = getConfig();
+  const theme = config.playerTheme || 'dark';
+  const playerStyle = config.playerStyle || 'player';
+
+  const existingLinks = document.querySelectorAll('link[href*="player-"], link[href*="newplayer-"]');
+  existingLinks.forEach(link => link.remove());
+
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `./slider/src/${playerStyle}-${theme}.css`;
+  document.head.appendChild(link);
+}
 
 function createPlayerButton() {
   const btn = document.createElement("button");
@@ -78,7 +86,7 @@ async function onToggleClick() {
 
 export async function addPlayerButton() {
   try {
-    // loadCSS();
+    loadCSS();
     const header = await waitForElement(".headerRight");
     if (document.getElementById("jellyfinPlayerToggle")) return;
 
