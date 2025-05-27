@@ -373,13 +373,13 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers })
   providerDiv.className = "provider-ids";
 
   const iconStyle =
-    "width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;";
+    "";
 
 
   if (config.showSettingsLink) {
     const settingsLink = document.createElement("span");
     settingsLink.innerHTML = `<i class="fa-solid fa-square-sliders fa-lg" style="${iconStyle}"></i>`;
-    settingsLink.className = "youtube-link";
+    settingsLink.className = "settings-link";
     settingsLink.title = `${config.languageLabels.settingsLink}`;
     settingsLink.style.cursor = "pointer";
 
