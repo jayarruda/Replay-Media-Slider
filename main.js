@@ -84,7 +84,10 @@ function loadExternalCSS(path) {
 const cssPath =
   config.cssVariant === 'fullslider'
     ? "./slider/src/fullslider.css"
-    : "./slider/src/slider.css";
+    : config.cssVariant === 'normalslider'
+      ? "./slider/src/normalslider.css"
+      : "./slider/src/slider.css";
+
 loadExternalCSS(cssPath);
 
 const shuffleArray = (array) => {
