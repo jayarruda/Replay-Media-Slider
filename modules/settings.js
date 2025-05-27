@@ -1,4 +1,5 @@
 import { getConfig } from "./config.js";
+import { loadCSS } from "./player/main.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { showNotification } from "./player/ui/notification.js";
 
@@ -51,18 +52,18 @@ export function createSettingsModal() {
     tabContent.className = 'settings-tab-content';
 
     const sliderTab = createTab('slider', labels.sliderSettings || 'Slider Ayarları', true);
-    const musicTab = createTab('music', labels.gmmpSettings || 'GMMP Ayarları');
-    const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi');
-    const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık');
-    const statusRatingTab = createTab('status-rating', labels.statusRatingInfo || 'Durum ve Puan Bilgileri');
-    const actorTab = createTab('actor', labels.actorInfo || 'Artist Bilgileri');
-    const directorTab = createTab('director', labels.directorWriter || 'Yönetmen ve Yazar');
-    const languageTab = createTab('language', labels.languageInfoHeader || 'Ses ve Altyazı');
-    const descriptionTab = createTab('description', labels.descriptionsHeader || 'Açıklamalar');
-    const providerTab = createTab('provider', labels.providerHeader || 'Dış Bağlantılar');
-    const buttonsTab = createTab('buttons', labels.buttons || 'Butonlar');
-    const infoTab = createTab('info', labels.infoHeader || 'Tür, Yıl ve Ülke');
-    const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında');
+    const musicTab = createTab('music', labels.gmmpSettings || 'GMMP Ayarları', true);
+    const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi', true);
+    const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık', true);
+    const statusRatingTab = createTab('status-rating', labels.statusRatingInfo || 'Durum ve Puan Bilgileri', true);
+    const actorTab = createTab('actor', labels.actorInfo || 'Artist Bilgileri', true);
+    const directorTab = createTab('director', labels.directorWriter || 'Yönetmen ve Yazar', true);
+    const languageTab = createTab('language', labels.languageInfoHeader || 'Ses ve Altyazı', true);
+    const descriptionTab = createTab('description', labels.descriptionsHeader || 'Açıklamalar', true);
+    const providerTab = createTab('provider', labels.providerHeader || 'Dış Bağlantılar', true);
+    const buttonsTab = createTab('buttons', labels.buttons || 'Butonlar', true);
+    const infoTab = createTab('info', labels.infoHeader || 'Tür, Yıl ve Ülke', true);
+    const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında', true);
 
     tabContainer.append(
         sliderTab, musicTab, queryTab, statusRatingTab,
@@ -169,7 +170,11 @@ export function createSettingsModal() {
 
     applyBtn.onclick = () => {
         applySettings(false);
-        showNotification(config.languageLabels.settingsSavedModal || "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin.", 3000, 'save');
+        showNotification(
+            `<i class="fas fa-floppy-disk" style="margin-right: 8px;"></i> ${config.languageLabels.settingsSavedModal || "Ayarlar kaydedildi. Değişikliklerin aktif olması için slider sayfasını yenileyin."}`,
+            3000,
+            'info'
+        );
     };
 
     btnDiv.append(saveBtn, applyBtn, resetBtn);
@@ -182,8 +187,12 @@ export function createSettingsModal() {
 
     function applySettings(reload = false) {
         const formData = new FormData(form);
+        const oldTheme = getConfig().playerTheme;
+        const oldPlayerStyle = getConfig().playerStyle;
         const updatedConfig = {
             ...config,
+            playerTheme: formData.get('playerTheme'),
+            playerStyle: formData.get('playerStyle'),
             defaultLanguage: formData.get('defaultLanguage'),
             sliderDuration: parseInt(formData.get('sliderDuration'), 10),
             limit: parseInt(formData.get('limit'), 10),
@@ -228,6 +237,7 @@ export function createSettingsModal() {
             id3limit: parseInt(formData.get('id3limit'), 10),
             albumlimit: parseInt(formData.get('albumlimit'), 10),
             gruplimit: parseInt(formData.get('gruplimit'), 10),
+            historylimit: parseInt(formData.get('historylimit'), 10),
 
             useListFile: formData.get('useListFile') === 'on',
             useManualList: formData.get('useManualList') === 'on',
@@ -270,6 +280,9 @@ export function createSettingsModal() {
         };
 
         updateConfig(updatedConfig);
+        if (oldTheme !== updatedConfig.playerTheme || oldPlayerStyle !== updatedConfig.playerStyle) {
+        loadCSS();
+    }
 
         if (reload) {
             location.reload();
@@ -363,6 +376,7 @@ function createSliderPanel(config, labels) {
     const variants = [
         { value: 'kompak', label: labels.kompaktslider || 'Kompakt' },
         { value: 'fullslider', label: labels.tamslider || 'Tam Ekran' },
+        { value: 'normalslider', label: labels.normalslider || 'Normal' },
     ];
 
     variants.forEach(variant => {
@@ -650,6 +664,55 @@ function createMusicPanel(config, labels) {
     panel.className = 'settings-panel';
 
     const section = createSection(labels.gmmpSettings || 'GMMP Ayarları');
+    const styleDiv = document.createElement('div');
+    styleDiv.className = 'setting-item';
+    const styleLabel = document.createElement('label');
+    styleLabel.textContent = labels.playerStyle || 'Player Stili:';
+    const styleSelect = document.createElement('select');
+    styleSelect.name = 'playerStyle';
+
+    const styles = [
+        { value: 'player', label: labels.yatayStil || 'Yatay Stil' },
+        { value: 'newplayer', label: labels.dikeyStil || 'Dikey Stil' }
+    ];
+
+    styles.forEach(style => {
+        const option = document.createElement('option');
+        option.value = style.value;
+        option.textContent = style.label;
+        if (style.value === (config.playerStyle || 'player')) {
+            option.selected = true;
+        }
+        styleSelect.appendChild(option);
+    });
+
+    styleDiv.append(styleLabel, styleSelect);
+    section.appendChild(styleDiv);
+
+    const themeDiv = document.createElement('div');
+    themeDiv.className = 'setting-item';
+    const themeLabel = document.createElement('label');
+    themeLabel.textContent = labels.playerTheme || 'Player Teması:';
+    const themeSelect = document.createElement('select');
+    themeSelect.name = 'playerTheme';
+
+    const themes = [
+        { value: 'dark', label: labels.darkTheme || 'Karanlık Tema' },
+        { value: 'light', label: labels.lightTheme || 'Aydınlık Tema' }
+    ];
+
+    themes.forEach(theme => {
+        const option = document.createElement('option');
+        option.value = theme.value;
+        option.textContent = theme.label;
+        if (theme.value === (config.playerTheme || 'dark')) {
+            option.selected = true;
+        }
+        themeSelect.appendChild(option);
+    });
+
+    themeDiv.append(themeLabel, themeSelect);
+    section.appendChild(themeDiv);
 
     const musicLimitDiv = document.createElement('div');
     musicLimitDiv.className = 'setting-item';
@@ -704,6 +767,21 @@ function createMusicPanel(config, labels) {
     albumLimitInput.max = 9999;
     albumLimitDiv.append(albumLimitLabel, albumLimitInput);
     section.appendChild(albumLimitDiv);
+
+    const historyLimitDiv = document.createElement('div');
+    historyLimitDiv.className = 'setting-item';
+    const historyLimitLabel = document.createElement('label');
+    historyLimitLabel.textContent = labels.historylimit || 'Hariç Tutulacak Geçmiş Liste Sayısı';
+    historyLimitLabel.title = labels.historylimitTitle || 'Yeni listelere, geçmiş listeler içerisindeki şarkıları dahil etmemek için limit belirleyin';
+    const historyLimitInput = document.createElement('input');
+    historyLimitInput.type = 'number';
+    historyLimitInput.value = config.historylimit || 10;
+    historyLimitInput.name = 'historylimit';
+    historyLimitInput.title = labels.historylimitTitle || 'Yeni listelere, geçmiş listeler içerisindeki şarkıları dahil etmemek için limit belirleyin';
+    historyLimitInput.min = 1;
+    historyLimitInput.max = 9999;
+    historyLimitDiv.append(historyLimitLabel, historyLimitInput);
+    section.appendChild(historyLimitDiv);
 
     const groupLimitDiv = document.createElement('div');
     groupLimitDiv.className = 'setting-item';
@@ -1176,11 +1254,18 @@ function createInfoPanel(config, labels) {
     return panel;
 }
 
-function createTab(id, label, isActive = false) {
+function createTab(id, label, isActive = false, isDisabled = false) {
     const tab = document.createElement('div');
-    tab.className = `settings-tab ${isActive ? 'active' : ''}`;
+    tab.className = `settings-tab ${isActive ? 'active' : ''} ${isDisabled ? 'disabled-tab' : ''}`;
     tab.setAttribute('data-tab', id);
     tab.textContent = label;
+
+    if (isDisabled) {
+        tab.style.opacity = '0.5';
+        tab.style.pointerEvents = 'none';
+        tab.style.cursor = 'not-allowed';
+    }
+
     return tab;
 }
 

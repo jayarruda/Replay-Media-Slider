@@ -78,6 +78,9 @@ export function getConfig() {
     sarkilimit: parseInt(localStorage.getItem('sarkilimit'), 10) || 200,
     gruplimit: parseInt(localStorage.getItem('gruplimit'), 10) || 100,
     id3limit: parseInt(localStorage.getItem('id3limit'), 10) || 5,
+    historylimit: parseInt(localStorage.getItem('historylimit'), 10) || 10,
+    playerTheme: localStorage.getItem('playerTheme') || 'dark',
+    playerStyle: localStorage.getItem('playerStyle') || 'player',
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",
