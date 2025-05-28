@@ -114,7 +114,7 @@ async function createSlide(item) {
   slide.className = "slide";
   slide.style.position = "absolute";
   slide.style.display = "none";
-  slide.dataset.detailUrl = `${window.location.origin}/web/#/details?id=${itemId}`;
+  slide.dataset.detailUrl = `/web/#/details?id=${itemId}`;
 
   const selectedOverlayUrl = {
     backdropUrl: autoBackdropUrl,
