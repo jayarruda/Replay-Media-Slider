@@ -887,8 +887,7 @@ function createQueryPanel(config, labels) {
     queryStringTextarea.name = 'customQueryString';
     queryStringTextarea.placeholder = labels.customQueryStringPlaceholder ||
       'Örnek: IncludeItemTypes=Movie&hasOverview=true&imageTypes=Backdrop';
-    queryStringTextarea.value = config.customQueryString ||
-                               config.listcustomQueryString;
+    queryStringTextarea.value = config.customQueryString;
     section.appendChild(queryStringTextarea);
 
     const sortingLabel = document.createElement('label');
