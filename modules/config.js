@@ -2,7 +2,9 @@ import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 export function getConfig() {
   const defaultLanguage = getDefaultLanguage();
   return {
-    customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop',
+    customQueryString: localStorage.getItem('customQueryString')
+      ? decodeURIComponent(localStorage.getItem('customQueryString'))
+      : 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
     sortingKeywords: localStorage.getItem('sortingKeywords')
       ? localStorage.getItem('sortingKeywords').split(',').map(k => k.trim())
       : ["DateCreated","PremiereDate","ProductionYear","Random"],
@@ -62,11 +64,10 @@ export function getConfig() {
     manualListIds: localStorage.getItem('manualListIds') || '',
     useManualList: localStorage.getItem('useManualList') === 'true',
     useListFile: localStorage.getItem('useListFile') !== 'false',
-    listcustomQueryString: "IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop",
     listLimit: 20,
     historySize: 20,
     updateInterval: 300000,
-    progressBarWidth: localStorage.getItem('progressBarWidth') || "100%",
+    progressBarWidth: localStorage.getItem('progressBarWidth') || "100",
     defaultLanguage,
     languageLabels: getLanguageLabels(defaultLanguage),
     sliderDuration: parseInt(localStorage.getItem('sliderDuration'), 10) || 15000,
@@ -105,6 +106,6 @@ export function getConfig() {
       return [...new Set([...defaultWriters, ...storedWriters])];
     })(),
     minHighQualityWidth: parseInt(localStorage.getItem('minHighQualityWidth'), 10) || 1920,
-    cssVariant: localStorage.getItem('cssVariant') || 'kompak'
+    cssVariant: localStorage.getItem('cssVariant') || 'normalslider'
   };
 }
