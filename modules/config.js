@@ -63,7 +63,8 @@ export function getConfig() {
     playedBackgroundImageType: localStorage.getItem('playedBackgroundImageType') || 'playedBgImage',
     manualListIds: localStorage.getItem('manualListIds') || '',
     useManualList: localStorage.getItem('useManualList') === 'true',
-    useListFile: localStorage.getItem('useListFile') !== 'false',
+    useListFile: localStorage.getItem('useListFile') === 'true',
+    useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     listLimit: 20,
     historySize: 20,
     updateInterval: 300000,
@@ -82,6 +83,7 @@ export function getConfig() {
     historylimit: parseInt(localStorage.getItem('historylimit'), 10) || 10,
     playerTheme: localStorage.getItem('playerTheme') || 'dark',
     playerStyle: localStorage.getItem('playerStyle') || 'player',
+    dateLocale: localStorage.getItem('dateLocale') || 'tr-TR',
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",
