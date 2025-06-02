@@ -57,7 +57,7 @@ async function processSingleTrack(trackId, resolve) {
     const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
 
     const response = await fetch(
-      `${window.location.origin}/Audio/${trackId}/stream.mp3?Static=true`,
+      `/Audio/${trackId}/stream.mp3?Static=true`,
       {
         method: "GET",
         headers: {
@@ -140,7 +140,7 @@ async function readTagsWithFallback(blob, trackId, fullFetch) {
           try {
             const token = getAuthToken();
             const fullResp = await fetch(
-              `${window.location.origin}/Audio/${trackId}/stream.mp3?Static=true`,
+              `/Audio/${trackId}/stream.mp3?Static=true`,
               { headers: { "X-Emby-Token": token } }
             );
             if (fullResp.ok) {

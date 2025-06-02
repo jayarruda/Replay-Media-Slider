@@ -80,13 +80,13 @@ async function createSlide(item) {
     }
   }
 
-  const autoBackdropUrl = `${window.location.origin}/Items/${itemId}/Images/Backdrop/${highestQualityBackdropIndex}`;
-  const landscapeUrl = `${window.location.origin}/Items/${itemId}/Images/Thumb/0`;
-  const primaryUrl = `${window.location.origin}/Items/${itemId}/Images/Primary`;
-  let logoUrl = `${window.location.origin}/Items/${itemId}/Images/Logo`;
-  const bannerUrl = `${window.location.origin}/Items/${itemId}/Images/Banner`;
-  const artUrl = `${window.location.origin}/Items/${itemId}/Images/Art`;
-  const discUrl = `${window.location.origin}/Items/${itemId}/Images/Disc`;
+  const autoBackdropUrl = `/Items/${itemId}/Images/Backdrop/${highestQualityBackdropIndex}`;
+  const landscapeUrl = `/Items/${itemId}/Images/Thumb/0`;
+  const primaryUrl = `/Items/${itemId}/Images/Primary`;
+  let logoUrl = `/Items/${itemId}/Images/Logo`;
+  const bannerUrl = `/Items/${itemId}/Images/Banner`;
+  const artUrl = `/Items/${itemId}/Images/Art`;
+  const discUrl = `/Items/${itemId}/Images/Disc`;
 
   let logoExists = true;
   try {
@@ -98,10 +98,10 @@ async function createSlide(item) {
   storeBackdropUrl(itemId, autoBackdropUrl);
 
   const manualBackdropUrl = {
-    backdropUrl: `${window.location.origin}/Items/${itemId}/Images/Backdrop/0`,
+    backdropUrl: `/Items/${itemId}/Images/Backdrop/0`,
     landscapeUrl: landscapeUrl,
     primaryUrl: primaryUrl,
-    logoUrl: logoExists ? logoUrl : `${window.location.origin}/Items/${itemId}/Images/Backdrop/0`,
+    logoUrl: logoExists ? logoUrl : `/Items/${itemId}/Images/Backdrop/0`,
     bannerUrl: bannerUrl,
     artUrl: artUrl,
     discUrl: discUrl,

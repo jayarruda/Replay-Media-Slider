@@ -179,7 +179,7 @@ export function createActorSlider(People, config) {
       actorContent.className = "actor-content";
 
       const actorLink = document.createElement("a");
-      actorLink.href = `${window.location.origin}/web/#/details?id=${actor.Id}`;
+      actorLink.href = `/web/#/details?id=${actor.Id}`;
       actorLink.target = "_blank";
       actorLink.style.textDecoration = "none";
 
@@ -187,7 +187,7 @@ export function createActorSlider(People, config) {
         const actorImg = document.createElement("img");
         actorImg.className = "actor-image";
         if (actor.PrimaryImageTag) {
-          actorImg.src = `${window.location.origin}/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
+          actorImg.src = `/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
           actorImg.alt = actor.Name;
         } else {
           actorImg.src = "slider/src/images/nofoto.png";

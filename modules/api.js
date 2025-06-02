@@ -50,12 +50,12 @@ async function makeApiRequest(url, options = {}) {
 
 export async function fetchItemDetails(itemId) {
   const { userId } = getSessionInfo();
-  return makeApiRequest(`${window.location.origin}/Users/${userId}/Items/${itemId}`);
+  return makeApiRequest(`/Users/${userId}/Items/${itemId}`);
 }
 
 export async function updateFavoriteStatus(itemId, isFavorite) {
   const { userId } = getSessionInfo();
-  return makeApiRequest(`${window.location.origin}/Users/${userId}/Items/${itemId}/UserData`, {
+  return makeApiRequest(`/Users/${userId}/Items/${itemId}/UserData`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -66,7 +66,7 @@ export async function updateFavoriteStatus(itemId, isFavorite) {
 
 export async function updatePlayedStatus(itemId, played) {
   const { userId } = getSessionInfo();
-  return makeApiRequest(`${window.location.origin}/Users/${userId}/Items/${itemId}/UserData`, {
+  return makeApiRequest(`/Users/${userId}/Items/${itemId}/UserData`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -115,7 +115,7 @@ export async function getHighestQualityBackdropIndex(itemId) {
   const minPixelCount = config.minPixelCount || (1920 * 1080);
 
   await Promise.all(candidateIndexes.map(async (index) => {
-    const url = `${window.location.origin}/Items/${itemId}/Images/Backdrop/${index}`;
+    const url = `/Items/${itemId}/Images/Backdrop/${index}`;
     try {
       const dimensions = await getImageDimensions(url);
       const area = dimensions.width * dimensions.height;
@@ -156,7 +156,7 @@ export async function playNow(itemId) {
   let session;
   try {
     const { deviceId, userId } = getSessionInfo();
-    const sessions = await makeApiRequest(`${window.location.origin}/Sessions?userId=${userId}`);
+    const sessions = await makeApiRequest(`Sessions?userId=${userId}`);
     const supportedPlayers = sessions.filter(s =>
       s.Capabilities?.PlayableMediaTypes?.includes('Video')
     );
@@ -166,7 +166,7 @@ export async function playNow(itemId) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
     }
 
-    const playUrl = `${window.location.origin}/Sessions/${session.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
+    const playUrl = `/Sessions/${session.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
     const playResponse = await fetch(playUrl, {
       method: "POST",
       headers: {

@@ -84,6 +84,7 @@ export function getConfig() {
     playerTheme: localStorage.getItem('playerTheme') || 'dark',
     playerStyle: localStorage.getItem('playerStyle') || 'player',
     dateLocale: localStorage.getItem('dateLocale') || 'tr-TR',
+    maxExcludeIdsForUri: parseInt(localStorage.getItem('maxExcludeIdsForUri'), 10) || 100,
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",
