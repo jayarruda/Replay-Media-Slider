@@ -196,7 +196,14 @@ setTimeout(() => {
   const prevBtn = createButton({ iconClass: "fas fa-step-backward", title: config.languageLabels.previousTrack, onClick: playPrevious });
   const playPauseBtn = createButton({ className: "main", iconClass: "fas fa-play", title: config.languageLabels.playPause, onClick: togglePlayPause, id: "play-pause-btn" });
   const nextBtn = createButton({ iconClass: "fas fa-step-forward", title: config.languageLabels.nextTrack, onClick: playNext });
-  const lyricsBtn = createButton({ iconClass: "fas fa-align-left", title: config.languageLabels.lyrics, onClick: toggleLyrics });
+  const lyricsBtn = createButton({
+  iconClass: "fas fa-align-left",
+  title: config.languageLabels.lyrics,
+  onClick: () => {
+    toggleLyrics();
+    musicPlayerState.lyricsDelay = parseFloat(localStorage.getItem("lyricsDelay")) || 0;
+  }
+});
   const volumeBtn = createButton({ iconClass: "fas fa-volume-up", title: config.languageLabels.volume, onClick: toggleMute });
 
   const volumeSlider = Object.assign(document.createElement("input"), {
