@@ -8,12 +8,13 @@ import { fetchLyrics, updateSyncedLyrics, startLyricsSync } from "../lyrics/lyri
 import { updatePlaylistModal } from "../ui/playlistModal.js";
 import { showNotification } from "../ui/notification.js";
 import { updateProgress, updateDuration, setupAudioListeners } from "./progress.js";
-import { updateNextTracks, checkMarqueeNeeded } from "../ui/playerUI.js";
+import { updateNextTracks, checkMarqueeNeeded, updatePlayerBackground, updateAlbumArt } from "../ui/playerUI.js";
 import { refreshPlaylist } from "../core/playlist.js";
 
 const config = getConfig();
 const SEEK_RETRY_DELAY = 0;
-const DEFAULT_ARTWORK = "url('/web/slider/src/images/defaultArt.png')";
+const DEFAULT_ARTWORK = "/web/slider/src/images/defaultArt.png";
+const DEFAULT_ARTWORK_CSS = `url('${DEFAULT_ARTWORK}')`;
 
 let currentCanPlayHandler = null;
 let currentPlayErrorHandler = null;
@@ -344,10 +345,11 @@ async function updateTrackMeta(track) {
 
 function setAlbumArt(imageUrl) {
   if (!musicPlayerState.albumArtEl) return;
+
   if (!imageUrl || imageUrl === 'undefined') {
-    musicPlayerState.albumArtEl.style.backgroundImage = DEFAULT_ARTWORK;
+    musicPlayerState.albumArtEl.style.backgroundImage = DEFAULT_ARTWORK_CSS;
     musicPlayerState.currentArtwork = [{
-      src: DEFAULT_ARTWORK.replace("url('/", "").replace("')", ""),
+      src: DEFAULT_ARTWORK,
       sizes: '300x300',
       type: 'image/png'
     }];
@@ -483,6 +485,10 @@ export function playTrack(index) {
   updatePlaylistModal();
   startLyricsSync();
   reportPlaybackStart(track);
+  loadAlbumArt(track).then(() => {
+    updatePlayerBackground();
+  });
+
   checkMarqueeNeeded(musicPlayerState.modernTitleEl);
   setTimeout(() => checkMarqueeNeeded(musicPlayerState.modernTitleEl), 500);
 

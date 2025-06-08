@@ -88,6 +88,7 @@ export async function getEmbeddedLyrics(trackId) {
 }
 
 export function displayLyrics(data) {
+  musicPlayerState.lyricsContainer.scrollTop = 0;
   musicPlayerState.currentLyrics = [];
   musicPlayerState.lyricsContainer.innerHTML = "";
 
