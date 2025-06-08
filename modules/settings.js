@@ -199,6 +199,9 @@ export function createSettingsModal() {
             limit: parseInt(formData.get('limit'), 10),
             gecikmeSure: parseInt(formData.get('gecikmeSure'), 10),
             cssVariant: formData.get('cssVariant'),
+            useAlbumArtAsBackground: formData.get('useAlbumArtAsBackground') === 'on',
+            albumArtBackgroundBlur: parseInt(formData.get('albumArtBackgroundBlur')),
+            albumArtBackgroundOpacity: parseFloat(formData.get('albumArtBackgroundOpacity')),
 
             showCast: formData.get('showCast') === 'on',
             showProgressBar: formData.get('showProgressBar') === 'on',
@@ -247,8 +250,20 @@ export function createSettingsModal() {
             useListFile: formData.get('useListFile') === 'on',
             useManualList: formData.get('useManualList') === 'on',
             manualListIds: formData.get('manualListIds'),
-            customQueryString: formData.get('customQueryString'),
-            sortingKeywords: formData.get('sortingKeywords'),
+            customQueryString: (() => {
+              const raw = formData.get('customQueryString')?.trim();
+              if (!raw) {
+                return getConfig().customQueryString;
+              }
+              return raw;
+            })(),
+            sortingKeywords: (() => {
+              const raw = formData.get('sortingKeywords')?.trim();
+              if (!raw) {
+                return getConfig().sortingKeywords;
+              }
+              return raw.split(',').map(k => k.trim());
+            })(),
 
             showLanguageInfo: formData.get('showLanguageInfo') === 'on',
 
@@ -285,6 +300,19 @@ export function createSettingsModal() {
         };
 
         updateConfig(updatedConfig);
+        const rawQuery = formData.get('customQueryString')?.trim();
+        if (!rawQuery) {
+          localStorage.removeItem('customQueryString');
+        } else {
+          localStorage.setItem('customQueryString', rawQuery);
+        }
+
+        const rawInput = formData.get('sortingKeywords')?.trim();
+        if (!rawInput) {
+          localStorage.removeItem('sortingKeywords');
+        } else {
+          localStorage.setItem('sortingKeywords', JSON.stringify(updatedConfig.sortingKeywords));
+        }
         if (oldTheme !== updatedConfig.playerTheme || oldPlayerStyle !== updatedConfig.playerStyle) {
         loadCSS();
     }
@@ -300,6 +328,10 @@ export function createSettingsModal() {
         });
         location.reload();
     }
+
+     setTimeout(() => {
+      setupMobileTextareaBehavior();
+    }, 100);
 
     return modal;
 }
@@ -426,7 +458,7 @@ function createSliderPanel(config, labels) {
 
     const progressWidthInput = document.createElement('input');
     progressWidthInput.type = 'number';
-    progressWidthInput.value = (config.progressBarWidth || '100').replace('%', '');
+    progressWidthInput.value = parseInt(config.progressBarWidth) || 100;
     progressWidthInput.name = 'progressBarWidth';
     progressWidthInput.min = 0;
     progressWidthInput.max = 100;
@@ -685,6 +717,75 @@ function createMusicPanel(config, labels) {
 
     notificationToggleDiv.append(notificationToggleInput, notificationToggleLabel);
     section.appendChild(notificationToggleDiv);
+
+    const albumArtBgDiv = document.createElement('div');
+    albumArtBgDiv.className = 'setting-item';
+
+    const albumArtBgLabel = document.createElement('label');
+    albumArtBgLabel.textContent = labels.useAlbumArtAsBackground || 'Albüm kapağını arka plan yap:';
+
+    const albumArtBgInput = document.createElement('input');
+    albumArtBgInput.type = 'checkbox';
+    albumArtBgInput.checked = config.useAlbumArtAsBackground || false;
+    albumArtBgInput.name = 'useAlbumArtAsBackground';
+    albumArtBgInput.id = 'useAlbumArtAsBackground';
+
+    albumArtBgDiv.append(albumArtBgLabel, albumArtBgInput);
+    section.appendChild(albumArtBgDiv);
+
+    const blurDiv = document.createElement('div');
+    blurDiv.className = 'setting-item';
+
+    const blurLabel = document.createElement('label');
+    blurLabel.textContent = labels.albumArtBackgroundBlur || 'Arka plan bulanıklığı:';
+    blurLabel.htmlFor = 'albumArtBackgroundBlur';
+
+    const blurInput = document.createElement('input');
+    blurInput.type = 'range';
+    blurInput.min = '0';
+    blurInput.max = '20';
+    blurInput.step = '1';
+    blurInput.value = config.albumArtBackgroundBlur ?? 10;
+    blurInput.name = 'albumArtBackgroundBlur';
+    blurInput.id = 'albumArtBackgroundBlur';
+
+    const blurValue = document.createElement('span');
+    blurValue.className = 'range-value';
+    blurValue.textContent = blurInput.value + 'px';
+
+    blurInput.addEventListener('input', () => {
+        blurValue.textContent = blurInput.value + 'px';
+    });
+
+    blurDiv.append(blurLabel, blurInput, blurValue);
+    section.appendChild(blurDiv);
+
+    const opacityDiv = document.createElement('div');
+    opacityDiv.className = 'setting-item';
+
+    const opacityLabel = document.createElement('label');
+    opacityLabel.textContent = labels.albumArtBackgroundOpacity || 'Arka plan şeffaflığı:';
+    opacityLabel.htmlFor = 'albumArtBackgroundOpacity';
+
+    const opacityInput = document.createElement('input');
+    opacityInput.type = 'range';
+    opacityInput.min = '0';
+    opacityInput.max = '1';
+    opacityInput.step = '0.1';
+    opacityInput.value = config.albumArtBackgroundOpacity ?? 0.5;
+    opacityInput.name = 'albumArtBackgroundOpacity';
+    opacityInput.id = 'albumArtBackgroundOpacity';
+
+    const opacityValue = document.createElement('span');
+    opacityValue.className = 'range-value';
+    opacityValue.textContent = opacityInput.value;
+
+    opacityInput.addEventListener('input', () => {
+        opacityValue.textContent = opacityInput.value;
+    });
+
+    opacityDiv.append(opacityLabel, opacityInput, opacityValue);
+    section.appendChild(opacityDiv);
 
     const styleDiv = document.createElement('div');
     styleDiv.className = 'setting-item';
@@ -1559,7 +1660,18 @@ export function initSettings(defaultTab = 'slider') {
     };
 }
 
-function updateConfig(updatedConfig) {
+export function isLocalStorageAvailable() {
+    try {
+        const testKey = 'test';
+        localStorage.setItem(testKey, testKey);
+        localStorage.removeItem(testKey);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+export function updateConfig(updatedConfig) {
     Object.entries(updatedConfig).forEach(([key, value]) => {
         if (typeof value === 'boolean') {
             localStorage.setItem(key, value ? 'true' : 'false');
@@ -1569,4 +1681,66 @@ function updateConfig(updatedConfig) {
             localStorage.setItem(key, value);
         }
     });
+    if (updatedConfig.defaultLanguage !== undefined) {
+    localStorage.setItem('defaultLanguage', updatedConfig.defaultLanguage);
+  }
+   if (updatedConfig.dateLocale !== undefined) {
+    localStorage.setItem('dateLocale', updatedConfig.dateLocale);
+  }
+    if (!isLocalStorageAvailable()) return;
+  const keysToSave = [
+    'playerTheme',
+    'playerStyle',
+    'useAlbumArtAsBackground',
+    'albumArtBackgroundBlur',
+    'albumArtBackgroundOpacity'
+  ];
+  keysToSave.forEach(key => {
+    const value = updatedConfig[key];
+    if (value !== undefined && value !== null) {
+      localStorage.setItem(key, typeof value === 'boolean'
+        ? value.toString()
+        : value.toString());
+    }
+  });
+}
+
+function setupMobileTextareaBehavior() {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return;
+
+  const textareas = modal.querySelectorAll('textarea');
+
+  textareas.forEach(textarea => {
+    textarea.addEventListener('focus', function() {
+      if (!isMobileDevice()) return;
+      this.style.position = 'fixed';
+      this.style.bottom = '50%';
+      this.style.left = '0';
+      this.style.right = '0';
+      this.style.zIndex = '10000';
+      this.style.height = '30vh';
+
+      setTimeout(() => {
+        this.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }, 300);
+    });
+
+    textarea.addEventListener('blur', function() {
+      if (!isMobileDevice()) return;
+      this.style.position = '';
+      this.style.bottom = '';
+      this.style.left = '';
+      this.style.right = '';
+      this.style.zIndex = '';
+      this.style.height = '';
+    });
+  });
+}
+
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }

@@ -1,13 +1,21 @@
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 export function getConfig() {
   const defaultLanguage = getDefaultLanguage();
+  const DEFAULT_QUERY = 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending';
+
   return {
-    customQueryString: localStorage.getItem('customQueryString')
-      ? decodeURIComponent(localStorage.getItem('customQueryString'))
-      : 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
-    sortingKeywords: localStorage.getItem('sortingKeywords')
-      ? localStorage.getItem('sortingKeywords').split(',').map(k => k.trim())
-      : ["DateCreated","PremiereDate","ProductionYear","Random"],
+    customQueryString: (() => {
+      const raw = localStorage.getItem('customQueryString');
+      return raw && raw.trim().length > 0 ? raw : DEFAULT_QUERY;
+    })(),
+    sortingKeywords: (() => {
+      const raw = localStorage.getItem('sortingKeywords');
+      try {
+        return raw ? JSON.parse(raw) : ["DateCreated","PremiereDate","ProductionYear","Random"];
+      } catch {
+        return raw ? raw.split(',').map(k => k.trim()) : ["DateCreated","PremiereDate","ProductionYear","Random"];
+      }
+    })(),
     showLanguageInfo: localStorage.getItem('showLanguageInfo') !== 'false',
     showRatingInfo: localStorage.getItem('showRatingInfo') !== 'false',
     showProviderInfo: localStorage.getItem('showProviderInfo') !== 'false',
@@ -68,12 +76,12 @@ export function getConfig() {
     listLimit: 20,
     historySize: 20,
     updateInterval: 300000,
-    progressBarWidth: localStorage.getItem('progressBarWidth') || "100",
+    progressBarWidth: parseInt(localStorage.getItem('progressBarWidth'), 10) || 100,
     defaultLanguage,
     languageLabels: getLanguageLabels(defaultLanguage),
     sliderDuration: parseInt(localStorage.getItem('sliderDuration'), 10) || 15000,
-    artistLimit: parseInt(localStorage.getItem('artistLimit')) || 8,
-    gecikmeSure: parseInt(localStorage.getItem('gecikmeSure')) || 500,
+    artistLimit: parseInt(localStorage.getItem('artistLimit'), 10) || 10,
+    gecikmeSure: parseInt(localStorage.getItem('gecikmeSure'), 10) || 500,
     limit: parseInt(localStorage.getItem('limit'), 10) || 20,
     muziklimit: parseInt(localStorage.getItem('muziklimit'), 10) || 30,
     albumlimit: parseInt(localStorage.getItem('albumlimit'), 10) || 20,
@@ -87,6 +95,15 @@ export function getConfig() {
     maxExcludeIdsForUri: parseInt(localStorage.getItem('maxExcludeIdsForUri'), 10) || 100,
     nextTrack: parseInt(localStorage.getItem('nextTrack'), 10) || 30,
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
+    useAlbumArtAsBackground: localStorage.getItem('useAlbumArtAsBackground') === 'true',
+    albumArtBackgroundBlur: (() => {
+      const v = localStorage.getItem('albumArtBackgroundBlur');
+      return v !== null ? parseInt(v, 10) : 10;
+    })(),
+    albumArtBackgroundOpacity: (() => {
+      const v = localStorage.getItem('albumArtBackgroundOpacity');
+      return v !== null ? parseFloat(v) : 0.5;
+    })(),
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",
