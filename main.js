@@ -131,7 +131,7 @@ export function slidesInit() {
 
   const savedLimit = localStorage.getItem("limit") || 20;
   window.myUserId = userId;
-  const listUrl = `${window.location.origin}/web/slider/list/list_${userId}.txt`;
+  const listUrl = `/web/slider/list/list_${userId}.txt`;
   window.myListUrl = listUrl;
   console.log("Liste URL'si:", listUrl);
 
@@ -178,7 +178,7 @@ export function slidesInit() {
       const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
       const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
       const res = await fetch(
-        `${window.location.origin}/Users/${userId}/Items?${queryString}`,
+        `/Users/${userId}/Items?${queryString}`,
         {
           headers: {
             Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`,

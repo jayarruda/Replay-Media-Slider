@@ -5,6 +5,11 @@ export function saveCredentialsToSessionStorage(credentials) {
     try {
         sessionStorage.setItem("json-credentials", JSON.stringify(credentials));
         console.log("Kimlik bilgileri sessionStorage'a kaydedildi.");
+
+        if (credentials.Servers && credentials.Servers[0] && credentials.Servers[0].LocalAddress) {
+            window.serverConfig = window.serverConfig || {};
+            window.serverConfig.address = credentials.Servers[0].LocalAddress;
+        }
     } catch (err) {
         console.error("Kimlik bilgileri kaydedilirken hata:", err);
     }
@@ -17,6 +22,16 @@ export function saveApiKey(apiKey) {
     } catch (err) {
         console.error("API anahtarı kaydedilirken hata:", err);
     }
+}
+
+export function getAuthToken() {
+  return (
+    sessionStorage.getItem("api-key") ||
+    sessionStorage.getItem("accessToken") ||
+    new URLSearchParams(window.location.search).get("api_key") ||
+    (window.ApiClient && window.ApiClient._authToken) ||
+    null
+  );
 }
 
 (function interceptConsoleLog() {
