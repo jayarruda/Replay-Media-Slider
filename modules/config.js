@@ -73,6 +73,7 @@ export function getConfig() {
     useManualList: localStorage.getItem('useManualList') === 'true',
     useListFile: localStorage.getItem('useListFile') === 'true',
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
+    fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
     historySize: 20,
     updateInterval: 300000,
@@ -130,4 +131,12 @@ export function getConfig() {
     minHighQualityWidth: parseInt(localStorage.getItem('minHighQualityWidth'), 10) || 1920,
     cssVariant: localStorage.getItem('cssVariant') || 'normalslider'
   };
+}
+
+export function getServerAddress() {
+  return (
+    window.serverConfig?.address ||
+    sessionStorage.getItem('serverAddress') ||
+    ''
+  );
 }
