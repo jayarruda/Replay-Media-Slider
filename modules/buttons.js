@@ -118,79 +118,69 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
     }
 
     if (clickHandler) {
-        btn.addEventListener("click", (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            clickHandler(event, btn);
-        });
-    }
+    btnContainer.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        clickHandler(event, btn);
+    });
+}
 
     return btnContainer;
 };
 
     if (config.showPlayedButton) {
-        const isPlayed = UserData && UserData.Played;
-        const playedBtnContainer = createButtonWithBackground(
-            "played",
-            isPlayed ? '<i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>' : '<i class="fa-light fa-check fa-xl"></i>',
-            isPlayed ? config.languageLabels.izlendi : "",
-            (event, buttonElement) => {
-                if (buttonElement.classList.contains("played")) {
-                    buttonElement.classList.remove("played");
-                    buttonElement.innerHTML = `
-                        <span class="icon-wrapper">
-                            <i class="fa-light fa-check fa-xl"></i>
-                        </span>
-                        <span class="btn-text"></span>
-                    `;
-                    updatePlayedStatus(itemId, false);
-                } else {
-                    buttonElement.classList.add("played");
-                    buttonElement.innerHTML = `
-                        <span class="icon-wrapper">
-                            <i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>
-                        </span>
-                        <span class="btn-text">${config.languageLabels.izlendi}</span>
-                    `;
-                    updatePlayedStatus(itemId, true);
-                }
-            },
-            isPlayed ? "played" : ""
-        );
-        buttonContainer.appendChild(playedBtnContainer);
-    }
+    const isPlayed = UserData && UserData.Played;
+    const playedBtnContainer = createButtonWithBackground(
+        "played",
+        isPlayed ? '<i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>' : '<i class="fa-light fa-check fa-xl"></i>',
+        isPlayed ? config.languageLabels.izlendi : config.languageLabels.izlenmedi,
+        (event, buttonElement) => {
+            const iconWrapper = buttonElement.querySelector('.icon-wrapper');
+            const textSpan = buttonElement.nextElementSibling;
 
-    if (config.showFavoriteButton) {
-        const isFavorited = UserData && UserData.IsFavorite;
-        const favoriteBtnContainer = createButtonWithBackground(
-            "favorite",
-            isFavorited ? '<i class="fa-solid fa-heart fa-xl" style="color: #FFC107;"></i>' : '<i class="fa-light fa-heart fa-xl"></i>',
-            isFavorited ? config.languageLabels.favorilendi : "",
-            (event, buttonElement) => {
-                if (buttonElement.classList.contains("favorited")) {
-                    buttonElement.classList.remove("favorited");
-                    buttonElement.innerHTML = `
-                        <span class="icon-wrapper">
-                            <i class="fa-light fa-heart fa-xl"></i>
-                        </span>
-                        <span class="btn-text"></span>
-                    `;
-                    updateFavoriteStatus(itemId, false);
-                } else {
-                    buttonElement.classList.add("favorited");
-                    buttonElement.innerHTML = `
-                        <span class="icon-wrapper">
-                            <i class="fa-solid fa-heart fa-xl" style="color: #FFC107;"></i>
-                        </span>
-                        <span class="btn-text">${config.languageLabels.favorilendi}</span>
-                    `;
-                    updateFavoriteStatus(itemId, true);
-                }
-            },
-            isFavorited ? "favorited" : ""
-        );
-        buttonContainer.appendChild(favoriteBtnContainer);
-    }
+            if (buttonElement.classList.contains("played")) {
+                buttonElement.classList.remove("played");
+                iconWrapper.innerHTML = '<i class="fa-light fa-check fa-xl"></i>';
+                textSpan.textContent = config.languageLabels.izlenmedi;
+                updatePlayedStatus(itemId, false);
+            } else {
+                buttonElement.classList.add("played");
+                iconWrapper.innerHTML = '<i class="fa-solid fa-check fa-xl" style="color: #FFC107;"></i>';
+                textSpan.textContent = config.languageLabels.izlendi;
+                updatePlayedStatus(itemId, true);
+            }
+        },
+        isPlayed ? "played" : ""
+    );
+    buttonContainer.appendChild(playedBtnContainer);
+}
+
+if (config.showFavoriteButton) {
+    const isFavorited = UserData && UserData.IsFavorite;
+    const favoriteBtnContainer = createButtonWithBackground(
+        "favorite",
+        isFavorited ? '<i class="fa-solid fa-heart fa-xl" style="color: #FFC107;"></i>' : '<i class="fa-light fa-heart fa-xl"></i>',
+        isFavorited ? config.languageLabels.favorilendi : config.languageLabels.favori,
+        (event, buttonElement) => {
+            const iconWrapper = buttonElement.querySelector('.icon-wrapper');
+            const textSpan = buttonElement.nextElementSibling;
+
+            if (buttonElement.classList.contains("favorited")) {
+                buttonElement.classList.remove("favorited");
+                iconWrapper.innerHTML = '<i class="fa-light fa-heart fa-xl"></i>';
+                textSpan.textContent = config.languageLabels.favori;
+                updateFavoriteStatus(itemId, false);
+            } else {
+                buttonElement.classList.add("favorited");
+                iconWrapper.innerHTML = '<i class="fa-solid fa-heart fa-xl" style="color: #FFC107;"></i>';
+                textSpan.textContent = config.languageLabels.favorilendi;
+                updateFavoriteStatus(itemId, true);
+            }
+        },
+        isFavorited ? "favorited" : ""
+    );
+    buttonContainer.appendChild(favoriteBtnContainer);
+}
 
     if (config.showWatchButton) {
         const watchBtnContainer = createButtonWithBackground(
