@@ -391,6 +391,7 @@ export const languageLabels = {
   sonucyok: "Unknown",
   izle: "Watch",
   favorilendi: "Favorited",
+  favori: "Favorite",
   playedinfo: "It is used to toggle the content's 'Watched or Not Watched' status.",
   fragman: "Trailer",
   sesyok: "Audio Information Could Not Be Received",
