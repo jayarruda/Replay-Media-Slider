@@ -67,7 +67,7 @@ export function getConfig() {
     dotBackgroundImageType: localStorage.getItem('dotBackgroundImageType') || 'none',
     trailerBackgroundImageType: localStorage.getItem('trailerBackgroundImageType') || 'trailerBgImage',
     watchBackgroundImageType: localStorage.getItem('watchBackgroundImageType') || 'watchBgImage',
-    favoriBackgroundImageType: localStorage.getItem('favoriBackgroundImageType') || 'favoriBgImage',
+    favoriteBackgroundImageType: localStorage.getItem('favoriteBackgroundImageType') || 'favoriBgImage',
     playedBackgroundImageType: localStorage.getItem('playedBackgroundImageType') || 'playedBgImage',
     manualListIds: localStorage.getItem('manualListIds') || '',
     useManualList: localStorage.getItem('useManualList') === 'true',
@@ -97,14 +97,30 @@ export function getConfig() {
     nextTrack: parseInt(localStorage.getItem('nextTrack'), 10) || 30,
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
     useAlbumArtAsBackground: localStorage.getItem('useAlbumArtAsBackground') === 'true',
+    buttonBackgroundBlur: (() => {
+      const v = localStorage.getItem('buttonBackgroundBlur');
+      return v !== null ? parseInt(v, 10) : 5;
+    })(),
+    buttonBackgroundOpacity: (() => {
+    const v = localStorage.getItem('buttonBackgroundOpacity');
+    return v !== null ? parseFloat(v) : 0.5;
+})(),
     albumArtBackgroundBlur: (() => {
       const v = localStorage.getItem('albumArtBackgroundBlur');
-      return v !== null ? parseInt(v, 10) : 10;
+      return v !== null ? parseInt(v, 10) : 5;
     })(),
     albumArtBackgroundOpacity: (() => {
       const v = localStorage.getItem('albumArtBackgroundOpacity');
       return v !== null ? parseFloat(v) : 0.5;
     })(),
+    dotBackgroundBlur: (() => {
+      const v = localStorage.getItem('dotBackgroundBlur');
+      return v !== null ? parseInt(v, 10) : 5;
+    })(),
+    dotBackgroundOpacity: (() => {
+    const v = localStorage.getItem('dotBackgroundOpacity');
+    return v !== null ? parseFloat(v) : 0.5;
+})(),
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",

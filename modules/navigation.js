@@ -20,6 +20,8 @@ import {
   getRemainingTime,
 } from "./sliderState.js";
 
+const config = getConfig();
+
 export function changeSlide(direction) {
   const slides = document.querySelectorAll(".slide");
   if (!slides.length) return;
@@ -83,9 +85,14 @@ export function createDotNavigation() {
         ? slide.dataset.background
         : slide.dataset[dotType];
       if (imageUrl) {
-        dot.style.backgroundImage = `url(${imageUrl})`;
-        dot.style.backgroundSize = "cover";
-        dot.style.backgroundPosition = "center";
+        const imageOverlay = document.createElement("div");
+        imageOverlay.className = "dot-image-overlay";
+        imageOverlay.style.backgroundImage = `url(${imageUrl})`;
+        imageOverlay.style.backgroundSize = "cover";
+        imageOverlay.style.backgroundPosition = "center";
+        imageOverlay.style.opacity = config.dotBackgroundOpacity || 0.3;
+        imageOverlay.style.filter = `blur(${config.dotBackgroundBlur}px)`;
+        dot.appendChild(imageOverlay);
       }
     }
 
@@ -97,8 +104,10 @@ export function createDotNavigation() {
     });
     dotContainer.appendChild(dot);
   });
+
   slidesContainer.appendChild(dotContainer);
 }
+
 
 export function displaySlide(index) {
   console.log(`Slayt gösteriliyor: ${index}`);

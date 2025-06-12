@@ -213,6 +213,8 @@ export function createSettingsModal() {
             minHighQualityWidth: parseInt(formData.get('minHighQualityWidth'), 10),
             showDotNavigation: formData.get('showDotNavigation') === 'on',
             dotBackgroundImageType: formData.get('dotBackgroundImageType'),
+            dotBackgroundBlur: parseInt(formData.get('dotBackgroundBlur')),
+            dotBackgroundOpacity: parseFloat(formData.get('dotBackgroundOpacity')),
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -289,9 +291,11 @@ export function createSettingsModal() {
             showWatchButton: formData.get('showWatchButton') === 'on',
             watchBackgroundImageType: formData.get('watchBackgroundImageType'),
             showFavoriteButton: formData.get('showFavoriteButton') === 'on',
-            favoriBackgroundImageType: formData.get('favoriBackgroundImageType'),
+            favoriteBackgroundImageType: formData.get('favoriteBackgroundImageType'),
             showPlayedButton: formData.get('showPlayedButton') === 'on',
             playedBackgroundImageType: formData.get('playedBackgroundImageType'),
+            buttonBackgroundBlur: parseInt(formData.get('buttonBackgroundBlur')),
+            buttonBackgroundOpacity: parseFloat(formData.get('buttonBackgroundOpacity')),
 
             showInfo: formData.get('showInfo') === 'on',
             showGenresInfo: formData.get('showGenresInfo') === 'on',
@@ -560,6 +564,60 @@ function createSliderPanel(config, labels) {
 
     bindCheckboxKontrol('#showDotNavigation', '.dot-bg-container', 0.6, [dotBgSelect, dotBgLabel]);
 
+    const dotblurDiv = document.createElement('div');
+    dotblurDiv.className = 'setting-item';
+
+    const dotblurLabel = document.createElement('label');
+    dotblurLabel.textContent = labels.backgroundBlur || 'Arka plan bulanıklığı:';
+    dotblurLabel.htmlFor = 'dotBackgroundBlur';
+
+    const dotblurInput = document.createElement('input');
+    dotblurInput.type = 'range';
+    dotblurInput.min = '0';
+    dotblurInput.max = '20';
+    dotblurInput.step = '1';
+    dotblurInput.value = config.dotBackgroundBlur ?? 10;
+    dotblurInput.name = 'dotBackgroundBlur';
+    dotblurInput.id = 'dotBackgroundBlur';
+
+    const dotblurValue = document.createElement('span');
+    dotblurValue.className = 'range-value';
+    dotblurValue.textContent = dotblurInput.value + 'px';
+
+    dotblurInput.addEventListener('input', () => {
+    dotblurValue.textContent = dotblurInput.value + 'px';
+    });
+
+    dotblurDiv.append(dotblurLabel, dotblurInput, dotblurValue);
+    sliderDiv.appendChild(dotblurDiv);
+
+    const dotopacityDiv = document.createElement('div');
+    dotopacityDiv.className = 'setting-item';
+
+    const dotopacityLabel = document.createElement('label');
+    dotopacityLabel.textContent = labels.backgroundOpacity || 'Arka plan şeffaflığı:';
+    dotopacityLabel.htmlFor = 'dotBackgroundOpacity';
+
+    const dotopacityInput = document.createElement('input');
+    dotopacityInput.type = 'range';
+    dotopacityInput.min = '0';
+    dotopacityInput.max = '1';
+    dotopacityInput.step = '0.1';
+    dotopacityInput.value = config.dotBackgroundOpacity ?? 0.5;
+    dotopacityInput.name = 'dotBackgroundOpacity';
+    dotopacityInput.id = 'dotBackgroundOpacity';
+
+    const dotopacityValue = document.createElement('span');
+    dotopacityValue.className = 'range-value';
+    dotopacityValue.textContent = dotopacityInput.value;
+
+    dotopacityInput.addEventListener('input', () => {
+    dotopacityValue.textContent = dotopacityInput.value;
+    });
+
+    dotopacityDiv.append(dotopacityLabel, dotopacityInput, dotopacityValue);
+    sliderDiv.appendChild(dotopacityDiv);
+
         panel.append(languageDiv, cssDiv, sliderDiv);
         return panel;
     }
@@ -737,7 +795,7 @@ function createMusicPanel(config, labels) {
     blurDiv.className = 'setting-item';
 
     const blurLabel = document.createElement('label');
-    blurLabel.textContent = labels.albumArtBackgroundBlur || 'Arka plan bulanıklığı:';
+    blurLabel.textContent = labels.backgroundBlur || 'Arka plan bulanıklığı:';
     blurLabel.htmlFor = 'albumArtBackgroundBlur';
 
     const blurInput = document.createElement('input');
@@ -764,7 +822,7 @@ function createMusicPanel(config, labels) {
     opacityDiv.className = 'setting-item';
 
     const opacityLabel = document.createElement('label');
-    opacityLabel.textContent = labels.albumArtBackgroundOpacity || 'Arka plan şeffaflığı:';
+    opacityLabel.textContent = labels.backgroundOpacity || 'Arka plan şeffaflığı:';
     opacityLabel.htmlFor = 'albumArtBackgroundOpacity';
 
     const opacityInput = document.createElement('input');
@@ -1390,7 +1448,7 @@ function createButtonsPanel(config, labels) {
     favoriBgDiv.className = 'setting-item favorite-bg-container';
     const favoriBgLabel = document.createElement('label');
     favoriBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
-    const favoriBgSelect = createImageTypeSelect('favoriBackgroundImageType', config.favoriBackgroundImageType || 'backdropUrl', true);
+    const favoriBgSelect = createImageTypeSelect('favoriteBackgroundImageType', config.favoriteBackgroundImageType || 'backdropUrl', true);
     favoriBgDiv.append(favoriBgLabel, favoriBgSelect);
     section.appendChild(favoriBgDiv);
 
@@ -1409,6 +1467,55 @@ function createButtonsPanel(config, labels) {
     section.appendChild(playedBgDiv);
 
     bindCheckboxKontrol('#showPlayedButton', '.played-bg-container', 0.6, [playedBgSelect]);
+
+    const buttonOpacityDiv = document.createElement('div');
+    buttonOpacityDiv.className = 'setting-item';
+    const buttonOpacityLabel = document.createElement('label');
+    buttonOpacityLabel.textContent = labels.backgroundOpacity || 'Buton Arka Plan Şeffaflığı:';
+    const buttonOpacityInput = document.createElement('input');
+    buttonOpacityInput.type = 'range';
+    buttonOpacityInput.min = '0.3';
+    buttonOpacityInput.max = '1';
+    buttonOpacityInput.step = '0.1';
+    buttonOpacityInput.name = 'buttonOpacity';
+    buttonOpacityInput.id = 'buttonOpacity';
+    buttonOpacityInput.value = config.buttonBackgroundOpacity ?? 0.5;
+    buttonOpacityInput.name = 'buttonBackgroundOpacity';
+    const buttonOpacityValue = document.createElement('span');
+    buttonOpacityValue.className = 'range-value';
+    buttonOpacityValue.textContent = buttonOpacityInput.value;
+    buttonOpacityInput.addEventListener('input', () => {
+        buttonOpacityValue.textContent = buttonOpacityInput.value;
+    });
+    buttonOpacityDiv.append(buttonOpacityLabel, buttonOpacityInput, buttonOpacityValue);
+    section.appendChild(buttonOpacityDiv);
+
+    const buttonblurDiv = document.createElement('div');
+    buttonblurDiv.className = 'setting-item';
+
+    const buttonblurLabel = document.createElement('label');
+    buttonblurLabel.textContent = labels.backgroundBlur || 'Arka plan bulanıklığı:';
+    buttonblurLabel.htmlFor = 'buttonBackgroundBlur';
+
+    const buttonblurInput = document.createElement('input');
+    buttonblurInput.type = 'range';
+    buttonblurInput.min = '0';
+    buttonblurInput.max = '20';
+    buttonblurInput.step = '1';
+    buttonblurInput.value = config.buttonBackgroundBlur ?? 10;
+    buttonblurInput.name = 'buttonBackgroundBlur';
+    buttonblurInput.id = 'buttonBackgroundBlur';
+
+    const buttonblurValue = document.createElement('span');
+    buttonblurValue.className = 'range-value';
+    buttonblurValue.textContent = buttonblurInput.value + 'px';
+
+    buttonblurInput.addEventListener('input', () => {
+    buttonblurValue.textContent = buttonblurInput.value + 'px';
+    });
+
+    buttonblurDiv.append(buttonblurLabel, buttonblurInput, buttonblurValue);
+    section.appendChild(buttonblurDiv);
 
     panel.appendChild(section);
     return panel;
@@ -1678,31 +1785,38 @@ export function updateConfig(updatedConfig) {
         } else if (Array.isArray(value)) {
             localStorage.setItem(key, JSON.stringify(value));
         } else if (value !== undefined && value !== null) {
-            localStorage.setItem(key, value);
+            localStorage.setItem(key, value.toString());
         }
     });
+
     if (updatedConfig.defaultLanguage !== undefined) {
-    localStorage.setItem('defaultLanguage', updatedConfig.defaultLanguage);
-  }
-   if (updatedConfig.dateLocale !== undefined) {
-    localStorage.setItem('dateLocale', updatedConfig.dateLocale);
-  }
-    if (!isLocalStorageAvailable()) return;
-  const keysToSave = [
-    'playerTheme',
-    'playerStyle',
-    'useAlbumArtAsBackground',
-    'albumArtBackgroundBlur',
-    'albumArtBackgroundOpacity'
-  ];
-  keysToSave.forEach(key => {
-    const value = updatedConfig[key];
-    if (value !== undefined && value !== null) {
-      localStorage.setItem(key, typeof value === 'boolean'
-        ? value.toString()
-        : value.toString());
+        localStorage.setItem('defaultLanguage', updatedConfig.defaultLanguage);
     }
-  });
+
+    if (updatedConfig.dateLocale !== undefined) {
+        localStorage.setItem('dateLocale', updatedConfig.dateLocale);
+    }
+
+    if (!isLocalStorageAvailable()) return;
+
+    const keysToSave = [
+        'playerTheme',
+        'playerStyle',
+        'useAlbumArtAsBackground',
+        'albumArtBackgroundBlur',
+        'albumArtBackgroundOpacity',
+        'buttonBackgroundBlur',
+        'buttonBackgroundOpacity',
+        'dotBackgroundBlur',
+        'dotBackgroundOpacity'
+    ];
+
+    keysToSave.forEach(key => {
+        const value = updatedConfig[key];
+        if (value !== undefined && value !== null) {
+            localStorage.setItem(key, value.toString());
+        }
+    });
 }
 
 function setupMobileTextareaBehavior() {
