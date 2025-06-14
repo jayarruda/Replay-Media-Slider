@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  nextTracksSource: "Quelle der nächsten Titel",
+  normalslider: "Normale Ansicht",
+  topLimit: "Anzahl der UI-Elemente",
   fullscreen: "Vollbild",
   fullscreenEnabled: "Vollbildmodus aktiviert",
   fullscreenDisabled: "Vollbildmodus deaktiviert",

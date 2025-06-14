@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  nextTracksSource: "Next Tracks Source",
+  normalslider: "Normal View",
+  topLimit: "UI Item Count",
   fullscreen: "Full screen",
   fullscreenEnabled: "Full screen mode enabled",
   fullscreenDisabled: "Full screen mode disabled",

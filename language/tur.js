@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  nextTracksSource: "Sıradaki Şarkılar Kaynağı",
+  normalslider: "Normal Görünüm",
+  topLimit: "Kaynak Öğe Sayısı",
   fullscreen: "Tam Ekran",
   fullscreenEnabled: "Tam ekran modu etkin",
   fullscreenDisabled: "Tam ekran modu devre dışı",
@@ -331,7 +334,7 @@ export const languageLabels = {
   playlist: "Oynatma Listesi",
   previousTrack: "Önceki parça",
   playPause: "Oynat/Duraklat",
-  nextTrack: "Sonraki parça",
+  nextTrack: "Sonraki şarkı",
   lyrics: "Şarkı Sözleri",
   volume: "Ses Ayarı",
   volumeLevel: "Ses Seviyesi",
