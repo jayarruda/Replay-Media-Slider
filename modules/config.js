@@ -78,6 +78,7 @@ export function getConfig() {
     historySize: 20,
     updateInterval: 300000,
     progressBarWidth: parseInt(localStorage.getItem('progressBarWidth'), 10) || 100,
+    nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
     defaultLanguage,
     languageLabels: getLanguageLabels(defaultLanguage),
     sliderDuration: parseInt(localStorage.getItem('sliderDuration'), 10) || 15000,
@@ -94,7 +95,8 @@ export function getConfig() {
     playerStyle: localStorage.getItem('playerStyle') || 'player',
     dateLocale: localStorage.getItem('dateLocale') || 'tr-TR',
     maxExcludeIdsForUri: parseInt(localStorage.getItem('maxExcludeIdsForUri'), 10) || 100,
-    nextTrack: parseInt(localStorage.getItem('nextTrack'), 10) || 30,
+    nextTrack: parseInt(localStorage.getItem('nextTrack'), 10) || 100,
+    topTrack: parseInt(localStorage.getItem('topTrack'), 10) || 30,
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
     useAlbumArtAsBackground: localStorage.getItem('useAlbumArtAsBackground') === 'true',
     buttonBackgroundBlur: (() => {

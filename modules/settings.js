@@ -241,6 +241,7 @@ export function createSettingsModal() {
 
             muziklimit: parseInt(formData.get('muziklimit'), 10),
             nextTrack: parseInt(formData.get('nextTrack'), 10) || 30,
+            topTrack: parseInt(formData.get('topTrack'), 10) || 100,
             sarkilimit: parseInt(formData.get('sarkilimit'), 10),
             id3limit: parseInt(formData.get('id3limit'), 10),
             albumlimit: parseInt(formData.get('albumlimit'), 10),
@@ -248,6 +249,7 @@ export function createSettingsModal() {
             historylimit: parseInt(formData.get('historylimit'), 10),
             maxExcludeIdsForUri: parseInt(formData.get('maxExcludeIdsForUri'), 10),
             notificationsEnabled: formData.get('notificationsEnabled') === 'on',
+            nextTracksSource: formData.get('nextTracksSource'),
 
             useListFile: formData.get('useListFile') === 'on',
             useManualList: formData.get('useManualList') === 'on',
@@ -958,7 +960,7 @@ function createMusicPanel(config, labels) {
     nextTrackInput.type = 'number';
     nextTrackInput.value = config.nextTrack || 30;
     nextTrackInput.name = 'nextTrack';
-    nextTrackInput.min = 1;
+    nextTrackInput.min = 0;
     nextTrackDiv.append(nextTrackLabel, nextTrackInput);
     section.appendChild(nextTrackDiv);
 
@@ -1043,6 +1045,47 @@ function createMusicPanel(config, labels) {
     groupLimitInput.title = labels.gruplimitTitle || 'Mevcut oynatma listesine ekleme yapılırken gruplama limiti';
     groupLimitDiv.append(groupLimitLabel, groupLimitInput);
     section.appendChild(groupLimitDiv);
+
+    const nextTracksSourceDiv = document.createElement('div');
+    nextTracksSourceDiv.className = 'setting-item';
+    const nextTracksSourceLabel = document.createElement('label');
+    nextTracksSourceLabel.textContent = labels.nextTracksSource || 'Sıradaki Şarkılar Kaynağı:';
+    const nextTracksSourceSelect = document.createElement('select');
+    nextTracksSourceSelect.name = 'nextTracksSource';
+
+    const sources = [
+        { value: 'playlist', label: labels.playlist || 'Oynatma Listesi' },
+        { value: 'top', label: labels.topTracks || 'En Çok Dinlenenler' },
+        { value: 'recent', label: labels.recentTracks || 'Son Dinlenenler' },
+        { value: 'latest', label: labels.latestTracks || 'Son Eklenenler' },
+        { value: 'favorites', label: labels.favorites || 'Favorilerim' }
+    ];
+
+    sources.forEach(source => {
+    const option = document.createElement('option');
+    option.value = source.value;
+    option.textContent = source.label;
+    if (source.value === (config.nextTracksSource || 'playlist')) {
+        option.selected = true;
+    }
+    nextTracksSourceSelect.appendChild(option);
+});
+
+    nextTracksSourceDiv.append(nextTracksSourceLabel, nextTracksSourceSelect);
+    section.appendChild(nextTracksSourceDiv);
+
+    const topTrackDiv = document.createElement('div');
+    topTrackDiv.className = 'setting-item';
+    const topTrackLabel = document.createElement('label');
+    topTrackLabel.textContent = labels.topLimit || 'Sıradaki Şarkılar Limiti';
+    const topTrackInput = document.createElement('input');
+    topTrackInput.type = 'number';
+    topTrackInput.value = config.topTrack || 30;
+    topTrackInput.name = 'topTrack';
+    topTrackInput.min = 0;
+    topTrackDiv.append(topTrackLabel, topTrackInput);
+    section.appendChild(topTrackDiv);
+
     panel.appendChild(section);
     return panel;
 }
@@ -1808,7 +1851,8 @@ export function updateConfig(updatedConfig) {
         'buttonBackgroundBlur',
         'buttonBackgroundOpacity',
         'dotBackgroundBlur',
-        'dotBackgroundOpacity'
+        'dotBackgroundOpacity',
+        'nextTracksSource'
     ];
 
     keysToSave.forEach(key => {
