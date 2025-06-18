@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  aktifSure: "Время активности (мс)",
+  girisSure: "Задержка ввода (мс)",
   nextTracksSource: "Источник следующих треков",
   normalslider: "Обычный вид",
   topLimit: "Количество элементов интерфейса",
