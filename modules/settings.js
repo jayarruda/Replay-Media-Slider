@@ -236,6 +236,8 @@ export function createSettingsModal() {
             showDirectorWriter: formData.get('showDirectorWriter') === 'on',
             showDirector: formData.get('showDirector') === 'on',
             showWriter: formData.get('showWriter') === 'on',
+            aktifSure: parseInt(formData.get('aktifSure'), 10),
+            girisSure: parseInt(formData.get('girisSure'), 10),
             allowedWriters: formData.get('allowedWriters') ?
                 formData.get('allowedWriters').split(',').map(w => w.trim()) : [],
 
@@ -750,6 +752,32 @@ function createSliderPanel(config, labels) {
         writersInput.value = config.allowedWriters ? config.allowedWriters.join(', ') : '';
         writersDiv.append(writersLabel, writersInput);
         section.appendChild(writersDiv);
+
+        const girisSureDiv = document.createElement('div');
+        girisSureDiv.className = 'setting-item writersLabel';
+        const girisSureLabel = document.createElement('label');
+        girisSureLabel.textContent = labels.girisSure || 'Giriş Süresi (ms):';
+        const girisSureInput = document.createElement('input');
+        girisSureInput.type = 'number';
+        girisSureInput.value = config.girisSure || 1000;
+        girisSureInput.name = 'girisSure';
+        girisSureInput.min = 250;
+        girisSureInput.step = 250;
+        girisSureDiv.append(girisSureLabel, girisSureInput);
+        section.appendChild(girisSureDiv);
+
+        const aktifSureDiv = document.createElement('div');
+        aktifSureDiv.className = 'setting-item writersLabel';
+        const aktifSureLabel = document.createElement('label');
+        aktifSureLabel.textContent = labels.aktifSure || 'Aktiflik Süresi (ms):';
+        const aktifSureInput = document.createElement('input');
+        aktifSureInput.type = 'number';
+        aktifSureInput.value = config.aktifSure || 5000;
+        aktifSureInput.name = 'aktifSure';
+        aktifSureInput.min = 250;
+        aktifSureInput.step = 250;
+        aktifSureDiv.append(aktifSureLabel, aktifSureInput);
+        section.appendChild(aktifSureDiv);
 
         panel.appendChild(section);
         return panel;

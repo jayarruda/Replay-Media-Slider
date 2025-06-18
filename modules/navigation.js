@@ -148,8 +148,8 @@ export function displaySlide(index) {
         }, 50);
         setTimeout(() => {
           directorContainer.style.opacity = "0";
-        }, 7500);
-      }, 1000);
+        }, config.aktifSure);
+      }, config.girisSure);
     }
   }, 50);
 

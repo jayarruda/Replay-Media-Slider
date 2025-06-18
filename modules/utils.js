@@ -92,7 +92,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
 
   Object.assign(trailerIframe.style, {
     width: "70%",
-    height: "100%",
+    height: "90%",
     border: "none",
     display: "none",
     position: "absolute",

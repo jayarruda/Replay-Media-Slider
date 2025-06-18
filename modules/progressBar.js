@@ -42,7 +42,7 @@ export function startProgressBarWithDuration(duration) {
   if (!progressBar) return;
   progressBar.offsetWidth;
   progressBar.style.transition = `width ${duration}ms linear`;
-  progressBar.style.width = getConfig().progressBarWidth;
+  progressBar.style.width = `${getConfig().progressBarWidth}%`;
 }
 
 export function pauseProgressBar() {
@@ -61,5 +61,5 @@ export function resumeProgressBar() {
   const remainingTime = (100 - pausedProgress) * (SLIDE_DURATION / 100);
   progressBar.offsetWidth;
   progressBar.style.transition = `width ${remainingTime}ms linear`;
-  progressBar.style.width = getConfig().progressBarWidth;
+  progressBar.style.width = `${getConfig().progressBarWidth}%`;
 }

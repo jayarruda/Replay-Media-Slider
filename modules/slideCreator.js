@@ -23,15 +23,13 @@ import {
   createInfoContainer,
   createDirectorContainer,
   createRatingContainer,
-  createProviderContainer,
   createLanguageContainer,
   createMetaContainer,
   createMainContentContainer,
   createPlotContainer,
   createTitleContainer
 } from "./containerUtils.js";
-import { createButtons } from './buttons.js';
-import { createDeviceSelector } from "./castModule.js";
+import { createButtons, createProviderContainer } from './buttons.js';
 
 const config = getConfig();
 const settingsBackgroundSlides = [];
@@ -320,12 +318,11 @@ async function createSlide(item) {
 
   const metaContainer = createMetaContainer();
   if (statusContainer) metaContainer.appendChild(statusContainer);
-  if (languageContainer) metaContainer.appendChild(languageContainer);
   if (ratingExists) metaContainer.appendChild(ratingContainer);
+  if (languageContainer) metaContainer.appendChild(languageContainer);
 
   const mainContentContainer = createMainContentContainer();
   mainContentContainer.append(logoContainer, titleContainer, plotContainer, providerContainer);
-  const castContainer = await createDeviceSelector(itemId);
 
   slide.append(
     gradientOverlay,
@@ -335,8 +332,7 @@ async function createSlide(item) {
     metaContainer,
     mainContentContainer,
     buttonContainer,
-    actorSlider,
-    castContainer
+    actorSlider
   );
   slidesContainer.appendChild(slide);
 

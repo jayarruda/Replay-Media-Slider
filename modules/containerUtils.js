@@ -1,6 +1,4 @@
 import { getConfig } from "./config.js";
-import { getProviderUrl } from "./utils.js";
-import { initSettings } from './settings.js';
 
 const config = getConfig();
 
@@ -33,17 +31,6 @@ export function createGradientOverlay(imageUrl = "") {
 export function createHorizontalGradientOverlay() {
   const overlay = document.createElement("div");
   overlay.className = "horizontal-gradient-overlay";
-  overlay.style.position = "absolute";
-  overlay.style.top = "0";
-  overlay.style.left = "0";
-  overlay.style.width = "100%";
-  overlay.style.height = "100%";
-  overlay.style.background =
-    "linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.5) 50%, transparent 100%)";
-  overlay.style.pointerEvents = "none";
-  overlay.style.zIndex = "3";
-  overlay.style.opacity = "0.9";
-  overlay.style.mixBlendMode = "multiply";
   return overlay;
 }
 
@@ -85,23 +72,22 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
   if (UserData && config.showWatchedInfo) {
     const watchedSpan = document.createElement("span");
     watchedSpan.className = "watched-status";
-    watchedSpan.innerHTML = UserData.Played
+
+    let watchedText = UserData.Played
       ? `<i class="fa-light fa-circle-check"></i> ${config.languageLabels.izlendi}`
       : `<i class="fa-light fa-circle-xmark"></i> ${config.languageLabels.izlenmedi}`;
-    statusContainer.appendChild(watchedSpan);
 
     if (UserData.Played && UserData.PlayCount > 0) {
-      statusContainer.appendChild(document.createTextNode(" "));
-      const izlenmeSpan = document.createElement("span");
-      izlenmeSpan.className = "izlenme-status";
-      izlenmeSpan.innerHTML = `(${UserData.PlayCount})`;
-      statusContainer.appendChild(izlenmeSpan);
+      watchedText += ` (${UserData.PlayCount})`;
     }
+
+    watchedSpan.innerHTML = watchedText;
+    statusContainer.appendChild(watchedSpan);
   }
 
   if (RunTimeTicks && config.showRuntimeInfo) {
     const runtimeSpan = document.createElement("span");
-    runtimeSpan.className = config.languageLabels.sure;
+    runtimeSpan.className = "sure";
     const calcRuntime = (ticks) => {
       const totalMinutes = Math.floor(ticks / 600000000);
       const hours = Math.floor(totalMinutes / 60);
@@ -328,7 +314,7 @@ export function createRatingContainer({ config, CommunityRating, CriticRating, O
       ratingSpan.innerHTML = `
         <span class="star-rating" style="position: relative; display: inline-block; font-size: 1em; color: #ccc;">
           <i class="fa-regular fa-star"></i>
-          <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: 100%; color: gold; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
+          <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: auto; color: gold; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
             <i class="fa-solid fa-star" style="display: block;"></i>
           </span>
         </span> ${ratingValue} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
@@ -358,96 +344,6 @@ export function createRatingContainer({ config, CommunityRating, CriticRating, O
   }
 
   return { container, ratingExists };
-}
-
-export function createProviderContainer({ config, ProviderIds, RemoteTrailers }) {
-  const container = document.createElement("div");
-  container.className = "provider-container";
-
-  if (!ProviderIds && !config.showSettingsLink && !(config.showTrailerIcon && RemoteTrailers?.length)) {
-    return container;
-  }
-
-  const allowedProviders = ["Imdb", "Tmdb", "Tvdb"];
-  const providerDiv = document.createElement("div");
-  providerDiv.className = "provider-ids";
-
-  const iconStyle =
-    "";
-
-
-  if (config.showSettingsLink) {
-    const settingsLink = document.createElement("span");
-    settingsLink.innerHTML = `<i class="fa-solid fa-square-sliders fa-lg" style="${iconStyle}"></i>`;
-    settingsLink.className = "settings-link";
-    settingsLink.title = `${config.languageLabels.settingsLink}`;
-    settingsLink.style.cursor = "pointer";
-
-    settingsLink.onclick = (e) => {
-      e.preventDefault();
-      const settings = initSettings();
-      settings.open('slider');
-    };
-
-  providerDiv.appendChild(settingsLink);
-}
-
-
-  if (config.showTrailerIcon && RemoteTrailers?.length > 0) {
-    const trailer = RemoteTrailers[0];
-    const trailerLink = document.createElement("span");
-    trailerLink.innerHTML = `<i class="fa-brands fa-youtube fa-lg" style="color: #ff0000; ${iconStyle}"></i>`;
-    trailerLink.className = "provider-link";
-    trailerLink.title = `${config.languageLabels.youtubetrailer}`;
-    trailerLink.style.cursor = "pointer";
-    trailerLink.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      window.open(trailer.Url, "_blank", "noopener,noreferrer");
-    });
-    providerDiv.appendChild(trailerLink);
-  }
-
-  const providerIdsTranslations = {
-    Imdb: {
-      text: "",
-      icon: '<img src="slider/src/images/imdb.svg" alt="IMDb" style="width: 24px; height: 24px;">'
-    },
-    Tmdb: {
-      text: "",
-      icon: '<img src="slider/src/images/tmdb.svg" alt="TMDb" style="width: 24px; height: 24px;">'
-    },
-    Tvdb: {
-      text: "",
-      icon: '<img src="slider/src/images/tvdb.svg" alt="TVDb" style="width: 24px; height: 24px;">'
-    }
-  };
-
-  if (ProviderIds) {
-    allowedProviders.forEach(provider => {
-      if (config.showProviderInfo && ProviderIds[provider]) {
-        const link = document.createElement("span");
-        link.innerHTML = providerIdsTranslations[provider]?.icon || provider;
-        link.className = "provider-link";
-        link.style.cursor = "pointer";
-        link.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const url = getProviderUrl(provider, ProviderIds[provider], ProviderIds["TvdbSlug"]);
-          if (url) {
-            window.open(url, "_blank", "noopener,noreferrer");
-          }
-        });
-        providerDiv.appendChild(link);
-      }
-    });
-  }
-
-  if (providerDiv.childNodes.length > 0) {
-    container.appendChild(providerDiv);
-  }
-
-  return container;
 }
 
 export function createLanguageContainer({ config, MediaStreams, itemType }) {

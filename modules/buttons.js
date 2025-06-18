@@ -1,5 +1,7 @@
 import { getConfig } from "./config.js";
 import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
+import { initSettings } from './settings.js';
+import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification } from './castModule.js';
 
 const config = getConfig();
 
@@ -241,7 +243,7 @@ async function castToBestAvailableDevice(itemId) {
     }
 
     const activeDevice = videoDevices.find(d => d.NowPlayingItem) || videoDevices[0];
-    const success = await startPlayback(itemId, activeDevice.Id);
+    const success = await startNowPlayback(itemId, activeDevice.Id);
     if (!success) {
       showNotification(config.languageLabels.casthata, 'error');
     }
@@ -251,7 +253,7 @@ async function castToBestAvailableDevice(itemId) {
   }
 }
 
-async function startPlayback(itemId, sessionId) {
+async function startNowPlayback(itemId, sessionId) {
   try {
     const playUrl = `/Sessions/${sessionId}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
 
@@ -275,20 +277,6 @@ async function startPlayback(itemId, sessionId) {
   }
 }
 
-function showNotification(message, type) {
-  const notification = document.createElement('div');
-  notification.className = `playback-notification ${type}`;
-  notification.textContent = message;
-
-  document.body.appendChild(notification);
-
-  setTimeout(() => {
-    notification.classList.add('fade-out');
-    setTimeout(() => {
-      notification.remove();
-    }, 500);
-  }, 3000);
-}
 
 function hideNotification() {
   const notification = document.querySelector('.playback-notification');
@@ -298,4 +286,119 @@ function hideNotification() {
       notification.remove();
     }, 500);
   }
+}
+
+export function createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId }) {
+  const container = document.createElement("div");
+  container.className = "provider-container";
+
+  if (!ProviderIds && !config.showSettingsLink && !(config.showTrailerIcon && RemoteTrailers?.length) && !config.showCast) {
+    return container;
+  }
+
+  const allowedProviders = ["Imdb", "Tmdb", "Tvdb"];
+  const providerDiv = document.createElement("div");
+  providerDiv.className = "provider-icons";
+
+  if (config.showSettingsLink) {
+    const settingsLink = document.createElement("span");
+    settingsLink.innerHTML = `<i class="fa-solid fa-sliders"></i>`;
+    settingsLink.className = "provider-link settings";
+    settingsLink.title = `${config.languageLabels.settingsLink}`;
+    settingsLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      const settings = initSettings();
+      settings.open('slider');
+    });
+    providerDiv.appendChild(settingsLink);
+  }
+
+  if (config.showCast) {
+    const castContainer = document.createElement("div");
+    castContainer.className = "cast-container provider-link";
+
+    const deviceSelectorContainer = document.createElement("div");
+    deviceSelectorContainer.className = "device-selector-top-container";
+
+    const deviceIcon = document.createElement("div");
+    deviceIcon.className = "device-selector-top-icon";
+    deviceIcon.innerHTML = `<i class="fa-regular fa-screencast"></i>`;
+    deviceIcon.title = config.languageLabels.castoynat;
+
+    const deviceDropdown = document.createElement("div");
+    deviceDropdown.className = "device-selector-top-dropdown hide";
+
+    deviceIcon.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      if (deviceDropdown.classList.contains('hide')) {
+        await loadAvailableDevices(itemId, deviceDropdown);
+        deviceDropdown.classList.remove('hide');
+        deviceDropdown.classList.add('show');
+
+        setTimeout(() => {
+          const closeHandler = (e) => {
+            if (!castContainer.contains(e.target)) {
+              deviceDropdown.classList.remove('show');
+              deviceDropdown.classList.add('hide');
+              document.removeEventListener('click', closeHandler);
+            }
+          };
+          document.addEventListener('click', closeHandler);
+        }, 0);
+      } else {
+        deviceDropdown.classList.add('hide');
+      }
+    });
+
+    deviceSelectorContainer.appendChild(deviceIcon);
+    deviceSelectorContainer.appendChild(deviceDropdown);
+    castContainer.appendChild(deviceSelectorContainer);
+    providerDiv.appendChild(castContainer);
+  }
+
+  if (config.showTrailerIcon && RemoteTrailers?.length > 0) {
+    const trailerLink = document.createElement("span");
+    trailerLink.innerHTML = `<i class="fa-brands fa-youtube"></i>`;
+    trailerLink.className = "provider-link youtube";
+    trailerLink.title = `${config.languageLabels.youtubetrailer}`;
+    trailerLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.open(RemoteTrailers[0].Url, "_blank");
+    });
+    providerDiv.appendChild(trailerLink);
+  }
+
+  if (ProviderIds) {
+    allowedProviders.forEach(provider => {
+      if (config.showProviderInfo && ProviderIds[provider]) {
+        const link = document.createElement("span");
+        if (provider === "Imdb") {
+          link.innerHTML = `<img src="slider/src/images/imdb.svg" alt="IMDb">`;
+          link.className = "provider-link imdb";
+        } else if (provider === "Tmdb") {
+          link.innerHTML = `<img src="slider/src/images/tmdb.svg" alt="TMDb">`;
+          link.className = "provider-link tmdb";
+        } else {
+          link.innerHTML = `<img src="slider/src/images/tvdb.svg" alt="TVDb">`;
+          link.className = "provider-link tvdb";
+        }
+        link.title = `${provider} Profiline Git`;
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const url = getProviderUrl(provider, ProviderIds[provider], ProviderIds["TvdbSlug"]);
+          window.open(url, "_blank");
+        });
+        providerDiv.appendChild(link);
+      }
+    });
+  }
+
+  if (providerDiv.childNodes.length > 0) {
+    container.appendChild(providerDiv);
+  }
+
+  return container;
 }
