@@ -445,7 +445,7 @@ function createSliderPanel(config, labels) {
     sliderInput.value = config.sliderDuration || 15000;
     sliderInput.name = 'sliderDuration';
     sliderInput.min = 1000;
-    sliderInput.step = 500;
+    sliderInput.step = 250;
     sliderDiv.append(sliderLabel, sliderInput);
 
     const sliderDesc = document.createElement('div');
@@ -494,7 +494,7 @@ function createSliderPanel(config, labels) {
     delayInput.name = 'gecikmeSure';
     delayInput.min = 0;
     delayInput.max = 10000;
-    delayInput.step = 100;
+    delayInput.step = 50;
     delayDiv.append(delayLabel, delayInput);
     sliderDiv.appendChild(delayDiv);
 
@@ -761,8 +761,9 @@ function createSliderPanel(config, labels) {
         girisSureInput.type = 'number';
         girisSureInput.value = config.girisSure || 1000;
         girisSureInput.name = 'girisSure';
-        girisSureInput.min = 250;
-        girisSureInput.step = 250;
+        girisSureInput.min = 50;
+        girisSureInput.step = 50;
+
         girisSureDiv.append(girisSureLabel, girisSureInput);
         section.appendChild(girisSureDiv);
 
@@ -774,8 +775,8 @@ function createSliderPanel(config, labels) {
         aktifSureInput.type = 'number';
         aktifSureInput.value = config.aktifSure || 5000;
         aktifSureInput.name = 'aktifSure';
-        aktifSureInput.min = 250;
-        aktifSureInput.step = 250;
+        aktifSureInput.min = 50;
+        aktifSureInput.step = 50;
         aktifSureDiv.append(aktifSureLabel, aktifSureInput);
         section.appendChild(aktifSureDiv);
 
