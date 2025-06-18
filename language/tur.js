@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  aktifSure: "Aktiflik Süresi (ms)",
+  girisSure: "Giriş Gecikme Süresi (ms)",
   nextTracksSource: "Sıradaki Şarkılar Kaynağı",
   normalslider: "Normal Görünüm",
   topLimit: "Kaynak Öğe Sayısı",
