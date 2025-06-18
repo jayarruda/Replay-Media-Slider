@@ -45,7 +45,6 @@ import {
   createInfoContainer,
   createDirectorContainer,
   createRatingContainer,
-  createProviderContainer,
   createLanguageContainer,
   createMetaContainer,
   createMainContentContainer,
@@ -53,9 +52,47 @@ import {
   createTitleContainer
 } from "./modules/containerUtils.js";
 
+function forceSkinHeaderPointerEvents() {
+  const apply = () => {
+    document.querySelectorAll('html .skinHeader').forEach(el => {
+      el.style.setProperty('pointer-events', 'all', 'important');
+    });
+
+    const playerToggle = document.querySelector('button#jellyfinPlayerToggle');
+    if (playerToggle) {
+      playerToggle.style.setProperty('display', 'block', 'important');
+      playerToggle.style.setProperty('opacity', '1', 'important');
+      playerToggle.style.setProperty('pointer-events', 'all', 'important');
+      playerToggle.style.setProperty('background', 'none', 'important');
+      playerToggle.style.setProperty('margin-left', '12px', 'important');
+      playerToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
+      playerToggle.style.setProperty('color', 'inherit', 'important');
+      playerToggle.style.setProperty('cursor', 'pointer', 'important');
+      playerToggle.style.setProperty('border', 'none', 'important');
+      playerToggle.style.setProperty('font-size', '1.2em', 'important');
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    apply();
+  }
+
+  const obs = new MutationObserver(apply);
+  obs.observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true
+  });
+}
+
+forceSkinHeaderPointerEvents();
+
 const config = getConfig();
 
 function fullSliderReset() {
+  forceSkinHeaderPointerEvents();
   if (window.intervalChangeSlide) {
     clearInterval(window.intervalChangeSlide);
     window.intervalChangeSlide = null;
@@ -101,6 +138,7 @@ const shuffleArray = (array) => {
 let isOnHomePage = true;
 
 export function slidesInit() {
+  forceSkinHeaderPointerEvents();
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
   fullSliderReset();
@@ -314,6 +352,7 @@ function initializeSliderOnHome() {
 function waitForDomAndIndexPage() {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if ((document.readyState === "complete" || document.readyState === "interactive") && indexPage) {
+    forceSkinHeaderPointerEvents();
     initializeSliderOnHome();
     setupNavigationObserver();
   }
