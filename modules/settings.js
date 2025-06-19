@@ -453,7 +453,6 @@ function createSliderPanel(config, labels) {
     sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
     sliderDiv.appendChild(sliderDesc);
 
-    sliderDiv.appendChild(createCheckbox('showCast', labels.showCast || 'Chromecast\'ı Göster', config.showCast));
 
     const showProgressCheckbox = createCheckbox('showProgressBar', labels.progressBar || 'ProgressBar\'ı Göster', config.showProgressBar);
     sliderDiv.appendChild(showProgressCheckbox);
@@ -1413,6 +1412,8 @@ function createProviderPanel(config, labels) {
 
     const section = createSection(labels.providerHeader || 'Dış Bağlantılar / Sağlayıcı Ayarları');
     section.appendChild(createCheckbox('showProviderInfo', labels.showProviderInfo || 'Metaveri Bağlantıları Göster', config.showProviderInfo));
+
+    section.appendChild(createCheckbox('showCast', labels.showCast || 'Chromecast\'ı Göster', config.showCast));
 
     const settingsLinkDiv = document.createElement('div');
     settingsLinkDiv.id = 'settingsLinkContainer';
