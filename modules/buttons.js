@@ -2,7 +2,7 @@ import { getConfig } from "./config.js";
 import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
 import { initSettings } from './settings.js';
 import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification } from './castModule.js';
-import { getProviderUrl } from './utils.js';
+import { getProviderUrl, getYoutubeEmbedUrl } from './utils.js';
 
 const config = getConfig();
 
