@@ -9,7 +9,6 @@
  */
 
 import { saveApiKey, saveCredentialsToSessionStorage } from "./auth.js";
-import { cleanupSlider } from "./modules/sliderCleanup.js";
 import { getConfig } from "./modules/config.js";
 import { getLanguageLabels, getDefaultLanguage } from './language/index.js';
 import {
@@ -93,6 +92,7 @@ const config = getConfig();
 
 function fullSliderReset() {
   forceSkinHeaderPointerEvents();
+
   if (window.intervalChangeSlide) {
     clearInterval(window.intervalChangeSlide);
     window.intervalChangeSlide = null;
@@ -100,6 +100,10 @@ function fullSliderReset() {
   if (window.sliderTimeout) {
     clearTimeout(window.sliderTimeout);
     window.sliderTimeout = null;
+  }
+  if (window.autoSlideTimeout) {
+    clearTimeout(window.autoSlideTimeout);
+    window.autoSlideTimeout = null;
   }
 
   setCurrentIndex(0);
@@ -142,10 +146,6 @@ export function slidesInit() {
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
   fullSliderReset();
-  document.cookie.split(";").forEach(cookie => {
-    const [name] = cookie.split("=");
-    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.grbzhome.com;`;
-  });
 
   const credentials = sessionStorage.getItem("json-credentials");
   const apiKey = sessionStorage.getItem("api-key");
@@ -319,35 +319,72 @@ function initializeSlider() {
 
 function setupNavigationObserver() {
   let previousUrl = window.location.href;
-  setInterval(() => {
-    if (window.location.href !== previousUrl) {
-      previousUrl = window.location.href;
-      const indexPage = document.querySelector("#indexPage:not(.hide)");
-      if (indexPage) {
-        console.log("Ana sayfaya dönüldü, slider resetleniyor.");
+  let isOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
+
+  const checkPageChange = () => {
+    const currentUrl = window.location.href;
+    const nowOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
+
+    if (currentUrl !== previousUrl || isOnHomePage !== nowOnHomePage) {
+      previousUrl = currentUrl;
+      isOnHomePage = nowOnHomePage;
+
+      if (isOnHomePage) {
+        console.log("Ana sayfaya dönüldü, slider tamamen resetleniyor.");
         fullSliderReset();
-        slidesInit();
+
+        setTimeout(() => {
+          if (!document.querySelector("#slides-container")) {
+            const slidesContainer = document.createElement("div");
+            slidesContainer.id = "slides-container";
+            document.querySelector("#indexPage:not(.hide)").appendChild(slidesContainer);
+          }
+          slidesInit();
+        }, 100);
       } else {
-        console.log("URL değişikliği (ana sayfa değil), reset yapılmadı.");
+        console.log("Ana sayfadan ayrıldı, slider temizleniyor.");
+        fullSliderReset();
       }
     }
-  }, 500);
+  };
+
+  const observerInterval = setInterval(checkPageChange, 300);
+
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+
+  history.pushState = function() {
+    originalPushState.apply(this, arguments);
+    checkPageChange();
+  };
+
+  history.replaceState = function() {
+    originalReplaceState.apply(this, arguments);
+    checkPageChange();
+  };
+
+  window.addEventListener('popstate', checkPageChange);
+
+  return () => clearInterval(observerInterval);
 }
 
 function initializeSliderOnHome() {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (indexPage) {
+
+    fullSliderReset();
+
     if (!indexPage.querySelector("#slides-container")) {
-    const slidesContainer = document.createElement("div");
-    slidesContainer.id = "slides-container";
-    indexPage.appendChild(slidesContainer);
-  }
-  ensureProgressBarExists();
-  startSlideTimer();
-  attachMouseEvents();
-  slidesInit();
+      const slidesContainer = document.createElement("div");
+      slidesContainer.id = "slides-container";
+      indexPage.appendChild(slidesContainer);
+    }
+
+    ensureProgressBarExists();
+    slidesInit();
   }
 }
+
 
 function waitForDomAndIndexPage() {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
@@ -355,6 +392,31 @@ function waitForDomAndIndexPage() {
     forceSkinHeaderPointerEvents();
     initializeSliderOnHome();
     setupNavigationObserver();
+  }
+}
+
+function cleanupSlider() {
+  if (window.mySlider) {
+    if (window.mySlider.autoSlideTimeout) {
+      clearTimeout(window.mySlider.autoSlideTimeout);
+    }
+    if (window.mySlider.sliderTimeout) {
+      clearTimeout(window.mySlider.sliderTimeout);
+    }
+    if (window.mySlider.intervalChangeSlide) {
+      clearInterval(window.mySlider.intervalChangeSlide);
+    }
+    window.mySlider = {};
+    console.log("Global slider instance temizlendi.");
+  }
+
+  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  if (indexPage) {
+    const sliderContainer = indexPage.querySelector("#slides-container");
+    if (sliderContainer) {
+      sliderContainer.remove();
+      console.log("Eski slider container kaldırıldı.");
+    }
   }
 }
 
