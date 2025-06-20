@@ -99,6 +99,11 @@ export function getConfig() {
     topTrack: parseInt(localStorage.getItem('topTrack'), 10) || 30,
     aktifSure: parseInt(localStorage.getItem('aktifSure'), 10) || 5000,
     girisSure: parseInt(localStorage.getItem('girisSure'), 10) || 1000,
+    homeSectionsTop: parseInt(localStorage.getItem('homeSectionsTop'), 10) || 0,
+    slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
+    slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,
+    slideWidth: parseInt(localStorage.getItem('slideWidth'), 10) || 0,
+    slideHeight: parseInt(localStorage.getItem('slideHeight'), 10) || 0,
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
     useAlbumArtAsBackground: localStorage.getItem('useAlbumArtAsBackground') === 'true',
     buttonBackgroundBlur: (() => {
