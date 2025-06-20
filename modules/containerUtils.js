@@ -7,9 +7,74 @@ export function createSlidesContainer(indexPage) {
   if (!slidesContainer) {
     slidesContainer = document.createElement("div");
     slidesContainer.id = "slides-container";
+    if (config.slideTop) {
+      slidesContainer.style.top = `${config.slideTop}%`;
+    } else {
+      slidesContainer.style.top = '';
+    };
+
+     if (config.slideLeft) {
+      slidesContainer.style.left = `${config.slideLeft}%`;
+    } else {
+      slidesContainer.style.left = '';
+    };
+
+    if (config.slideWidth) {
+      slidesContainer.style.width = `${config.slideWidth}%`;
+    } else {
+      slidesContainer.style.width = '';
+    };
+
+    if (config.slideHeight) {
+      slidesContainer.style.height = `${config.slideHeight}%`;
+    } else {
+      slidesContainer.style.height = '';
+    }
+
     indexPage.insertBefore(slidesContainer, indexPage.firstChild);
   }
   return slidesContainer;
+}
+
+export function updateSlidePosition() {
+  const slidesContainer = document.querySelector("#slides-container");
+  const homeSectionsContainer = document.querySelector(".homeSectionsContainer");
+
+  if (slidesContainer) {
+    const config = getConfig();
+    if (config.slideTop) {
+      slidesContainer.style.top = `${config.slideTop}%`;
+    } else {
+      slidesContainer.style.top = '';
+    };
+
+    if (config.slideLeft) {
+      slidesContainer.style.left = `${config.slideLeft}%`;
+    } else {
+      slidesContainer.style.left = '';
+    };
+
+    if (config.slideWidth) {
+      slidesContainer.style.width = `${config.slideWidth}%`;
+    } else {
+      slidesContainer.style.width = '';
+    };
+
+    if (config.slideHeight) {
+      slidesContainer.style.height = `${config.slideHeight}%`;
+    } else {
+      slidesContainer.style.height = '';
+    }
+  }
+
+  if (homeSectionsContainer) {
+    const config = getConfig();
+    if (config.homeSectionsTop) {
+      homeSectionsContainer.style.top = `${config.homeSectionsTop}vh`;
+    } else {
+      homeSectionsContainer.style.top = '';
+    };
+  }
 }
 
 export function createGradientOverlay(imageUrl = "") {
