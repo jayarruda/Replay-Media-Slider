@@ -2,6 +2,8 @@ import { getConfig } from "./config.js";
 import { loadCSS } from "./player/main.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { showNotification } from "./player/ui/notification.js";
+import { updateSlidePosition } from './containerUtils.js';
+
 
 let settingsModal = null;
 
@@ -53,6 +55,7 @@ export function createSettingsModal() {
 
     const sliderTab = createTab('slider', labels.sliderSettings || 'Slider Ayarları', true);
     const musicTab = createTab('music', labels.gmmpSettings || 'GMMP Ayarları', true);
+    const positionTab = createTab('position', labels.positionSettings || 'Konumlardıma Ayarları', true);
     const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi', true);
     const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık', true);
     const statusRatingTab = createTab('status-rating', labels.statusRatingInfo || 'Durum ve Puan Bilgileri', true);
@@ -66,13 +69,14 @@ export function createSettingsModal() {
     const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında', true);
 
     tabContainer.append(
-        sliderTab, musicTab, queryTab, statusRatingTab,
+        sliderTab, musicTab, positionTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
         descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
     );
 
     const sliderPanel = createSliderPanel(config, labels);
     const musicPanel = createMusicPanel(config, labels);
+    const positionPanel = createPositionPanel(config, labels);
     const queryPanel = createQueryPanel(config, labels);
     const statusRatingPanel = createStatusRatingPanel(config, labels);
     const actorPanel = createActorPanel(config, labels);
@@ -88,7 +92,7 @@ export function createSettingsModal() {
     [
         sliderPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, languagePanel, logoTitlePanel,
-        descriptionPanel, providerPanel, buttonsPanel, infoPanel, aboutPanel
+        descriptionPanel, providerPanel, buttonsPanel, infoPanel, positionPanel, aboutPanel
     ].forEach(panel => {
         panel.style.display = 'none';
     });
@@ -97,26 +101,26 @@ export function createSettingsModal() {
     tabContent.append(
         sliderPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, languagePanel, logoTitlePanel,
-        descriptionPanel, providerPanel, buttonsPanel, infoPanel, aboutPanel
+        descriptionPanel, providerPanel, buttonsPanel, infoPanel, positionPanel, aboutPanel
     );
 
     [
         sliderTab, musicTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
+        descriptionTab, providerTab, buttonsTab, infoTab, positionTab, aboutTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
         sliderTab, musicTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
+        descriptionTab, providerTab, buttonsTab, infoTab, positionTab, aboutTab
             ].forEach(t => {
                 t.classList.remove('active');
             });
             [
                 sliderPanel, statusRatingPanel, actorPanel, directorPanel,
                 musicPanel, queryPanel, languagePanel, logoTitlePanel,
-                descriptionPanel, providerPanel, buttonsPanel, infoPanel, aboutPanel
+                descriptionPanel, providerPanel, buttonsPanel, infoPanel, positionPanel, aboutPanel
             ].forEach(panel => {
                 panel.style.display = 'none';
             });
@@ -304,10 +308,17 @@ export function createSettingsModal() {
             showInfo: formData.get('showInfo') === 'on',
             showGenresInfo: formData.get('showGenresInfo') === 'on',
             showYearInfo: formData.get('showYearInfo') === 'on',
-            showCountryInfo: formData.get('showCountryInfo') === 'on'
+            showCountryInfo: formData.get('showCountryInfo') === 'on',
+
+            homeSectionsTop: parseInt(formData.get('homeSectionsTop'), 10) || 0,
+            slideTop: parseInt(formData.get('slideTop'), 10) || 0,
+            slideLeft: parseInt(formData.get('slideLeft'), 10) || 0,
+            slideWidth: parseInt(formData.get('slideWidth'), 10) || 0,
+            slideHeight: parseInt(formData.get('slideHeight'), 10) || 0,
         };
 
         updateConfig(updatedConfig);
+        updateSlidePosition();
         const rawQuery = formData.get('customQueryString')?.trim();
         if (!rawQuery) {
           localStorage.removeItem('customQueryString');
@@ -1620,6 +1631,114 @@ function createInfoPanel(config, labels) {
     panel.appendChild(section);
     return panel;
 }
+
+function createPositionPanel(config, labels = {}) {
+  const panel = document.createElement('div');
+  panel.id = 'position-panel';
+  panel.className = 'position-panel';
+
+  const section = createSection();
+
+  function createSettingItem(labelText, configKey, cssProperty, placeholder, target = 'slides') {
+    const container = document.createElement('div');
+    container.className = 'position-item';
+
+    const label = document.createElement('label');
+    label.textContent = labelText;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.name = configKey;
+    input.value = config[configKey] || '';
+    input.placeholder = placeholder || labels.placeholderText || 'Değer giriniz';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = labels.resetButton || 'Sıfırla';
+    resetBtn.type = 'button';
+    resetBtn.className = 'reset-button';
+    resetBtn.addEventListener('click', () => {
+      input.value = '';
+      config[configKey] = '';
+      const targetElement = document.querySelector(target === 'slides' ? "#slides-container" : ".homeSectionsContainer");
+      if (targetElement) targetElement.style[cssProperty] = '';
+    });
+
+    input.addEventListener('input', function() {
+      const value = parseInt(this.value);
+      const newValue = isNaN(value) ? '' : value;
+      config[configKey] = newValue;
+      const targetElement = document.querySelector(target === 'slides' ? "#slides-container" : ".homeSectionsContainer");
+      if (targetElement) {
+        targetElement.style[cssProperty] = newValue === '' ? '' : `${newValue}${target === 'homeSections' && cssProperty === 'top' ? 'vh' : '%'}`;
+      }
+    });
+
+    container.append(label, input, resetBtn);
+    return container;
+  }
+
+  const homeSectionsHeader = document.createElement('h3');
+  homeSectionsHeader.textContent = labels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
+  section.appendChild(homeSectionsHeader);
+
+  const homeSectionsHeaderNote = document.createElement('h5');
+  homeSectionsHeaderNote.textContent = labels.homeSectionsPositionNote || '(Eksi (-) değerler, konumlandırmayı ters yönde değiştirir.)';
+  section.appendChild(homeSectionsHeaderNote);
+
+  section.appendChild(
+    createSettingItem(
+      labels.homeSectionsTop || 'Dikey Konum (vh):',
+      'homeSectionsTop',
+      'top',
+      labels.placeholderText,
+      'homeSections'
+    )
+  );
+
+  const sliderHeader = document.createElement('h3');
+  sliderHeader.textContent = labels.sliderPosition || 'Slider Pozisyonu';
+  section.appendChild(sliderHeader);
+
+  section.appendChild(
+    createSettingItem(
+      labels.slideTop || 'Üst Hiza (%):',
+      'slideTop',
+      'top',
+      labels.placeholderText
+    )
+  );
+
+  section.appendChild(
+    createSettingItem(
+      labels.slideLeft || 'Sol Üst Hiza (%):',
+      'slideLeft',
+      'left',
+      labels.placeholderText
+    )
+  );
+
+  section.appendChild(
+    createSettingItem(
+      labels.slideWidth || 'Genişlik (%):',
+      'slideWidth',
+      'width',
+      labels.placeholderText
+    )
+  );
+
+  section.appendChild(
+    createSettingItem(
+      labels.slideHeight || 'Yükseklik (%):',
+      'slideHeight',
+      'height',
+      labels.placeholderText
+    )
+  );
+
+  panel.appendChild(section);
+  return panel;
+}
+
 
 function createTab(id, label, isActive = false, isDisabled = false) {
     const tab = document.createElement('div');
