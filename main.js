@@ -48,8 +48,11 @@ import {
   createMetaContainer,
   createMainContentContainer,
   createPlotContainer,
-  createTitleContainer
+  createTitleContainer,
+  updateSlidePosition,
 } from "./modules/containerUtils.js";
+
+const config = getConfig();
 
 function forceSkinHeaderPointerEvents() {
   const apply = () => {
@@ -70,6 +73,7 @@ function forceSkinHeaderPointerEvents() {
       playerToggle.style.setProperty('border', 'none', 'important');
       playerToggle.style.setProperty('font-size', '1.2em', 'important');
     }
+
   };
 
   if (document.readyState === 'loading') {
@@ -88,7 +92,35 @@ function forceSkinHeaderPointerEvents() {
 
 forceSkinHeaderPointerEvents();
 
-const config = getConfig();
+function forceHomeSectionsTop() {
+  const apply = () => {
+    const container = document.querySelector('.homeSectionsContainer');
+    if (!container) return;
+
+    const config = getConfig();
+    const topValue = config.homeSectionsTop;
+
+    if (typeof topValue === 'number' && !isNaN(topValue) && topValue !== 0) {
+      container.style.setProperty('top', `${topValue}vh`, 'important');
+    } else {
+      container.style.removeProperty('top');
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    apply();
+  }
+  const observer = new MutationObserver(apply);
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true
+  });
+}
+
+forceHomeSectionsTop();
 
 function fullSliderReset() {
   forceSkinHeaderPointerEvents();
