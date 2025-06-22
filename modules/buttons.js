@@ -3,12 +3,14 @@ import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
 import { initSettings } from './settings.js';
 import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification } from './castModule.js';
 import { getProviderUrl, getYoutubeEmbedUrl } from './utils.js';
+import { applyContainerStyles } from './containerUtils.js';
 
 const config = getConfig();
 
 export function createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal) {
     const mainContainer = document.createElement('div');
     mainContainer.className = 'main-button-container';
+    applyContainerStyles(mainContainer, 'button');
 
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'button-container hidden';
@@ -292,6 +294,7 @@ function hideNotification() {
 export function createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId }) {
   const container = document.createElement("div");
   container.className = "provider-container";
+  applyContainerStyles(container, 'provider');
 
   if (!ProviderIds && !config.showSettingsLink && !(config.showTrailerIcon && RemoteTrailers?.length) && !config.showCast) {
     return container;

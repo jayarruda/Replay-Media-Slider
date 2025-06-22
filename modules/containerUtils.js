@@ -7,74 +7,10 @@ export function createSlidesContainer(indexPage) {
   if (!slidesContainer) {
     slidesContainer = document.createElement("div");
     slidesContainer.id = "slides-container";
-    if (config.slideTop) {
-      slidesContainer.style.top = `${config.slideTop}%`;
-    } else {
-      slidesContainer.style.top = '';
-    };
-
-     if (config.slideLeft) {
-      slidesContainer.style.left = `${config.slideLeft}%`;
-    } else {
-      slidesContainer.style.left = '';
-    };
-
-    if (config.slideWidth) {
-      slidesContainer.style.width = `${config.slideWidth}%`;
-    } else {
-      slidesContainer.style.width = '';
-    };
-
-    if (config.slideHeight) {
-      slidesContainer.style.height = `${config.slideHeight}%`;
-    } else {
-      slidesContainer.style.height = '';
-    }
-
+    applyContainerStyles(slidesContainer);
     indexPage.insertBefore(slidesContainer, indexPage.firstChild);
   }
   return slidesContainer;
-}
-
-export function updateSlidePosition() {
-  const slidesContainer = document.querySelector("#slides-container");
-  const homeSectionsContainer = document.querySelector(".homeSectionsContainer");
-
-  if (slidesContainer) {
-    const config = getConfig();
-    if (config.slideTop) {
-      slidesContainer.style.top = `${config.slideTop}%`;
-    } else {
-      slidesContainer.style.top = '';
-    };
-
-    if (config.slideLeft) {
-      slidesContainer.style.left = `${config.slideLeft}%`;
-    } else {
-      slidesContainer.style.left = '';
-    };
-
-    if (config.slideWidth) {
-      slidesContainer.style.width = `${config.slideWidth}%`;
-    } else {
-      slidesContainer.style.width = '';
-    };
-
-    if (config.slideHeight) {
-      slidesContainer.style.height = `${config.slideHeight}%`;
-    } else {
-      slidesContainer.style.height = '';
-    }
-  }
-
-  if (homeSectionsContainer) {
-    const config = getConfig();
-    if (config.homeSectionsTop) {
-      homeSectionsContainer.style.top = `${config.homeSectionsTop}vh`;
-    } else {
-      homeSectionsContainer.style.top = '';
-    };
-  }
 }
 
 export function createGradientOverlay(imageUrl = "") {
@@ -102,12 +38,7 @@ export function createHorizontalGradientOverlay() {
 export function createLogoContainer() {
   const container = document.createElement("div");
   container.className = "logo-container";
-  return container;
-}
-
-export function createButtonContainer() {
-  const container = document.createElement("div");
-  container.className = "button-container";
+  applyContainerStyles(container, 'logo');
   return container;
 }
 
@@ -202,6 +133,7 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
 export function createActorSlider(People, config) {
   const sliderWrapper = document.createElement("div");
   sliderWrapper.className = "slider-wrapper";
+  applyContainerStyles(sliderWrapper, 'slider');
 
   const actorContainer = document.createElement("div");
   actorContainer.className = "artist-container";
@@ -273,6 +205,7 @@ export function createActorSlider(People, config) {
 export function createInfoContainer({ config, Genres, ProductionYear, ProductionLocations }) {
   const container = document.createElement("div");
   container.className = "info-container";
+  applyContainerStyles(container, 'info');
 
   if (Genres && Genres.length && config.showGenresInfo) {
     const genresSpan = document.createElement("span");
@@ -331,6 +264,7 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
 export function createDirectorContainer({ config, People }) {
   const container = document.createElement("div");
   container.className = "director-container";
+  applyContainerStyles(container, 'director');
 
   if (People && People.length > 0 && config.showDirectorWriter) {
     if (config.showDirector) {
@@ -499,6 +433,7 @@ export function createLanguageContainer({ config, MediaStreams, itemType }) {
 export function createMetaContainer() {
   const container = document.createElement("div");
   container.className = "meta-container";
+  applyContainerStyles(container, 'meta');
   return container;
 }
 
@@ -511,6 +446,7 @@ export function createMainContentContainer() {
 export function createPlotContainer(config, Overview) {
   const container = document.createElement("div");
   container.className = "plot-container";
+  applyContainerStyles(container, 'plot');
 
   if (config.showDescriptions && config.showPlotInfo && Overview) {
     if (config.showbPlotInfo && config.languageLabels.konu) {
@@ -529,7 +465,8 @@ export function createPlotContainer(config, Overview) {
 
 export function createTitleContainer({ config, Taglines, title, OriginalTitle }) {
   const container = document.createElement("div");
-  container.className = "baslik-container";
+  container.className = "title-container";
+  applyContainerStyles(container, 'title');
 
   if (config.showDescriptions && config.showTitleInfo && title) {
     const titleSpan = document.createElement("span");
@@ -559,3 +496,96 @@ export function createTitleContainer({ config, Taglines, title, OriginalTitle })
   return container;
 }
 
+export function applyContainerStyles(container, type = '') {
+  const config = getConfig();
+  let prefix;
+  if (type === 'progress') {
+    prefix = 'progressBar';
+  } else if (type) {
+    prefix = `${type}Container`;
+  } else {
+    prefix = 'slide';
+  }
+
+  if (config[`${prefix}Top`]) {
+    container.style.top = `${config[`${prefix}Top`]}%`;
+  } else {
+    container.style.top = '';
+  }
+
+  if (config[`${prefix}Left`]) {
+    container.style.left = `${config[`${prefix}Left`]}%`;
+  } else {
+    container.style.left = '';
+  }
+
+  if (config[`${prefix}Width`]) {
+    container.style.width = `${config[`${prefix}Width`]}%`;
+  } else {
+    container.style.width = '';
+  }
+
+  if (config[`${prefix}Height`]) {
+    container.style.height = `${config[`${prefix}Height`]}%`;
+  } else {
+    container.style.height = '';
+  }
+}
+
+export function updateSlidePosition() {
+  const config = getConfig();
+
+  const slidesContainer = document.querySelector("#slides-container");
+  if (slidesContainer) applyContainerStyles(slidesContainer);
+
+  document.querySelectorAll('.logo-container').forEach(container => {
+    applyContainerStyles(container, 'logo');
+  });
+  document.querySelectorAll('.meta-container').forEach(container => {
+    applyContainerStyles(container, 'meta');
+  });
+  document.querySelectorAll('.plot-container').forEach(container => {
+    applyContainerStyles(container, 'plot');
+  });
+  document.querySelectorAll('.title-container').forEach(container => {
+    applyContainerStyles(container, 'title');
+  });
+  document.querySelectorAll('.director-container').forEach(container => {
+    applyContainerStyles(container, 'director');
+  });
+  document.querySelectorAll('.info-container').forEach(container => {
+    applyContainerStyles(container, 'info');
+  });
+  document.querySelectorAll('.main-button-container').forEach(container => {
+    applyContainerStyles(container, 'button');
+  });
+  document.querySelectorAll('.dot-navigation-container').forEach(container => {
+    applyContainerStyles(container, 'existingDot');
+  });
+  document.querySelectorAll('.provider-container').forEach(container => {
+    applyContainerStyles(container, 'provider');
+  });
+
+  const sliderWrapper = document.querySelector(".slider-wrapper");
+  if (sliderWrapper) applyContainerStyles(sliderWrapper);
+
+  document.querySelectorAll('.slider-wrapper').forEach(container => {
+    applyContainerStyles(sliderWrapper, 'slider');
+  });
+
+  const progressBar = document.querySelector(".slide-progress-bar");
+  if (progressBar) applyContainerStyles(progressBar);
+
+  document.querySelectorAll('.slide-progress-bar').forEach(container => {
+    applyContainerStyles(progressBar, 'progress');
+  });
+
+  const homeSectionsContainer = document.querySelector(".homeSectionsContainer");
+  if (homeSectionsContainer) {
+    if (config.homeSectionsTop) {
+      homeSectionsContainer.style.top = `${config.homeSectionsTop}vh`;
+    } else {
+      homeSectionsContainer.style.top = '';
+    }
+  }
+}

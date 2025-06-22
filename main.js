@@ -39,7 +39,6 @@ import {
   createGradientOverlay,
   createHorizontalGradientOverlay,
   createLogoContainer,
-  createButtonContainer,
   createActorSlider,
   createInfoContainer,
   createDirectorContainer,
@@ -49,7 +48,7 @@ import {
   createMainContentContainer,
   createPlotContainer,
   createTitleContainer,
-  updateSlidePosition,
+  updateSlidePosition
 } from "./modules/containerUtils.js";
 
 const config = getConfig();

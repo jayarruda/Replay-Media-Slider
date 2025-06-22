@@ -209,7 +209,6 @@ export function createSettingsModal() {
 
             showCast: formData.get('showCast') === 'on',
             showProgressBar: formData.get('showProgressBar') === 'on',
-            progressBarWidth: formData.get('progressBarWidth') + '%',
             enableTrailerPlayback: formData.get('enableTrailerPlayback') === 'on',
             gradientOverlayImageType: formData.get('gradientOverlayImageType'),
             manualBackdropSelection: formData.get('manualBackdropSelection') === 'on',
@@ -315,6 +314,62 @@ export function createSettingsModal() {
             slideLeft: parseInt(formData.get('slideLeft'), 10) || 0,
             slideWidth: parseInt(formData.get('slideWidth'), 10) || 0,
             slideHeight: parseInt(formData.get('slideHeight'), 10) || 0,
+
+            logoContainerTop: parseInt(formData.get('logoContainerTop'), 10) || 0,
+            logoContainerLeft: parseInt(formData.get('logoContainerLeft'), 10) || 0,
+            logoContainerWidth: parseInt(formData.get('logoContainerWidth'), 10) || 0,
+            logoContainerHeight: parseInt(formData.get('logoContainerHeight'), 10) || 0,
+
+            buttonContainerTop: parseInt(formData.get('buttonContainerTop'), 10) || 0,
+            buttonContainerLeft: parseInt(formData.get('buttonContainerLeft'), 10) || 0,
+            buttonContainerWidth: parseInt(formData.get('buttonContainerWidth'), 10) || 0,
+            buttonContainerHeight: parseInt(formData.get('buttonContainerHeight'), 10) || 0,
+
+            metaContainerTop: parseInt(formData.get('metaContainerTop'), 10) || 0,
+            metaContainerLeft: parseInt(formData.get('metaContainerLeft'), 10) || 0,
+            metaContainerWidth: parseInt(formData.get('metaContainerWidth'), 10) || 0,
+            metaContainerHeight: parseInt(formData.get('metaContainerHeight'), 10) || 0,
+
+            plotContainerTop: parseInt(formData.get('plotContainerTop'), 10) || 0,
+            plotContainerLeft: parseInt(formData.get('plotContainerLeft'), 10) || 0,
+            plotContainerWidth: parseInt(formData.get('plotContainerWidth'), 10) || 0,
+            plotContainerHeight: parseInt(formData.get('plotContainerHeight'), 10) || 0,
+
+            titleContainerTop: parseInt(formData.get('titleContainerTop'), 10) || 0,
+            titleContainerLeft: parseInt(formData.get('titleContainerLeft'), 10) || 0,
+            titleContainerWidth: parseInt(formData.get('titleContainerWidth'), 10) || 0,
+            titleContainerHeight: parseInt(formData.get('titleContainerHeight'), 10) || 0,
+
+            directorContainerTop: parseInt(formData.get('directorContainerTop'), 10) || 0,
+            directorContainerLeft: parseInt(formData.get('directorContainerLeft'), 10) || 0,
+            directorContainerWidth: parseInt(formData.get('directorContainerWidth'), 10) || 0,
+            directorContainerHeight: parseInt(formData.get('directorContainerHeight'), 10) || 0,
+
+            infoContainerTop: parseInt(formData.get('infoContainerTop'), 10) || 0,
+            infoContainerLeft: parseInt(formData.get('infoContainerLeft'), 10) || 0,
+            infoContainerWidth: parseInt(formData.get('infoContainerWidth'), 10) || 0,
+            infoContainerHeight: parseInt(formData.get('infoContainerHeight'), 10) || 0,
+
+            mainContainerTop: parseInt(formData.get('mainContainerTop'), 10) || 0,
+            mainContainerLeft: parseInt(formData.get('mainContainerLeft'), 10) || 0,
+            mainContainerWidth: parseInt(formData.get('mainContainerWidth'), 10) || 0,
+            mainContainerHeight: parseInt(formData.get('mainContainerHeight'), 10) || 0,
+
+            sliderContainerTop: parseInt(formData.get('sliderContainerTop'), 10) || 0,
+            sliderContainerLeft: parseInt(formData.get('sliderContainerLeft'), 10) || 0,
+            sliderContainerWidth: parseInt(formData.get('sliderContainerWidth'), 10) || 0,
+            sliderContainerHeight: parseInt(formData.get('sliderContainerHeight'), 10) || 0,
+
+            providerContainerTop: parseInt(formData.get('providerContainerTop'), 10) || 0,
+            providerContainerLeft: parseInt(formData.get('providerContainerLeft'), 10) || 0,
+            providerContainerWidth: parseInt(formData.get('providerContainerWidth'), 10) || 0,
+            providerContainerHeight: parseInt(formData.get('providerContainerHeight'), 10) || 0,
+
+            progressBarTop: parseInt(formData.get('progressBarTop'), 10) || 0,
+            progressBarLeft: parseInt(formData.get('progressBarLeft'), 10) || 0,
+            progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
+            progressBarHeight: parseInt(formData.get('progressBarHeight'), 10) || 0,
+
         };
 
         updateConfig(updatedConfig);
@@ -467,25 +522,6 @@ function createSliderPanel(config, labels) {
 
     const showProgressCheckbox = createCheckbox('showProgressBar', labels.progressBar || 'ProgressBar\'ı Göster', config.showProgressBar);
     sliderDiv.appendChild(showProgressCheckbox);
-
-    const progressWidthDiv = document.createElement('div');
-    progressWidthDiv.className = 'fsetting-item progress-bar-container';
-
-    const progressWidthLabel = document.createElement('label');
-    progressWidthLabel.textContent = labels.progressBarWidthInput || 'İlerleme Çubuğu Genişliği (%):';
-
-    const progressWidthInput = document.createElement('input');
-    progressWidthInput.type = 'number';
-    progressWidthInput.value = parseInt(config.progressBarWidth) || 100;
-    progressWidthInput.name = 'progressBarWidth';
-    progressWidthInput.min = 0;
-    progressWidthInput.max = 100;
-    progressWidthInput.step = 1;
-
-    progressWidthDiv.append(progressWidthLabel, progressWidthInput);
-    sliderDiv.appendChild(progressWidthDiv);
-
-    bindCheckboxKontrol('#showProgressBar', '.progress-bar-container', 0.6, [progressWidthInput]);
 
     const trailerPlaybackCheckbox = createCheckbox(
         'enableTrailerPlayback',
@@ -1638,8 +1674,25 @@ function createPositionPanel(config, labels = {}) {
   panel.className = 'position-panel';
 
   const section = createSection();
+  const homeSectionsHeader = document.createElement('h3');
+  homeSectionsHeader.textContent = labels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
+  section.appendChild(homeSectionsHeader);
 
-  function createSettingItem(labelText, configKey, cssProperty, placeholder, target = 'slides') {
+  const homeSectionsHeaderNote = document.createElement('h5');
+  homeSectionsHeaderNote.textContent = labels.homeSectionsPositionNote || '(Eksi (-) değerler, konumlandırmayı ters yönde değiştirir.)';
+  section.appendChild(homeSectionsHeaderNote);
+
+  section.appendChild(
+    createSettingItem(
+      labels.containerTop || 'Dikey Konum (vh):',
+      'homeSectionsTop',
+      'top',
+      labels.placeholderText,
+      'homeSections'
+    )
+  );
+
+  function createSettingItem(labelText, configKey, cssProperty, placeholder, target = 'slides', containerType = '') {
     const container = document.createElement('div');
     container.className = 'position-item';
 
@@ -1652,86 +1705,255 @@ function createPositionPanel(config, labels = {}) {
     input.value = config[configKey] || '';
     input.placeholder = placeholder || labels.placeholderText || 'Değer giriniz';
 
+    const allowsNegative = ['top', 'left'].includes(cssProperty);
+    const isProgressHeight = configKey === 'progressBarHeight';
+
+    if (!allowsNegative) {
+        input.min = 0;
+    }
+    if (isProgressHeight) {
+        input.min = 0.1;
+        input.max = 10;
+        input.step = 0.1;
+    }
+
     const resetBtn = document.createElement('button');
     resetBtn.textContent = labels.resetButton || 'Sıfırla';
     resetBtn.type = 'button';
     resetBtn.className = 'reset-button';
     resetBtn.addEventListener('click', () => {
-      input.value = '';
-      config[configKey] = '';
-      const targetElement = document.querySelector(target === 'slides' ? "#slides-container" : ".homeSectionsContainer");
-      if (targetElement) targetElement.style[cssProperty] = '';
+        input.value = '';
+        config[configKey] = '';
+        updateContainerStyle(target, containerType, cssProperty, '');
     });
 
-    input.addEventListener('input', function() {
-      const value = parseInt(this.value);
-      const newValue = isNaN(value) ? '' : value;
-      config[configKey] = newValue;
-      const targetElement = document.querySelector(target === 'slides' ? "#slides-container" : ".homeSectionsContainer");
-      if (targetElement) {
-        targetElement.style[cssProperty] = newValue === '' ? '' : `${newValue}${target === 'homeSections' && cssProperty === 'top' ? 'vh' : '%'}`;
-      }
+    input.addEventListener('input', function () {
+        let value = parseFloat(this.value);
+
+        if (!allowsNegative && value < 0) {
+            value = 0;
+        }
+
+        if (isProgressHeight) {
+            if (value < 0.1) value = 0.1;
+            if (value > 10) value = 10;
+        }
+
+        const newValue = isNaN(value) ? '' : value;
+        this.value = newValue;
+        config[configKey] = newValue;
+        updateContainerStyle(target, containerType, cssProperty, newValue);
     });
 
     container.append(label, input, resetBtn);
     return container;
-  }
+}
 
-  const homeSectionsHeader = document.createElement('h3');
-  homeSectionsHeader.textContent = labels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
-  section.appendChild(homeSectionsHeader);
 
-  const homeSectionsHeaderNote = document.createElement('h5');
-  homeSectionsHeaderNote.textContent = labels.homeSectionsPositionNote || '(Eksi (-) değerler, konumlandırmayı ters yönde değiştirir.)';
-  section.appendChild(homeSectionsHeaderNote);
+  function updateContainerStyle(target, containerType, cssProperty, newValue) {
+    if (target === 'homeSections') {
+        const targetElement = document.querySelector(".homeSectionsContainer");
+        if (targetElement) {
+            targetElement.style[cssProperty] = newValue === '' ? '' : `${newValue}vh`;
+        }
+    } else {
+        const selector = containerType ?
+            (containerType === 'button' ? '.main-button-container' :
+             containerType === 'slider' ? '.slider-wrapper' :
+             containerType === 'existingDot' ? '.dot-navigation-container' :
+             containerType === 'progress' ? '.slide-progress-bar' :
+             `.${containerType}-container`) :
+            "#slides-container";
+
+        document.querySelectorAll(selector).forEach(el => {
+            el.style[cssProperty] = newValue === '' ? '' : `${newValue}%`;
+        });
+    }
+}
+
+  const slidesHeader = document.createElement('h3');
+  slidesHeader.textContent = labels.slidesPosition || 'Slayt Konteyner Pozisyonu';
+  section.appendChild(slidesHeader);
 
   section.appendChild(
     createSettingItem(
-      labels.homeSectionsTop || 'Dikey Konum (vh):',
-      'homeSectionsTop',
-      'top',
-      labels.placeholderText,
-      'homeSections'
-    )
-  );
-
-  const sliderHeader = document.createElement('h3');
-  sliderHeader.textContent = labels.sliderPosition || 'Slider Pozisyonu';
-  section.appendChild(sliderHeader);
-
-  section.appendChild(
-    createSettingItem(
-      labels.slideTop || 'Üst Hiza (%):',
+      labels.containerTop || 'Dikey Konum (%):',
       'slideTop',
       'top',
       labels.placeholderText
     )
   );
-
   section.appendChild(
     createSettingItem(
-      labels.slideLeft || 'Sol Üst Hiza (%):',
+      labels.containerLeft || 'Yatay Konum (%):',
       'slideLeft',
       'left',
       labels.placeholderText
     )
   );
-
   section.appendChild(
     createSettingItem(
-      labels.slideWidth || 'Genişlik (%):',
+      labels.containerWidth || 'Genişlik (%):',
       'slideWidth',
       'width',
       labels.placeholderText
     )
   );
-
   section.appendChild(
     createSettingItem(
-      labels.slideHeight || 'Yükseklik (%):',
+      labels.containerHeight || 'Yükseklik (%):',
       'slideHeight',
       'height',
       labels.placeholderText
+    )
+  );
+
+  const containers = [
+    { type: 'logo', label: labels.logoContainer || 'Logo Konteyneri' },
+    { type: 'meta', label: labels.metaContainer || 'Meta Konteyneri' },
+    { type: 'plot', label: labels.plotContainer || 'Plot Konteyneri' },
+    { type: 'title', label: labels.titleContainer || 'Başlık Konteyneri' },
+    { type: 'director', label: labels.directorContainer || 'Yönetmen Konteyneri' },
+    { type: 'info', label: labels.infoContainer || 'Bilgi Konteyneri' },
+    { type: 'button', label: labels.buttonContainer || 'Buton Konteyneri' },
+    { type: 'existingDot', label: labels.dotContainer || 'Dot Konteyneri' },
+    { type: 'provider', label: labels.providerContainer || 'Provider Konteyneri' }
+  ];
+
+  containers.forEach(({type, label}) => {
+    const header = document.createElement('h3');
+    header.textContent = label;
+    section.appendChild(header);
+
+    section.appendChild(
+      createSettingItem(
+        labels.containerTop || 'Dikey Konum (%):',
+        `${type}ContainerTop`,
+        'top',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+    section.appendChild(
+      createSettingItem(
+        labels.containerLeft || 'Yatay Konum (%):',
+        `${type}ContainerLeft`,
+        'left',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+    section.appendChild(
+      createSettingItem(
+        labels.containerWidth || 'Genişlik (%):',
+        `${type}ContainerWidth`,
+        'width',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+    section.appendChild(
+      createSettingItem(
+        labels.containerHeight || 'Yükseklik (%):',
+        `${type}ContainerHeight`,
+        'height',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+  });
+
+  const sliderWrapperHeader = document.createElement('h3');
+  sliderWrapperHeader.textContent = labels.sliderWrapperContainer || 'Slider Wrapper Konteyneri';
+  section.appendChild(sliderWrapperHeader);
+
+  section.appendChild(
+    createSettingItem(
+      labels.containerTop || 'Dikey Konum (%):',
+      'sliderContainerTop',
+      'top',
+      labels.placeholderText,
+      'slider',
+      'slider'
+    )
+  );
+  section.appendChild(
+    createSettingItem(
+      labels.containerLeft || 'Yatay Konum (%):',
+      'sliderContainerLeft',
+      'left',
+      labels.placeholderText,
+      'slider',
+      'slider'
+    )
+  );
+  section.appendChild(
+    createSettingItem(
+      labels.containerWidth || 'Genişlik (%):',
+      'sliderContainerWidth',
+      'width',
+      labels.placeholderText,
+      'slider',
+      'slider'
+    )
+  );
+  section.appendChild(
+    createSettingItem(
+      labels.containerHeight || 'Yükseklik (%):',
+      'sliderContainerHeight',
+      'height',
+      labels.placeholderText,
+      'slider',
+      'slider'
+    )
+  );
+
+  const progressBarHeader = document.createElement('h3');
+  progressBarHeader.textContent = labels.progressBarHeader || 'Progress Konteyneri';
+  section.appendChild(progressBarHeader);
+
+  section.appendChild(
+    createSettingItem(
+      labels.containerTop || 'Dikey Konum (%):',
+      'progressBarTop',
+      'top',
+      labels.placeholderText,
+      'progress',
+      'progress'
+    )
+  );
+  section.appendChild(
+    createSettingItem(
+      labels.containerLeft || 'Yatay Konum (%):',
+      'progressBarLeft',
+      'left',
+      labels.placeholderText,
+      'progress',
+      'progress'
+    )
+  );
+  section.appendChild(
+    createSettingItem(
+      labels.containerWidth || 'Genişlik (%):',
+      'progressBarWidth',
+      'width',
+      labels.placeholderText,
+      'progress',
+      'progress'
+    )
+  );
+  section.appendChild(
+    createSettingItem(
+      labels.containerHeight || 'Yükseklik (%):',
+      'progressBarHeight',
+      'height',
+      labels.placeholderText,
+      'progress',
+      'progress'
     )
   );
 

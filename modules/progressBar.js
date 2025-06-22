@@ -2,6 +2,7 @@ import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer, SLI
 import { getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout, setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime } from "./sliderState.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./events.js";
 import { getConfig } from './config.js';
+import { applyContainerStyles } from './containerUtils.js';
 
 let progressBar = null;
 let pausedProgress = 0;
@@ -22,6 +23,7 @@ export function ensureProgressBarExists() {
     if (!progressBar) {
       progressBar = document.createElement("div");
       progressBar.className = "slide-progress-bar";
+      applyContainerStyles(progressBar, 'progress');
       const slidesContainer = document.querySelector("#indexPage:not(.hide) #slides-container");
       if (slidesContainer) slidesContainer.appendChild(progressBar);
     }

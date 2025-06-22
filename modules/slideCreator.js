@@ -17,7 +17,6 @@ import {
   createGradientOverlay,
   createHorizontalGradientOverlay,
   createLogoContainer,
-  createButtonContainer,
   createStatusContainer,
   createActorSlider,
   createInfoContainer,
