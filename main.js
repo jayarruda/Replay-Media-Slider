@@ -47,8 +47,7 @@ import {
   createMetaContainer,
   createMainContentContainer,
   createPlotContainer,
-  createTitleContainer,
-  updateSlidePosition
+  createTitleContainer
 } from "./modules/containerUtils.js";
 
 const config = getConfig();

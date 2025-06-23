@@ -19,7 +19,7 @@ import {
   setRemainingTime,
   getRemainingTime,
 } from "./sliderState.js";
-import { applyContainerStyles } from './containerUtils.js';
+import { applyContainerStyles } from "./positionUtils.js"
 
 const config = getConfig();
 

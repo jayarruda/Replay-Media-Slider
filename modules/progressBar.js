@@ -2,7 +2,7 @@ import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer, SLI
 import { getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout, setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime } from "./sliderState.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./events.js";
 import { getConfig } from './config.js';
-import { applyContainerStyles } from './containerUtils.js';
+import { applyContainerStyles } from "./positionUtils.js"
 
 let progressBar = null;
 let pausedProgress = 0;

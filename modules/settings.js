@@ -2,8 +2,7 @@ import { getConfig } from "./config.js";
 import { loadCSS } from "./player/main.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { showNotification } from "./player/ui/notification.js";
-import { updateSlidePosition } from './containerUtils.js';
-
+import { updateSlidePosition } from './positionUtils.js';
 
 let settingsModal = null;
 
@@ -319,51 +318,101 @@ export function createSettingsModal() {
             logoContainerLeft: parseInt(formData.get('logoContainerLeft'), 10) || 0,
             logoContainerWidth: parseInt(formData.get('logoContainerWidth'), 10) || 0,
             logoContainerHeight: parseInt(formData.get('logoContainerHeight'), 10) || 0,
+            logoContainerDisplay: formData.get('logoContainerDisplay'),
+            logoContainerFlexDirection: formData.get('logoContainerFlexDirection'),
+            logoContainerJustifyContent: formData.get('logoContainerJustifyContent'),
+            logoContainerAlignItems: formData.get('logoContainerAlignItems'),
+            logoContainerFlexWrap: formData.get('logoContainerFlexWrap'),
 
             buttonContainerTop: parseInt(formData.get('buttonContainerTop'), 10) || 0,
             buttonContainerLeft: parseInt(formData.get('buttonContainerLeft'), 10) || 0,
             buttonContainerWidth: parseInt(formData.get('buttonContainerWidth'), 10) || 0,
             buttonContainerHeight: parseInt(formData.get('buttonContainerHeight'), 10) || 0,
+            buttonContainerDisplay: formData.get('buttonContainerDisplay'),
+            buttonContainerFlexDirection: formData.get('buttonContainerFlexDirection'),
+            buttonContainerJustifyContent: formData.get('buttonContainerJustifyContent'),
+            buttonContainerAlignItems: formData.get('buttonContainerAlignItems'),
+            buttonContainerFlexWrap: formData.get('buttonContainerFlexWrap'),
 
             metaContainerTop: parseInt(formData.get('metaContainerTop'), 10) || 0,
             metaContainerLeft: parseInt(formData.get('metaContainerLeft'), 10) || 0,
             metaContainerWidth: parseInt(formData.get('metaContainerWidth'), 10) || 0,
             metaContainerHeight: parseInt(formData.get('metaContainerHeight'), 10) || 0,
+            metaContainerDisplay: formData.get('metaContainerDisplay'),
+            metaContainerFlexDirection: formData.get('metaContainerFlexDirection'),
+            metaContainerJustifyContent: formData.get('metaContainerJustifyContent'),
+            metaContainerAlignItems: formData.get('metaContainerAlignItems'),
+            metaContainerFlexWrap: formData.get('metaContainerFlexWrap'),
 
             plotContainerTop: parseInt(formData.get('plotContainerTop'), 10) || 0,
             plotContainerLeft: parseInt(formData.get('plotContainerLeft'), 10) || 0,
             plotContainerWidth: parseInt(formData.get('plotContainerWidth'), 10) || 0,
             plotContainerHeight: parseInt(formData.get('plotContainerHeight'), 10) || 0,
+            plotContainerDisplay: formData.get('plotContainerDisplay'),
+            plotContainerFlexDirection: formData.get('plotContainerFlexDirection'),
+            plotContainerJustifyContent: formData.get('plotContainerJustifyContent'),
+            plotContainerAlignItems: formData.get('plotContainerAlignItems'),
+            plotContainerFlexWrap: formData.get('plotContainerFlexWrap'),
 
             titleContainerTop: parseInt(formData.get('titleContainerTop'), 10) || 0,
             titleContainerLeft: parseInt(formData.get('titleContainerLeft'), 10) || 0,
             titleContainerWidth: parseInt(formData.get('titleContainerWidth'), 10) || 0,
             titleContainerHeight: parseInt(formData.get('titleContainerHeight'), 10) || 0,
+            titleContainerDisplay: formData.get('titleContainerDisplay'),
+            titleContainerFlexDirection: formData.get('titleContainerFlexDirection'),
+            titleContainerJustifyContent: formData.get('titleContainerJustifyContent'),
+            titleContainerAlignItems: formData.get('titleContainerAlignItems'),
+            titleContainerFlexWrap: formData.get('titleContainerFlexWrap'),
 
             directorContainerTop: parseInt(formData.get('directorContainerTop'), 10) || 0,
             directorContainerLeft: parseInt(formData.get('directorContainerLeft'), 10) || 0,
             directorContainerWidth: parseInt(formData.get('directorContainerWidth'), 10) || 0,
             directorContainerHeight: parseInt(formData.get('directorContainerHeight'), 10) || 0,
+            directorContainerDisplay: formData.get('directorContainerDisplay'),
+            directorContainerFlexDirection: formData.get('directorContainerFlexDirection'),
+            directorContainerJustifyContent: formData.get('directorContainerJustifyContent'),
+            directorContainerAlignItems: formData.get('directorContainerAlignItems'),
+            directorContainerFlexWrap: formData.get('directorContainerFlexWrap'),
 
             infoContainerTop: parseInt(formData.get('infoContainerTop'), 10) || 0,
             infoContainerLeft: parseInt(formData.get('infoContainerLeft'), 10) || 0,
             infoContainerWidth: parseInt(formData.get('infoContainerWidth'), 10) || 0,
             infoContainerHeight: parseInt(formData.get('infoContainerHeight'), 10) || 0,
+            infoContainerDisplay: formData.get('infoContainerDisplay'),
+            infoContainerFlexDirection: formData.get('infoContainerFlexDirection'),
+            infoContainerJustifyContent: formData.get('infoContainerJustifyContent'),
+            infoContainerAlignItems: formData.get('infoContainerAlignItems'),
+            infoContainerFlexWrap: formData.get('infoContainerFlexWrap'),
 
             mainContainerTop: parseInt(formData.get('mainContainerTop'), 10) || 0,
             mainContainerLeft: parseInt(formData.get('mainContainerLeft'), 10) || 0,
             mainContainerWidth: parseInt(formData.get('mainContainerWidth'), 10) || 0,
             mainContainerHeight: parseInt(formData.get('mainContainerHeight'), 10) || 0,
+            mainContainerDisplay: formData.get('mainContainerDisplay'),
+            mainContainerFlexDirection: formData.get('mainContainerFlexDirection'),
+            mainContainerJustifyContent: formData.get('mainContainerJustifyContent'),
+            mainContainerAlignItems: formData.get('mainContainerAlignItems'),
+            mainContainerFlexWrap: formData.get('mainContainerFlexWrap'),
 
             sliderContainerTop: parseInt(formData.get('sliderContainerTop'), 10) || 0,
             sliderContainerLeft: parseInt(formData.get('sliderContainerLeft'), 10) || 0,
             sliderContainerWidth: parseInt(formData.get('sliderContainerWidth'), 10) || 0,
             sliderContainerHeight: parseInt(formData.get('sliderContainerHeight'), 10) || 0,
+            sliderContainerDisplay: formData.get('sliderContainerDisplay'),
+            sliderContainerFlexDirection: formData.get('sliderContainerFlexDirection'),
+            sliderContainerJustifyContent: formData.get('sliderContainerJustifyContent'),
+            sliderContainerAlignItems: formData.get('sliderContainerAlignItems'),
+            sliderContainerFlexWrap: formData.get('sliderContainerFlexWrap'),
 
             providerContainerTop: parseInt(formData.get('providerContainerTop'), 10) || 0,
             providerContainerLeft: parseInt(formData.get('providerContainerLeft'), 10) || 0,
             providerContainerWidth: parseInt(formData.get('providerContainerWidth'), 10) || 0,
             providerContainerHeight: parseInt(formData.get('providerContainerHeight'), 10) || 0,
+            providerContainerDisplay: formData.get('providerContainerDisplay'),
+            providerContainerFlexDirection: formData.get('providerContainerFlexDirection'),
+            providerContainerJustifyContent: formData.get('providerContainerJustifyContent'),
+            providerContainerAlignItems: formData.get('providerContainerAlignItems'),
+            providerContainerFlexWrap: formData.get('providerContainerFlexWrap'),
 
             progressBarTop: parseInt(formData.get('progressBarTop'), 10) || 0,
             progressBarLeft: parseInt(formData.get('progressBarLeft'), 10) || 0,
@@ -1749,6 +1798,50 @@ function createPositionPanel(config, labels = {}) {
     return container;
 }
 
+function createFlexSettingItem(labelText, configKey, options, containerType) {
+    const container = document.createElement('div');
+    container.className = 'flex-item';
+
+    const label = document.createElement('label');
+    label.textContent = labelText;
+
+    const select = document.createElement('select');
+    select.name = configKey;
+
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = labels.selectDefault || 'Varsayılan';
+    select.appendChild(emptyOption);
+
+    options.forEach(option => {
+        const optElement = document.createElement('option');
+        optElement.value = option.value;
+        optElement.textContent = option.label;
+        if (config[configKey] === option.value) {
+            optElement.selected = true;
+        }
+        select.appendChild(optElement);
+    });
+
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = labels.resetButton || 'Sıfırla';
+    resetBtn.type = 'button';
+    resetBtn.className = 'reset-button';
+    resetBtn.addEventListener('click', () => {
+        select.value = '';
+        config[configKey] = '';
+        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), '');
+    });
+
+    select.addEventListener('change', function() {
+        config[configKey] = this.value;
+        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), this.value);
+    });
+
+    container.append(label, select, resetBtn);
+    return container;
+}
+
 
   function updateContainerStyle(target, containerType, cssProperty, newValue) {
     if (target === 'homeSections') {
@@ -1771,192 +1864,349 @@ function createPositionPanel(config, labels = {}) {
     }
 }
 
-  const slidesHeader = document.createElement('h3');
-  slidesHeader.textContent = labels.slidesPosition || 'Slayt Konteyner Pozisyonu';
-  section.appendChild(slidesHeader);
+function updateFlexStyle(containerType, flexProperty, newValue) {
+  const selector =
+    containerType === 'button'        ? '.main-button-container' :
+    containerType === 'slider'        ? '.slider-wrapper' :
+    containerType === 'existingDot'   ? '.dot-navigation-container' :
+    containerType === 'progress'      ? '.slide-progress-bar' :
+                                       `.${containerType}-container`;
 
-  section.appendChild(
-    createSettingItem(
-      labels.containerTop || 'Dikey Konum (%):',
-      'slideTop',
-      'top',
-      labels.placeholderText
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerLeft || 'Yatay Konum (%):',
-      'slideLeft',
-      'left',
-      labels.placeholderText
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerWidth || 'Genişlik (%):',
-      'slideWidth',
-      'width',
-      labels.placeholderText
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerHeight || 'Yükseklik (%):',
-      'slideHeight',
-      'height',
-      labels.placeholderText
-    )
-  );
-
-  const containers = [
-    { type: 'logo', label: labels.logoContainer || 'Logo Konteyneri' },
-    { type: 'meta', label: labels.metaContainer || 'Meta Konteyneri' },
-    { type: 'plot', label: labels.plotContainer || 'Plot Konteyneri' },
-    { type: 'title', label: labels.titleContainer || 'Başlık Konteyneri' },
-    { type: 'director', label: labels.directorContainer || 'Yönetmen Konteyneri' },
-    { type: 'info', label: labels.infoContainer || 'Bilgi Konteyneri' },
-    { type: 'button', label: labels.buttonContainer || 'Buton Konteyneri' },
-    { type: 'existingDot', label: labels.dotContainer || 'Dot Konteyneri' },
-    { type: 'provider', label: labels.providerContainer || 'Provider Konteyneri' }
-  ];
-
-  containers.forEach(({type, label}) => {
-    const header = document.createElement('h3');
-    header.textContent = label;
-    section.appendChild(header);
-
-    section.appendChild(
-      createSettingItem(
-        labels.containerTop || 'Dikey Konum (%):',
-        `${type}ContainerTop`,
-        'top',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        labels.containerLeft || 'Yatay Konum (%):',
-        `${type}ContainerLeft`,
-        'left',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        labels.containerWidth || 'Genişlik (%):',
-        `${type}ContainerWidth`,
-        'width',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        labels.containerHeight || 'Yükseklik (%):',
-        `${type}ContainerHeight`,
-        'height',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
+  document.querySelectorAll(selector).forEach(el => {
+    if (flexProperty.includes('Display')) {
+      el.style.display = newValue || '';
+    } else {
+      let camel = flexProperty.charAt(0).toLowerCase() + flexProperty.slice(1);
+      const cssProp = camel.replace(/([A-Z])/g, m => '-' + m.toLowerCase());
+      el.style[cssProp] = newValue || '';
+    }
   });
+}
 
-  const sliderWrapperHeader = document.createElement('h3');
-  sliderWrapperHeader.textContent = labels.sliderWrapperContainer || 'Slider Wrapper Konteyneri';
-  section.appendChild(sliderWrapperHeader);
 
-  section.appendChild(
-    createSettingItem(
-      labels.containerTop || 'Dikey Konum (%):',
-      'sliderContainerTop',
-      'top',
-      labels.placeholderText,
-      'slider',
-      'slider'
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerLeft || 'Yatay Konum (%):',
-      'sliderContainerLeft',
-      'left',
-      labels.placeholderText,
-      'slider',
-      'slider'
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerWidth || 'Genişlik (%):',
-      'sliderContainerWidth',
-      'width',
-      labels.placeholderText,
-      'slider',
-      'slider'
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerHeight || 'Yükseklik (%):',
-      'sliderContainerHeight',
-      'height',
-      labels.placeholderText,
-      'slider',
-      'slider'
-    )
-  );
+  const slidesHeader = document.createElement('h3');
+    slidesHeader.textContent = labels.slidesPosition || 'Slayt Konteyner Pozisyonu';
+    section.appendChild(slidesHeader);
 
-  const progressBarHeader = document.createElement('h3');
-  progressBarHeader.textContent = labels.progressBarHeader || 'Progress Konteyneri';
-  section.appendChild(progressBarHeader);
+    section.appendChild(
+        createSettingItem(
+            labels.containerTop || 'Dikey Konum (%):',
+            'slideTop',
+            'top',
+            labels.placeholderText
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerLeft || 'Yatay Konum (%):',
+            'slideLeft',
+            'left',
+            labels.placeholderText
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerWidth || 'Genişlik (%):',
+            'slideWidth',
+            'width',
+            labels.placeholderText
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerHeight || 'Yükseklik (%):',
+            'slideHeight',
+            'height',
+            labels.placeholderText
+        )
+    );
 
-  section.appendChild(
-    createSettingItem(
-      labels.containerTop || 'Dikey Konum (%):',
-      'progressBarTop',
-      'top',
-      labels.placeholderText,
-      'progress',
-      'progress'
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerLeft || 'Yatay Konum (%):',
-      'progressBarLeft',
-      'left',
-      labels.placeholderText,
-      'progress',
-      'progress'
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerWidth || 'Genişlik (%):',
-      'progressBarWidth',
-      'width',
-      labels.placeholderText,
-      'progress',
-      'progress'
-    )
-  );
-  section.appendChild(
-    createSettingItem(
-      labels.containerHeight || 'Yükseklik (%):',
-      'progressBarHeight',
-      'height',
-      labels.placeholderText,
-      'progress',
-      'progress'
-    )
-  );
+    const containers = [
+        { type: 'logo', label: labels.logoContainer || 'Logo Konteyneri' },
+        { type: 'meta', label: labels.metaContainer || 'Meta Konteyneri' },
+        { type: 'plot', label: labels.plotContainer || 'Plot Konteyneri' },
+        { type: 'title', label: labels.titleContainer || 'Başlık Konteyneri' },
+        { type: 'director', label: labels.directorContainer || 'Yönetmen Konteyneri' },
+        { type: 'info', label: labels.infoContainer || 'Bilgi Konteyneri' },
+        { type: 'button', label: labels.buttonContainer || 'Buton Konteyneri' },
+        { type: 'existingDot', label: labels.dotContainer || 'Dot Konteyneri' },
+        { type: 'provider', label: labels.providerContainer || 'Provider Konteyneri' }
+    ];
 
+    containers.forEach(({type, label}) => {
+        const header = document.createElement('h3');
+        header.textContent = label;
+        section.appendChild(header);
+        section.appendChild(
+            createSettingItem(
+                labels.containerTop || 'Dikey Konum (%):',
+                `${type}ContainerTop`,
+                'top',
+                labels.placeholderText,
+                type,
+                type
+            )
+        );
+        section.appendChild(
+            createSettingItem(
+                labels.containerLeft || 'Yatay Konum (%):',
+                `${type}ContainerLeft`,
+                'left',
+                labels.placeholderText,
+                type,
+                type
+            )
+        );
+        section.appendChild(
+            createSettingItem(
+                labels.containerWidth || 'Genişlik (%):',
+                `${type}ContainerWidth`,
+                'width',
+                labels.placeholderText,
+                type,
+                type
+            )
+        );
+        section.appendChild(
+            createSettingItem(
+                labels.containerHeight || 'Yükseklik (%):',
+                `${type}ContainerHeight`,
+                'height',
+                labels.placeholderText,
+                type,
+                type
+            )
+        );
+        section.appendChild(
+            createFlexSettingItem(
+                labels.flexDisplay || 'Görüntüleme Tipi:',
+                `${type}ContainerDisplay`,
+                [
+                    {value: 'flex', label: labels.flex},
+                    {value: 'inline-flex', label: labels.inlineFlex},
+                ],
+                type
+            )
+        );
+
+        section.appendChild(
+            createFlexSettingItem(
+                labels.flexDirection || 'Flex Direction:',
+                `${type}ContainerFlexDirection`,
+                [
+                    {value: 'row', label: labels.row},
+                    {value: 'column', label: labels.column},
+                    {value: 'row-reverse', label: labels.rowreverse},
+                    {value: 'column-reverse', label: labels.columnreverse}
+                ],
+                type
+            )
+        );
+
+        section.appendChild(
+            createFlexSettingItem(
+                labels.justifyContent || 'Ana Eksen Hizası:',
+                `${type}ContainerJustifyContent`,
+                [
+                    {value: 'flex-start', label: labels.flexstart},
+                    {value: 'flex-end', label: labels.flexend},
+                    {value: 'center', label: labels.center},
+                    {value: 'space-between', label: labels.spacebetween},
+                    {value: 'space-around', label: labels.spacearound},
+                    {value: 'space-evenly', label: labels.spaceevenly}
+                ],
+                type
+            )
+        );
+
+        section.appendChild(
+            createFlexSettingItem(
+                labels.alignItems || 'Çapraz Eksen Hizası:',
+                `${type}ContainerAlignItems`,
+                [
+                    {value: 'flex-start', label: labels.flexstart},
+                    {value: 'flex-end', label: labels.flexend},
+                    {value: 'center', label: labels.center},
+                    {value: 'baseline', label: labels.baseline},
+                    {value: 'stretch', label: labels.stretch}
+                ],
+                type
+            )
+        );
+
+        section.appendChild(
+            createFlexSettingItem(
+                labels.flexWrap || 'Sarma Davranışı:',
+                `${type}ContainerFlexWrap`,
+                [
+                    {value: 'nowrap', label: labels.nowrap},
+                    {value: 'wrap', label: labels.wrap},
+                    {value: 'wrap-reverse', label: labels.wrapreverse}
+                ],
+                type
+            )
+        );
+    });
+
+    const sliderWrapperHeader = document.createElement('h3');
+    sliderWrapperHeader.textContent = labels.sliderWrapperContainer || 'Slider Wrapper Konteyneri';
+    section.appendChild(sliderWrapperHeader);
+
+    section.appendChild(
+        createSettingItem(
+            labels.containerTop || 'Dikey Konum (%):',
+            'sliderContainerTop',
+            'top',
+            labels.placeholderText,
+            'slider',
+            'slider'
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerLeft || 'Yatay Konum (%):',
+            'sliderContainerLeft',
+            'left',
+            labels.placeholderText,
+            'slider',
+            'slider'
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerWidth || 'Genişlik (%):',
+            'sliderContainerWidth',
+            'width',
+            labels.placeholderText,
+            'slider',
+            'slider'
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerHeight || 'Yükseklik (%):',
+            'sliderContainerHeight',
+            'height',
+            labels.placeholderText,
+            'slider',
+            'slider'
+        )
+    );
+
+    section.appendChild(
+        createFlexSettingItem(
+            labels.flexDisplay || 'Görüntüleme Tipi:',
+            'sliderContainerDisplay',
+            [
+                {value: 'flex', label: labels.flex},
+                {value: 'inline-flex', label: labels.inlineFlex},
+            ],
+            'slider'
+        )
+    );
+
+    section.appendChild(
+        createFlexSettingItem(
+            labels.flexDirection || 'Esnek Yön:',
+            'sliderContainerFlexDirection',
+            [
+                {value: 'row', label: labels.row},
+                {value: 'column', label: labels.column},
+                {value: 'row-reverse', label: labels.rowreverse},
+                {value: 'column-reverse', label: labels.columnreverse}
+            ],
+            'slider'
+        )
+    );
+
+    section.appendChild(
+        createFlexSettingItem(
+            labels.justifyContent || 'Ana Eksen Hizası:',
+            'sliderContainerJustifyContent',
+            [
+                {value: 'flex-start', label: labels.flexstart},
+                {value: 'flex-end', label: labels.flexend},
+                {value: 'center', label: labels.center},
+                {value: 'space-between', label: labels.spacebetween},
+                {value: 'space-around', label: labels.spacearound},
+                {value: 'space-evenly', label: labels.spaceevenly}
+            ],
+            'slider'
+        )
+    );
+
+    section.appendChild(
+        createFlexSettingItem(
+            labels.alignItems || 'Çapraz Eksen Hizası:',
+            'sliderContainerAlignItems',
+            [
+                {value: 'flex-start', label: labels.flexstart},
+                {value: 'flex-end', label: labels.flexend},
+                {value: 'center', label: labels.center},
+                {value: 'baseline', label: labels.baseline},
+                {value: 'stretch', label: labels.stretch}
+            ],
+            'slider'
+        )
+    );
+
+    section.appendChild(
+        createFlexSettingItem(
+            labels.flexWrap || 'Sarma Davranışı:',
+            'sliderContainerFlexWrap',
+            [
+                {value: 'nowrap', label: labels.nowrap},
+                {value: 'wrap', label: labels.wrap},
+                {value: 'wrap-reverse', label: labels.wrapreverse}
+            ],
+            'slider'
+        )
+    );
+
+    const progressBarHeader = document.createElement('h3');
+    progressBarHeader.textContent = labels.progressBarHeader || 'Progress Konteyneri';
+    section.appendChild(progressBarHeader);
+
+    section.appendChild(
+        createSettingItem(
+            labels.containerTop || 'Dikey Konum (%):',
+            'progressBarTop',
+            'top',
+            labels.placeholderText,
+            'progress',
+            'progress'
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerLeft || 'Yatay Konum (%):',
+            'progressBarLeft',
+            'left',
+            labels.placeholderText,
+            'progress',
+            'progress'
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerWidth || 'Genişlik (%):',
+            'progressBarWidth',
+            'width',
+            labels.placeholderText,
+            'progress',
+            'progress'
+        )
+    );
+    section.appendChild(
+        createSettingItem(
+            labels.containerHeight || 'Yükseklik (%):',
+            'progressBarHeight',
+            'height',
+            labels.placeholderText,
+            'progress',
+            'progress'
+        )
+    );
   panel.appendChild(section);
   return panel;
 }

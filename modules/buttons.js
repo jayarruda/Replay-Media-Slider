@@ -3,7 +3,7 @@ import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
 import { initSettings } from './settings.js';
 import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification } from './castModule.js';
 import { getProviderUrl, getYoutubeEmbedUrl } from './utils.js';
-import { applyContainerStyles } from './containerUtils.js';
+import { applyContainerStyles } from './positionUtils.js';
 
 const config = getConfig();
 
