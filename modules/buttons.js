@@ -302,7 +302,8 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers, i
 
   const allowedProviders = ["Imdb", "Tmdb", "Tvdb"];
   const providerDiv = document.createElement("div");
-  providerDiv.className = "provider-icons";
+  providerDiv.className = "providericons-container";
+  applyContainerStyles(providerDiv, 'providericons');
 
   if (config.showSettingsLink) {
     const settingsLink = document.createElement("span");
