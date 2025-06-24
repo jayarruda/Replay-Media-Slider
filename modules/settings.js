@@ -414,6 +414,36 @@ export function createSettingsModal() {
             providerContainerAlignItems: formData.get('providerContainerAlignItems'),
             providerContainerFlexWrap: formData.get('providerContainerFlexWrap'),
 
+            providericonsContainerTop: parseInt(formData.get('providericonsContainerTop'), 10) || 0,
+            providericonsContainerLeft: parseInt(formData.get('providericonsContainerLeft'), 10) || 0,
+            providericonsContainerWidth: parseInt(formData.get('providericonsContainerWidth'), 10) || 0,
+            providericonsContainerHeight: parseInt(formData.get('providericonsContainerHeight'), 10) || 0,
+            providericonsContainerDisplay: formData.get('providericonsContainerDisplay'),
+            providericonsContainerFlexDirection: formData.get('providericonsContainerFlexDirection'),
+            providericonsContainerJustifyContent: formData.get('providericonsContainerJustifyContent'),
+            providericonsContainerAlignItems: formData.get('providericonsContainerAlignItems'),
+            providericonsContainerFlexWrap: formData.get('providericonsContainerFlexWrap'),
+
+            statusContainerTop: parseInt(formData.get('statusContainerTop'), 10) || 0,
+            statusContainerLeft: parseInt(formData.get('statusContainerLeft'), 10) || 0,
+            statusContainerWidth: parseInt(formData.get('statusContainerWidth'), 10) || 0,
+            statusContainerHeight: parseInt(formData.get('statusContainerHeight'), 10) || 0,
+            statusContainerDisplay: formData.get('statusContainerDisplay'),
+            statusContainerFlexDirection: formData.get('statusContainerFlexDirection'),
+            statusContainerJustifyContent: formData.get('statusContainerJustifyContent'),
+            statusContainerAlignItems: formData.get('statusContainerAlignItems'),
+            statusContainerFlexWrap: formData.get('statusContainerFlexWrap'),
+
+            ratingContainerTop: parseInt(formData.get('ratingContainerTop'), 10) || 0,
+            ratingContainerLeft: parseInt(formData.get('ratingContainerLeft'), 10) || 0,
+            ratingContainerWidth: parseInt(formData.get('ratingContainerWidth'), 10) || 0,
+            ratingContainerHeight: parseInt(formData.get('ratingContainerHeight'), 10) || 0,
+            ratingContainerDisplay: formData.get('ratingContainerDisplay'),
+            ratingContainerFlexDirection: formData.get('ratingContainerFlexDirection'),
+            ratingContainerJustifyContent: formData.get('ratingContainerJustifyContent'),
+            ratingContainerAlignItems: formData.get('ratingContainerAlignItems'),
+            ratingContainerFlexWrap: formData.get('ratingContainerFlexWrap'),
+
             progressBarTop: parseInt(formData.get('progressBarTop'), 10) || 0,
             progressBarLeft: parseInt(formData.get('progressBarLeft'), 10) || 0,
             progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
@@ -1775,6 +1805,10 @@ function createPositionPanel(config, labels = {}) {
         config[configKey] = '';
         updateContainerStyle(target, containerType, cssProperty, '');
     });
+    input.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openPositionModal(this, configKey, cssProperty, placeholder, target, containerType);
+    });
 
     input.addEventListener('input', function () {
         let value = parseFloat(this.value);
@@ -1796,9 +1830,84 @@ function createPositionPanel(config, labels = {}) {
 
     container.append(label, input, resetBtn);
     return container;
+  }
+
+  function openPositionModal(inputElement, configKey, cssProperty, placeholder, target, containerType) {
+    const mainModal = document.getElementById('settings-modal');
+    if (mainModal) mainModal.style.display = 'none';
+    const modal = document.createElement('div');
+    modal.className = 'position-modal';
+    modal.style.display = 'block';
+
+    const modalContent = document.createElement('div');
+    modalContent.className = 'position-modal-content';
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'position-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => {
+      modal.remove();
+      if (mainModal) mainModal.style.display = 'block';
+    };
+
+    const inputContainer = document.createElement('div');
+    inputContainer.className = 'position-modal-input-container';
+
+    const modalInput = document.createElement('input');
+    modalInput.type = 'number';
+    modalInput.value = inputElement.value;
+    modalInput.placeholder = placeholder || labels.placeholderText || 'Değer giriniz';
+    modalInput.className = 'position-modal-input';
+
+    const isProgressHeight = configKey === 'progressBarHeight';
+    if (isProgressHeight) {
+        modalInput.min = 0.1;
+        modalInput.max = 10;
+        modalInput.step = 0.1;
+    }
+    else if (cssProperty === 'width' || cssProperty === 'height') {
+        modalInput.min = 0;
+    }
+
+    modalInput.addEventListener('input', () => {
+        let value = parseFloat(modalInput.value);
+        if (isProgressHeight) {
+            if (isNaN(value)) {
+                value = '';
+            } else {
+                if (value < 0.1) value = 0.1;
+                if (value > 10) value = 10;
+                modalInput.value = value.toFixed(1);
+            }
+        }
+        else if ((cssProperty === 'width' || cssProperty === 'height') && value < 0) {
+            value = 0;
+            modalInput.value = value;
+        }
+
+        inputElement.value = isNaN(value) ? '' : value;
+        config[configKey] = isNaN(value) ? '' : value;
+        updateContainerStyle(target, containerType, cssProperty, isNaN(value) ? '' : value);
+    });
+
+    inputContainer.append(modalInput);
+    modalContent.append(closeBtn, inputContainer);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        if (mainModal) mainModal.style.display = 'block';
+      }
+    });
+
+    setTimeout(() => {
+      modalInput.focus();
+    }, 100);
 }
 
-function createFlexSettingItem(labelText, configKey, options, containerType) {
+  function createFlexSettingItem(labelText, configKey, options, containerType) {
     const container = document.createElement('div');
     container.className = 'flex-item';
 
@@ -1838,9 +1947,68 @@ function createFlexSettingItem(labelText, configKey, options, containerType) {
         updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), this.value);
     });
 
+    select.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openSelectModal(this, configKey, options, containerType);
+    });
+
     container.append(label, select, resetBtn);
     return container;
-}
+  }
+
+  function openSelectModal(selectElement, configKey, options, containerType) {
+    const mainModal = document.getElementById('settings-modal');
+    if (mainModal) mainModal.style.display = 'none';
+
+    const modal = document.createElement('div');
+    modal.className = 'position-modal';
+    modal.style.display = 'block';
+
+    const modalContent = document.createElement('div');
+    modalContent.className = 'position-modal-content';
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'position-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => {
+      modal.remove();
+      if (mainModal) mainModal.style.display = 'block';
+    };
+
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'position-modal-options';
+
+    options.forEach(option => {
+      const optionBtn = document.createElement('button');
+      optionBtn.className = 'position-modal-option';
+      if (selectElement.value === option.value) {
+        optionBtn.classList.add('active');
+      }
+      optionBtn.textContent = option.label;
+      optionBtn.onclick = () => {
+        selectElement.value = option.value;
+        config[configKey] = option.value;
+        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), option.value);
+        optionsContainer
+          .querySelectorAll('.position-modal-option')
+          .forEach(btn => btn.classList.remove('active'));
+        optionBtn.classList.add('active');
+      };
+       optionsContainer.appendChild(optionBtn);
+     });
+
+    modalContent.append(closeBtn, optionsContainer);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+        if (mainModal) mainModal.style.display = 'block';
+      }
+    });
+  }
 
 
   function updateContainerStyle(target, containerType, cssProperty, newValue) {
@@ -1922,72 +2090,80 @@ function updateFlexStyle(containerType, flexProperty, newValue) {
     );
 
     const containers = [
-        { type: 'logo', label: labels.logoContainer || 'Logo Konteyneri' },
-        { type: 'meta', label: labels.metaContainer || 'Meta Konteyneri' },
-        { type: 'plot', label: labels.plotContainer || 'Plot Konteyneri' },
-        { type: 'title', label: labels.titleContainer || 'Başlık Konteyneri' },
-        { type: 'director', label: labels.directorContainer || 'Yönetmen Konteyneri' },
-        { type: 'info', label: labels.infoContainer || 'Bilgi Konteyneri' },
-        { type: 'button', label: labels.buttonContainer || 'Buton Konteyneri' },
-        { type: 'existingDot', label: labels.dotContainer || 'Dot Konteyneri' },
-        { type: 'provider', label: labels.providerContainer || 'Provider Konteyneri' }
-    ];
+    { type: 'logo', label: labels.logoContainer || 'Logo Konteyneri', flexSettings: false, positionSettings: true },
+    { type: 'meta', label: labels.metaContainer || 'Meta Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'status', label: labels.statusContainer || 'Durum Pozisyonu', flexSettings: true, positionSettings: true },
+    { type: 'rating', label: labels.ratingContainer || 'Oylama Pozisyonu', flexSettings: true, positionSettings: true },
+    { type: 'plot', label: labels.plotContainer || 'Plot Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'title', label: labels.titleContainer || 'Başlık Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'director', label: labels.directorContainer || 'Yönetmen Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'info', label: labels.infoContainer || 'Bilgi Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'button', label: labels.buttonContainer || 'Buton Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'existingDot', label: labels.dotContainer || 'Dot Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'provider', label: labels.providerContainer || 'Sağlayıcı Konteyneri', flexSettings: true, positionSettings: true },
+    { type: 'providericons', label: labels.providericonsContainer || 'Sağlayıcı ikon Pozisyonu', flexSettings: true, positionSettings: false }
+];
 
-    containers.forEach(({type, label}) => {
-        const header = document.createElement('h3');
-        header.textContent = label;
-        section.appendChild(header);
-        section.appendChild(
-            createSettingItem(
-                labels.containerTop || 'Dikey Konum (%):',
-                `${type}ContainerTop`,
-                'top',
-                labels.placeholderText,
-                type,
-                type
-            )
-        );
-        section.appendChild(
-            createSettingItem(
-                labels.containerLeft || 'Yatay Konum (%):',
-                `${type}ContainerLeft`,
-                'left',
-                labels.placeholderText,
-                type,
-                type
-            )
-        );
-        section.appendChild(
-            createSettingItem(
-                labels.containerWidth || 'Genişlik (%):',
-                `${type}ContainerWidth`,
-                'width',
-                labels.placeholderText,
-                type,
-                type
-            )
-        );
-        section.appendChild(
-            createSettingItem(
-                labels.containerHeight || 'Yükseklik (%):',
-                `${type}ContainerHeight`,
-                'height',
-                labels.placeholderText,
-                type,
-                type
-            )
-        );
-        section.appendChild(
-            createFlexSettingItem(
-                labels.flexDisplay || 'Görüntüleme Tipi:',
-                `${type}ContainerDisplay`,
-                [
-                    {value: 'flex', label: labels.flex},
-                    {value: 'inline-flex', label: labels.inlineFlex},
-                ],
-                type
-            )
-        );
+containers.forEach(({ type, label, flexSettings, positionSettings }) => {
+  const header = document.createElement('h3');
+  header.textContent = label;
+  section.appendChild(header);
+
+  if (positionSettings) {
+    section.appendChild(
+      createSettingItem(
+        labels.containerTop || 'Dikey Konum (%):',
+        `${type}ContainerTop`,
+        'top',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+    section.appendChild(
+      createSettingItem(
+        labels.containerLeft || 'Yatay Konum (%):',
+        `${type}ContainerLeft`,
+        'left',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+    section.appendChild(
+      createSettingItem(
+        labels.containerWidth || 'Genişlik (%):',
+        `${type}ContainerWidth`,
+        'width',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+    section.appendChild(
+      createSettingItem(
+        labels.containerHeight || 'Yükseklik (%):',
+        `${type}ContainerHeight`,
+        'height',
+        labels.placeholderText,
+        type,
+        type
+      )
+    );
+  }
+
+  if (flexSettings) {
+    section.appendChild(
+      createFlexSettingItem(
+        labels.flexDisplay || 'Görüntüleme Tipi:',
+        `${type}ContainerDisplay`,
+        [
+          { value: 'flex', label: labels.flex },
+          { value: 'inline-flex', label: labels.inlineFlex },
+        ],
+        type
+      )
+    );
 
         section.appendChild(
             createFlexSettingItem(
@@ -2046,7 +2222,8 @@ function updateFlexStyle(containerType, flexProperty, newValue) {
                 type
             )
         );
-    });
+    }
+});
 
     const sliderWrapperHeader = document.createElement('h3');
     sliderWrapperHeader.textContent = labels.sliderWrapperContainer || 'Slider Wrapper Konteyneri';
