@@ -46,6 +46,7 @@ export function createLogoContainer() {
 export function createStatusContainer(itemType, config, UserData, ChildCount, RunTimeTicks, MediaStreams) {
   const statusContainer = document.createElement("div");
   statusContainer.className = "status-container";
+  applyContainerStyles(statusContainer, 'status');
 
   if (itemType && config.showTypeInfo) {
     const typeSpan = document.createElement("span");
@@ -299,6 +300,7 @@ export function createDirectorContainer({ config, People }) {
 export function createRatingContainer({ config, CommunityRating, CriticRating, OfficialRating }) {
   const container = document.createElement("div");
   container.className = "rating-container";
+  applyContainerStyles(container, 'rating');
 
   let ratingExists = false;
 
