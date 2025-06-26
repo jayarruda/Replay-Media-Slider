@@ -1,5 +1,12 @@
 export const languageLabels = {
   defaultLanguage: "Langue par défaut",
+  yedekSec: "Sélectionner la sauvegarde",
+  ayarlariYedekle: "Sauvegarder les paramètres",
+  ayarlarBasariylaYuklendi: "Paramètres chargés avec succès.",
+  gecersizYedekDosyasi: "Fichier de sauvegarde invalide.",
+  statusContainer: "Position du statut",
+  ratingContainer: "Position de la note",
+  providericonsContainer: "Position des icônes de liens externes",
   flex: 'Flex',
   inlineFlex: 'Flex en ligne',
   row: 'Ligne',

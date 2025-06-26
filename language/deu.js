@@ -1,5 +1,12 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  yedekSec: "Sicherung auswählen",
+  ayarlariYedekle: "Einstellungen sichern",
+  ayarlarBasariylaYuklendi: "Einstellungen erfolgreich geladen.",
+  gecersizYedekDosyasi: "Ungültige Sicherungsdatei.",
+  statusContainer: "Statusposition",
+  ratingContainer: "Bewertungsposition",
+  providericonsContainer: "Symbolposition für externe Links",
   flex: 'Flex',
   inlineFlex: 'Inline-Flex',
   row: 'Reihe',

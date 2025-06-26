@@ -1,4 +1,5 @@
 import { getConfig } from "./config.js";
+import { forceHomeSectionsTop } from './positionOverrides.js';
 
 const config = getConfig();
 

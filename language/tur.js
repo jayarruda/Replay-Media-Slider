@@ -1,5 +1,12 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  yedekSec: "Yedek Seç",
+  ayarlariYedekle: "Ayarları Yedekle",
+  ayarlarBasariylaYuklendi: "Ayarlar başarıyla yüklendi.",
+  gecersizYedekDosyasi: "Geçersiz yedek dosyası.",
+  statusContainer: "Durum Pozisyonu",
+  ratingContainer: "Oylama Pozisyonu",
+  providericonsContainer: "Dış Bağlantılar İkon Pozisyonu",
   flex: 'Esnek',
   inlineFlex: 'Satır İçi Esnek',
   row: 'Satır',

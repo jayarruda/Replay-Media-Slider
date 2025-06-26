@@ -1,13 +1,9 @@
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
+
 export function getConfig() {
   const defaultLanguage = getDefaultLanguage();
-  const DEFAULT_QUERY = 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending';
-
   return {
-    customQueryString: (() => {
-      const raw = localStorage.getItem('customQueryString');
-      return raw && raw.trim().length > 0 ? raw : DEFAULT_QUERY;
-    })(),
+    customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
     sortingKeywords: (() => {
       const raw = localStorage.getItem('sortingKeywords');
       try {
@@ -144,6 +140,8 @@ export function getConfig() {
     plotContainerJustifyContent: localStorage.getItem('plotContainerJustifyContent') || '',
     plotContainerAlignItems: localStorage.getItem('plotContainerAlignItems') || '',
     plotContainerFlexWrap: localStorage.getItem('plotContainerFlexWrap') || '',
+    plotContainerColor: parseInt(localStorage.getItem('plotContainerColor'), 10) || 0,
+    plotContainerFontSize: parseInt(localStorage.getItem('plotContainerFontSize'), 10) || 0,
 
     titleContainerTop: parseInt(localStorage.getItem('titleContainerTop'), 10) || 0,
     titleContainerLeft: parseInt(localStorage.getItem('titleContainerLeft'), 10) || 0,
@@ -203,7 +201,7 @@ export function getConfig() {
     existingDotContainerFlexDirection: localStorage.getItem('existingDotContainerFlexDirection') || '',
     existingDotContainerJustifyContent: localStorage.getItem('existingDotContainerJustifyContent') || '',
     existingDotContainerAlignItems: localStorage.getItem('existingDotContainerAlignItems') || '',
-    existingDotContainerFlexWrap: localStorage.getItem('existingDotContainerFlexWrap') || '',
+    dotContainerFlexWrap: localStorage.getItem('existingDotContainerFlexWrap') || '',
 
     progressBarTop: parseInt(localStorage.getItem('progressBarTop'), 10) || 0,
     progressBarLeft: parseInt(localStorage.getItem('progressBarLeft'), 10) || 0,

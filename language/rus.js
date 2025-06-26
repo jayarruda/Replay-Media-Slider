@@ -1,5 +1,12 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  yedekSec: "Выбрать резервную копию",
+  ayarlariYedekle: "Сохранить настройки",
+  ayarlarBasariylaYuklendi: "Настройки успешно загружены.",
+  gecersizYedekDosyasi: "Недопустимый файл резервной копии.",
+  statusContainer: "Положение статуса",
+  ratingContainer: "Положение рейтинга",
+  providericonsContainer: "Положение иконок внешних ссылок",
   flex: 'Флекс',
   inlineFlex: 'Инлайн-Флекс',
   row: 'Ряд',

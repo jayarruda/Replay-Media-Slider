@@ -2,8 +2,9 @@ import { getConfig } from "./config.js";
 import { loadCSS } from "./player/main.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { showNotification } from "./player/ui/notification.js";
+import { createPositionEditor } from './positionSettings.js';
 import { updateSlidePosition } from './positionUtils.js';
-
+import { createBackupRestoreButtons } from './configExporter.js';
 let settingsModal = null;
 
 export function createSettingsModal() {
@@ -65,12 +66,13 @@ export function createSettingsModal() {
     const providerTab = createTab('provider', labels.providerHeader || 'Dış Bağlantılar', true);
     const buttonsTab = createTab('buttons', labels.buttons || 'Butonlar', true);
     const infoTab = createTab('info', labels.infoHeader || 'Tür, Yıl ve Ülke', true);
+    const exporterTab = createTab('exporter', labels.backupRestore || 'Yedekle - Geri Yükle', true);
     const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında', true);
 
     tabContainer.append(
         sliderTab, musicTab, positionTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab, aboutTab
+        descriptionTab, providerTab, buttonsTab, infoTab, exporterTab, aboutTab
     );
 
     const sliderPanel = createSliderPanel(config, labels);
@@ -86,12 +88,14 @@ export function createSettingsModal() {
     const providerPanel = createProviderPanel(config, labels);
     const buttonsPanel = createButtonsPanel(config, labels);
     const infoPanel = createInfoPanel(config, labels);
+    const exporterPanel = createExporterPanel(config, labels);
     const aboutPanel = createAboutPanel(labels);
 
     [
         sliderPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, languagePanel, logoTitlePanel,
-        descriptionPanel, providerPanel, buttonsPanel, infoPanel, positionPanel, aboutPanel
+        descriptionPanel, providerPanel, buttonsPanel, infoPanel,
+        positionPanel, aboutPanel, exporterPanel
     ].forEach(panel => {
         panel.style.display = 'none';
     });
@@ -100,26 +104,30 @@ export function createSettingsModal() {
     tabContent.append(
         sliderPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, languagePanel, logoTitlePanel,
-        descriptionPanel, providerPanel, buttonsPanel, infoPanel, positionPanel, aboutPanel
+        descriptionPanel, providerPanel, buttonsPanel, infoPanel,
+        positionPanel, aboutPanel, exporterPanel
     );
 
     [
         sliderTab, musicTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab, positionTab, aboutTab
+        descriptionTab, providerTab, buttonsTab, infoTab,
+        positionTab, aboutTab, exporterTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
         sliderTab, musicTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab, positionTab, aboutTab
+        descriptionTab, providerTab, buttonsTab, infoTab,
+        positionTab, aboutTab, exporterTab
             ].forEach(t => {
                 t.classList.remove('active');
             });
             [
                 sliderPanel, statusRatingPanel, actorPanel, directorPanel,
                 musicPanel, queryPanel, languagePanel, logoTitlePanel,
-                descriptionPanel, providerPanel, buttonsPanel, infoPanel, positionPanel, aboutPanel
+                descriptionPanel, providerPanel, buttonsPanel, infoPanel,
+                positionPanel, aboutPanel, exporterPanel
             ].forEach(panel => {
                 panel.style.display = 'none';
             });
@@ -180,7 +188,8 @@ export function createSettingsModal() {
         );
     };
 
-    btnDiv.append(saveBtn, applyBtn, resetBtn);
+
+    btnDiv.append(saveBtn, applyBtn, resetBtn, );
     form.appendChild(btnDiv);
 
     modalContent.append(closeBtn, title, form);
@@ -188,8 +197,26 @@ export function createSettingsModal() {
     document.body.appendChild(modal);
 
 
-    function applySettings(reload = false) {
+    function resetAllSettings() {
+        Object.keys(config).forEach(key => {
+            localStorage.removeItem(key);
+        });
+        location.reload();
+    }
+
+     setTimeout(() => {
+      setupMobileTextareaBehavior();
+    }, 100);
+
+    return modal;
+}
+
+
+export function applySettings(reload = false) {
+        const form = document.querySelector('#settings-modal form');
+        if (!form) return;
         const formData = new FormData(form);
+        const config = getConfig();
         const oldTheme = getConfig().playerTheme;
         const oldPlayerStyle = getConfig().playerStyle;
         const updatedConfig = {
@@ -276,7 +303,7 @@ export function createSettingsModal() {
             showLanguageInfo: formData.get('showLanguageInfo') === 'on',
 
             showLogoOrTitle: formData.get('showLogoOrTitle') === 'on',
-            displayOrder: formData.get('displayOrder'),
+            displayOrder: formData.get('displayOrder') || 'logo,disk,originalTitle',
             showTitleOnly: formData.get('showTitleOnly') === 'on',
             showDiscOnly: formData.get('showDiscOnly') === 'on',
 
@@ -353,6 +380,8 @@ export function createSettingsModal() {
             plotContainerJustifyContent: formData.get('plotContainerJustifyContent'),
             plotContainerAlignItems: formData.get('plotContainerAlignItems'),
             plotContainerFlexWrap: formData.get('plotContainerFlexWrap'),
+            plotContainerFontSize: parseInt(formData.get('plotContainerFontSize'), 10) || 0,
+            plotContainerColor: parseInt(formData.get('plotContainerColor'), 10) || 0,
 
             titleContainerTop: parseInt(formData.get('titleContainerTop'), 10) || 0,
             titleContainerLeft: parseInt(formData.get('titleContainerLeft'), 10) || 0,
@@ -444,6 +473,16 @@ export function createSettingsModal() {
             ratingContainerAlignItems: formData.get('ratingContainerAlignItems'),
             ratingContainerFlexWrap: formData.get('ratingContainerFlexWrap'),
 
+            existingDotContainerTop: parseInt(formData.get('existingDotContainerTop'), 10) || 0,
+            existingDotContainerLeft: parseInt(formData.get('existingDotContainerLeft'), 10) || 0,
+            existingDotContainerWidth: parseInt(formData.get('existingDotContainerWidth'), 10) || 0,
+            existingDotContainerHeight: parseInt(formData.get('existingDotContainerHeight'), 10) || 0,
+            existingDotContainerDisplay: formData.get('existingDotContainerDisplay'),
+            existingDotContainerFlexDirection: formData.get('existingDotContainerFlexDirection'),
+            existingDotContainerJustifyContent: formData.get('existingDotContainerJustifyContent'),
+            existingDotContainerAlignItems: formData.get('existingDotContainerAlignItems'),
+            existingDotContainerFlexWrap: formData.get('existingDotContainerFlexWrap'),
+
             progressBarTop: parseInt(formData.get('progressBarTop'), 10) || 0,
             progressBarLeft: parseInt(formData.get('progressBarLeft'), 10) || 0,
             progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
@@ -453,12 +492,6 @@ export function createSettingsModal() {
 
         updateConfig(updatedConfig);
         updateSlidePosition();
-        const rawQuery = formData.get('customQueryString')?.trim();
-        if (!rawQuery) {
-          localStorage.removeItem('customQueryString');
-        } else {
-          localStorage.setItem('customQueryString', rawQuery);
-        }
 
         const rawInput = formData.get('sortingKeywords')?.trim();
         if (!rawInput) {
@@ -475,18 +508,29 @@ export function createSettingsModal() {
         }
     }
 
-    function resetAllSettings() {
-        Object.keys(config).forEach(key => {
-            localStorage.removeItem(key);
-        });
-        location.reload();
+
+export function applyRawConfig(config) {
+  if (!config || typeof config !== 'object') return;
+
+  Object.entries(config).forEach(([key, value]) => {
+    try {
+      if (typeof value === 'object') {
+        localStorage.setItem(key, JSON.stringify(value));
+      } else {
+        localStorage.setItem(key, String(value));
+      }
+    } catch (e) {
+      console.warn(`'${key}' değeri ayarlanamadı:`, e);
     }
+  });
 
-     setTimeout(() => {
-      setupMobileTextareaBehavior();
-    }, 100);
+  updateSlidePosition();
 
-    return modal;
+  if (config.playerTheme || config.playerStyle) {
+    loadCSS?.();
+  }
+
+  location.reload();
 }
 
 function createConfirmationModal(message, callback, labels) {
@@ -1747,647 +1791,34 @@ function createInfoPanel(config, labels) {
     return panel;
 }
 
-function createPositionPanel(config, labels = {}) {
+
+function createPositionPanel(config, labels) {
   const panel = document.createElement('div');
   panel.id = 'position-panel';
   panel.className = 'position-panel';
 
   const section = createSection();
-  const homeSectionsHeader = document.createElement('h3');
-  homeSectionsHeader.textContent = labels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
-  section.appendChild(homeSectionsHeader);
+  const positionEditor = createPositionEditor(config, labels, section);
+  positionEditor.render();
 
-  const homeSectionsHeaderNote = document.createElement('h5');
-  homeSectionsHeaderNote.textContent = labels.homeSectionsPositionNote || '(Eksi (-) değerler, konumlandırmayı ters yönde değiştirir.)';
-  section.appendChild(homeSectionsHeaderNote);
-
-  section.appendChild(
-    createSettingItem(
-      labels.containerTop || 'Dikey Konum (vh):',
-      'homeSectionsTop',
-      'top',
-      labels.placeholderText,
-      'homeSections'
-    )
-  );
-
-  function createSettingItem(labelText, configKey, cssProperty, placeholder, target = 'slides', containerType = '') {
-    const container = document.createElement('div');
-    container.className = 'position-item';
-
-    const label = document.createElement('label');
-    label.textContent = labelText;
-
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.name = configKey;
-    input.value = config[configKey] || '';
-    input.placeholder = placeholder || labels.placeholderText || 'Değer giriniz';
-
-    const allowsNegative = ['top', 'left'].includes(cssProperty);
-    const isProgressHeight = configKey === 'progressBarHeight';
-
-    if (!allowsNegative) {
-        input.min = 0;
-    }
-    if (isProgressHeight) {
-        input.min = 0.1;
-        input.max = 10;
-        input.step = 0.1;
-    }
-
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = labels.resetButton || 'Sıfırla';
-    resetBtn.type = 'button';
-    resetBtn.className = 'reset-button';
-    resetBtn.addEventListener('click', () => {
-        input.value = '';
-        config[configKey] = '';
-        updateContainerStyle(target, containerType, cssProperty, '');
-    });
-    input.addEventListener('click', function(e) {
-        e.stopPropagation();
-        openPositionModal(this, configKey, cssProperty, placeholder, target, containerType);
-    });
-
-    input.addEventListener('input', function () {
-        let value = parseFloat(this.value);
-
-        if (!allowsNegative && value < 0) {
-            value = 0;
-        }
-
-        if (isProgressHeight) {
-            if (value < 0.1) value = 0.1;
-            if (value > 10) value = 10;
-        }
-
-        const newValue = isNaN(value) ? '' : value;
-        this.value = newValue;
-        config[configKey] = newValue;
-        updateContainerStyle(target, containerType, cssProperty, newValue);
-    });
-
-    container.append(label, input, resetBtn);
-    return container;
-  }
-
-  function openPositionModal(inputElement, configKey, cssProperty, placeholder, target, containerType) {
-    const mainModal = document.getElementById('settings-modal');
-    if (mainModal) mainModal.style.display = 'none';
-    const modal = document.createElement('div');
-    modal.className = 'position-modal';
-    modal.style.display = 'block';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'position-modal-content';
-
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'position-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = () => {
-      modal.remove();
-      if (mainModal) mainModal.style.display = 'block';
-    };
-
-    const inputContainer = document.createElement('div');
-    inputContainer.className = 'position-modal-input-container';
-
-    const modalInput = document.createElement('input');
-    modalInput.type = 'number';
-    modalInput.value = inputElement.value;
-    modalInput.placeholder = placeholder || labels.placeholderText || 'Değer giriniz';
-    modalInput.className = 'position-modal-input';
-
-    const isProgressHeight = configKey === 'progressBarHeight';
-    if (isProgressHeight) {
-        modalInput.min = 0.1;
-        modalInput.max = 10;
-        modalInput.step = 0.1;
-    }
-    else if (cssProperty === 'width' || cssProperty === 'height') {
-        modalInput.min = 0;
-    }
-
-    modalInput.addEventListener('input', () => {
-        let value = parseFloat(modalInput.value);
-        if (isProgressHeight) {
-            if (isNaN(value)) {
-                value = '';
-            } else {
-                if (value < 0.1) value = 0.1;
-                if (value > 10) value = 10;
-                modalInput.value = value.toFixed(1);
-            }
-        }
-        else if ((cssProperty === 'width' || cssProperty === 'height') && value < 0) {
-            value = 0;
-            modalInput.value = value;
-        }
-
-        inputElement.value = isNaN(value) ? '' : value;
-        config[configKey] = isNaN(value) ? '' : value;
-        updateContainerStyle(target, containerType, cssProperty, isNaN(value) ? '' : value);
-    });
-
-    inputContainer.append(modalInput);
-    modalContent.append(closeBtn, inputContainer);
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.remove();
-        if (mainModal) mainModal.style.display = 'block';
-      }
-    });
-
-    setTimeout(() => {
-      modalInput.focus();
-    }, 100);
-}
-
-  function createFlexSettingItem(labelText, configKey, options, containerType) {
-    const container = document.createElement('div');
-    container.className = 'flex-item';
-
-    const label = document.createElement('label');
-    label.textContent = labelText;
-
-    const select = document.createElement('select');
-    select.name = configKey;
-
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = labels.selectDefault || 'Varsayılan';
-    select.appendChild(emptyOption);
-
-    options.forEach(option => {
-        const optElement = document.createElement('option');
-        optElement.value = option.value;
-        optElement.textContent = option.label;
-        if (config[configKey] === option.value) {
-            optElement.selected = true;
-        }
-        select.appendChild(optElement);
-    });
-
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = labels.resetButton || 'Sıfırla';
-    resetBtn.type = 'button';
-    resetBtn.className = 'reset-button';
-    resetBtn.addEventListener('click', () => {
-        select.value = '';
-        config[configKey] = '';
-        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), '');
-    });
-
-    select.addEventListener('change', function() {
-        config[configKey] = this.value;
-        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), this.value);
-    });
-
-    select.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        openSelectModal(this, configKey, options, containerType);
-    });
-
-    container.append(label, select, resetBtn);
-    return container;
-  }
-
-  function openSelectModal(selectElement, configKey, options, containerType) {
-    const mainModal = document.getElementById('settings-modal');
-    if (mainModal) mainModal.style.display = 'none';
-
-    const modal = document.createElement('div');
-    modal.className = 'position-modal';
-    modal.style.display = 'block';
-
-    const modalContent = document.createElement('div');
-    modalContent.className = 'position-modal-content';
-
-    const closeBtn = document.createElement('span');
-    closeBtn.className = 'position-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.onclick = () => {
-      modal.remove();
-      if (mainModal) mainModal.style.display = 'block';
-    };
-
-    const optionsContainer = document.createElement('div');
-    optionsContainer.className = 'position-modal-options';
-
-    options.forEach(option => {
-      const optionBtn = document.createElement('button');
-      optionBtn.className = 'position-modal-option';
-      if (selectElement.value === option.value) {
-        optionBtn.classList.add('active');
-      }
-      optionBtn.textContent = option.label;
-      optionBtn.onclick = () => {
-        selectElement.value = option.value;
-        config[configKey] = option.value;
-        updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), option.value);
-        optionsContainer
-          .querySelectorAll('.position-modal-option')
-          .forEach(btn => btn.classList.remove('active'));
-        optionBtn.classList.add('active');
-      };
-       optionsContainer.appendChild(optionBtn);
-     });
-
-    modalContent.append(closeBtn, optionsContainer);
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.remove();
-        if (mainModal) mainModal.style.display = 'block';
-      }
-    });
-  }
-
-
-  function updateContainerStyle(target, containerType, cssProperty, newValue) {
-    if (target === 'homeSections') {
-        const targetElement = document.querySelector(".homeSectionsContainer");
-        if (targetElement) {
-            targetElement.style[cssProperty] = newValue === '' ? '' : `${newValue}vh`;
-        }
-    } else {
-        const selector = containerType ?
-            (containerType === 'button' ? '.main-button-container' :
-             containerType === 'slider' ? '.slider-wrapper' :
-             containerType === 'existingDot' ? '.dot-navigation-container' :
-             containerType === 'progress' ? '.slide-progress-bar' :
-             `.${containerType}-container`) :
-            "#slides-container";
-
-        document.querySelectorAll(selector).forEach(el => {
-            el.style[cssProperty] = newValue === '' ? '' : `${newValue}%`;
-        });
-    }
-}
-
-function updateFlexStyle(containerType, flexProperty, newValue) {
-  const selector =
-    containerType === 'button'        ? '.main-button-container' :
-    containerType === 'slider'        ? '.slider-wrapper' :
-    containerType === 'existingDot'   ? '.dot-navigation-container' :
-    containerType === 'progress'      ? '.slide-progress-bar' :
-                                       `.${containerType}-container`;
-
-  document.querySelectorAll(selector).forEach(el => {
-    if (flexProperty.includes('Display')) {
-      el.style.display = newValue || '';
-    } else {
-      let camel = flexProperty.charAt(0).toLowerCase() + flexProperty.slice(1);
-      const cssProp = camel.replace(/([A-Z])/g, m => '-' + m.toLowerCase());
-      el.style[cssProp] = newValue || '';
-    }
-  });
-}
-
-
-  const slidesHeader = document.createElement('h3');
-    slidesHeader.textContent = labels.slidesPosition || 'Slayt Konteyner Pozisyonu';
-    section.appendChild(slidesHeader);
-
-    section.appendChild(
-        createSettingItem(
-            labels.containerTop || 'Dikey Konum (%):',
-            'slideTop',
-            'top',
-            labels.placeholderText
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerLeft || 'Yatay Konum (%):',
-            'slideLeft',
-            'left',
-            labels.placeholderText
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerWidth || 'Genişlik (%):',
-            'slideWidth',
-            'width',
-            labels.placeholderText
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerHeight || 'Yükseklik (%):',
-            'slideHeight',
-            'height',
-            labels.placeholderText
-        )
-    );
-
-    const containers = [
-    { type: 'logo', label: labels.logoContainer || 'Logo Konteyneri', flexSettings: false, positionSettings: true },
-    { type: 'meta', label: labels.metaContainer || 'Meta Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'status', label: labels.statusContainer || 'Durum Pozisyonu', flexSettings: true, positionSettings: true },
-    { type: 'rating', label: labels.ratingContainer || 'Oylama Pozisyonu', flexSettings: true, positionSettings: true },
-    { type: 'plot', label: labels.plotContainer || 'Plot Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'title', label: labels.titleContainer || 'Başlık Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'director', label: labels.directorContainer || 'Yönetmen Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'info', label: labels.infoContainer || 'Bilgi Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'button', label: labels.buttonContainer || 'Buton Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'existingDot', label: labels.dotContainer || 'Dot Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'provider', label: labels.providerContainer || 'Sağlayıcı Konteyneri', flexSettings: true, positionSettings: true },
-    { type: 'providericons', label: labels.providericonsContainer || 'Sağlayıcı ikon Pozisyonu', flexSettings: true, positionSettings: false }
-];
-
-containers.forEach(({ type, label, flexSettings, positionSettings }) => {
-  const header = document.createElement('h3');
-  header.textContent = label;
-  section.appendChild(header);
-
-  if (positionSettings) {
-    section.appendChild(
-      createSettingItem(
-        labels.containerTop || 'Dikey Konum (%):',
-        `${type}ContainerTop`,
-        'top',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        labels.containerLeft || 'Yatay Konum (%):',
-        `${type}ContainerLeft`,
-        'left',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        labels.containerWidth || 'Genişlik (%):',
-        `${type}ContainerWidth`,
-        'width',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-    section.appendChild(
-      createSettingItem(
-        labels.containerHeight || 'Yükseklik (%):',
-        `${type}ContainerHeight`,
-        'height',
-        labels.placeholderText,
-        type,
-        type
-      )
-    );
-  }
-
-  if (flexSettings) {
-    section.appendChild(
-      createFlexSettingItem(
-        labels.flexDisplay || 'Görüntüleme Tipi:',
-        `${type}ContainerDisplay`,
-        [
-          { value: 'flex', label: labels.flex },
-          { value: 'inline-flex', label: labels.inlineFlex },
-        ],
-        type
-      )
-    );
-
-        section.appendChild(
-            createFlexSettingItem(
-                labels.flexDirection || 'Flex Direction:',
-                `${type}ContainerFlexDirection`,
-                [
-                    {value: 'row', label: labels.row},
-                    {value: 'column', label: labels.column},
-                    {value: 'row-reverse', label: labels.rowreverse},
-                    {value: 'column-reverse', label: labels.columnreverse}
-                ],
-                type
-            )
-        );
-
-        section.appendChild(
-            createFlexSettingItem(
-                labels.justifyContent || 'Ana Eksen Hizası:',
-                `${type}ContainerJustifyContent`,
-                [
-                    {value: 'flex-start', label: labels.flexstart},
-                    {value: 'flex-end', label: labels.flexend},
-                    {value: 'center', label: labels.center},
-                    {value: 'space-between', label: labels.spacebetween},
-                    {value: 'space-around', label: labels.spacearound},
-                    {value: 'space-evenly', label: labels.spaceevenly}
-                ],
-                type
-            )
-        );
-
-        section.appendChild(
-            createFlexSettingItem(
-                labels.alignItems || 'Çapraz Eksen Hizası:',
-                `${type}ContainerAlignItems`,
-                [
-                    {value: 'flex-start', label: labels.flexstart},
-                    {value: 'flex-end', label: labels.flexend},
-                    {value: 'center', label: labels.center},
-                    {value: 'baseline', label: labels.baseline},
-                    {value: 'stretch', label: labels.stretch}
-                ],
-                type
-            )
-        );
-
-        section.appendChild(
-            createFlexSettingItem(
-                labels.flexWrap || 'Sarma Davranışı:',
-                `${type}ContainerFlexWrap`,
-                [
-                    {value: 'nowrap', label: labels.nowrap},
-                    {value: 'wrap', label: labels.wrap},
-                    {value: 'wrap-reverse', label: labels.wrapreverse}
-                ],
-                type
-            )
-        );
-    }
-});
-
-    const sliderWrapperHeader = document.createElement('h3');
-    sliderWrapperHeader.textContent = labels.sliderWrapperContainer || 'Slider Wrapper Konteyneri';
-    section.appendChild(sliderWrapperHeader);
-
-    section.appendChild(
-        createSettingItem(
-            labels.containerTop || 'Dikey Konum (%):',
-            'sliderContainerTop',
-            'top',
-            labels.placeholderText,
-            'slider',
-            'slider'
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerLeft || 'Yatay Konum (%):',
-            'sliderContainerLeft',
-            'left',
-            labels.placeholderText,
-            'slider',
-            'slider'
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerWidth || 'Genişlik (%):',
-            'sliderContainerWidth',
-            'width',
-            labels.placeholderText,
-            'slider',
-            'slider'
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerHeight || 'Yükseklik (%):',
-            'sliderContainerHeight',
-            'height',
-            labels.placeholderText,
-            'slider',
-            'slider'
-        )
-    );
-
-    section.appendChild(
-        createFlexSettingItem(
-            labels.flexDisplay || 'Görüntüleme Tipi:',
-            'sliderContainerDisplay',
-            [
-                {value: 'flex', label: labels.flex},
-                {value: 'inline-flex', label: labels.inlineFlex},
-            ],
-            'slider'
-        )
-    );
-
-    section.appendChild(
-        createFlexSettingItem(
-            labels.flexDirection || 'Esnek Yön:',
-            'sliderContainerFlexDirection',
-            [
-                {value: 'row', label: labels.row},
-                {value: 'column', label: labels.column},
-                {value: 'row-reverse', label: labels.rowreverse},
-                {value: 'column-reverse', label: labels.columnreverse}
-            ],
-            'slider'
-        )
-    );
-
-    section.appendChild(
-        createFlexSettingItem(
-            labels.justifyContent || 'Ana Eksen Hizası:',
-            'sliderContainerJustifyContent',
-            [
-                {value: 'flex-start', label: labels.flexstart},
-                {value: 'flex-end', label: labels.flexend},
-                {value: 'center', label: labels.center},
-                {value: 'space-between', label: labels.spacebetween},
-                {value: 'space-around', label: labels.spacearound},
-                {value: 'space-evenly', label: labels.spaceevenly}
-            ],
-            'slider'
-        )
-    );
-
-    section.appendChild(
-        createFlexSettingItem(
-            labels.alignItems || 'Çapraz Eksen Hizası:',
-            'sliderContainerAlignItems',
-            [
-                {value: 'flex-start', label: labels.flexstart},
-                {value: 'flex-end', label: labels.flexend},
-                {value: 'center', label: labels.center},
-                {value: 'baseline', label: labels.baseline},
-                {value: 'stretch', label: labels.stretch}
-            ],
-            'slider'
-        )
-    );
-
-    section.appendChild(
-        createFlexSettingItem(
-            labels.flexWrap || 'Sarma Davranışı:',
-            'sliderContainerFlexWrap',
-            [
-                {value: 'nowrap', label: labels.nowrap},
-                {value: 'wrap', label: labels.wrap},
-                {value: 'wrap-reverse', label: labels.wrapreverse}
-            ],
-            'slider'
-        )
-    );
-
-    const progressBarHeader = document.createElement('h3');
-    progressBarHeader.textContent = labels.progressBarHeader || 'Progress Konteyneri';
-    section.appendChild(progressBarHeader);
-
-    section.appendChild(
-        createSettingItem(
-            labels.containerTop || 'Dikey Konum (%):',
-            'progressBarTop',
-            'top',
-            labels.placeholderText,
-            'progress',
-            'progress'
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerLeft || 'Yatay Konum (%):',
-            'progressBarLeft',
-            'left',
-            labels.placeholderText,
-            'progress',
-            'progress'
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerWidth || 'Genişlik (%):',
-            'progressBarWidth',
-            'width',
-            labels.placeholderText,
-            'progress',
-            'progress'
-        )
-    );
-    section.appendChild(
-        createSettingItem(
-            labels.containerHeight || 'Yükseklik (%):',
-            'progressBarHeight',
-            'height',
-            labels.placeholderText,
-            'progress',
-            'progress'
-        )
-    );
   panel.appendChild(section);
   return panel;
 }
 
+function createExporterPanel(config, labels) {
+  const panel = document.createElement('div');
+  panel.id = 'exporter-panel';
+  panel.className = 'exporter-panel';
+
+  panel.appendChild(createBackupRestoreButtons());
+
+  document.documentElement.style.setProperty(
+    '--file-select-text',
+    `"${config.languageLabels.yedekSec || 'Dosya Seç'}"`
+  );
+
+  return panel;
+}
 
 function createTab(id, label, isActive = false, isDisabled = false) {
     const tab = document.createElement('div');
