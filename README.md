@@ -1,10 +1,6 @@
 # Jellyfin Media Slider
 
 
-### Orijinal eklenti sahibi BobHasNoSoul'a çalışmaları için teşekkür ederim.
-
-Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-featured](https://github.com/BobHasNoSoul/jellyfin-featured) eklentisinden fork edilerek geliştirilmiştir.
-
 <details>
 <summary>🖼️ Ekran Görüntüleri / Screenshots </summary>
 
@@ -29,15 +25,41 @@ Jellyfin için özelleştirilebilir medya slider bileşeni. Orijinal [jellyfin-f
  </details>
 
 
-## Özellikler
+## Özellikler / Features
 
-- Kullanıcı dostu medya slider arayüzü
-- Her kullanıcı için ayrı liste oluşturma
-- Liste kullanılmadığında api özelleştirme
-- Otomatik liste güncelleme özelliği
-- Liste türü desteği:
-  - Rastgele seçim
-- Kullanıcı bazlı özelleştirme
+# English
+
+- ### Per-user list creation
+Allows each Jellyfin user to have their own independent, personalized media lists.
+
+- ### Automatic list updates
+Lists are automatically refreshed based on changes in the media library.
+
+- ### Customizable Jellyfin API integration
+Flexible API integration enables advanced customization to meet specific needs.
+
+- ### Manual positioning for theme compatibility
+UI elements can be manually positioned to adapt seamlessly to any Jellyfin theme.
+
+- ### Advanced settings management
+A user-friendly settings panel makes it easy to configure all features.</summary>
+
+# Türkçe
+
+- ### Her kullanıcı için ayrı liste oluşturma
+Her Jellyfin kullanıcısı için kişisel, bağımsız medya listeleri oluşturulabilir.
+
+- ### Otomatik liste güncelleme
+Medya kitaplığındaki değişikliklere göre listeler otomatik olarak güncellenir.
+
+- ### Özelleştirilebilir Jellyfin API entegrasyonu
+İhtiyaca göre şekillendirilebilen esnek API entegrasyonu sayesinde gelişmiş kontrol imkanı.
+
+- ### Her temayla uyumlu manuel konumlandırma
+Arayüz öğeleri, farklı temalara uyum sağlayacak şekilde manuel olarak konumlandırılabilir.
+
+- ### Gelişmiş ayar yönetimi
+Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
   
 ## Kurulum/Installation
 <details>
@@ -242,6 +264,3 @@ A customizable media slider component for Jellyfin. This project is a fork and e
 - User-based personalization
 
 
-### Contributors
-
-### Original Plugin Author: BobHasNoSoul
