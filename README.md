@@ -1,5 +1,6 @@
 # Jellyfin Media Slider
 
+ A customizable media slider component for Jellyfin.
 
 <details>
 <summary>🖼️ Ekran Görüntüleri / Screenshots </summary>
@@ -242,25 +243,5 @@ To overwrite existing lyrics files, append the --overwrite flag:
 If your file path contains spaces, enclose it in double quotes, e.g., ``` sh lrclib.sh "/Path/To/Your/Music Path" --overwrite ``` (Supported formats: mp3 and flac)
 
 </details>
-
-### Jellyfin Media Slider
-
-A customizable media slider component for Jellyfin. This project is a fork and enhancement of the original jellyfin-featured plugin. Special thanks to the original creator, BobHasNoSoul, for his work.
-
-### Features
-
-- User-friendly media slider interface
-
-- Individual lists for each user
-
-- API customization when a list is not in use
-
-- Automatic list update functionality
-
-- List type support:
-
-    - Random selection (for customized content)
-
-- User-based personalization
 
 
