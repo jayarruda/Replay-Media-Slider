@@ -244,7 +244,7 @@ If your file path contains spaces, enclose it in double quotes, e.g., ``` sh lrc
 
 </details>
 
-# 📄 License and Usage Notice
+## 📄 License and Usage Notice
 This project is not allowed to be copied, redistributed, or published without explicit permission.
 
 If you intend to use, modify, or share any part of this project, you must:
