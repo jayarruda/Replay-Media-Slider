@@ -271,8 +271,13 @@ async function showNowPlayingModal(nowPlayingItem, device) {
     document.body.appendChild(modal);
     const firstBackdrop = modal.querySelector('.castmodal-slide')?.dataset.backdrop;
     if (firstBackdrop) {
-      modal.querySelector('.castmodal-container').style.backgroundImage = `url('${firstBackdrop}')`;
-    }
+  const container = modal.querySelector('.castmodal-container');
+  container.style.opacity = 0;
+  setTimeout(() => {
+    container.style.backgroundImage = `url('${firstBackdrop}')`;
+    container.style.opacity = 1;
+  }, 50);
+}
 
     modal.querySelector('.castmodal-close').addEventListener('click', () => modal.remove());
     modal.querySelectorAll('[data-session-id]').forEach(button => {
