@@ -291,7 +291,7 @@ function hideNotification() {
   }
 }
 
-export function createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId }) {
+export function createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId, slide }) {
   const container = document.createElement("div");
   container.className = "provider-container";
   applyContainerStyles(container, 'provider');
@@ -318,7 +318,7 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers, i
     providerDiv.appendChild(settingsLink);
   }
 
-  if (config.showCast) {
+ if (config.showCast) {
     const castContainer = document.createElement("div");
     castContainer.className = "cast-container provider-link";
 
@@ -338,6 +338,7 @@ export function createProviderContainer({ config, ProviderIds, RemoteTrailers, i
 
       if (deviceDropdown.classList.contains('hide')) {
         await loadAvailableDevices(itemId, deviceDropdown);
+
         deviceDropdown.classList.remove('hide');
         deviceDropdown.classList.add('show');
 
