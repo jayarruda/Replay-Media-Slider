@@ -304,10 +304,12 @@ async function createSlide(item) {
   });
 
   const providerContainer = createProviderContainer({
-    config,
-    ProviderIds: item.ProviderIds,
-    RemoteTrailers: item.RemoteTrailers
-  });
+  config,
+  ProviderIds: item.ProviderIds,
+  RemoteTrailers: item.RemoteTrailers,
+  itemId: item.Id,
+  slide: slide
+});
 
   const languageContainer = createLanguageContainer({
     config,
