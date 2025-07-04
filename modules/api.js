@@ -1,33 +1,60 @@
-import { getConfig } from "./config.js";
+import { getConfig, getServerAddress } from "./config.js";
 
-function getSessionInfo() {
-  const credentials = sessionStorage.getItem("json-credentials");
-  if (!credentials) {
+export function getSessionInfo() {
+  const raw = sessionStorage.getItem("json-credentials");
+  if (!raw) {
     throw new Error("sessionStorage'da kimlik bilgisi bulunamadı");
   }
 
+  let parsed;
   try {
-    const parsed = JSON.parse(credentials);
-    const server = parsed.Servers[0];
-    if (!server) throw new Error("Sunucu yapılandırması bulunamadı");
-
-    return {
-      userId: server.UserId,
-      accessToken: server.AccessToken,
-      deviceId: server.SystemId || "web-client",
-      clientName: "Jellyfin Web Client",
-      clientVersion: "1.0.0"
-    };
-  } catch (error) {
-    console.error("Kimlik bilgisi ayrıştırma hatası:", error);
-    throw error;
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    console.error("json-credentials ayrıştırma hatası:", err);
+    throw new Error("Kimlik bilgisi verisi geçersiz");
   }
+
+  const topLevelToken     = parsed.AccessToken;
+  const topLevelSessionId = parsed.SessionId;
+  const topLevelUser      = parsed.User?.Id;
+
+  if (topLevelToken && topLevelSessionId && topLevelUser) {
+    return {
+      userId:      topLevelUser,
+      accessToken: topLevelToken,
+      sessionId:   topLevelSessionId,
+      deviceId:    parsed.DeviceId   || parsed.ClientDeviceId || "web-client",
+      clientName:  parsed.Client   || "Jellyfin Web Client",
+      clientVersion: parsed.Version || "1.0.0"
+    };
+  }
+
+  const server = (parsed.Servers && parsed.Servers[0]) || {};
+  const oldToken     = server.AccessToken;
+  const oldSessionId = server.Id;
+  const oldUser      = server.UserId;
+
+  if (oldToken && oldSessionId && oldUser) {
+    return {
+      userId:      oldUser,
+      accessToken: oldToken,
+      sessionId:   oldSessionId,
+      deviceId:    server.SystemId || "web-client",
+      clientName:  parsed.Client   || "Jellyfin Web Client",
+      clientVersion: parsed.Version || "1.0.0"
+    };
+  }
+
+  throw new Error(
+    "Kimlik bilgisi eksik: ne top-level ne de Servers[0] altından gerekli alanlar bulunamadı"
+  );
 }
 
-function getAuthHeader() {
+export function getAuthHeader() {
   const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
   return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
 }
+
 
 async function makeApiRequest(url, options = {}) {
   try {
@@ -109,10 +136,13 @@ export async function getImageDimensions(url) {
 
 export async function getHighestQualityBackdropIndex(itemId) {
   const config = getConfig();
-  const candidateIndexes = ["0", "1", "2", "3"];
-  const results = [];
   const minQualityWidth = config.minHighQualityWidth || 1920;
   const minPixelCount = config.minPixelCount || (1920 * 1080);
+
+  const itemDetails = await fetchItemDetails(itemId);
+  const backdropTags = itemDetails.BackdropImageTags || [];
+  const candidateIndexes = backdropTags.map((_, index) => String(index));
+  const results = [];
 
   await Promise.all(candidateIndexes.map(async (index) => {
     const url = `/Items/${itemId}/Images/Backdrop/${index}`;
@@ -126,7 +156,7 @@ export async function getHighestQualityBackdropIndex(itemId) {
         isHighQuality: dimensions.width >= minQualityWidth && area >= minPixelCount
       });
     } catch (error) {
-      console.warn(`${index} indeksli arka plan görseli bulunamadı:`, error.message);
+      console.warn(`${index} indeksli arka plan görseli alınamadı:`, error.message);
     }
   }));
 
@@ -151,42 +181,46 @@ export async function getHighestQualityBackdropIndex(itemId) {
   return bestImage.index;
 }
 
-
 export async function playNow(itemId) {
-  let session;
   try {
-    const { deviceId, userId } = getSessionInfo();
-    const sessions = await makeApiRequest(`Sessions?userId=${userId}`);
-    const supportedPlayers = sessions.filter(s =>
+    const { deviceId, userId, sessionId } = getSessionInfo();
+    const sessions = await makeApiRequest(`/Sessions?UserId=${userId}`);
+    const videoClients = sessions.filter(s =>
       s.Capabilities?.PlayableMediaTypes?.includes('Video')
     );
-    session = supportedPlayers.find(s => s.DeviceId === deviceId) || supportedPlayers[0];
+    let target = videoClients.find(s => s.Id === sessionId);
+    if (!target) {
+      target = videoClients.find(s => s.DeviceId === deviceId);
+    }
+    if (!target) {
+      target = videoClients.find(s => s.NowPlayingItem);
+    }
+    if (!target && videoClients.length) {
+      target = videoClients
+        .sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))
+        [0];
+    }
 
-    if (!session || !session.Id) {
+    if (!target) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
     }
-
-    const playUrl = `/Sessions/${session.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
-    const playResponse = await fetch(playUrl, {
+    const playUrl = `/Sessions/${target.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
+    const res = await fetch(playUrl, {
       method: "POST",
-      headers: {
-        "Authorization": getAuthHeader()
-      }
+      headers: { Authorization: getAuthHeader() }
     });
-
-    if (!playResponse.ok) {
-      throw new Error(`Oynatma komutu gönderilemedi: ${playResponse.statusText}`);
+    if (!res.ok) {
+      throw new Error(`Oynatma komutu başarısız: ${res.statusText}`);
     }
 
-    console.log("Oynatma komutu başarıyla gönderildi, oturum:", session.Id);
+    console.log("Oynatma komutu başarıyla gönderildi:", target.Id);
     return true;
-  } catch (error) {
-    console.error("Oynatma komutu gönderilirken hata:", error);
+  } catch (err) {
+    console.error("Şimdi oynat hatası:", err);
     return false;
   }
 }
+
 export {
-  getSessionInfo,
-  getAuthHeader,
   makeApiRequest,
 };

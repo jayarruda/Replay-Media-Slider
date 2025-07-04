@@ -4,6 +4,11 @@ import { updateFavoriteStatus } from "./api.js";
 
 const config = getConfig();
 
+const playable = s =>
+  s.Capabilities?.PlayableMediaTypes?.some(t => t === 'Video' || t === 'Audio');
+
+let timeUpdateInterval;
+
 export async function loadAvailableDevices(itemId, dropdown) {
   dropdown.innerHTML = `<div class="loading-text">${config.languageLabels.castyukleniyor}</div>`;
 
@@ -11,7 +16,7 @@ export async function loadAvailableDevices(itemId, dropdown) {
     const { userId } = getSessionInfo();
     const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
     const videoDevices = sessions.filter(s =>
-      s.Capabilities?.PlayableMediaTypes?.includes('Video') ||
+      playable(s) ||
       ['android', 'ios', 'iphone', 'ipad'].some(term =>
         s.Client?.toLowerCase().includes(term))
     );
@@ -145,19 +150,30 @@ export async function startPlayback(itemId, sessionId) {
   }
 }
 
-export function showNotification(message, type) {
+export function showNotification(message, type = 'info', duration = 3000) {
+  const existingNotification = document.querySelector('.playback-notification');
+  if (existingNotification) {
+    existingNotification.remove();
+  }
+
   const notification = document.createElement('div');
   notification.className = `playback-notification ${type}`;
-  notification.textContent = message;
-
+  notification.innerHTML = `
+    <div class="notification-content">
+      <i class="fa-solid ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-info-circle'}"></i>
+      <span>${message}</span>
+    </div>
+  `;
   document.body.appendChild(notification);
-
   setTimeout(() => {
-    notification.classList.add('fade-out');
+    notification.classList.add('show');
+  }, 10);
+  setTimeout(() => {
+    notification.classList.remove('show');
     setTimeout(() => {
       notification.remove();
-    }, 500);
-  }, 3000);
+    }, 300);
+  }, duration);
 }
 
 export function hideNotification() {
@@ -172,13 +188,14 @@ export function hideNotification() {
 
 async function showNowPlayingModal(nowPlayingItem, device) {
   try {
+    if (timeUpdateInterval) {
+      clearInterval(timeUpdateInterval);
+    }
+
     const { userId } = getSessionInfo();
     const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
     const activeDevices = sessions.filter(s =>
-      (s.Capabilities?.PlayableMediaTypes?.includes('Video') ||
-       ['android', 'ios', 'iphone', 'ipad'].some(term =>
-         s.Client?.toLowerCase().includes(term))) &&
-      s.NowPlayingItem
+      playable(s) && s.NowPlayingItem
     );
 
     if (activeDevices.length === 0) {
@@ -268,6 +285,14 @@ async function showNowPlayingModal(nowPlayingItem, device) {
     `;
 
     modal.innerHTML = modalContent;
+    timeUpdateInterval = setInterval(() => updatePlaybackTimes(modal, activeDevices), 1000);
+    modal.querySelector('.castmodal-close').addEventListener('click', () => {
+      if (timeUpdateInterval) {
+        clearInterval(timeUpdateInterval);
+      }
+      modal.remove();
+    });
+
     document.body.appendChild(modal);
     const firstBackdrop = modal.querySelector('.castmodal-slide')?.dataset.backdrop;
     if (firstBackdrop) {
@@ -396,5 +421,49 @@ async function toggleFavorite(itemId, makeFavorite) {
   } catch (err) {
     console.error("Favori işlem hatası:", err);
     showNotification(`${config.languageLabels.favorihata}: ${err.message}`, 'error');
+  }
+}
+async function updatePlaybackTimes(modal, activeDevices) {
+  try {
+    const { userId } = getSessionInfo();
+    const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
+    const newActive = sessions.filter(s => playable(s) && s.NowPlayingItem);
+    const oldIds = activeDevices.map(d => d.Id).sort().join(',');
+    const newIds = newActive.map(d => d.Id).sort().join(',');
+    const oldItemIds = activeDevices.map(d => d.NowPlayingItem?.Id).sort().join(',');
+    const newItemIds = newActive.map(d => d.NowPlayingItem?.Id).sort().join(',');
+
+    if (oldIds !== newIds || oldItemIds !== newItemIds) {
+      modal.remove();
+      clearInterval(timeUpdateInterval);
+      showNowPlayingModal(newActive[0].NowPlayingItem, newActive[0]);
+      return;
+  }
+
+    activeDevices.forEach((device, index) => {
+      const currentSession = sessions.find(s => s.Id === device.Id);
+      if (!currentSession || !currentSession.NowPlayingItem) return;
+
+      const playedTicks = currentSession.PlayState?.PositionTicks || 0;
+      const durationTicks = currentSession.NowPlayingItem.RunTimeTicks || 0;
+      const played = formatTime(playedTicks);
+      const duration = formatTime(durationTicks);
+      const isPaused = currentSession.PlayState?.IsPaused;
+
+      const timeElement = modal.querySelector(`.castmodal-slide:nth-child(${index + 1}) .castmodal-info p:nth-child(5)`);
+      if (timeElement) {
+        timeElement.innerHTML = `<strong>${config.languageLabels.sure || "Süre"}:</strong> ${played} / ${duration}`;
+      }
+
+      const playButton = modal.querySelector(`.castmodal-slide:nth-child(${index + 1}) [data-session-id="${device.Id}"]`);
+      if (playButton) {
+        playButton.dataset.isPaused = isPaused;
+        playButton.innerHTML = isPaused
+          ? '▶️ ' + (config.languageLabels.devamet || "Devam Ettir")
+          : '⏸️ ' + (config.languageLabels.duraklat || "Duraklat");
+      }
+    });
+  } catch (err) {
+    console.error("Zaman güncelleme hatası:", err);
   }
 }

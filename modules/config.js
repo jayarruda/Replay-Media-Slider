@@ -140,8 +140,6 @@ export function getConfig() {
     plotContainerJustifyContent: localStorage.getItem('plotContainerJustifyContent') || '',
     plotContainerAlignItems: localStorage.getItem('plotContainerAlignItems') || '',
     plotContainerFlexWrap: localStorage.getItem('plotContainerFlexWrap') || '',
-    plotContainerColor: parseInt(localStorage.getItem('plotContainerColor'), 10) || 0,
-    plotContainerFontSize: parseInt(localStorage.getItem('plotContainerFontSize'), 10) || 0,
 
     titleContainerTop: parseInt(localStorage.getItem('titleContainerTop'), 10) || 0,
     titleContainerLeft: parseInt(localStorage.getItem('titleContainerLeft'), 10) || 0,
@@ -297,7 +295,8 @@ export function getConfig() {
       }
       return [...new Set([...defaultWriters, ...storedWriters])];
     })(),
-    minHighQualityWidth: parseInt(localStorage.getItem('minHighQualityWidth'), 10) || 1920,
+     minHighQualityWidth: parseInt(localStorage.getItem("minHighQualityWidth"), 10) || 1920,
+    minPixelCount: parseInt(localStorage.getItem("minPixelCount"), 10) || (1920 * 1080),
     cssVariant: localStorage.getItem('cssVariant') || 'normalslider'
   };
 }

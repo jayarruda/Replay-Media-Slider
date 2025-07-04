@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  minPixelCountInput: "Minimum Piksel Sayısı:",
+  minPixelCountDescription: "Genişlik × yükseklik sonucudur. Bu değerden küçük görseller düşük kaliteli sayılır. Örn: 1920×1080 = 2073600",
   castbulunamadi: "Uygun cihaz bulunamadı",
   belirsizkullanici: "Bilinmeyen Kullanıcı",
   belirsizistemci: "Bilinmeyen İstemci",

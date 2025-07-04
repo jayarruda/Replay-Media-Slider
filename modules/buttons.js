@@ -1,7 +1,7 @@
 import { getConfig } from "./config.js";
-import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
+import { getSessionInfo, makeApiRequest, getAuthHeader, playNow } from "./api.js";
 import { initSettings } from './settings.js';
-import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification } from './castModule.js';
+import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification, hideNotification } from './castModule.js';
 import { getProviderUrl, getYoutubeEmbedUrl } from './utils.js';
 import { applyContainerStyles } from './positionUtils.js';
 
@@ -142,7 +142,7 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
                 e.preventDefault();
                 e.stopPropagation();
                 try {
-                    await castToBestAvailableDevice(itemId);
+                    await castToCurrentDevice(itemId);
                 } catch (error) {
                     console.error("Cast işlemi başarısız:", error);
                     window.location.href = slide.dataset.detailUrl;
@@ -231,28 +231,15 @@ if (config.showFavoriteButton) {
     return mainContainer;
 }
 
-async function castToBestAvailableDevice(itemId) {
+async function castToCurrentDevice(itemId) {
   try {
-    const { userId } = getSessionInfo();
-    const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
-
-    const videoDevices = sessions.filter(s =>
-      s.Capabilities?.PlayableMediaTypes?.includes('Video')
-    );
-
-    if (videoDevices.length === 0) {
-      showNotification(config.languageLabels.castbulunamadi, 'error');
-      return;
-    }
-
-    const activeDevice = videoDevices.find(d => d.NowPlayingItem) || videoDevices[0];
-    const success = await startNowPlayback(itemId, activeDevice.Id);
+    const success = await playNow(itemId);
     if (!success) {
       showNotification(config.languageLabels.casthata, 'error');
     }
   } catch (error) {
-    console.error('Cihazlar yüklenirken hata:', error);
-    dropdown.innerHTML = `<div class="error-message">${config.languageLabels.casthata}: ${error.message}</div>`;
+    console.error('Cast işlemi sırasında hata:', error);
+    showNotification(`${config.languageLabels.casthata}: ${error.message}`, 'error');
   }
 }
 
@@ -277,17 +264,6 @@ async function startNowPlayback(itemId, sessionId) {
     console.error("Oynatma hatası:", error);
     showNotification(`${config.languageLabels.castoynatmahata}: ${error.message}`, 'error');
     return false;
-  }
-}
-
-
-function hideNotification() {
-  const notification = document.querySelector('.playback-notification');
-  if (notification) {
-    notification.classList.add('fade-out');
-    setTimeout(() => {
-      notification.remove();
-    }, 500);
   }
 }
 

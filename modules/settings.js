@@ -5,6 +5,7 @@ import { showNotification } from "./player/ui/notification.js";
 import { createPositionEditor } from './positionSettings.js';
 import { updateSlidePosition } from './positionUtils.js';
 import { createBackupRestoreButtons } from './configExporter.js';
+
 let settingsModal = null;
 
 export function createSettingsModal() {
@@ -240,6 +241,7 @@ export function applySettings(reload = false) {
             manualBackdropSelection: formData.get('manualBackdropSelection') === 'on',
             backdropImageType: formData.get('backdropImageType'),
             minHighQualityWidth: parseInt(formData.get('minHighQualityWidth'), 10),
+            minPixelCount: parseInt(formData.get('minPixelCount'), 10),
             showDotNavigation: formData.get('showDotNavigation') === 'on',
             dotBackgroundImageType: formData.get('dotBackgroundImageType'),
             dotBackgroundBlur: parseInt(formData.get('dotBackgroundBlur')),
@@ -714,6 +716,27 @@ function createSliderPanel(config, labels) {
 
     bindCheckboxKontrol('#manualBackdropSelection', '.backdrop-container', 0.6, [backdropSelect]);
     bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minQualityInput]);
+
+    const minPixelDiv = document.createElement('div');
+    minPixelDiv.className = 'fsetting-item min-quality-container';
+    const minPixelLabel = document.createElement('label');
+    minPixelLabel.textContent = labels.minPixelCountInput || 'Minimum Piksel Sayısı:';
+
+    const minPixelInput = document.createElement('input');
+    minPixelInput.type = 'number';
+    minPixelInput.value = config.minPixelCount || (1920 * 1080);
+    minPixelInput.name = 'minPixelCount';
+    minPixelInput.min = 1;
+
+    const minPixelDesc = document.createElement('div');
+    minPixelDesc.className = 'description-text';
+    minPixelDesc.textContent = labels.minPixelCountDescription ||
+    'Genişlik × yükseklik sonucudur. Bu değerden küçük görseller düşük kaliteli sayılır. Örn: 1920×1080 = 2073600';
+
+    minPixelDiv.append(minPixelLabel, minPixelInput, minPixelDesc);
+    sliderDiv.appendChild(minPixelDiv);
+
+    bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minPixelInput]);
 
     const dotNavCheckbox = createCheckbox(
         'showDotNavigation',

@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  minPixelCountInput: "Минимальное количество пикселей:",
+  minPixelCountDescription: "Результат ширина × высота. Изображения ниже этого значения считаются низкого качества. Пример: 1920×1080 = 2073600",
   castbulunamadi: "Совместимое устройство не найдено",
   belirsizkullanici: "Неизвестный пользователь",
   belirsizistemci: "Неизвестный клиент",

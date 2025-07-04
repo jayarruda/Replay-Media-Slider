@@ -136,7 +136,7 @@ export async function refreshPlaylist() {
                 remainder--;
                 added = true;
               }
-            } catch (_) { /* hata varsa yoksay */ }
+            } catch (_) {  }
           }
         }
         if (!added) break;
