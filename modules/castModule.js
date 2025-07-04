@@ -4,10 +4,15 @@ import { updateFavoriteStatus } from "./api.js";
 
 const config = getConfig();
 
-const playable = s =>
-  s.Capabilities?.PlayableMediaTypes?.some(t => t === 'Video' || t === 'Audio') ||
-  ['android', 'ios', 'iphone', 'ipad'].some(term =>
-    s.Client?.toLowerCase().includes(term));
+function isMobileClient(session) {
+  const client = session.Client?.toLowerCase() || '';
+  return ['android', 'ios', 'iphone', 'ipad'].some(term => client.includes(term));
+}
+
+function playable(session) {
+  return session.Capabilities?.PlayableMediaTypes?.some(t => t === 'Video' || t === 'Audio') ||
+         isMobileClient(session);
+}
 
 let timeUpdateInterval;
 
