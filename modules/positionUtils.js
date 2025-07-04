@@ -21,10 +21,6 @@ export function applyContainerStyles(container, type = '') {
   container.style.height = config[`${prefix}Height`] ? `${config[`${prefix}Height`]}%` : '';
 
   if (type && type !== 'slide') {
-    container.style.opacity = config[`${prefix}Opacity`] || '';
-    container.style.fontSize = config[`${prefix}FontSize`] || '';
-    container.style.color = config[`${prefix}Color`] || '';
-
     container.style.display = config[`${prefix}Display`] || '';
     container.style.flexDirection = config[`${prefix}FlexDirection`] || '';
     container.style.justifyContent = config[`${prefix}JustifyContent`] || '';
