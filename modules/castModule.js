@@ -5,7 +5,9 @@ import { updateFavoriteStatus } from "./api.js";
 const config = getConfig();
 
 const playable = s =>
-  s.Capabilities?.PlayableMediaTypes?.some(t => t === 'Video' || t === 'Audio');
+  s.Capabilities?.PlayableMediaTypes?.some(t => t === 'Video' || t === 'Audio') ||
+  ['android', 'ios', 'iphone', 'ipad'].some(term =>
+    s.Client?.toLowerCase().includes(term));
 
 let timeUpdateInterval;
 
