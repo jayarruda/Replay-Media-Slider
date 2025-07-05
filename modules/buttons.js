@@ -234,7 +234,9 @@ if (config.showFavoriteButton) {
 async function castToCurrentDevice(itemId) {
   try {
     const success = await playNow(itemId);
-    if (!success) {
+    if (success) {
+      showNotification(config.languageLabels.castbasarili, 'success');
+    } else {
       showNotification(config.languageLabels.casthata, 'error');
     }
   } catch (error) {
