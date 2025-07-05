@@ -67,7 +67,7 @@ export async function loadAvailableDevices(itemId, dropdown) {
         <div class="overlay"></div>
         <img class="now-playing-poster" src="${posterUrl}" alt="Poster">
         <div class="now-playing-details">
-          <div class="now-playing-title">🎬 ${nowPlayingItem.Name}</div>
+          <div class="now-playing-title"> <i class="fa-solid ${getMediaIconClass(nowPlayingItem)}"></i> ${nowPlayingItem.Name} </div>
           <div class="now-playing-device">${nowPlayingDevice.DeviceName || config.languageLabels.castcihaz}</div>
         </div>
       `;
@@ -90,7 +90,7 @@ export async function loadAvailableDevices(itemId, dropdown) {
         <div class="device-info">
           <div class="device-name">${device.DeviceName || config.languageLabels.castcihaz}</div>
           <div class="device-client">${device.Client || config.languageLabels.castistemci}</div>
-          ${device.NowPlayingItem ? `<div class="now-playing">🎬 ${config.languageLabels.castoynatiliyor}</div>` : ''}
+          ${device.NowPlayingItem ? ` <div class="now-playing"> <i class="fa-solid ${getMediaIconClass(device.NowPlayingItem)}"></i> ${config.languageLabels.castoynatiliyor} </div>` : ''}
         </div>
       `;
 
@@ -252,7 +252,7 @@ async function showNowPlayingModal(nowPlayingItem, device) {
         <div class="castmodal-slide" data-backdrop="${backdropUrl}">
           <img class="castmodal-poster" src="${posterUrl}" alt="Poster">
           <div class="castmodal-info">
-            <h2>${item.Name}</h2>
+            <h2><i class="fa-solid ${getMediaIconClass(item)}"></i> ${item.Name}</h2>
             <p><strong>${config.languageLabels.kullanici  || "Kullanıcı"}:</strong> ${user}</p>
             <p><strong>${config.languageLabels.cihaz || "Cihaz"}:</strong> ${deviceName}</p>
             <p><strong>${config.languageLabels.istemci || "İstemci"}:</strong> ${client}</p>
@@ -474,3 +474,30 @@ async function updatePlaybackTimes(modal, activeDevices) {
     console.error("Zaman güncelleme hatası:", err);
   }
 }
+
+export function getMediaIconClass(media) {
+  const itemType = (media.ItemType || '').toLowerCase();
+  const type = (media.Type || '').toLowerCase();
+
+  const icons = {
+    audio: 'fa-music',
+    music: 'fa-headphones',
+    musicalbum: 'fa-compact-disc',
+    song: 'fa-headphones',
+    movie: 'fa-film',
+    series: 'fa-tv',
+    episode: 'fa-clapperboard',
+    videoclip: 'fa-video',
+    musicvideo: 'fa-video',
+    homevideo: 'fa-video',
+    livetv: 'fa-satellite-dish',
+    channel: 'fa-broadcast-tower',
+    audiobook: 'fa-book-open',
+    photo: 'fa-image',
+    trailer: 'fa-film',
+    default: 'fa-photo-film'
+  };
+
+  return icons[itemType] || icons[type] || icons.default;
+}
+
