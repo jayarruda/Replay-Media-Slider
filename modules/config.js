@@ -295,7 +295,8 @@ export function getConfig() {
       }
       return [...new Set([...defaultWriters, ...storedWriters])];
     })(),
-     minHighQualityWidth: parseInt(localStorage.getItem("minHighQualityWidth"), 10) || 1920,
+    minHighQualityWidth: parseInt(localStorage.getItem("minHighQualityWidth"), 10) || 1920,
+    backdropMaxWidth: parseInt(localStorage.getItem("backdropMaxWidth"), 10) || 1920,
     minPixelCount: parseInt(localStorage.getItem("minPixelCount"), 10) || (1920 * 1080),
     cssVariant: localStorage.getItem('cssVariant') || 'normalslider'
   };
