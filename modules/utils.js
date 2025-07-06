@@ -136,6 +136,15 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   slide.addEventListener("slideChange", handleMouseLeave);
 }
 
+export function prefetchImages(urls) {
+  urls.forEach(url => {
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = url;
+    document.head.appendChild(link);
+  });
+}
+
 export function getHighResImageUrls(item) {
   const itemId = item.Id;
   const imageTag = item.ImageTags?.Primary || '';
@@ -150,6 +159,6 @@ export function getHighResImageUrls(item) {
   return {
     logoUrl: `/Items/${itemId}/Images/Logo?tag=${logoTag}&quality=100&maxHeight=${logoHeight}${formatParam}`,
     backdropUrl: `/Items/${itemId}/Images/Backdrop/0?tag=${backdropTag}&quality=100&maxWidth=${backdropWidth}${formatParam}`,
-    placeholderUrl: `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=50&blur=10`
+    placeholderUrl: `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=20&blur=15`
   };
 }
