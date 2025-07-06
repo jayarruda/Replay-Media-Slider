@@ -311,7 +311,7 @@ async function updateTrackMeta(track) {
 
   const tags = await readID3Tags(track.Id);
   const metaItems = [
-    { key: 'track-number', show: track?.IndexNumber != null, icon: 'fas fa-list-ol', text: track.IndexNumber },
+    { key: 'tracknumber', show: track?.IndexNumber != null, icon: 'fas fa-list-ol', text: track.IndexNumber },
     { key: 'year', show: track?.ProductionYear != null, icon: 'fas fa-calendar-alt', text: track.ProductionYear },
     { key: 'album', show: !!track?.Album, icon: 'fas fa-compact-disc', text: track.Album },
     { key: 'genre', show: !!tags?.genre, icon: 'fas fa-music', text: tags.genre }
@@ -324,7 +324,7 @@ async function updateTrackMeta(track) {
     const label = config.languageLabels[item.key] || item.key;
     span.title = `${label}: ${item.text}`;
     span.innerHTML = `<i class="${item.icon}" style="margin-right:4px"></i>${item.text}`;
-    if (item.key === 'track-number' || item.key === 'year') {
+    if (item.key === 'tracknumber' || item.key === 'year') {
       Object.assign(span.style, {
         flex: '0 0 auto',
         whiteSpace: 'nowrap'
