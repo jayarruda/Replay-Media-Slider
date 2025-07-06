@@ -209,11 +209,20 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
   container.className = "info-container";
   applyContainerStyles(container, 'info');
 
+  const normalizeKey = str =>
+    str?.toString().toLowerCase().replace(/\s+/g, "");
+
   if (Genres && Genres.length && config.showGenresInfo) {
     const genresSpan = document.createElement("span");
     genresSpan.className = "genres";
     genresSpan.innerHTML = `<i class="fa-regular fa-masks-theater"></i> ${Genres.map(
-      genre => config.languageLabels.turler[genre] || genre
+      genre => {
+        const key = normalizeKey(genre);
+        const matchedEntry = Object.entries(config.languageLabels.turler || {}).find(
+          ([labelKey]) => normalizeKey(labelKey) === key
+        );
+        return matchedEntry ? matchedEntry[1] : genre;
+      }
     ).join(", ")} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
     container.appendChild(genresSpan);
   }
@@ -242,18 +251,25 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
             .map(char => String.fromCodePoint(127397 + char.charCodeAt()))
             .join("")
         : "";
+
+    const getCountryInfo = (countryRaw) => {
+      const key = normalizeKey(countryRaw);
+      const matchedEntry = Object.entries(config.languageLabels.ulke || {}).find(
+        ([labelKey]) => normalizeKey(labelKey) === key
+      );
+      return matchedEntry
+        ? matchedEntry[1]
+        : { code: countryRaw.slice(0, 2).toUpperCase(), name: countryRaw };
+    };
+
     countrySpan.innerHTML = `<i class="fa-regular fa-location-dot"></i> ${
       Array.isArray(ProductionLocations)
         ? ProductionLocations.map(c => {
-            const info =
-              config.languageLabels.ulke[c] ||
-              { code: c.slice(0, 2).toUpperCase(), name: c };
+            const info = getCountryInfo(c);
             return `${getFlagEmoji(info.code)} ${info.name}`;
           }).join(' <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i> ')
         : (() => {
-            const info =
-              config.languageLabels.ulke[ProductionLocations] ||
-              { code: ProductionLocations.slice(0, 2).toUpperCase(), name: ProductionLocations };
+            const info = getCountryInfo(ProductionLocations);
             return `${getFlagEmoji(info.code)} ${info.name}`;
           })()
     }`;
@@ -262,6 +278,7 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
 
   return container;
 }
+
 
 export function createDirectorContainer({ config, People }) {
   const container = document.createElement("div");
@@ -498,5 +515,3 @@ export function createTitleContainer({ config, Taglines, title, OriginalTitle })
 
   return container;
 }
-
-
