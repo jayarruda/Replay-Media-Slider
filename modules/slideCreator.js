@@ -1,33 +1,8 @@
-import {
-  getYoutubeEmbedUrl,
-  getProviderUrl,
-  isValidUrl,
-  createTrailerIframe,
-  debounce
-} from "./utils.js";
-import {
-  updateFavoriteStatus,
-  updatePlayedStatus,
-  getHighestQualityBackdropIndex
-} from "./api.js";
+import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls } from "./utils.js";
+import { updateFavoriteStatus, updatePlayedStatus, getHighestQualityBackdropIndex } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
-import {
-  createSlidesContainer,
-  createGradientOverlay,
-  createHorizontalGradientOverlay,
-  createLogoContainer,
-  createStatusContainer,
-  createActorSlider,
-  createInfoContainer,
-  createDirectorContainer,
-  createRatingContainer,
-  createLanguageContainer,
-  createMetaContainer,
-  createMainContentContainer,
-  createPlotContainer,
-  createTitleContainer
-} from "./containerUtils.js";
+import { createSlidesContainer, createGradientOverlay, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
 import { createButtons, createProviderContainer } from './buttons.js';
 
 const config = getConfig();
@@ -133,16 +108,35 @@ async function createSlide(item) {
   slide.dataset.artUrl = artUrl;
   slide.dataset.discUrl = discUrl;
 
-  const backdropImg = document.createElement("img");
-  backdropImg.className = "backdrop";
-  backdropImg.sizes = "100vw";
-  backdropImg.alt = "Backdrop";
-  backdropImg.loading = "lazy";
-  backdropImg.style.opacity = "0";
+  const { backdropUrl, placeholderUrl } = getHighResImageUrls(item);
 
-  backdropImg.addEventListener("click", () => {
+  const backdropImg = document.createElement('img');
+  backdropImg.className = 'backdrop';
+  backdropImg.sizes = '100vw';
+  backdropImg.alt = 'Backdrop';
+  backdropImg.loading = 'lazy';
+  backdropImg.style.opacity = '0';
+  backdropImg.src = placeholderUrl;
+
+  const io = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        backdropImg.src = backdropUrl;
+        backdropImg.onload = () => {
+          backdropImg.style.transition = 'opacity 0.5s ease';
+          backdropImg.style.opacity = '1';
+        };
+        observer.unobserve(backdropImg);
+      }
+    });
+  });
+  io.observe(backdropImg);
+
+  backdropImg.addEventListener('click', () => {
     window.location.href = slide.dataset.detailUrl;
   });
+
+  slide.appendChild(backdropImg);
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
