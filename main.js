@@ -8,51 +8,24 @@
  * It may not be copied, reproduced, or modified without permission.
  */
 
-import { saveApiKey, saveCredentialsToSessionStorage } from "./auth.js";
 import { getConfig } from "./modules/config.js";
-import { getLanguageLabels, getDefaultLanguage } from './language/index.js';
-import {
-  getCurrentIndex,
-  setCurrentIndex,
-  getSlideDuration,
-  setAutoSlideTimeout,
-  getAutoSlideTimeout,
-  setSlideStartTime,
-  getSlideStartTime,
-  setRemainingTime,
-  getRemainingTime,
-} from "./modules/sliderState.js";
-import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer, SLIDE_DURATION } from "./modules/timer.js";
-import {
-  ensureProgressBarExists,
-  resetProgressBar,
-  startProgressBarWithDuration,
-  pauseProgressBar,
-  resumeProgressBar,
-} from "./modules/progressBar.js";
+import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
+import { startSlideTimer, stopSlideTimer } from "./modules/timer.js";
+import { ensureProgressBarExists } from "./modules/progressBar.js";
 import { createSlide } from "./modules/slideCreator.js";
-import { changeSlide, updateActiveDot, createDotNavigation, displaySlide } from "./modules/navigation.js";
-import { attachMouseEvents, setupVisibilityHandler } from "./modules/events.js";
+import { changeSlide, createDotNavigation } from "./modules/navigation.js";
+import { attachMouseEvents } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
-import {
-  createSlidesContainer,
-  createGradientOverlay,
-  createHorizontalGradientOverlay,
-  createLogoContainer,
-  createActorSlider,
-  createInfoContainer,
-  createDirectorContainer,
-  createRatingContainer,
-  createLanguageContainer,
-  createMetaContainer,
-  createMainContentContainer,
-  createPlotContainer,
-  createTitleContainer
-} from "./modules/containerUtils.js";
-import { updateSlidePosition } from './modules/positionUtils.js';
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from './modules/positionOverrides.js';
 
 const config = getConfig();
+const shuffleArray = array => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
 
 forceSkinHeaderPointerEvents();
 forceHomeSectionsTop();
@@ -99,153 +72,105 @@ const cssPath =
 
 loadExternalCSS(cssPath);
 
-const shuffleArray = (array) => {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-};
-
 let isOnHomePage = true;
 
-export function slidesInit() {
+export async function slidesInit() {
   forceSkinHeaderPointerEvents();
   forceHomeSectionsTop();
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
   fullSliderReset();
+  const rawCred = sessionStorage.getItem("json-credentials")
+                || localStorage.getItem("json-credentials");
+  const apiKey  = sessionStorage.getItem("api-key")
+                || localStorage.getItem("api-key");
 
-  const credentials = sessionStorage.getItem("json-credentials");
-  const apiKey = sessionStorage.getItem("api-key");
-  let userId = null, accessToken = null;
-
-  if (credentials) {
-    try {
-      const parsed = JSON.parse(credentials);
-      userId = parsed.Servers[0].UserId;
-      accessToken = parsed.Servers[0].AccessToken;
-    } catch (error) {
-      console.error("Credential JSON hatası:", error);
-    }
-  }
-
-  if (!userId || !apiKey) {
+  if (!rawCred || !apiKey) {
     console.error("Kullanıcı bilgisi veya API anahtarı bulunamadı.");
     window.sliderResetInProgress = false;
     return;
   }
+  let userId = null, accessToken = null;
+  try {
+    const parsed = JSON.parse(rawCred);
+    userId      = parsed.Servers[0].UserId;
+    accessToken = parsed.Servers[0].AccessToken;
+  } catch (err) {
+    console.error("Credential JSON hatası:", err);
+  }
 
-  const savedLimit = localStorage.getItem("limit") || 20;
-  window.myUserId = userId;
-  const listUrl = `/web/slider/list/list_${userId}.txt`;
-  window.myListUrl = listUrl;
-  console.log("Liste URL'si:", listUrl);
-
-  (async () => {
+  if (!userId || !accessToken) {
+    console.error("Geçerli kullanıcı bilgisi veya token bulunamadı.");
+    window.sliderResetInProgress = false;
+    return;
+  }
+  const savedLimit = parseInt(localStorage.getItem("limit") || "20", 10);
+  window.myUserId   = userId;
+  window.myListUrl  = `/web/slider/list/list_${userId}.txt`;
+  console.log("Liste URL'si:", window.myListUrl);
+  let items = [];
+  try {
     let listItems = null;
-    let listContent = "";
-
     if (config.useManualList && config.manualListIds) {
-      listItems = config.manualListIds
-        .split(',')
-        .map(id => id.trim())
-        .filter(id => id);
-      console.log("Manuel olarak yapılandırılmış liste kullanılıyor:", listItems);
+      listItems = config.manualListIds.split(",").map(id => id.trim()).filter(Boolean);
+      console.log("Manuel liste kullanılıyor:", listItems);
     } else if (config.useListFile) {
-      try {
-        const res = await fetch(window.myListUrl);
-        if (!res.ok) throw new Error("list.txt dosyası alınamadı");
-        listContent = await res.text();
-        console.log("list.txt içeriği:", listContent);
-        window.cachedListContent = listContent;
-        if (listContent.length < 10) {
-          console.warn("list.txt dosyası 10 bayttan küçük, API fallback devreye girecek.");
-          listItems = null;
+      const res = await fetch(window.myListUrl);
+      if (res.ok) {
+        const text = await res.text();
+        window.cachedListContent = text;
+        if (text.length >= 10) {
+          listItems = text.split("\n").map(l => l.trim()).filter(Boolean);
         } else {
-          listItems = listContent.split("\n")
-            .map(line => line.trim())
-            .filter(line => line);
+          console.warn("list.txt çok küçük, fallback API devrede.");
         }
-      } catch (err) {
-        console.warn("list.txt hatası:", err);
-        window.cachedListContent = "";
-        listItems = null;
+      } else {
+        console.warn("list.txt alınamadı, fallback API devrede.");
       }
-    } else {
-      console.log("Yapılandırma ayarı etkisiz: list.txt kullanılmayacak.");
     }
 
-    let items = [];
-
-    if (Array.isArray(listItems) && listItems.length > 0) {
-      const itemPromises = listItems.map(id => fetchItemDetails(id));
-      items = (await Promise.all(itemPromises)).filter(item => item);
+    if (Array.isArray(listItems) && listItems.length) {
+      const details = await Promise.all(listItems.map(id => fetchItemDetails(id)));
+      items = details.filter(x => x);
     } else {
       console.log("API fallback kullanılıyor.");
-      try {
-        const queryString = config.customQueryString;
-        const sortingKeywords = ["DateCreated", "PremiereDate", "ProductionYear"];
-        const shouldShuffle = !config.sortingKeywords.some(keyword => queryString.includes(keyword));
-        const res = await fetch(
-          `/Users/${userId}/Items?${queryString}`,
-          {
-            headers: {
-              Authorization: `MediaBrowser Client="Jellyfin Web", Device="YourDeviceName", DeviceId="YourDeviceId", Version="YourClientVersion", Token="${accessToken}"`,
-            },
-          }
-        );
-        const data = await res.json();
-        const slideLimit = savedLimit;
-
-        if (shouldShuffle) {
-          const movies = data.Items.filter(item => item.Type === "Movie");
-          const series = data.Items.filter(item => item.Type === "Series");
-          const boxSets = data.Items.filter(item => item.Type === "BoxSet");
-          const limitedMovies = shuffleArray(movies).slice(0, slideLimit);
-          const limitedSeries = shuffleArray(series).slice(0, slideLimit);
-          const limitedBoxSet = shuffleArray(boxSets).slice(0, slideLimit);
-
-          const fallbackItems = shuffleArray([...limitedMovies, ...limitedSeries, ...limitedBoxSet])
-            .slice(0, slideLimit);
-
-          const detailedItems = await Promise.all(
-            fallbackItems.map(item => fetchItemDetails(item.Id))
-          );
-          items = detailedItems.filter(item => item);
-        } else {
-          const defaultItems = data.Items.slice(0, slideLimit);
-          const detailedItems = await Promise.all(
-            defaultItems.map(item => fetchItemDetails(item.Id))
-          );
-          items = detailedItems.filter(item => item);
-        }
-      } catch (error) {
-        console.error("API fallback başarısız:", error);
-      }
+      const queryString = config.customQueryString;
+      const shouldShuffle = !config.sortingKeywords.some(k => queryString.includes(k));
+      const res = await fetch(
+        `/Users/${userId}/Items?${queryString}`,
+        { headers: { Authorization:
+          `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
+        }}
+      );
+      const data = await res.json();
+      const all = data.Items || [];
+      let pool = shouldShuffle
+        ? shuffleArray(all).slice(0, savedLimit)
+        : all.slice(0, savedLimit);
+      const detailed = await Promise.all(pool.map(i => fetchItemDetails(i.Id)));
+      items = detailed.filter(x => x);
     }
-
-    if (items.length === 0) {
-      console.warn("Hiçbir slayt verisi elde edilemedi.");
-      window.sliderResetInProgress = false;
-      return;
-    }
-
-    console.groupCollapsed("Slide Oluşturma");
-    for (const item of items) {
-      console.log("Slider API Bilgisi:", item);
-      await createSlide(item);
-    }
-    console.groupEnd();
-    const indexPage = document.querySelector("#indexPage:not(.hide)");
-    if (indexPage && !indexPage.querySelector("#slides-container")) {
-      const slidesContainer = document.createElement("div");
-      slidesContainer.id = "slides-container";
-      indexPage.appendChild(slidesContainer);
-    }
-
-    initializeSlider();
-  })();
+  } catch (err) {
+    console.error("Slide verisi hazırlanırken hata:", err);
+  }
+  if (!items.length) {
+    console.warn("Hiçbir slayt verisi elde edilemedi.");
+    window.sliderResetInProgress = false;
+    return;
+  }
+  console.groupCollapsed("Slide Oluşturma");
+  for (const item of items) {
+    console.log("Slider API Bilgisi:", item);
+    await createSlide(item);
+  }
+  console.groupEnd();
+  const idxPage = document.querySelector("#indexPage:not(.hide)");
+  if (idxPage && !idxPage.querySelector("#slides-container")) {
+    const c = document.createElement("div");
+    c.id = "slides-container";
+    idxPage.appendChild(c);
+  }
+  initializeSlider();
 }
 
 
