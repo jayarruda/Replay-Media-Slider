@@ -1,18 +1,37 @@
 import { getConfig, getServerAddress } from "./config.js";
+import { clearCredentials } from "../auth.js";
+
+async function safeFetch(url, opts = {}) {
+  const headers = {
+    ...(opts.headers || {}),
+    Authorization: getAuthHeader()
+  };
+  const res = await fetch(url, { ...opts, headers });
+  if (res.status === 401) {
+    clearCredentials();
+    window.location.href = "/login.html";
+    throw new Error("Oturum geçersiz, yeniden giriş yapın.");
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `API hatası: ${res.status}`);
+  }
+  const ct = res.headers.get("content-type") || "";
+  if (res.status === 204 || !ct.includes("application/json")) return {};
+  return res.json();
+}
+
+export function getAuthHeader() {
+  const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
+  return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
+}
 
 export function getSessionInfo() {
-  const raw = sessionStorage.getItem("json-credentials");
-  if (!raw) {
-    throw new Error("sessionStorage'da kimlik bilgisi bulunamadı");
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    console.error("json-credentials ayrıştırma hatası:", err);
-    throw new Error("Kimlik bilgisi verisi geçersiz");
-  }
+  const raw =
+    sessionStorage.getItem("json-credentials") ||
+    localStorage.getItem("json-credentials");
+  if (!raw) throw new Error("Kimlik bilgisi bulunamadı.");
+  const parsed = JSON.parse(raw);
 
   const topLevelToken     = parsed.AccessToken;
   const topLevelSessionId = parsed.SessionId;
@@ -50,34 +69,38 @@ export function getSessionInfo() {
   );
 }
 
-export function getAuthHeader() {
-  const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
-  return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
-}
-
 
 async function makeApiRequest(url, options = {}) {
   try {
-    if (!options.headers) {
-      options.headers = {};
-    }
-    options.headers["Authorization"] = getAuthHeader();
+    options.headers = {
+      ...(options.headers || {}),
+      "Authorization": getAuthHeader(),
+    };
 
     const response = await fetch(url, options);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API isteği başarısız oldu (durum: ${response.status})`);
+      throw new Error(
+        errorData.message ||
+        `API isteği başarısız oldu (durum: ${response.status})`
+      );
+    }
+    const contentType = response.headers.get("content-type") || "";
+    if (response.status === 204 || !contentType.includes("application/json")) {
+      return {};
     }
     return await response.json();
+
   } catch (error) {
     console.error(`${url} için API isteği hatası:`, error);
     throw error;
   }
 }
 
+
 export async function fetchItemDetails(itemId) {
   const { userId } = getSessionInfo();
-  return makeApiRequest(`/Users/${userId}/Items/${itemId}`);
+  return safeFetch(`/Users/${userId}/Items/${itemId}`);
 }
 
 export async function updateFavoriteStatus(itemId, isFavorite) {
