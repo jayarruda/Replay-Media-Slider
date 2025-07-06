@@ -195,15 +195,11 @@ export function hideNotification() {
 
 async function showNowPlayingModal(nowPlayingItem, device) {
   try {
-    if (timeUpdateInterval) {
-      clearInterval(timeUpdateInterval);
-    }
+    if (timeUpdateInterval) clearInterval(timeUpdateInterval);
 
     const { userId } = getSessionInfo();
     const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
-    const activeDevices = sessions.filter(s =>
-      playable(s) && s.NowPlayingItem
-    );
+    const activeDevices = sessions.filter(s => playable(s) && s.NowPlayingItem);
 
     if (activeDevices.length === 0) {
       showNotification(config.languageLabels.castbulunamadi, 'error');
@@ -221,59 +217,88 @@ async function showNowPlayingModal(nowPlayingItem, device) {
 
     for (const [index, device] of activeDevices.entries()) {
       const item = device.NowPlayingItem;
+      const isMuted = device.PlayState?.IsMuted || false;
+      const volumeLevel = device.PlayState?.VolumeLevel ?? 50;
       const itemId = item.Id;
 
       const response = await fetch(`/Items/${itemId}`, {
         headers: { "Authorization": getAuthHeader() }
       });
       const itemDetails = await response.json();
-
-      const posterUrl = `/Items/${itemId}/Images/Primary?tag=${itemDetails.ImageTags?.Primary || ''}&maxHeight=300`;
-      const backdropUrl = `/Items/${itemId}/Images/Backdrop/0?maxWidth=1280`;
+      const { posterUrl, backdropUrl, placeholderUrl } = getHighResImageUrls(item);
       const playedTicks = device.PlayState?.PositionTicks || 0;
       const durationTicks = itemDetails.RunTimeTicks || 0;
       const played = formatTime(playedTicks);
       const duration = formatTime(durationTicks);
-
       const user = device.UserName || config.languageLabels.belirsizkullanici;
       const client = device.Client || config.languageLabels.belirsizistemci;
       const deviceName = device.DeviceName || config.languageLabels.belirsizcihaz;
       const isPaused = device.PlayState?.IsPaused;
-
-      const genres = itemDetails.Genres?.join(", ") || config.languageLabels.etiketok;
-      const imdbRating = itemDetails.CommunityRating ?
-        `${itemDetails.CommunityRating.toFixed(1)} / 10` : config.languageLabels.derecelendirmeyok;
-
       const isFavorite = itemDetails.UserData?.IsFavorite;
-      const audioLanguages = itemDetails.MediaStreams?.filter(s => s.Type === 'Audio').map(s => s.Language)?.join(', ') || config.languageLabels.sesdiliyok;
-      const subtitleLanguages = itemDetails.MediaStreams?.filter(s => s.Type === 'Subtitle').map(s => s.Language)?.join(', ') || config.languageLabels.altyaziyok;
+      const genres = itemDetails.Genres?.join(", ") || '';
+      const imdbRating = itemDetails.CommunityRating ? `${itemDetails.CommunityRating.toFixed(1)}` : '';
+      const tmdbRating = itemDetails.OfficialRating || '';
+      const audioLanguages = itemDetails.MediaStreams?.filter(s => s.Type === 'Audio').map(s => s.Language)?.join(', ') || '';
+      const subtitleLanguages = itemDetails.MediaStreams?.filter(s => s.Type === 'Subtitle').map(s => s.Language)?.join(', ') || '';
+      const overview = itemDetails.Overview || '';
+      const year = itemDetails.ProductionYear || '';
+      const tmdbId = itemDetails.ProviderIds?.Tmdb;
+      const imdbId = itemDetails.ProviderIds?.Imdb;
+      const itemPageUrl = `/web/#!/details?id=${itemId}`;
+      const artists = itemDetails.Artists?.join(", ") || '';
+      const album = itemDetails.Album || '';
+      const albumArtist = itemDetails.AlbumArtist || '';
+      const trackNumber = itemDetails.IndexNumber || '';
+      const directors = itemDetails.People
+        ? itemDetails.People
+            .filter(p => p.Type?.toLowerCase() === "director")
+            .map(d => d.Name)
+            .join(", ")
+        : '';
 
       modalContent += `
         <div class="castmodal-slide" data-backdrop="${backdropUrl}">
-          <img class="castmodal-poster" src="${posterUrl}" alt="Poster">
+          <img class="castmodal-poster lazy-load"
+               src="${placeholderUrl}"
+               data-src="${posterUrl}"
+               alt="Poster">
           <div class="castmodal-info">
             <h2><i class="fa-solid ${getMediaIconClass(item)}"></i> ${item.Name}</h2>
-            <p><strong>${config.languageLabels.kullanici  || "Kullanıcı"}:</strong> ${user}</p>
-            <p><strong>${config.languageLabels.cihaz || "Cihaz"}:</strong> ${deviceName}</p>
-            <p><strong>${config.languageLabels.istemci || "İstemci"}:</strong> ${client}</p>
-            <p><strong>${config.languageLabels.sure || "Süre"}:</strong> ${played} / ${duration}</p>
-            <p><strong>IMDB:</strong> ${imdbRating}</p>
-            <p><strong>${config.languageLabels.etiketler || "Etiket(ler)"}:</strong> ${genres}</p>
-            <p><strong>${config.languageLabels.ses || "Ses Bilgisi"}:</strong> ${audioLanguages}</p>
-            <p><strong>${config.languageLabels.altyazi || "Altyazı Bilgisi"}:</strong> ${subtitleLanguages}</p>
+            ${user ? `<p><strong>${config.languageLabels.kullanici}:</strong> ${user}</p>` : ''}
+            ${deviceName ? `<p><strong>${config.languageLabels.cihaz}:</strong> ${deviceName}</p>` : ''}
+            ${client ? `<p><strong>${config.languageLabels.istemci}:</strong> ${client}</p>` : ''}
+            <p><strong>${config.languageLabels.sure}:</strong> ${played} / ${duration}</p>
+            ${year ? `<p><strong>${config.languageLabels.year || "Yıl"}:</strong> ${year}</p>` : ''}
+            ${directors ? `<p><strong>${config.languageLabels.yonetmen || "Yönetmen"}:</strong> ${directors}</p>` : ''}
+            ${overview ? `<p><strong>${config.languageLabels.konu || "Konu"}:</strong> ${overview}</p>` : ''}
+
+            <div class="castRating-container">
+              ${imdbRating ? `<span class="castimdb-rating"><i class="fas fa-star"></i> ${imdbRating}</span>` : ''}
+              ${tmdbRating ? `<span class="casttmdb-rating"><i class="fas fa-family"></i> ${tmdbRating}</span>` : ''}
+            </div>
+
+            ${tmdbId ? `<p><strong>TMDB:</strong> <a href="https://www.themoviedb.org/${item.Type === 'Episode' ? 'tv' : 'movie'}/${tmdbId}" target="_blank">Link</a></p>` : ''}
+            ${imdbId ? `<p><strong>IMDB:</strong> <a href="https://www.imdb.com/title/${imdbId}" target="_blank">Link</a></p>` : ''}
+            ${itemPageUrl ? `<p><a href="${itemPageUrl}" class="open-in-new" target="_blank">${config.languageLabels.yenisekme || "Yeni sekmede aç"}</a></p>` : ''}
+            ${genres ? `<p><strong>${config.languageLabels.etiketler}:</strong> ${genres}</p>` : ''}
+            ${audioLanguages ? `<p><strong>${config.languageLabels.ses}:</strong> ${audioLanguages}</p>` : ''}
+            ${subtitleLanguages ? `<p><strong>${config.languageLabels.altyazi}:</strong> ${subtitleLanguages}</p>` : ''}
+            ${artists ? `<p><strong>${config.languageLabels.sortArtist || "Sanatçı"}:</strong> ${artists}</p>` : ''}
+            ${album ? `<p><strong>${config.languageLabels.sortAlbum || "Albüm"}:</strong> ${album}</p>` : ''}
+            ${albumArtist ? `<p><strong>${config.languageLabels.sortAlbumArtist || "Albüm Sanatçısı"}:</strong> ${albumArtist}</p>` : ''}
+            ${trackNumber ? `<p><strong>${config.languageLabels.tracknumber || "Parça Numarası"}:</strong> ${trackNumber}</p>` : ''}
+
             <div class="castmodal-buttons">
               <button class="castcontrol-button" data-session-id="${device.Id}" data-is-paused="${isPaused}">
-                ${isPaused
-              ? '▶️ ' + (config.languageLabels.devamet || "Devam Ettir")
-              : '⏸️ ' + (config.languageLabels.duraklat || "Duraklat")
-              }
+              ${isPaused ? '▶️ ' + config.languageLabels.devamet : '⏸️ ' + config.languageLabels.duraklat}
               </button>
               <button class="castcontrol-button" data-item-id="${itemId}" data-is-favorite="${isFavorite}">
                 ${isFavorite
-                ? '💔 ' + (config.languageLabels.removeFromFavorites || "Favoriden Kaldır")
-                : '❤️ ' + (config.languageLabels.addToFavorites || "Favoriye Ekle")
+                  ? '💔 ' + config.languageLabels.removeFromFavorites
+                  : '❤️ ' + config.languageLabels.addToFavorites
                 }
               </button>
+              ${createVolumeControls(modal, device, isMuted, volumeLevel)}
             </div>
           </div>
         </div>
@@ -293,45 +318,179 @@ async function showNowPlayingModal(nowPlayingItem, device) {
 
     modal.innerHTML = modalContent;
     timeUpdateInterval = setInterval(() => updatePlaybackTimes(modal, activeDevices), 1000);
+
+    document.body.appendChild(modal);
+
+    const lazyImages = modal.querySelectorAll('.lazy-load');
+    lazyImages.forEach(img => {
+      const highResImg = new Image();
+      highResImg.src = img.dataset.src;
+      highResImg.onload = () => {
+        img.src = highResImg.src;
+        img.classList.add('loaded');
+      };
+    });
+
+    modal.querySelectorAll('.mute-button').forEach(button => {
+      button.addEventListener('click', async e => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const sessionId = button.dataset.sessionId;
+        const isMuted = button.dataset.isMuted === 'true';
+        const slider = modal.querySelector(`.volume-slider[data-session-id="${sessionId}"]`);
+        const valueLabel = modal.querySelector(`.volume-value[data-session-id="${sessionId}"]`);
+
+        try {
+          await makeApiRequest(`/Sessions/${sessionId}/Command`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({
+              Name: isMuted ? 'Unmute' : 'Mute',
+              ControllingUserId: getSessionInfo().userId
+            })
+          });
+
+          let newVolume;
+          if (isMuted) {
+            newVolume = button.dataset.lastVolume || '50';
+          } else {
+            button.dataset.lastVolume = slider.value;
+            newVolume = '0';
+          }
+          slider.value = newVolume;
+          if (valueLabel) valueLabel.textContent = `${newVolume}%`;
+          button.dataset.isMuted = (!isMuted).toString();
+          button.innerHTML = !isMuted
+            ? '🔊 ' + config.languageLabels.sesac
+            : '🔇 ' + config.languageLabels.seskapat;
+
+          showNotification(
+            !isMuted
+              ? config.languageLabels.volOff
+              : config.languageLabels.volOn,
+            'success'
+          );
+          await makeApiRequest(`/Sessions/${sessionId}/Command`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({
+              Name: 'SetVolume',
+              ControllingUserId: getSessionInfo().userId,
+              Arguments: { Volume: parseInt(newVolume, 10) }
+            })
+          });
+
+        } catch (err) {
+          console.error("Mute/Unmute hatası:", err);
+          showNotification(`${config.languageLabels.seshata}: ${err.message}`, 'error');
+        }
+      });
+    });
+
     modal.querySelector('.castmodal-close').addEventListener('click', () => {
-      if (timeUpdateInterval) {
-        clearInterval(timeUpdateInterval);
-      }
+      clearInterval(timeUpdateInterval);
       modal.remove();
     });
 
-    document.body.appendChild(modal);
-    const firstBackdrop = modal.querySelector('.castmodal-slide')?.dataset.backdrop;
-    if (firstBackdrop) {
-  const container = modal.querySelector('.castmodal-container');
-  container.style.opacity = 0;
-  setTimeout(() => {
-    container.style.backgroundImage = `url('${firstBackdrop}')`;
-    container.style.opacity = 1;
-  }, 50);
-}
+    modal.querySelectorAll('.castcontrol-button[data-session-id]:not(.mute-button)').forEach(button => {
+      button.addEventListener('click', async e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const sessionId = button.dataset.sessionId;
+        const isPaused = button.dataset.isPaused === 'true';
+        await togglePlayback(sessionId, isPaused);
+      });
+    });
 
-    modal.querySelector('.castmodal-close').addEventListener('click', () => modal.remove());
-    modal.querySelectorAll('[data-session-id]').forEach(button => {
-  button.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const sessionId = e.currentTarget.dataset.sessionId;
-    const isPaused = e.currentTarget.dataset.isPaused === 'true';
-    await togglePlayback(sessionId, isPaused);
-  });
-});
-    modal.querySelectorAll('[data-item-id]').forEach(button => {
-  button.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const itemId = e.currentTarget.dataset.itemId;
-    const isFavorite = e.currentTarget.dataset.isFavorite === 'true';
-    await toggleFavorite(itemId, !isFavorite);
-  });
-});
+    modal.querySelectorAll('.castcontrol-button[data-item-id]').forEach(button => {
+      button.addEventListener('click', async e => {
+        e.stopPropagation();
+        const itemId = button.dataset.itemId;
+        const isFav = button.dataset.isFavorite === 'true';
+        await toggleFavorite(itemId, !isFav);
+      });
+    });
+
+    modal.addEventListener('input', async (e) => {
+      if (!e.target.classList.contains('volume-slider')) return;
+
+      const slider = e.target;
+      const sessionId = slider.dataset?.sessionId;
+      if (!sessionId) return;
+
+      const volume = parseInt(slider.value, 10);
+      const volumeValue = modal.querySelector(`.volume-value[data-session-id="${sessionId}"]`);
+      const muteButton = modal.querySelector(`.mute-button[data-session-id="${sessionId}"]`);
+
+      try {
+        if (muteButton?.dataset.isMuted === 'true') {
+          await fetch(`/Sessions/${sessionId}/Command`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': getAuthHeader()
+            },
+            body: JSON.stringify({
+              Name: 'Unmute',
+              ControllingUserId: getSessionInfo().userId
+            })
+          });
+
+          muteButton.dataset.isMuted = 'false';
+          muteButton.innerHTML = '🔇 ' + config.languageLabels.seskapat;
+        }
+
+        const response = await fetch(`/Sessions/${sessionId}/Command`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': getAuthHeader()
+          },
+          body: JSON.stringify({
+            Name: 'SetVolume',
+            ControllingUserId: getSessionInfo().userId,
+            Arguments: {
+              Volume: volume
+            }
+          })
+        });
+
+        if (!response.ok) throw new Error('Volume ayarlanamadı');
+        if (volumeValue) volumeValue.textContent = `${volume}%`;
+        slider.dataset.lastVolume = volume;
+        if (volume === 0 && muteButton) {
+          muteButton.dataset.isMuted = 'true';
+          muteButton.innerHTML = '🔊 ' + config.languageLabels.sesac;
+        }
+
+      } catch (err) {
+        console.error("Ses seviyesi hatası:", err);
+        showNotification(`${config.languageLabels.seshata}: ${err.message}`, 'error');
+        const lastVolume = slider.dataset.lastVolume || '50';
+        slider.value = lastVolume;
+        if (volumeValue) volumeValue.textContent = `${lastVolume}%`;
+      }
+    });
 
     const content = modal.querySelector('.castmodal-content');
     const dots = modal.querySelectorAll('.castmodal-dot');
     const container = modal.querySelector('.castmodal-container');
+
+    const firstBackdrop = modal.querySelector('.castmodal-slide')?.dataset.backdrop;
+    if (firstBackdrop) {
+      container.style.opacity = 0;
+      setTimeout(() => {
+        container.style.backgroundImage = `url('${firstBackdrop}')`;
+        container.style.opacity = 1;
+      }, 50);
+    }
 
     content.addEventListener('scroll', () => {
       const scrollPosition = content.scrollLeft;
@@ -389,7 +548,7 @@ async function togglePlayback(sessionId, currentlyPaused) {
       throw new Error(`${command} ${config.languageLabels.islembasarisiz}: ${response.statusText}`);
     }
 
-    const buttons = document.querySelectorAll(`[data-session-id="${sessionId}"]`);
+    const buttons = document.querySelectorAll(`.castcontrol-button[data-session-id="${sessionId}"]:not(.mute-button)`);
     buttons.forEach(button => {
       button.dataset.isPaused = !currentlyPaused;
       button.innerHTML = !currentlyPaused
@@ -435,6 +594,12 @@ async function updatePlaybackTimes(modal, activeDevices) {
     const { userId } = getSessionInfo();
     const sessions = await makeApiRequest(`/Sessions?userId=${userId}`);
     const newActive = sessions.filter(s => playable(s) && s.NowPlayingItem);
+    if (newActive.length === 0) {
+      modal.remove();
+      clearInterval(timeUpdateInterval);
+      return;
+    }
+
     const oldIds = activeDevices.map(d => d.Id).sort().join(',');
     const newIds = newActive.map(d => d.Id).sort().join(',');
     const oldItemIds = activeDevices.map(d => d.NowPlayingItem?.Id).sort().join(',');
@@ -443,9 +608,11 @@ async function updatePlaybackTimes(modal, activeDevices) {
     if (oldIds !== newIds || oldItemIds !== newItemIds) {
       modal.remove();
       clearInterval(timeUpdateInterval);
-      showNowPlayingModal(newActive[0].NowPlayingItem, newActive[0]);
+      if (newActive.length > 0) {
+        showNowPlayingModal(newActive[0].NowPlayingItem, newActive[0]);
+      }
       return;
-  }
+    }
 
     activeDevices.forEach((device, index) => {
       const currentSession = sessions.find(s => s.Id === device.Id);
@@ -462,7 +629,7 @@ async function updatePlaybackTimes(modal, activeDevices) {
         timeElement.innerHTML = `<strong>${config.languageLabels.sure || "Süre"}:</strong> ${played} / ${duration}`;
       }
 
-      const playButton = modal.querySelector(`.castmodal-slide:nth-child(${index + 1}) [data-session-id="${device.Id}"]`);
+      const playButton = modal.querySelector(`.castmodal-slide:nth-child(${index + 1}) .castcontrol-button[data-session-id="${device.Id}"]:not(.mute-button)`);
       if (playButton) {
         playButton.dataset.isPaused = isPaused;
         playButton.innerHTML = isPaused
@@ -472,6 +639,8 @@ async function updatePlaybackTimes(modal, activeDevices) {
     });
   } catch (err) {
     console.error("Zaman güncelleme hatası:", err);
+    if (modal) modal.remove();
+    if (timeUpdateInterval) clearInterval(timeUpdateInterval);
   }
 }
 
@@ -501,3 +670,37 @@ export function getMediaIconClass(media) {
   return icons[itemType] || icons[type] || icons.default;
 }
 
+function createVolumeControls(modal, device, isMuted = false, volume = 50) {
+  const displayVolume = isMuted ? 0 : volume;
+  return `
+    <div class="volume-control-container">
+      <button class="castcontrol-button mute-button"
+              data-session-id="${device.Id}"
+              data-is-muted="${isMuted}">
+        ${isMuted ? '🔊 ' + config.languageLabels.sesac : '🔇 ' + config.languageLabels.seskapat}
+      </button>
+      <div class="volume-control">
+        <input type="range" min="0" max="100" value="${displayVolume}"
+               data-session-id="${device.Id}" class="volume-slider"
+               data-last-volume="${volume}">
+        <span class="volume-value" data-session-id="${device.Id}">${displayVolume}%</span>
+      </div>
+    </div>
+  `;
+}
+
+function getHighResImageUrls(item) {
+  const itemId = item.Id;
+  const imageTag = item.ImageTags?.Primary || '';
+  const backdropTag = item.ImageTags?.Backdrop?.[0] || '';
+  const pixelRatio = window.devicePixelRatio || 1;
+  const posterHeight = Math.floor(300 * pixelRatio);
+  const backdropWidth = Math.floor(1280 * pixelRatio);
+  const supportsWebP = document.createElement('canvas').toDataURL('image/webp').includes('webp');
+  const formatParam = supportsWebP ? '&format=webp' : '';
+  return {
+    posterUrl: `/Items/${itemId}/Images/Primary?tag=${imageTag}&quality=90&maxHeight=${posterHeight}${formatParam}`,
+    backdropUrl: `/Items/${itemId}/Images/Backdrop/0?tag=${backdropTag}&quality=90&maxWidth=${backdropWidth}${formatParam}`,
+    placeholderUrl: `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=50&blur=10`
+  };
+}
