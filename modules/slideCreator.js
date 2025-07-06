@@ -1,4 +1,4 @@
-import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls } from "./utils.js";
+import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages } from "./utils.js";
 import { updateFavoriteStatus, updatePlayedStatus, getHighestQualityBackdropIndex } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
@@ -109,28 +109,25 @@ async function createSlide(item) {
   slide.dataset.discUrl = discUrl;
 
   const { backdropUrl, placeholderUrl } = getHighResImageUrls(item);
+  prefetchImages([backdropUrl]);
 
   const backdropImg = document.createElement('img');
   backdropImg.className = 'backdrop';
   backdropImg.sizes = '100vw';
   backdropImg.alt = 'Backdrop';
   backdropImg.loading = 'lazy';
+  backdropImg.decoding = 'async';
   backdropImg.style.opacity = '0';
   backdropImg.src = placeholderUrl;
-
-  const io = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        backdropImg.src = backdropUrl;
-        backdropImg.onload = () => {
-          backdropImg.style.transition = 'opacity 0.5s ease';
-          backdropImg.style.opacity = '1';
-        };
-        observer.unobserve(backdropImg);
-      }
-    });
-  });
-  io.observe(backdropImg);
+  backdropImg.onload = () => {
+  backdropImg.style.opacity = '1';
+  const hiResImg = new Image();
+  hiResImg.src = backdropUrl;
+  hiResImg.onload = () => {
+    backdropImg.src = backdropUrl;
+    backdropImg.style.transition = 'opacity 0.5s ease';
+  };
+};
 
   backdropImg.addEventListener('click', () => {
     window.location.href = slide.dataset.detailUrl;
