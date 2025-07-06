@@ -241,6 +241,7 @@ export function applySettings(reload = false) {
             manualBackdropSelection: formData.get('manualBackdropSelection') === 'on',
             backdropImageType: formData.get('backdropImageType'),
             minHighQualityWidth: parseInt(formData.get('minHighQualityWidth'), 10),
+            backdropMaxWidth: parseInt(formData.get('backdropMaxWidth'), 10),
             minPixelCount: parseInt(formData.get('minPixelCount'), 10),
             showDotNavigation: formData.get('showDotNavigation') === 'on',
             dotBackgroundImageType: formData.get('dotBackgroundImageType'),
@@ -716,6 +717,25 @@ function createSliderPanel(config, labels) {
 
     bindCheckboxKontrol('#manualBackdropSelection', '.backdrop-container', 0.6, [backdropSelect]);
     bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minQualityInput]);
+
+    const backdropMaxWidthDiv = document.createElement('div');
+    backdropMaxWidthDiv.className = 'fsetting-item min-quality-container';
+    const backdropMaxWidthLabel = document.createElement('label');
+    backdropMaxWidthLabel.textContent = labels.backdropMaxWidthInput || 'Maksimum Ölçek (px):';
+
+    const backdropMaxWidthInput = document.createElement('input');
+    backdropMaxWidthInput.type = 'number';
+    backdropMaxWidthInput.value = config.backdropMaxWidth || 1920;
+    backdropMaxWidthInput.name = 'backdropMaxWidth';
+    backdropMaxWidthInput.min = 1;
+
+    const backdropMaxWidthDesc = document.createElement('div');
+    backdropMaxWidthDesc.className = 'description-text';
+    backdropMaxWidthDesc.textContent = labels.backdropMaxWidthLabel ||
+        'Arkaplan olarak atanacak görsel girilen değer boyutunda ölçeklenir.("Slide Arkaplanı Değiştir" aktif ise çalışmaz. Görsel, belirlenen değerden küçük ise ölçeklendirmez)';
+
+    backdropMaxWidthDiv.append(backdropMaxWidthLabel, backdropMaxWidthInput, backdropMaxWidthDesc);
+    sliderDiv.appendChild(backdropMaxWidthDiv);
 
     const minPixelDiv = document.createElement('div');
     minPixelDiv.className = 'fsetting-item min-quality-container';
