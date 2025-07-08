@@ -109,25 +109,37 @@ async function createSlide(item) {
   slide.dataset.discUrl = discUrl;
 
   const { backdropUrl, placeholderUrl } = getHighResImageUrls(item);
-  prefetchImages([backdropUrl]);
+  if (slidesContainer.children.length === 0) {
+    const preloadLink = document.createElement('link');
+    preloadLink.rel = 'preload';
+    preloadLink.as = 'image';
+    preloadLink.href = backdropUrl;
+    document.head.appendChild(preloadLink);
+  } else {
+    prefetchImages([backdropUrl]);
+  }
 
   const backdropImg = document.createElement('img');
   backdropImg.className = 'backdrop';
   backdropImg.sizes = '100vw';
   backdropImg.alt = 'Backdrop';
   backdropImg.loading = 'lazy';
-  backdropImg.decoding = 'async';
   backdropImg.style.opacity = '0';
   backdropImg.src = placeholderUrl;
-  backdropImg.onload = () => {
-  backdropImg.style.opacity = '1';
-  const hiResImg = new Image();
-  hiResImg.src = backdropUrl;
-  hiResImg.onload = () => {
-    backdropImg.src = backdropUrl;
-    backdropImg.style.transition = 'opacity 0.5s ease';
-  };
-};
+
+  const io = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        backdropImg.src = backdropUrl;
+        backdropImg.onload = () => {
+          backdropImg.style.transition = 'opacity 0.5s ease';
+          backdropImg.style.opacity = '1';
+        };
+        observer.unobserve(backdropImg);
+      }
+    });
+  });
+  io.observe(backdropImg);
 
   backdropImg.addEventListener('click', () => {
     window.location.href = slide.dataset.detailUrl;
