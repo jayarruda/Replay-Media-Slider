@@ -152,13 +152,16 @@ export function getHighResImageUrls(item) {
   const logoTag = item.ImageTags?.Logo || '';
   const pixelRatio = window.devicePixelRatio || 1;
   const logoHeight = Math.floor(720 * pixelRatio);
-  const backdropWidth = Math.floor((config.backdropMaxWidth || 1920) * pixelRatio);
+  const backdropMaxWidth = (config.backdropMaxWidth || 1920) * pixelRatio;
   const supportsWebP = document.createElement('canvas').toDataURL('image/webp').includes('webp');
   const formatParam = supportsWebP ? '&format=webp' : '';
 
+  const backdropUrl = `/Items/${itemId}/Images/Backdrop/0?tag=${backdropTag}&quality=100&maxWidth=${Math.floor(backdropMaxWidth)}${formatParam}`;
+  const placeholderUrl = `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=50&blur=15`;
+  const logoUrl = `/Items/${itemId}/Images/Logo?tag=${logoTag}&quality=100&maxHeight=${logoHeight}${formatParam}`;
+
   return {
-    logoUrl: `/Items/${itemId}/Images/Logo?tag=${logoTag}&quality=100&maxHeight=${logoHeight}${formatParam}`,
-    backdropUrl: `/Items/${itemId}/Images/Backdrop/0?tag=${backdropTag}&quality=100&maxWidth=${backdropWidth}${formatParam}`,
-    placeholderUrl: `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=20&blur=15`
+    backdropUrl,
+    placeholderUrl
   };
 }
