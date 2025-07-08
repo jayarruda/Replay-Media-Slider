@@ -300,6 +300,7 @@ async function showNowPlayingModal(nowPlayingItem, device) {
               </button>
               ${createVolumeControls(modal, device, isMuted, volumeLevel)}
             </div>
+            ${await getServerInfoHtml()}
           </div>
         </div>
       `;
@@ -320,6 +321,25 @@ async function showNowPlayingModal(nowPlayingItem, device) {
     timeUpdateInterval = setInterval(() => updatePlaybackTimes(modal, activeDevices), 1000);
 
     document.body.appendChild(modal);
+
+    modal.querySelectorAll('.server-info-header').forEach(header => {
+  header.addEventListener('click', () => {
+    const content = header.nextElementSibling;
+    const toggleButton = header.querySelector('.toggle-server-info');
+    const isShowing = content.style.display === 'block';
+
+    content.style.display = isShowing ? 'none' : 'block';
+    toggleButton.classList.toggle('active', !isShowing);
+    toggleButton.setAttribute('aria-label',
+      isShowing
+        ? config.languageLabels.showServerInfo
+        : config.languageLabels.hideServerInfo
+    );
+    toggleButton.innerHTML = isShowing
+      ? '<i class="fas fa-chevron-down"></i>'
+      : '<i class="fas fa-chevron-up"></i>';
+  });
+});
 
     const lazyImages = modal.querySelectorAll('.lazy-load');
     lazyImages.forEach(img => {
@@ -522,6 +542,143 @@ async function showNowPlayingModal(nowPlayingItem, device) {
   }
 }
 
+async function getServerInfoHtml() {
+  try {
+    const info = await getServerInfo();
+    const localTime = new Date().toLocaleString();
+
+    return `
+      <div class="server-info-container">
+        <div class="server-info-header">
+          <h3><i class="fas fa-server"></i> ${config.languageLabels.sunucubilgi || 'Sunucu Bilgisi'}</h3>
+          <button class="toggle-server-info" aria-label="${config.languageLabels.showServerInfo}">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+        </div>
+        <div class="server-info-content" style="display: none;">
+          <div class="server-info-grid">
+            <div class="server-info-item">
+              <strong>${config.languageLabels.servername || 'Sunucu Adı'}:</strong>
+              <span>${info.ServerName || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.surumu || 'Sürüm'}:</strong>
+              <span>${info.Version || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.productname || 'Uygulama Adı'}:</strong>
+              <span>${info.ProductName || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.isletimsistemi || 'İşletim Sistemi'}:</strong>
+              <span>${info.OperatingSystemDisplayName || info.OperatingSystem || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.systemarch || 'Sistem Mimarisi'}:</strong>
+              <span>${info.SystemArchitecture || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.packagename || 'Paket Adı'}:</strong>
+              <span>${info.PackageName || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.localaddress || 'Yerel Adres'}:</strong>
+              <span>${info.LocalAddress || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.websocketport || 'WebSocket Port'}:</strong>
+              <span>${info.WebSocketPortNumber || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.localTime || 'Yerel Zaman'}:</strong>
+              <span class="local-time-display">${new Date().toLocaleString()}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.startupwizard || 'Kurulum Sihirbazı'}:</strong>
+              <span>${info.StartupWizardCompleted ? config.languageLabels.tamamlandi || 'Tamamlandı' : config.languageLabels.tamamlanmadi || 'Tamamlanmadı'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.pendingrestart || 'Bekleyen Yeniden Başlatma'}:</strong>
+              <span>${info.HasPendingRestart ? config.languageLabels.evet || 'Evet' : config.languageLabels.hayir || 'Hayır'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.shuttingdown || 'Kapatılıyor'}:</strong>
+              <span>${info.IsShuttingDown ? config.languageLabels.evet || 'Evet' : config.languageLabels.hayir || 'Hayır'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.updateavailable || 'Güncelleme Var'}:</strong>
+              <span>${info.HasUpdateAvailable ? config.languageLabels.evet || 'Evet' : config.languageLabels.hayir || 'Hayır'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.selfrestart || 'Kendini Yeniden Başlatabilir'}:</strong>
+              <span>${info.CanSelfRestart ? config.languageLabels.evet || 'Evet' : config.languageLabels.hayir || 'Hayır'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.launchbrowser || 'Tarayıcı Açabilir'}:</strong>
+              <span>${info.CanLaunchWebBrowser ? config.languageLabels.evet || 'Evet' : config.languageLabels.hayir || 'Hayır'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.librarymonitor || 'Kütüphane İzleme'}:</strong>
+              <span>${info.SupportsLibraryMonitor ? config.languageLabels.destekleniyor || 'Destekleniyor' : config.languageLabels.desteklenmiyor || 'Desteklenmiyor'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.encoderlocation || 'Encoder Konumu'}:</strong>
+              <span>${info.EncoderLocation || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.programdatapath || 'Program Veri Yolu'}:</strong>
+              <span class="path">${info.ProgramDataPath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.webpath || 'Web Yolu'}:</strong>
+              <span class="path">${info.WebPath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.logpath || 'Log Yolu'}:</strong>
+              <span class="path">${info.LogPath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.osdisplayname}:</strong>
+              <span>${info.OperatingSystemDisplayName || info.OperatingSystem || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.itemsbynamepath}:</strong>
+              <span class="path">${info.ItemsByNamePath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.cachepath}:</strong>
+              <span class="path">${info.CachePath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.internalmetadatapath}:</strong>
+              <span class="path">${info.InternalMetadataPath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.transcodetemppath}:</strong>
+              <span class="path">${info.TranscodingTempPath || 'N/A'}</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.castreceiverapps}:</strong>
+              <span>${(info.CastReceiverApplications?.length ?? 0)} adet</span>
+            </div>
+            <div class="server-info-item">
+              <strong>${config.languageLabels.completedinstalls}:</strong>
+              <span>${(info.CompletedInstallations?.length ?? 0)} adet</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Sunucu bilgisi alınırken hata:', error);
+    return `
+      <div class="server-info-container">
+        <div class="error-message">${config.languageLabels.sunucubilgihata || 'Sunucu bilgisi alınamadı'}</div>
+      </div>
+    `;
+  }
+}
+
 function formatTime(ticks) {
   if (!ticks || ticks <= 0) return '0:00';
 
@@ -637,6 +794,11 @@ async function updatePlaybackTimes(modal, activeDevices) {
           : '⏸️ ' + (config.languageLabels.duraklat || "Duraklat");
       }
     });
+     if (modal) {
+      modal.querySelectorAll('.local-time-display').forEach(el => {
+        el.textContent = new Date().toLocaleString();
+      });
+    }
   } catch (err) {
     console.error("Zaman güncelleme hatası:", err);
     if (modal) modal.remove();
@@ -703,4 +865,27 @@ function getHighResImageUrls(item) {
     backdropUrl: `/Items/${itemId}/Images/Backdrop/0?tag=${backdropTag}&quality=90&maxWidth=${backdropWidth}${formatParam}`,
     placeholderUrl: `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=50&blur=10`
   };
+}
+
+function formatUptime(start, now) {
+  if (!start || !now) return 'N/A';
+  const diff = Math.floor((now - start) / 1000);
+  const days = Math.floor(diff / 86400);
+  const hours = Math.floor((diff % 86400) / 3600);
+  const minutes = Math.floor((diff % 3600) / 60);
+  return `${days}g ${hours}s ${minutes}dk`;
+}
+
+async function getServerInfo() {
+  try {
+    const response = await fetch('/System/Info', {
+      headers: { 'Authorization': getAuthHeader() }
+    });
+
+    if (!response.ok) throw new Error('Sunucu bilgisi alınamadı');
+    return await response.json();
+  } catch (error) {
+    console.error('Sunucu bilgisi alınırken hata:', error);
+    return {};
+  }
 }
