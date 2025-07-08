@@ -290,25 +290,32 @@ export function createPositionEditor(config, labels, section) {
 
 
   function updateContainerStyle(target, containerType, cssProperty, newValue) {
-    if (target === 'homeSections') {
-      const targetElement = document.querySelector(".homeSectionsContainer");
-      if (targetElement) {
-        targetElement.style[cssProperty] = newValue === '' ? '' : `${newValue}vh`;
-      }
-    } else {
-      const selector = containerType ?
-        (containerType === 'button' ? '.main-button-container' :
-         containerType === 'slider' ? '.slider-wrapper' :
-         containerType === 'existingDot' ? '.dot-navigation-container' :
-         containerType === 'progress' ? '.slide-progress-bar' :
-         `.${containerType}-container`) :
-        "#slides-container";
+  if (target === 'homeSections') {
+    const elements = [
+      document.querySelector(".homeSectionsContainer"),
+      document.querySelector("#favoritesTab")
+    ];
 
-      document.querySelectorAll(selector).forEach(el => {
-        el.style[cssProperty] = newValue === '' ? '' : `${newValue}%`;
-      });
-    }
+    elements.forEach(el => {
+      if (el) {
+        el.style[cssProperty] = newValue === '' ? '' : `${newValue}vh`;
+      }
+    });
+  } else {
+    const selector = containerType
+      ? (containerType === 'button' ? '.main-button-container'
+        : containerType === 'slider' ? '.slider-wrapper'
+        : containerType === 'existingDot' ? '.dot-navigation-container'
+        : containerType === 'progress' ? '.slide-progress-bar'
+        : `.${containerType}-container`)
+      : "#slides-container";
+
+    document.querySelectorAll(selector).forEach(el => {
+      el.style[cssProperty] = newValue === '' ? '' : `${newValue}%`;
+    });
   }
+}
+
 
   function updateFlexStyle(containerType, flexProperty, newValue) {
     const selector =
