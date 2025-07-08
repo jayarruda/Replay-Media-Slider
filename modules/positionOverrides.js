@@ -3,13 +3,20 @@ import { updateSlidePosition } from './positionUtils.js';
 
 export function forceHomeSectionsTop() {
   const applyAlways = () => {
-    const containers = document.querySelectorAll('.homeSectionsContainer');
-    containers.forEach(container => {
-      const topValue = getConfig().homeSectionsTop;
+    const topValue = getConfig().homeSectionsTop;
+
+    const elements = [
+      ...document.querySelectorAll('.homeSectionsContainer'),
+      document.querySelector('#favoritesTab')
+    ];
+
+    elements.forEach(el => {
+      if (!el) return;
+
       if (typeof topValue === 'number' && !isNaN(topValue) && topValue !== 0) {
-        container.style.setProperty('top', `${topValue}vh`, 'important');
+        el.style.setProperty('top', `${topValue}vh`, 'important');
       } else {
-        container.style.removeProperty('top');
+        el.style.removeProperty('top');
       }
     });
   };
