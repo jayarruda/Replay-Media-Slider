@@ -157,52 +157,6 @@ export async function getImageDimensions(url) {
   });
 }
 
-export async function getHighestQualityBackdropIndex(itemId) {
-  const config = getConfig();
-  const minQualityWidth = config.minHighQualityWidth || 1920;
-  const minPixelCount = config.minPixelCount || (1920 * 1080);
-
-  const itemDetails = await fetchItemDetails(itemId);
-  const backdropTags = itemDetails.BackdropImageTags || [];
-  const candidateIndexes = backdropTags.map((_, index) => String(index));
-  const results = [];
-
-  await Promise.all(candidateIndexes.map(async (index) => {
-    const url = `/Items/${itemId}/Images/Backdrop/${index}`;
-    try {
-      const dimensions = await getImageDimensions(url);
-      const area = dimensions.width * dimensions.height;
-      results.push({
-        index,
-        ...dimensions,
-        area,
-        isHighQuality: dimensions.width >= minQualityWidth && area >= minPixelCount
-      });
-    } catch (error) {
-      console.warn(`${index} indeksli arka plan görseli alınamadı:`, error.message);
-    }
-  }));
-
-  if (results.length === 0) {
-    console.warn("Hiçbir arka plan görseli elde edilemedi, varsayılan 0 indeksi kullanılıyor");
-    return "0";
-  }
-
-  const highQuality = results.filter(img => img.isHighQuality);
-  let bestImage;
-  if (highQuality.length > 0) {
-    bestImage = highQuality.reduce((best, current) => current.area > best.area ? current : best);
-  } else {
-    bestImage = results.reduce((best, current) => current.area > best.area ? current : best, { area: 0 });
-  }
-
-  console.log(
-    `${bestImage.index} indeksli görsel seçildi, ` +
-    `çözünürlük: ${bestImage.width}x${bestImage.height}, ` +
-    `piksel sayısı: ${bestImage.area}`
-  );
-  return bestImage.index;
-}
 
 export async function playNow(itemId) {
   try {
