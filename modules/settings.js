@@ -243,6 +243,9 @@ export function applySettings(reload = false) {
             minHighQualityWidth: parseInt(formData.get('minHighQualityWidth'), 10),
             backdropMaxWidth: parseInt(formData.get('backdropMaxWidth'), 10),
             minPixelCount: parseInt(formData.get('minPixelCount'), 10),
+            enableImageSizeFilter: formData.get('enableImageSizeFilter') === 'on',
+            minImageSizeKB: parseInt(formData.get('minImageSizeKB'), 10),
+            maxImageSizeKB: parseInt(formData.get('maxImageSizeKB'), 10),
             showDotNavigation: formData.get('showDotNavigation') === 'on',
             dotBackgroundImageType: formData.get('dotBackgroundImageType'),
             dotBackgroundBlur: parseInt(formData.get('dotBackgroundBlur')),
@@ -259,6 +262,7 @@ export function applySettings(reload = false) {
             showCriticRating: formData.get('showCriticRating') === 'on',
             showOfficialRating: formData.get('showOfficialRating') === 'on',
 
+            showActorAll: formData.get('showActorAll') === 'on',
             showActorInfo: formData.get('showActorInfo') === 'on',
             showActorImg: formData.get('showActorImg') === 'on',
             showActorRole: formData.get('showActorRole') === 'on',
@@ -756,7 +760,61 @@ function createSliderPanel(config, labels) {
     minPixelDiv.append(minPixelLabel, minPixelInput, minPixelDesc);
     sliderDiv.appendChild(minPixelDiv);
 
-    bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minPixelInput]);
+    const sizeFilterToggleDiv = document.createElement('div');
+    sizeFilterToggleDiv.className = 'fsetting-item min-quality-container';
+
+    const sizeFilterLabel = document.createElement('label');
+    sizeFilterLabel.textContent = labels.enableImageSizeFilter || 'Görsel Boyut Filtrelemesini Etkinleştir';
+    sizeFilterLabel.htmlFor = 'enableImageSizeFilter';
+
+    const sizeFilterCheckbox = document.createElement('input');
+    sizeFilterCheckbox.type = 'checkbox';
+    sizeFilterCheckbox.id = 'enableImageSizeFilter';
+    sizeFilterCheckbox.name = 'enableImageSizeFilter';
+    sizeFilterCheckbox.checked = config.enableImageSizeFilter ?? false;
+
+    sizeFilterLabel.prepend(sizeFilterCheckbox);
+    sizeFilterToggleDiv.appendChild(sizeFilterLabel);
+    sliderDiv.appendChild(sizeFilterToggleDiv);
+
+    const minSizeDiv = document.createElement('div');
+    minSizeDiv.className = 'fsetting-item min-quality-container';
+    const minSizeLabel = document.createElement('label');
+    minSizeLabel.textContent = labels.minImageSizeKB || 'Minimum Görsel Boyutu (KB):';
+
+    const minSizeInput = document.createElement('input');
+    minSizeInput.type = 'number';
+    minSizeInput.value = config.minImageSizeKB || 800;
+    minSizeInput.name = 'minImageSizeKB';
+    minSizeInput.min = 1;
+
+    const minSizeDesc = document.createElement('div');
+    minSizeDesc.className = 'description-text';
+    minSizeDesc.textContent = labels.minImageSizeDescription || 'Seçilecek görselin minimum dosya boyutunu KB cinsinden belirtir.';
+
+    minSizeDiv.append(minSizeLabel, minSizeInput, minSizeDesc);
+    sliderDiv.appendChild(minSizeDiv);
+
+    const maxSizeDiv = document.createElement('div');
+    maxSizeDiv.className = 'fsetting-item min-quality-container';
+    const maxSizeLabel = document.createElement('label');
+    maxSizeLabel.textContent = labels.maxImageSizeKB || 'Maksimum Görsel Boyutu (KB):';
+
+    const maxSizeInput = document.createElement('input');
+    maxSizeInput.type = 'number';
+    maxSizeInput.value = config.maxImageSizeKB || 1500;
+    maxSizeInput.name = 'maxImageSizeKB';
+    maxSizeInput.min = 1;
+
+    const maxSizeDesc = document.createElement('div');
+    maxSizeDesc.className = 'description-text';
+    maxSizeDesc.textContent = labels.maxImageSizeDescription || 'Seçilecek görselin maksimum dosya boyutunu KB cinsinden belirtir.';
+
+    maxSizeDiv.append(maxSizeLabel, maxSizeInput, maxSizeDesc);
+    sliderDiv.appendChild(maxSizeDiv);
+
+    bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minPixelInput, minSizeInput, maxSizeInput, backdropMaxWidthInput]);
+    bindCheckboxKontrol('#enableImageSizeFilter', '.min-quality-container', 0.6, [minSizeInput, maxSizeInput]);
 
     const dotNavCheckbox = createCheckbox(
         'showDotNavigation',
@@ -891,17 +949,29 @@ function createSliderPanel(config, labels) {
         panel.className = 'settings-panel';
 
         const section = createSection(labels.actorInfo || 'Artist Bilgileri');
+
+        const actorAllCheckbox = createCheckbox('showActorAll', labels.showActorAll || 'Hiçbiri', config.showActorAll);
+        section.appendChild(actorAllCheckbox);
+
         const actorCheckbox = createCheckbox('showActorInfo', labels.showActorInfo || 'Artist İsimlerini Göster', config.showActorInfo);
+        const actorCheckboxInput = actorCheckbox.querySelector('input');
+        actorCheckboxInput.setAttribute('data-group', 'actor');
         section.appendChild(actorCheckbox);
 
         const actorSubOptions = document.createElement('div');
         actorSubOptions.className = 'sub-options actor-sub-options';
-        actorSubOptions.appendChild(createCheckbox('showActorImg', labels.showActorImg || 'Artist Resimlerini Göster', config.showActorImg));
+        const actorImgCheckbox = createCheckbox('showActorImg', labels.showActorImg || 'Artist Resimlerini Göster', config.showActorImg);
+        const actorImgCheckboxInput = actorImgCheckbox.querySelector('input');
+        actorImgCheckboxInput.setAttribute('data-group', 'actor');
+        actorSubOptions.appendChild(actorImgCheckbox);
         section.appendChild(actorSubOptions);
 
         const actorRolOptions = document.createElement('div');
         actorRolOptions.className = 'sub-options actor-rol-options';
-        actorRolOptions.appendChild(createCheckbox('showActorRole', labels.showActorRole || 'Artist Rollerini Göster', config.showActorRole));
+        const actorRoleCheckbox = createCheckbox('showActorRole', labels.showActorRole || 'Artist Rollerini Göster', config.showActorRole);
+        const actorRoleCheckboxInput = actorRoleCheckbox.querySelector('input');
+        actorRoleCheckboxInput.setAttribute('data-group', 'actor');
+        actorRolOptions.appendChild(actorRoleCheckbox);
         section.appendChild(actorRolOptions);
 
         const artistLimitDiv = document.createElement('div');
@@ -914,6 +984,7 @@ function createSliderPanel(config, labels) {
         artistLimitInput.name = 'artistLimit';
         artistLimitInput.min = 1;
         artistLimitInput.step = 1;
+        artistLimitInput.setAttribute('data-group', 'actor');
         artistLimitDiv.append(artistLimitLabel, artistLimitInput);
         section.appendChild(artistLimitDiv);
 
@@ -923,8 +994,18 @@ function createSliderPanel(config, labels) {
         section.appendChild(description);
 
         panel.appendChild(section);
-        return panel;
-    }
+
+    setTimeout(() => {
+        bindTersCheckboxKontrol(
+            'input[name="showActorAll"]',
+            null,
+            0.5,
+            Array.from(panel.querySelectorAll('[data-group="actor"]'))
+        );
+    }, 0);
+
+    return panel;
+}
 
     function createDirectorPanel(config, labels) {
         const panel = document.createElement('div');
