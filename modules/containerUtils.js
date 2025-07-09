@@ -133,6 +133,12 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
 }
 
 export function createActorSlider(People, config) {
+  if (config.showActorAll) {
+    const emptyDiv = document.createElement("div");
+    emptyDiv.style.display = "none";
+    return emptyDiv;
+  }
+
   const sliderWrapper = document.createElement("div");
   sliderWrapper.className = "slider-wrapper";
   applyContainerStyles(sliderWrapper, 'slider');
@@ -154,7 +160,7 @@ export function createActorSlider(People, config) {
 
   if (People) {
     const allActors = People.filter(p => p.Type === "Actor");
-    const actorsForSlide = allActors.slice(0, config.artistLimit || 3);
+    const actorsForSlide = allActors.slice(0, config.artistLimit || 9);
 
     actorsForSlide.forEach(actor => {
       const actorDiv = document.createElement("div");
