@@ -1,5 +1,5 @@
-import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages } from "./utils.js";
-import { updateFavoriteStatus, updatePlayedStatus, getHighestQualityBackdropIndex } from "./api.js";
+import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex } from "./utils.js";
+import { updateFavoriteStatus, updatePlayedStatus } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 import { createSlidesContainer, createGradientOverlay, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
@@ -108,7 +108,7 @@ async function createSlide(item) {
   slide.dataset.artUrl = artUrl;
   slide.dataset.discUrl = discUrl;
 
-  const { backdropUrl, placeholderUrl } = getHighResImageUrls(item);
+  const { backdropUrl, placeholderUrl } = await getHighResImageUrls(item, highestQualityBackdropIndex);
   if (slidesContainer.children.length === 0) {
     const preloadLink = document.createElement('link');
     preloadLink.rel = 'preload';
@@ -128,17 +128,18 @@ async function createSlide(item) {
   backdropImg.src = placeholderUrl;
 
   const io = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        backdropImg.src = backdropUrl;
-        backdropImg.onload = () => {
-          backdropImg.style.transition = 'opacity 0.5s ease';
-          backdropImg.style.opacity = '1';
-        };
-        observer.unobserve(backdropImg);
-      }
-    });
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+      backdropImg.src = finalBackdrop;
+      backdropImg.onload = () => {
+        backdropImg.style.transition = 'opacity 0.5s ease';
+        backdropImg.style.opacity = '1';
+      };
+      observer.unobserve(backdropImg);
+    }
   });
+});
   io.observe(backdropImg);
 
   backdropImg.addEventListener('click', () => {
@@ -149,17 +150,6 @@ async function createSlide(item) {
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
-
-  if (config.manualBackdropSelection) {
-    backdropImg.src = manualBackdropUrl;
-    console.log("backdropImg.src, manuel modda manualBackdropUrl ile ayarlandı:", manualBackdropUrl);
-  } else {
-    backdropImg.src = autoBackdropUrl;
-    console.log("backdropImg.src, otomatik modda autoBackdropUrl ile ayarlandı:", autoBackdropUrl);
-  }
-  backdropImg.onload = () => {
-    backdropImg.style.opacity = "1";
-  };
 
   slide.appendChild(backdropImg);
   slide.appendChild(gradientOverlay);
