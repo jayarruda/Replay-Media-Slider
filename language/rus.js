@@ -1,5 +1,11 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  enableImageSizeFilter: 'Включить фильтрацию по размеру изображения',
+  minImageSizeKB: 'Минимальный размер изображения (КБ):',
+  maxImageSizeKB: 'Максимальный размер изображения (КБ):',
+  minImageSizeDescription: 'Указывает минимальный размер файла изображения в КБ.',
+  maxImageSizeDescription: 'Указывает максимальный размер файла изображения в КБ.',
+  showActorAll: "Скрыть все",
   sunucubilgi: "Информация о сервере",
   showServerInfo: "Показать информацию о сервере",
   hideServerInfo: "Скрыть информацию о сервере",

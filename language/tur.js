@@ -1,5 +1,11 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  enableImageSizeFilter: 'Görsel Boyut Filtrelemesini Etkinleştir',
+  minImageSizeKB: 'Minimum Görsel Boyutu (KB):',
+  maxImageSizeKB: 'Maksimum Görsel Boyutu (KB):',
+  minImageSizeDescription: 'Seçilecek görselin minimum dosya boyutunu KB cinsinden ayarlar.',
+  maxImageSizeDescription: 'Seçilecek görselin maksimum dosya boyutunu KB cinsinden ayarlar.',
+  showActorAll: "Hepsini Gizle",
   sunucubilgi: "Sunucu Bilgisi",
   showServerInfo: "Sunucu bilgilerini göster",
   hideServerInfo: "Sunucu bilgilerini gizle",
