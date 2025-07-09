@@ -33,6 +33,7 @@ export function getConfig() {
     showProgressBar: localStorage.getItem('showProgressBar') !== 'false',
     showQualityDetail: localStorage.getItem('showQualityDetail') !== 'false',
     showActorInfo: localStorage.getItem('showActorInfo') !== 'false',
+    showActorAll: localStorage.getItem('showActorAll') === 'true',
     showActorImg: localStorage.getItem('showActorImg') !== 'false',
     showActorRole: localStorage.getItem('showActorRole') !== 'false',
     showDescriptions: localStorage.getItem('showDescriptions') !== 'false',
@@ -298,7 +299,10 @@ export function getConfig() {
     minHighQualityWidth: parseInt(localStorage.getItem("minHighQualityWidth"), 10) || 1920,
     backdropMaxWidth: parseInt(localStorage.getItem("backdropMaxWidth"), 10) || 1920,
     minPixelCount: parseInt(localStorage.getItem("minPixelCount"), 10) || (1920 * 1080),
-    cssVariant: localStorage.getItem('cssVariant') || 'normalslider'
+    cssVariant: localStorage.getItem('cssVariant') || 'normalslider',
+    enableImageSizeFilter: localStorage.getItem("enableImageSizeFilter") === "true",
+    minImageSizeKB: parseInt(localStorage.getItem("minImageSizeKB"), 10) || 800,
+    maxImageSizeKB: parseInt(localStorage.getItem("maxImageSizeKB"), 10) || 1500,
   };
 }
 
