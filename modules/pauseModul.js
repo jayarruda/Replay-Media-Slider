@@ -1,4 +1,3 @@
-//pauseModul.js
 import { getSessionInfo, fetchItemDetails } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
