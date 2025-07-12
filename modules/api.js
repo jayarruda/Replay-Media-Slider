@@ -191,6 +191,7 @@ export async function playNow(itemId) {
     }
 
     console.log("Oynatma komutu başarıyla gönderildi:", target.Id);
+    window.currentPlayingItemId = itemId;
     return true;
   } catch (err) {
     console.error("Şimdi oynat hatası:", err);

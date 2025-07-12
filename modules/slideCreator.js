@@ -35,14 +35,17 @@ async function createSlide(item) {
     ProviderIds
   } = item;
 
-  let highestQualityBackdropIndex;
+let highestQualityBackdropIndex;
   if (config.manualBackdropSelection) {
     highestQualityBackdropIndex = "0";
     console.log("Manuel arka plan seçimi aktif; highestQualityBackdropIndex devre dışı bırakıldı.");
+  } else if (config.indexZeroSelection) {
+    highestQualityBackdropIndex = "0";
+    console.log("indexZeroSelection aktif; her zaman 0 indeksli görsel seçiliyor.");
   } else {
     highestQualityBackdropIndex = await getHighestQualityBackdropIndex(itemId);
     console.log("Otomatik arka plan seçimi aktif; seçilen index:", highestQualityBackdropIndex);
-  }
+}
 
   function storeBackdropUrl(itemId, backdropUrl) {
     const storedUrls = JSON.parse(localStorage.getItem("backdropUrls")) || [];

@@ -170,6 +170,7 @@ export async function getHighResImageUrls(item, backdropIndex) {
 
 export async function getHighestQualityBackdropIndex(itemId) {
   const config = getConfig();
+
   const minQualityWidth = config.minHighQualityWidth || 1920;
   const minPixelCount = config.minPixelCount || (1920 * 1080);
   const useSizeFilter = config.enableImageSizeFilter ?? false;
@@ -245,3 +246,4 @@ async function getImageSizeInBytes(url) {
   if (!size) throw new Error("Görsel boyutu alınamadı");
   return parseInt(size, 10);
 }
+

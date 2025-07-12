@@ -56,6 +56,7 @@ export function createSettingsModal() {
 
     const sliderTab = createTab('slider', labels.sliderSettings || 'Slider Ayarları', true);
     const musicTab = createTab('music', labels.gmmpSettings || 'GMMP Ayarları', true);
+    const pauseTab = createTab('pause', labels.pauseSettings || 'Durdurma Ekranı', true);
     const positionTab = createTab('position', labels.positionSettings || 'Konumlardıma Ayarları', true);
     const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi', true);
     const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık', true);
@@ -71,13 +72,15 @@ export function createSettingsModal() {
     const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında', true);
 
     tabContainer.append(
-        sliderTab, musicTab, positionTab, queryTab, statusRatingTab,
-        actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab, exporterTab, aboutTab
+        sliderTab, musicTab, pauseTab, positionTab,
+        queryTab, statusRatingTab, actorTab, directorTab,
+        languageTab, logoTitleTab, descriptionTab, providerTab,
+        buttonsTab, infoTab, exporterTab, aboutTab
     );
 
     const sliderPanel = createSliderPanel(config, labels);
     const musicPanel = createMusicPanel(config, labels);
+    const pausePanel = createPausePanel(config, labels);
     const positionPanel = createPositionPanel(config, labels);
     const queryPanel = createQueryPanel(config, labels);
     const statusRatingPanel = createStatusRatingPanel(config, labels);
@@ -93,10 +96,10 @@ export function createSettingsModal() {
     const aboutPanel = createAboutPanel(labels);
 
     [
-        sliderPanel, musicPanel, statusRatingPanel, actorPanel,
-        directorPanel, queryPanel, languagePanel, logoTitlePanel,
+        sliderPanel, musicPanel, positionPanel, queryPanel, statusRatingPanel,
+        actorPanel, directorPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
-        positionPanel, aboutPanel, exporterPanel
+        pausePanel, exporterPanel, aboutPanel
     ].forEach(panel => {
         panel.style.display = 'none';
     });
@@ -106,21 +109,21 @@ export function createSettingsModal() {
         sliderPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
-        positionPanel, aboutPanel, exporterPanel
+        pausePanel, positionPanel, aboutPanel, exporterPanel
     );
 
     [
         sliderTab, musicTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
         descriptionTab, providerTab, buttonsTab, infoTab,
-        positionTab, aboutTab, exporterTab
+        positionTab, pauseTab, aboutTab, exporterTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
-        sliderTab, musicTab, queryTab, statusRatingTab,
-        actorTab, directorTab, languageTab, logoTitleTab,
-        descriptionTab, providerTab, buttonsTab, infoTab,
-        positionTab, aboutTab, exporterTab
+                sliderTab, musicTab, queryTab, statusRatingTab,
+                actorTab, directorTab, languageTab, logoTitleTab,
+                descriptionTab, providerTab, buttonsTab, infoTab,
+                positionTab, pauseTab, aboutTab, exporterTab,
             ].forEach(t => {
                 t.classList.remove('active');
             });
@@ -128,7 +131,7 @@ export function createSettingsModal() {
                 sliderPanel, statusRatingPanel, actorPanel, directorPanel,
                 musicPanel, queryPanel, languagePanel, logoTitlePanel,
                 descriptionPanel, providerPanel, buttonsPanel, infoPanel,
-                positionPanel, aboutPanel, exporterPanel
+                positionPanel, aboutPanel, exporterPanel, pausePanel
             ].forEach(panel => {
                 panel.style.display = 'none';
             });
@@ -239,6 +242,7 @@ export function applySettings(reload = false) {
             enableTrailerPlayback: formData.get('enableTrailerPlayback') === 'on',
             gradientOverlayImageType: formData.get('gradientOverlayImageType'),
             manualBackdropSelection: formData.get('manualBackdropSelection') === 'on',
+            indexZeroSelection: formData.get('indexZeroSelection') === 'on',
             backdropImageType: formData.get('backdropImageType'),
             minHighQualityWidth: parseInt(formData.get('minHighQualityWidth'), 10),
             backdropMaxWidth: parseInt(formData.get('backdropMaxWidth'), 10),
@@ -495,6 +499,12 @@ export function applySettings(reload = false) {
             progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
             progressBarHeight: parseInt(formData.get('progressBarHeight'), 10) || 0,
 
+            pauseOverlay: formData.get('pauseOverlay') === 'on' ? 'true' : 'false',
+            pauseOverlayImagePreference: formData.get('pauseOverlayImagePreference') || 'auto',
+            pauseOverlayShowPlot: formData.get('pauseOverlayShowPlot') === 'on',
+            pauseOverlayShowMetadata: formData.get('pauseOverlayShowMetadata') === 'on',
+            pauseOverlayShowLogo: formData.get('pauseOverlayShowLogo') === 'on',
+            pauseOverlayShowBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
         };
 
         updateConfig(updatedConfig);
@@ -684,6 +694,18 @@ function createSliderPanel(config, labels) {
 
     bindCheckboxKontrol('#enableTrailerPlayback', '.trailer-delay-container', 0.6, [delayInput]);
     bindCheckboxKontrol('#enableTrailerPlayback', '.gradient-overlay-container', 0.6, [gradientSelect]);
+
+    const indexZeroCheckbox = createCheckbox(
+    'indexZeroSelection',
+    labels.indexZeroSelection || 'Her zaman 0 indeksli görseli seç',
+    config.indexZeroSelection
+);
+sliderDiv.appendChild(indexZeroCheckbox);
+
+const indexZeroDesc = document.createElement('div');
+indexZeroDesc.className = 'description-text';
+indexZeroDesc.textContent = labels.indexZeroDescription || 'Aktif olduğunda her zaman 0 indeksli görsel seçilir (diğer kalite filtrelerini devre dışı bırakır).';
+sliderDiv.appendChild(indexZeroDesc);
 
     const manualBackdropCheckbox = createCheckbox(
         'manualBackdropSelection',
@@ -1927,6 +1949,82 @@ function createPositionPanel(config, labels) {
 
   panel.appendChild(section);
   return panel;
+}
+
+function createPausePanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'pause-panel';
+    panel.className = 'settings-panel';
+
+    const section = createSection(labels.pauseSettings || 'Durdurma Ekranı Ayarları');
+
+    const enableCheckbox = createCheckbox(
+    'pauseOverlay',
+    labels.enablePauseOverlay || 'Durdurma Ekranını Etkinleştir',
+    config.pauseOverlay.enabled
+);
+    section.appendChild(enableCheckbox);
+
+    const description = document.createElement('div');
+    description.className = 'description-text';
+    description.textContent = labels.pauseOverlayDescription ||
+        'Bu özellik etkinleştirildiğinde, video duraklatıldığında içerik bilgilerini gösteren bir ekran görüntülenir.';
+    section.appendChild(description);
+
+    const imagePrefLabel = document.createElement('label');
+    imagePrefLabel.textContent = labels.pauseImagePreference || 'Görsel Önceliği';
+    imagePrefLabel.htmlFor = 'pauseOverlayImagePreference';
+    imagePrefLabel.className = 'settings-label';
+
+    const imagePrefSelect = document.createElement('select');
+    imagePrefSelect.name = 'pauseOverlayImagePreference';
+    imagePrefSelect.id = 'pauseOverlayImagePreference';
+    imagePrefSelect.className = 'settings-select';
+
+    ['auto', 'logo', 'disc', 'title'].forEach(value => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = labels['pauseImage_' + value] || value;
+    option.selected = config.pauseOverlay.imagePreference === value;
+    imagePrefSelect.appendChild(option);
+});
+
+    const imagePrefContainer = document.createElement('div');
+    imagePrefContainer.className = 'form-group';
+    imagePrefContainer.appendChild(imagePrefLabel);
+    imagePrefContainer.appendChild(imagePrefSelect);
+    section.appendChild(imagePrefContainer);
+
+    const showPlotCheckbox = createCheckbox(
+    'pauseOverlayShowPlot',
+    labels.showPlot || 'Konu Açıklamasını Göster',
+    config.pauseOverlay.showPlot !== false
+);
+section.appendChild(showPlotCheckbox);
+
+const showMetadataCheckbox = createCheckbox(
+    'pauseOverlayShowMetadata',
+    labels.showMetadata || 'Bilgi Satırlarını Göster',
+    config.pauseOverlay.showMetadata !== false
+);
+section.appendChild(showMetadataCheckbox);
+
+const showLogoCheckbox = createCheckbox(
+    'pauseOverlayShowLogo',
+    labels.showLogo || 'Logo/Disk/Yazı Göster',
+    config.pauseOverlay.showLogo !== false
+);
+section.appendChild(showLogoCheckbox);
+
+const showBackdropCheckbox = createCheckbox(
+    'pauseOverlayShowBackdrop',
+    labels.showBackdrop || 'Arka Plan Görselini Göster',
+    config.pauseOverlay.showBackdrop !== false
+);
+section.appendChild(showBackdropCheckbox);
+
+    panel.appendChild(section);
+    return panel;
 }
 
 function createExporterPanel(config, labels) {

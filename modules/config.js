@@ -53,6 +53,7 @@ export function getConfig() {
     showTrailerIcon: localStorage.getItem('showTrailerIcon') !== 'false',
     showWatchButton: localStorage.getItem('showWatchButton') !== 'false',
     manualBackdropSelection: localStorage.getItem('manualBackdropSelection') === 'true',
+    indexZeroSelection: localStorage.getItem('indexZeroSelection') !== 'false',
     showFavoriteButton: localStorage.getItem('showFavoriteButton') !== 'false',
     showPlayedButton: localStorage.getItem('showPlayedButton') !== 'false',
     showCast: localStorage.getItem('showCast') !== 'false',
@@ -246,6 +247,15 @@ export function getConfig() {
     ratingContainerJustifyContent: localStorage.getItem('ratingContainerJustifyContent') || '',
     ratingContainerAlignItems: localStorage.getItem('ratingContainerAlignItems') || '',
     ratingContainerFlexWrap: localStorage.getItem('ratingContainerFlexWrap') || '',
+
+    pauseOverlay: {
+    enabled: localStorage.getItem('pauseOverlay') === 'true',
+    imagePreference: localStorage.getItem('pauseOverlayImagePreference') || 'auto',
+    showPlot: localStorage.getItem('pauseOverlayShowPlot') !== 'false',
+    showMetadata: localStorage.getItem('pauseOverlayShowMetadata') !== 'false',
+    showLogo: localStorage.getItem('pauseOverlayShowLogo') !== 'false',
+    showBackdrop: localStorage.getItem('pauseOverlayShowBackdrop') !== 'false',
+},
 
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
     useAlbumArtAsBackground: localStorage.getItem('useAlbumArtAsBackground') === 'true',

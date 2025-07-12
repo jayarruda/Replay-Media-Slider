@@ -1,13 +1,3 @@
-/*!
- * G-Grbz © Tüm hakları saklıdır. | All rights reserved.
- *
- * Bu dosya G-Grbz tarafından oluşturulmuştur.
- * İzin alınmadan kopyalanamaz, çoğaltılamaz veya değiştirilemez.
- *
- * This file was created by G-Grbz.
- * It may not be copied, reproduced, or modified without permission.
- */
-
 import { getConfig } from "./modules/config.js";
 import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
 import { startSlideTimer, stopSlideTimer } from "./modules/timer.js";
@@ -17,6 +7,17 @@ import { changeSlide, createDotNavigation } from "./modules/navigation.js";
 import { attachMouseEvents } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from './modules/positionOverrides.js';
+import { setupPauseScreen } from "./modules/pauseModul.js";
+
+
+let cleanupPauseOverlay = null;
+
+function setupPauseScreenIfNeeded() {
+    if (cleanupPauseOverlay) {
+        cleanupPauseOverlay();
+    }
+    cleanupPauseOverlay = setupPauseScreen();
+}
 
 const config = getConfig();
 const shuffleArray = array => {
@@ -46,6 +47,10 @@ function fullSliderReset() {
     clearTimeout(window.autoSlideTimeout);
     window.autoSlideTimeout = null;
   }
+  if (cleanupPauseOverlay) {
+        cleanupPauseOverlay();
+        cleanupPauseOverlay = null;
+    }
 
   setCurrentIndex(0);
   stopSlideTimer();
@@ -333,12 +338,14 @@ function cleanupSlider() {
 }
 
 const domCheckInterval = setInterval(() => {
-  const indexPage = document.querySelector("#indexPage:not(.hide)");
-  if ((document.readyState === "complete" || document.readyState === "interactive") && indexPage) {
-    initializeSliderOnHome();
-    setupNavigationObserver();
-    clearInterval(domCheckInterval);
-  }
+    const indexPage = document.querySelector("#indexPage:not(.hide)");
+    if ((document.readyState === "complete" || document.readyState === "interactive") && indexPage) {
+        initializeSliderOnHome();
+        setupNavigationObserver();
+        setupPauseScreenIfNeeded();
+        setupPauseScreen();
+        clearInterval(domCheckInterval);
+    }
 }, 100);
 
 window.slidesInit = slidesInit;
