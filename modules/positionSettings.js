@@ -64,6 +64,57 @@ export function createPositionEditor(config, labels, section) {
     return container;
   }
 
+  function createGlobalResetButton() {
+    const container = document.createElement('div');
+    container.className = 'global-reset-container';
+
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = config.languageLabels.resetAllButton || 'Tümünü Sıfırla';
+    resetBtn.type = 'button';
+    resetBtn.className = 'global-reset-button';
+    resetBtn.addEventListener('click', resetAllSettings);
+
+    container.appendChild(resetBtn);
+    return container;
+  }
+
+  function resetAllSettings() {
+    document.querySelectorAll('.position-item input').forEach(input => {
+      input.value = '';
+      const configKey = input.name;
+      const cssProperty = input.dataset.cssProperty || '';
+      const target = input.dataset.target || 'slides';
+      const containerType = input.dataset.containerType || '';
+
+      config[configKey] = '';
+      updateContainerStyle(target, containerType, cssProperty, '');
+    });
+
+    document.querySelectorAll('.flex-item select').forEach(select => {
+      select.value = '';
+      const configKey = select.name;
+      const containerType = select.dataset.containerType || '';
+
+      config[configKey] = '';
+      updateFlexStyle(containerType, configKey.replace(`${containerType}Container`, ''), '');
+    });
+
+    if (config.homeSectionsTop !== undefined) {
+      config.homeSectionsTop = '';
+      updateContainerStyle('homeSections', '', 'top', '');
+    }
+
+    if (config.sliderContainerTop !== undefined) {
+      config.sliderContainerTop = '';
+      updateContainerStyle('slider', 'slider', 'top', '');
+    }
+
+    if (config.progressBarTop !== undefined) {
+      config.progressBarTop = '';
+      updateContainerStyle('progress', 'progress', 'top', '');
+    }
+  }
+
   function openPositionModal(inputElement, configKey, cssProperty, placeholder, target, containerType) {
   const mainModal = document.getElementById('settings-modal');
   if (mainModal) mainModal.style.display = 'none';
@@ -337,6 +388,7 @@ export function createPositionEditor(config, labels, section) {
   }
 
   function render() {
+    section.appendChild(createGlobalResetButton());
     const homeSectionsHeader = document.createElement('h3');
     homeSectionsHeader.textContent = config.languageLabels.homeSectionsPosition || 'Ana Bölüm Pozisyonu';
     section.appendChild(homeSectionsHeader);
