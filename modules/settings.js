@@ -254,6 +254,7 @@ export function applySettings(reload = false) {
             dotBackgroundImageType: formData.get('dotBackgroundImageType'),
             dotBackgroundBlur: parseInt(formData.get('dotBackgroundBlur')),
             dotBackgroundOpacity: parseFloat(formData.get('dotBackgroundOpacity')),
+            dotPosterMode: formData.get('dotPosterMode') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -699,13 +700,13 @@ function createSliderPanel(config, labels) {
     'indexZeroSelection',
     labels.indexZeroSelection || 'Her zaman 0 indeksli görseli seç',
     config.indexZeroSelection
-);
-sliderDiv.appendChild(indexZeroCheckbox);
+    );
+    sliderDiv.appendChild(indexZeroCheckbox);
 
-const indexZeroDesc = document.createElement('div');
-indexZeroDesc.className = 'description-text';
-indexZeroDesc.textContent = labels.indexZeroDescription || 'Aktif olduğunda her zaman 0 indeksli görsel seçilir (diğer kalite filtrelerini devre dışı bırakır).';
-sliderDiv.appendChild(indexZeroDesc);
+    const indexZeroDesc = document.createElement('div');
+    indexZeroDesc.className = 'description-text';
+    indexZeroDesc.textContent = labels.indexZeroDescription || 'Aktif olduğunda her zaman 0 indeksli görsel seçilir (diğer kalite filtrelerini devre dışı bırakır).';
+    sliderDiv.appendChild(indexZeroDesc);
 
     const manualBackdropCheckbox = createCheckbox(
         'manualBackdropSelection',
@@ -844,6 +845,18 @@ sliderDiv.appendChild(indexZeroDesc);
         config.showDotNavigation
     );
         sliderDiv.appendChild(dotNavCheckbox);
+
+        const posterDotsCheckbox = createCheckbox(
+        'dotPosterMode',
+        labels.dotPosterMode || 'Poster Boyutlu Dot Navigasyonu',
+        config.dotPosterMode
+    );
+    sliderDiv.appendChild(posterDotsCheckbox);
+
+    const posterDotsDesc = document.createElement('div');
+    posterDotsDesc.className = 'description-text';
+    posterDotsDesc.textContent = labels.posterDotsDescription || 'Dot navigasyonu poster boyutuna getirir ( Slider Alanınıda konumlandırma gerektirir )';
+    sliderDiv.appendChild(posterDotsDesc);
 
     const dotBgDiv = document.createElement('div');
     dotBgDiv.className = 'fsetting-item dot-bg-container';
