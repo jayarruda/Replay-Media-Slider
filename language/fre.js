@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Langue par défaut",
+  resetAllButton: "Réinitialiser tout",
+  dotPosterMode: "Navigation par points en taille d’affiche",
+  posterDotsDescription: "Transforme la navigation par points en taille d’affiche (Nécessite un positionnement pour toute la zone du carrousel)",
   pauseSettings: "Écran de Pause",
   pauseImagePreference: "Préférence d'Image",
   pauseImage_auto: "Automatique (Logo > Disque > Titre)",

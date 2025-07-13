@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  resetAllButton: "Сбросить всё",
+  dotPosterMode: "Навигация точками в виде постеров",
+  posterDotsDescription: "Преобразует точечную навигацию в размер постера (Требуется позиционирование для всей области слайдера)",
   pauseSettings: "Экран Паузы",
   pauseImagePreference: "Предпочтение Изображения",
   pauseImage_auto: "Автоматически (Логотип > Диск > Заголовок)",

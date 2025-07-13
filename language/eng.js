@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  resetAllButton: "Reset All",
+  dotPosterMode: "Poster-Sized Dot Navigation",
+  posterDotsDescription: "Transforms dot navigation into poster size (Requires positioning for full slider area)",
   pauseSettings: "Pause Screen",
   pauseImagePreference: "Image Preference",
   pauseImage_auto: "Automatic (Logo > Disc > Title)",

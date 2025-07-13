@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  resetAllButton: "Alles zurücksetzen",
+  dotPosterMode: "Punktnavigation in Postergröße",
+  posterDotsDescription: "Ändert die Punktnavigation auf Postergröße (Erfordert Positionierung für den gesamten Sliderbereich)",
   pauseSettings: "Pausenbildschirm",
   pauseImagePreference: "Bildpräferenz",
   pauseImage_auto: "Automatisch (Logo > Disc > Titel)",
