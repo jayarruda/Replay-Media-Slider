@@ -1,24 +1,8 @@
 import { stopSlideTimer, startSlideTimer } from "./timer.js";
 import { SLIDE_DURATION } from "./timer.js";
 import { getConfig } from './config.js';
-import {
-  ensureProgressBarExists,
-  resetProgressBar,
-  startProgressBarWithDuration,
-  pauseProgressBar,
-  resumeProgressBar,
-} from "./progressBar.js";
-import {
-  getCurrentIndex,
-  setCurrentIndex,
-  getSlideDuration,
-  setAutoSlideTimeout,
-  getAutoSlideTimeout,
-  setSlideStartTime,
-  getSlideStartTime,
-  setRemainingTime,
-  getRemainingTime,
-} from "./sliderState.js";
+import { ensureProgressBarExists, resetProgressBar, startProgressBarWithDuration, pauseProgressBar, resumeProgressBar } from "./progressBar.js";
+import { getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout, setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js"
 
 const config = getConfig();
@@ -53,6 +37,8 @@ export function updateActiveDot() {
   });
 }
 
+let centerCalledOnce = false;
+
 export function createDotNavigation() {
   const config = getConfig();
   if (!config.showDotNavigation) {
@@ -75,12 +61,78 @@ export function createDotNavigation() {
   if (!slides.length) return;
 
   let dotContainer = slidesContainer.querySelector(".dot-navigation-container");
-  if (dotContainer) dotContainer.remove();
+  if (!dotContainer) {
+    dotContainer = document.createElement("div");
+    dotContainer.className = "dot-navigation-container";
+    applyContainerStyles(dotContainer, 'existingDot');
+    slidesContainer.appendChild(dotContainer);
+  }
 
-  dotContainer = document.createElement("div");
-  dotContainer.className = "dot-navigation-container";
-  applyContainerStyles(dotContainer, 'existingDot');
   const currentIndex = getCurrentIndex();
+
+  if (config.dotPosterMode) {
+    dotContainer.innerHTML = "";
+    dotContainer.classList.add("dot-poster-mode");
+
+    const scrollWrapper = document.createElement("div");
+    scrollWrapper.className = "dot-scroll-wrapper";
+
+    slides.forEach((slide, index) => {
+      const dot = document.createElement("div");
+      dot.className = "dot poster-dot";
+      dot.dataset.index = index;
+
+      const imageUrl = dotType === "useSlideBackground"
+        ? slide.dataset.background
+        : slide.dataset[dotType];
+
+      if (imageUrl) {
+        const image = document.createElement("img");
+        image.src = imageUrl;
+        image.className = "dot-poster-image";
+        image.style.opacity = config.dotBackgroundOpacity || 0.3;
+        image.style.filter = `blur(${config.dotBackgroundBlur ?? 10}px)`;
+        dot.appendChild(image);
+      }
+
+      dot.classList.toggle("active", index === currentIndex);
+
+      dot.addEventListener("click", () => {
+        if (index !== getCurrentIndex()) {
+          changeSlide(index - getCurrentIndex());
+        }
+      });
+
+      scrollWrapper.appendChild(dot);
+    });
+
+    const leftArrow = document.createElement("button");
+    leftArrow.className = "dot-arrow dot-arrow-left";
+    leftArrow.innerHTML = "&#10094;";
+    leftArrow.addEventListener("click", () => {
+      scrollWrapper.scrollBy({ left: -scrollWrapper.clientWidth, behavior: "smooth" });
+    });
+
+    const rightArrow = document.createElement("button");
+    rightArrow.className = "dot-arrow dot-arrow-right";
+    rightArrow.innerHTML = "&#10095;";
+    rightArrow.addEventListener("click", () => {
+      scrollWrapper.scrollBy({ left: scrollWrapper.clientWidth, behavior: "smooth" });
+    });
+
+    dotContainer.append(leftArrow, scrollWrapper, rightArrow);
+
+    const resizeObserver = new ResizeObserver(() => {
+      centerActiveDot();
+    });
+    resizeObserver.observe(scrollWrapper);
+
+    setTimeout(centerActiveDot, 300);
+    return;
+  }
+
+  dotContainer.innerHTML = "";
+  const currentDotIndex = getCurrentIndex();
 
   slides.forEach((slide, index) => {
     const dot = document.createElement("span");
@@ -90,6 +142,7 @@ export function createDotNavigation() {
       const imageUrl = dotType === "useSlideBackground"
         ? slide.dataset.background
         : slide.dataset[dotType];
+
       if (imageUrl) {
         const imageOverlay = document.createElement("div");
         imageOverlay.className = "dot-image-overlay";
@@ -97,21 +150,55 @@ export function createDotNavigation() {
         imageOverlay.style.backgroundSize = "cover";
         imageOverlay.style.backgroundPosition = "center";
         imageOverlay.style.opacity = config.dotBackgroundOpacity || 0.3;
-        imageOverlay.style.filter = `blur(${config.dotBackgroundBlur}px)`;
+        imageOverlay.style.filter = `blur(${config.dotBackgroundBlur ?? 10}px)`;
         dot.appendChild(imageOverlay);
       }
     }
 
-    dot.classList.toggle("active", index === currentIndex);
+    dot.classList.toggle("active", index === currentDotIndex);
     dot.addEventListener("click", () => {
-      if (index !== currentIndex) {
-        changeSlide(index - currentIndex);
+      if (index !== getCurrentIndex()) {
+        changeSlide(index - getCurrentIndex());
       }
     });
+
     dotContainer.appendChild(dot);
   });
+}
 
-  slidesContainer.appendChild(dotContainer);
+function debounce(func, wait) {
+  let timeout;
+  return function (...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
+
+function centerActiveDot() {
+  const scrollWrapper = document.querySelector(".dot-scroll-wrapper");
+  const activeDot = scrollWrapper?.querySelector(".poster-dot.active");
+  if (!scrollWrapper || !activeDot) return;
+
+  const wrapperRect = scrollWrapper.getBoundingClientRect();
+  const dotRect = activeDot.getBoundingClientRect();
+
+  const isFullyVisible =
+    dotRect.left >= wrapperRect.left &&
+    dotRect.right <= wrapperRect.right;
+
+  const dotCenter = dotRect.left + dotRect.width / 2;
+  const isCentered =
+    dotCenter > wrapperRect.left + wrapperRect.width * 0.4 &&
+    dotCenter < wrapperRect.right - wrapperRect.width * 0.4;
+
+  if (isFullyVisible && isCentered) return;
+
+  const scrollAmount = activeDot.offsetLeft - (scrollWrapper.clientWidth / 1) + (activeDot.offsetWidth / 2);
+  const currentScroll = scrollWrapper.scrollLeft;
+
+  if (Math.abs(currentScroll - scrollAmount) > 10) {
+    scrollWrapper.scrollTo({ left: scrollAmount, behavior: "smooth" });
+  }
 }
 
 
