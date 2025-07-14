@@ -134,23 +134,28 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
 };
 
     if (config.showWatchButton) {
-        const watchBtnContainer = createButtonWithBackground(
-            "watch",
-            '<i class="fa-regular fa-circle-play fa-xl icon"></i>',
-            config.languageLabels.izle,
-            async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                try {
-                    await castToCurrentDevice(itemId);
-                } catch (error) {
-                    console.error("Cast işlemi başarısız:", error);
-                    window.location.href = slide.dataset.detailUrl;
-                }
+    const isResumable = UserData?.PlaybackPositionTicks > 0;
+
+    const watchBtnContainer = createButtonWithBackground(
+        "watch",
+        '<i class="fa-regular fa-circle-play fa-xl icon"></i>',
+        isResumable
+            ? config.languageLabels.devamet
+            : config.languageLabels.izle,
+        async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                await castToCurrentDevice(itemId);
+            } catch (error) {
+                console.error("Cast işlemi başarısız:", error);
+                window.location.href = slide.dataset.detailUrl;
             }
-        );
-        buttonContainer.appendChild(watchBtnContainer);
-    }
+        }
+    );
+    buttonContainer.appendChild(watchBtnContainer);
+}
+
 
     if (config.showTrailerButton && RemoteTrailers && RemoteTrailers.length > 0) {
         const trailer = RemoteTrailers[0];
