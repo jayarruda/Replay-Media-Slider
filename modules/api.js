@@ -157,44 +157,45 @@ export async function getImageDimensions(url) {
   });
 }
 
-
 export async function playNow(itemId) {
   try {
     const { deviceId, userId, sessionId } = getSessionInfo();
+
     const sessions = await makeApiRequest(`/Sessions?UserId=${userId}`);
     const videoClients = sessions.filter(s =>
       s.Capabilities?.PlayableMediaTypes?.includes('Video')
     );
-    let target = videoClients.find(s => s.Id === sessionId);
-    if (!target) {
-      target = videoClients.find(s => s.DeviceId === deviceId);
-    }
-    if (!target) {
-      target = videoClients.find(s => s.NowPlayingItem);
-    }
-    if (!target && videoClients.length) {
-      target = videoClients
-        .sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))
-        [0];
-    }
+
+    let target = videoClients.find(s => s.Id === sessionId)
+      || videoClients.find(s => s.DeviceId === deviceId)
+      || videoClients.find(s => s.NowPlayingItem)
+      || videoClients.sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))[0];
 
     if (!target) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
     }
-    const playUrl = `/Sessions/${target.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
+
+    const userItemData = await makeApiRequest(`/Users/${userId}/Items/${itemId}`);
+    const resumeTicks = userItemData?.UserData?.PlaybackPositionTicks || 0;
+
+    let playUrl = `/Sessions/${target.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
+    if (resumeTicks > 0) {
+      playUrl += `&StartPositionTicks=${resumeTicks}`;
+    }
+
     const res = await fetch(playUrl, {
       method: "POST",
       headers: { Authorization: getAuthHeader() }
     });
+
     if (!res.ok) {
       throw new Error(`Oynatma komutu başarısız: ${res.statusText}`);
     }
 
-    console.log("Oynatma komutu başarıyla gönderildi:", target.Id);
     window.currentPlayingItemId = itemId;
     return true;
   } catch (err) {
-    console.error("Şimdi oynat hatası:", err);
+    console.error("Oynatma hatası:", err);
     return false;
   }
 }
