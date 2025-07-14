@@ -82,6 +82,9 @@ export function getConfig() {
     artistLimit: parseInt(localStorage.getItem('artistLimit'), 10) || 10,
     gecikmeSure: parseInt(localStorage.getItem('gecikmeSure'), 10) || 500,
     limit: parseInt(localStorage.getItem('limit'), 10) || 20,
+    maxShufflingLimit: parseInt(localStorage.getItem('maxShufflingLimit'), 10) || 10000,
+    excludeEpisodesFromPlaying: localStorage.getItem('excludeEpisodesFromPlaying') !== 'false',
+    showPlaybackProgress: localStorage.getItem('showPlaybackProgress') !== 'false',
     muziklimit: parseInt(localStorage.getItem('muziklimit'), 10) || 30,
     albumlimit: parseInt(localStorage.getItem('albumlimit'), 10) || 20,
     sarkilimit: parseInt(localStorage.getItem('sarkilimit'), 10) || 200,
@@ -284,6 +287,10 @@ export function getConfig() {
     const v = localStorage.getItem('dotBackgroundOpacity');
     return v !== null ? parseFloat(v) : 0.5;
 })(),
+      playingLimit: (() => {
+      const v = localStorage.getItem('playingLimit');
+      return v !== null ? parseInt(v, 10) : 0;
+    })(),
     allowedWriters: (() => {
       const defaultWriters = [
         "quentin tarantino",

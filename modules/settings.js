@@ -231,6 +231,10 @@ export function applySettings(reload = false) {
             dateLocale: formData.get('dateLocale') || 'tr-TR',
             sliderDuration: parseInt(formData.get('sliderDuration'), 10),
             limit: parseInt(formData.get('limit'), 10),
+            maxShufflingLimit: parseInt(formData.get('maxShufflingLimit'), 10),
+            excludeEpisodesFromPlaying: formData.get('excludeEpisodesFromPlaying') === 'on',
+            showPlaybackProgress: formData.get('showPlaybackProgress') === 'on',
+            playingLimit: parseFloat(formData.get('playingLimit')),
             gecikmeSure: parseInt(formData.get('gecikmeSure'), 10),
             cssVariant: formData.get('cssVariant'),
             useAlbumArtAsBackground: formData.get('useAlbumArtAsBackground') === 'on',
@@ -1511,14 +1515,86 @@ function createQueryPanel(config, labels) {
     limitInput.max = 100;
 
     limitDiv.append(limitLabel, limitInput);
+
+    const limitDesc = document.createElement('div');
+    limitDesc.className = 'description-text';
+    limitDesc.textContent = labels.limitDesc ||
+      'Görünecek slider limiti';
+
+    section.appendChild(limitDesc);
     section.appendChild(limitDiv);
 
-    const queryStringHeader = document.createElement('h3');
+    const maxShufflingLimitDiv = document.createElement('div');
+    maxShufflingLimitDiv.className = 'setting-item limit-container';
+
+    const maxShufflingLimitLabel = document.createElement('label');
+    maxShufflingLimitLabel.textContent = labels.maxShufflingLimit || 'Maksimum Karıştırılacak İçerik Limiti:';
+
+    const maxShufflingLimitInput = document.createElement('input');
+    maxShufflingLimitInput.type = 'number';
+    maxShufflingLimitInput.value = typeof config.maxShufflingLimit !== 'undefined' ? config.maxShufflingLimit : 10000;
+    maxShufflingLimitInput.name = 'maxShufflingLimit';
+    maxShufflingLimitInput.min = 1;
+    maxShufflingLimitInput.max = 1000000;
+
+    maxShufflingLimitDiv.append(maxShufflingLimitLabel, maxShufflingLimitInput);
+
+    const maxShufflingLimitDesc = document.createElement('div');
+    maxShufflingLimitDesc.className = 'description-text';
+    maxShufflingLimitDesc.textContent = labels.maxShufflingLimitDesc ||
+      'Slider oluşturmak için seçilecek içerik limitidir örneğin 1000 belirlerseniz 1000 içerik içinden seçim yaparak slider oluşturulur.';
+
+    section.appendChild(maxShufflingLimitDesc);
+    section.appendChild(maxShufflingLimitDiv);
+
+    const playingLimitDiv = document.createElement('div');
+    playingLimitDiv.className = 'setting-item playing-limit-container';
+    playingLimitDiv.style.display = randomContentCheckbox.querySelector('input').checked ? 'block' : 'none';
+
+    const playingLimitLabel = document.createElement('label');
+    playingLimitLabel.textContent = labels.playingLimit || 'İzlenenlerden Getirilecek Miktar:';
+
+    const playingLimitInput = document.createElement('input');
+    playingLimitInput.type = 'number';
+    playingLimitInput.value = config.playingLimit ?? 5;
+    playingLimitInput.name = 'playingLimit';
+    playingLimitInput.min = 0;
+    playingLimitInput.max = 100;
+
+    playingLimitDiv.append(playingLimitLabel, playingLimitInput);
+
+    const playingLimitDesc = document.createElement('div');
+    playingLimitDesc.className = 'description-text';
+    playingLimitDesc.textContent = labels.playingLimitDesc ||
+      'İzlenmesi yarıda kesilen son içerikleri listeler. "0" değeri pasif hale getirir.';
+
+    section.appendChild(playingLimitDesc);
+    section.appendChild(playingLimitDiv);
+
+    const excludeEpisodesDiv = document.createElement('div');
+    excludeEpisodesDiv.className = 'setting-item exclude-episodes-container';
+    excludeEpisodesDiv.style.display = randomContentCheckbox.querySelector('input').checked ? 'block' : 'none';
+
+    const excludeEpisodesCheckbox = createCheckbox(
+    'excludeEpisodesFromPlaying',
+    labels.excludeEpisodesFromPlaying || 'Dizi Bölümlerini Hariç Tut',
+    config.excludeEpisodesFromPlaying || false
+    );
+
+    excludeEpisodesDiv.appendChild(excludeEpisodesCheckbox);
+
+    const excludeEpisodesDesc = document.createElement('div');
+    excludeEpisodesDesc.className = 'description-text';
+    excludeEpisodesDesc.textContent = labels.excludeEpisodesFromPlayingDesc ||
+    'İşaretlenirse "İzlenenler" listesinden bölümleri hariç tutar';
+
+    section.appendChild(excludeEpisodesDesc);
+    section.appendChild(excludeEpisodesDiv);
+
     const queryStringLabel = document.createElement('label');
     queryStringLabel.className = 'customQueryStringInput query-string-label';
     queryStringLabel.textContent = labels.customQueryString || 'Api Sorgu Dizesi:';
-    queryStringHeader.appendChild(queryStringLabel);
-    section.appendChild(queryStringHeader);
+    section.appendChild(queryStringLabel);
 
     const queryStringDesc = document.createElement('div');
     queryStringDesc.className = 'description-text';
@@ -1554,25 +1630,41 @@ function createQueryPanel(config, labels) {
     section.appendChild(finalDesc);
 
     function handleSelection(selectedCheckbox) {
-        const checkboxes = [
-            randomContentCheckbox.querySelector('input'),
-            useListFileCheckbox.querySelector('input'),
-            useManualListCheckbox.querySelector('input')
-        ];
+    const checkboxes = [
+        randomContentCheckbox.querySelector('input'),
+        useListFileCheckbox.querySelector('input'),
+        useManualListCheckbox.querySelector('input')
+    ];
 
-        checkboxes.forEach(cb => {
-            if (cb !== selectedCheckbox) cb.checked = false;
-        });
+    checkboxes.forEach(cb => {
+        if (cb !== selectedCheckbox) cb.checked = false;
+    });
 
-        const isRandom = (selectedCheckbox === checkboxes[0]);
-        queryStringTextarea.disabled = !isRandom;
-        limitInput.disabled = !isRandom;
-        sortingTextarea.disabled = !isRandom;
-        queryStringLabel.style.opacity = isRandom ? '1' : '0.6';
+    const isRandom = (selectedCheckbox === checkboxes[0]);
 
-        manualListIdsDiv.style.display = (selectedCheckbox === checkboxes[2]) ? 'flex' : 'none';
-        manualListIdsInput.disabled = (selectedCheckbox !== checkboxes[2]);
-    }
+    limitDiv.style.display = isRandom ? 'block' : 'none';
+    maxShufflingLimitDiv.style.display = isRandom ? 'block' : 'none';
+    queryStringLabel.style.display = isRandom ? 'block' : 'none';
+    sortingTextarea.style.display = isRandom ? 'block' : 'none';
+    limitDesc.style.display = isRandom ? 'block' : 'none';
+    excludeEpisodesDesc.style.display = isRandom ? 'block' : 'none';
+    finalDesc.style.display = isRandom ? 'block' : 'none';
+    queryStringDesc.style.display = isRandom ? 'block' : 'none';
+    maxShufflingLimitDesc.style.display = isRandom ? 'block' : 'none';
+    playingLimitDesc.style.display = isRandom ? 'block' : 'none';
+    sortingLabel.style.display = isRandom ? 'block' : 'none';
+    queryStringTextarea.style.display = isRandom ? 'block' : 'none';
+    playingLimitDiv.style.display = isRandom ? 'block' : 'none';
+    excludeEpisodesDiv.style.display = isRandom ? 'block' : 'none';
+
+    limitInput.disabled = !isRandom;
+    playingLimitInput.disabled = !isRandom;
+    sortingTextarea.disabled = !isRandom;
+    queryStringLabel.style.opacity = isRandom ? '1' : '0.6';
+
+    manualListIdsDiv.style.display = (selectedCheckbox === checkboxes[2]) ? 'flex' : 'none';
+    manualListIdsInput.disabled = (selectedCheckbox !== checkboxes[2]);
+}
 
     [randomContentCheckbox, useListFileCheckbox, useManualListCheckbox].forEach(chkDiv => {
         chkDiv.querySelector('input').addEventListener('change', function() {
@@ -1594,7 +1686,6 @@ function createQueryPanel(config, labels) {
     panel.appendChild(section);
     return panel;
 }
-
 
 function createLanguagePanel(config, labels) {
     const panel = document.createElement('div');
@@ -1717,6 +1808,7 @@ function createDescriptionPanel(config, labels) {
     plotOnlyDiv.id = 'showPlotOnlyLabel';
     plotOnlyDiv.appendChild(createCheckbox('showbPlotInfo', labels.showbPlotInfo || 'Konu Başlığı', config.showbPlotInfo));
     subOptions.appendChild(plotOnlyDiv);
+    subOptions.appendChild(createCheckbox('showPlaybackProgress', labels.showPlaybackProgress || 'Oynatma İlerleme Çubuğu', config.showPlaybackProgress));
 
     section.appendChild(subOptions);
 

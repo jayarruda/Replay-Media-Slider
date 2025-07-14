@@ -1,5 +1,5 @@
 import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex } from "./utils.js";
-import { updateFavoriteStatus, updatePlayedStatus } from "./api.js";
+import { updateFavoriteStatus, updatePlayedStatus, fetchItemDetails } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 import { createSlidesContainer, createGradientOverlay, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
@@ -12,8 +12,37 @@ async function createSlide(item) {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
 
+  let parentId = item.Id;
+
+  if ((item.Type === "Episode" || item.Type === "Season") && item.SeriesId) {
+    console.log(`Bölüm algılandı: ${item.Name}, dizi bilgileri alınıyor: ${item.SeriesId}`);
+    try {
+      const parentItem = await fetchItemDetails(item.SeriesId);
+      parentId = parentItem.Id;
+
+      item = {
+  ...parentItem,
+  Id: item.Id,
+  Type: item.Type,
+  SeriesId: item.SeriesId,
+  MediaStreams: item.MediaStreams,
+  People: item.People || parentItem.People,
+  UserData: item.UserData,
+  RunTimeTicks: item.RunTimeTicks,
+  RemoteTrailers: item.RemoteTrailers,
+  ProviderIds: item.ProviderIds,
+  ParentIndexNumber: item.ParentIndexNumber,
+  IndexNumber: item.IndexNumber,
+  Name: item.Name
+};
+    } catch (err) {
+      console.error("Dizi bilgileri alınamadı:", err);
+    }
+  }
+
   const slidesContainer = createSlidesContainer(indexPage);
   const itemId = item.Id;
+
   const {
     Overview,
     Type: itemType,
@@ -35,55 +64,51 @@ async function createSlide(item) {
     ProviderIds
   } = item;
 
-let highestQualityBackdropIndex;
-  if (config.manualBackdropSelection) {
+  let highestQualityBackdropIndex;
+  if (config.manualBackdropSelection || config.indexZeroSelection) {
     highestQualityBackdropIndex = "0";
-    console.log("Manuel arka plan seçimi aktif; highestQualityBackdropIndex devre dışı bırakıldı.");
-  } else if (config.indexZeroSelection) {
-    highestQualityBackdropIndex = "0";
-    console.log("indexZeroSelection aktif; her zaman 0 indeksli görsel seçiliyor.");
   } else {
-    highestQualityBackdropIndex = await getHighestQualityBackdropIndex(itemId);
-    console.log("Otomatik arka plan seçimi aktif; seçilen index:", highestQualityBackdropIndex);
-}
+    highestQualityBackdropIndex = await getHighestQualityBackdropIndex(parentId);
+  }
 
-  function storeBackdropUrl(itemId, backdropUrl) {
+  function storeBackdropUrl(id, url) {
     const storedUrls = JSON.parse(localStorage.getItem("backdropUrls")) || [];
-    if (!storedUrls.includes(backdropUrl)) {
-      storedUrls.push(backdropUrl);
+    if (!storedUrls.includes(url)) {
+      storedUrls.push(url);
       localStorage.setItem("backdropUrls", JSON.stringify(storedUrls));
     }
   }
 
-  const autoBackdropUrl = `/Items/${itemId}/Images/Backdrop/${highestQualityBackdropIndex}`;
-  const landscapeUrl = `/Items/${itemId}/Images/Thumb/0`;
-  const primaryUrl = `/Items/${itemId}/Images/Primary`;
-  let logoUrl = `/Items/${itemId}/Images/Logo`;
-  const bannerUrl = `/Items/${itemId}/Images/Banner`;
-  const artUrl = `/Items/${itemId}/Images/Art`;
-  const discUrl = `/Items/${itemId}/Images/Disc`;
+  const autoBackdropUrl = `/Items/${parentId}/Images/Backdrop/${highestQualityBackdropIndex}`;
+  const landscapeUrl = `/Items/${parentId}/Images/Thumb/0`;
+  const primaryUrl = `/Items/${parentId}/Images/Primary`;
+  let logoUrl = `/Items/${parentId}/Images/Logo`;
+  const bannerUrl = `/Items/${parentId}/Images/Banner`;
+  const artUrl = `/Items/${parentId}/Images/Art`;
+  const discUrl = `/Items/${parentId}/Images/Disc`;
 
   let logoExists = true;
   try {
     const logoResponse = await fetch(logoUrl, { method: "HEAD" });
     logoExists = logoResponse.ok;
-  } catch (err) {
+  } catch {
     logoExists = false;
   }
-  storeBackdropUrl(itemId, autoBackdropUrl);
+
+  storeBackdropUrl(parentId, autoBackdropUrl);
 
   const manualBackdropUrl = {
-    backdropUrl: `/Items/${itemId}/Images/Backdrop/0`,
-    landscapeUrl: landscapeUrl,
-    primaryUrl: primaryUrl,
-    logoUrl: logoExists ? logoUrl : `/Items/${itemId}/Images/Backdrop/0`,
-    bannerUrl: bannerUrl,
-    artUrl: artUrl,
-    discUrl: discUrl,
+    backdropUrl: `/Items/${parentId}/Images/Backdrop/0`,
+    landscapeUrl,
+    primaryUrl,
+    logoUrl: logoExists ? logoUrl : `/Items/${parentId}/Images/Backdrop/0`,
+    bannerUrl,
+    artUrl,
+    discUrl,
     none: ""
   }[config.backdropImageType];
 
-  addSlideToSettingsBackground(itemId, autoBackdropUrl);
+  addSlideToSettingsBackground(parentId, autoBackdropUrl);
 
   const slide = document.createElement("div");
   slide.className = "slide";
@@ -93,12 +118,12 @@ let highestQualityBackdropIndex;
 
   const selectedOverlayUrl = {
     backdropUrl: autoBackdropUrl,
-    landscapeUrl: landscapeUrl,
-    primaryUrl: primaryUrl,
+    landscapeUrl,
+    primaryUrl,
     logoUrl: logoExists ? logoUrl : autoBackdropUrl,
-    bannerUrl: bannerUrl,
-    artUrl: artUrl,
-    discUrl: discUrl,
+    bannerUrl,
+    artUrl,
+    discUrl,
     none: ""
   }[config.gradientOverlayImageType];
 
@@ -111,7 +136,10 @@ let highestQualityBackdropIndex;
   slide.dataset.artUrl = artUrl;
   slide.dataset.discUrl = discUrl;
 
-  const { backdropUrl, placeholderUrl } = await getHighResImageUrls(item, highestQualityBackdropIndex);
+  const { backdropUrl, placeholderUrl } = await getHighResImageUrls({
+  ...item,
+  Id: parentId
+}, highestQualityBackdropIndex);
   if (slidesContainer.children.length === 0) {
     const preloadLink = document.createElement('link');
     preloadLink.rel = 'preload';
@@ -131,18 +159,18 @@ let highestQualityBackdropIndex;
   backdropImg.src = placeholderUrl;
 
   const io = new IntersectionObserver((entries, observer) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
-      backdropImg.src = finalBackdrop;
-      backdropImg.onload = () => {
-        backdropImg.style.transition = 'opacity 0.5s ease';
-        backdropImg.style.opacity = '1';
-      };
-      observer.unobserve(backdropImg);
-    }
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+        backdropImg.src = finalBackdrop;
+        backdropImg.onload = () => {
+          backdropImg.style.transition = 'opacity 0.5s ease';
+          backdropImg.style.opacity = '1';
+        };
+        observer.unobserve(backdropImg);
+      }
+    });
   });
-});
   io.observe(backdropImg);
 
   backdropImg.addEventListener('click', () => {
@@ -153,26 +181,19 @@ let highestQualityBackdropIndex;
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
-
-  slide.appendChild(backdropImg);
-  slide.appendChild(gradientOverlay);
-  slide.appendChild(horizontalGradientOverlay);
+  slide.append(backdropImg, gradientOverlay, horizontalGradientOverlay);
   slidesContainer.appendChild(slide);
 
-  createTrailerIframe({
-    config,
-    RemoteTrailers: item.RemoteTrailers,
-    slide,
-    backdropImg
-  });
+  createTrailerIframe({ config, RemoteTrailers, slide, backdropImg });
 
-  const commonImageStyle = {
-    maxWidth: "100%",
-    height: "auto",
-    objectFit: "contain",
-    aspectRatio: "1/1",
-    display: "block"
-  };
+  const logoContainer = createLogoContainer();
+  const order = config.showDiscOnly
+    ? ["disk"]
+    : config.showTitleOnly
+      ? ["originalTitle"]
+      : config.showLogoOrTitle
+        ? config.displayOrder.split(",").map(item => item.trim())
+        : [];
 
   function createLogoElement(fallback) {
     const logoImg = document.createElement("img");
@@ -180,7 +201,9 @@ let highestQualityBackdropIndex;
     logoImg.src = logoUrl;
     logoImg.alt = "";
     logoImg.loading = "lazy";
-    Object.assign(logoImg.style, commonImageStyle, { aspectRatio: "initial" });
+    Object.assign(logoImg.style, {
+      maxWidth: "100%", height: "auto", objectFit: "contain", aspectRatio: "initial", display: "block"
+    });
     logoImg.onerror = fallback;
     return logoImg;
   }
@@ -191,11 +214,8 @@ let highestQualityBackdropIndex;
     discImg.src = discUrl;
     discImg.alt = "";
     discImg.loading = "lazy";
-    Object.assign(discImg.style, commonImageStyle, {
-      maxHeight: "75%",
-      maxWidth: "75%",
-      width: "auto",
-      borderRadius: "50%"
+    Object.assign(discImg.style, {
+      maxWidth: "75%", maxHeight: "75%", width: "auto", objectFit: "contain", borderRadius: "50%", display: "block"
     });
     discImg.onerror = fallback;
     return discImg;
@@ -205,113 +225,58 @@ let highestQualityBackdropIndex;
     const titleDiv = document.createElement("div");
     titleDiv.className = "no-logo-container";
     titleDiv.textContent = OriginalTitle;
-    titleDiv.style.display = "flex";
-    titleDiv.style.alignItems = "center";
-    titleDiv.style.justifyContent = "center";
+    Object.assign(titleDiv.style, {
+      display: "flex", alignItems: "center", justifyContent: "center"
+    });
     return titleDiv;
   }
 
-  let order;
-  if (config.showDiscOnly) {
-    order = ["disk"];
-  } else if (config.showTitleOnly) {
-    order = ["originalTitle"];
-  } else if (config.showLogoOrTitle) {
-    order = config.displayOrder.split(",").map(item => item.trim());
-  } else {
-    order = [];
-  }
-
-  const logoContainer = createLogoContainer();
   function tryDisplayElement(index) {
     if (index >= order.length) return;
     const type = order[index];
-    if (type === "logo" && config.showLogoOrTitle) {
+    if (type === "logo") {
       const element = createLogoElement(() => {
         logoContainer.innerHTML = "";
         tryDisplayElement(index + 1);
       });
       logoContainer.appendChild(element);
-    } else if (type === "disk" && (config.showDiscOnly || config.showLogoOrTitle)) {
+    } else if (type === "disk") {
       const element = createDiskElement(() => {
         logoContainer.innerHTML = "";
         tryDisplayElement(index + 1);
       });
       logoContainer.appendChild(element);
-    } else if (type === "originalTitle" && (config.showTitleOnly || config.showLogoOrTitle)) {
+    } else if (type === "originalTitle") {
       const element = createTitleElement();
       logoContainer.appendChild(element);
     } else {
       tryDisplayElement(index + 1);
     }
   }
+
   tryDisplayElement(0);
 
-  const buttonContainer = createButtons(
-    slide,
-    config,
-    UserData,
-    itemId,
-    RemoteTrailers,
-    updatePlayedStatus,
-    updateFavoriteStatus,
-    openTrailerModal
-  );
+  const buttonContainer = createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal);
   document.body.appendChild(buttonContainer);
 
-  const plotContainer = createPlotContainer(config, Overview);
+  const plotContainer = createPlotContainer(config, Overview, UserData, RunTimeTicks);
   const titleContainer = createTitleContainer({
-    config,
-    Taglines: item.Taglines,
-    title: item.Name,
-    OriginalTitle: item.OriginalTitle
-  });
-
-  const statusContainer = createStatusContainer(
-    itemType,
-    config,
-    UserData,
-    ChildCount,
-    RunTimeTicks,
-    MediaStreams
-  );
-
-  const actorSlider = createActorSlider(People, getConfig());
-  slide.appendChild(actorSlider);
-
-  const infoContainer = createInfoContainer({
-    config,
-    Genres: item.Genres,
-    ProductionYear: item.ProductionYear,
-    ProductionLocations: item.ProductionLocations
-  });
-  slide.appendChild(infoContainer);
-
-  const directorContainer = createDirectorContainer({
-    config,
-    People: item.People
-  });
-
-  const { container: ratingContainer, ratingExists } = createRatingContainer({
-    config,
-    CommunityRating: item.CommunityRating,
-    CriticRating: item.CriticRating,
-    OfficialRating: item.OfficialRating
-  });
-
-  const providerContainer = createProviderContainer({
   config,
-  ProviderIds: item.ProviderIds,
-  RemoteTrailers: item.RemoteTrailers,
-  itemId: item.Id,
-  slide: slide
+  Taglines,
+  title,
+  OriginalTitle,
+  Type: itemType,
+  ParentIndexNumber: item.ParentIndexNumber,
+  IndexNumber: item.IndexNumber
 });
 
-  const languageContainer = createLanguageContainer({
-    config,
-    MediaStreams: item.MediaStreams,
-    itemType: item.Type
-  });
+  const statusContainer = createStatusContainer(itemType, config, UserData, ChildCount, RunTimeTicks, MediaStreams);
+  const actorSlider = await createActorSlider(People, config, item);
+  const infoContainer = createInfoContainer({ config, Genres, ProductionYear, ProductionLocations });
+  const directorContainer = await createDirectorContainer({ config, People, item });
+  const { container: ratingContainer, ratingExists } = createRatingContainer({ config, CommunityRating, CriticRating, OfficialRating });
+  const providerContainer = createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId, slide });
+  const languageContainer = createLanguageContainer({ config, MediaStreams, itemType });
 
   const metaContainer = createMetaContainer();
   if (statusContainer) metaContainer.appendChild(statusContainer);
@@ -321,16 +286,7 @@ let highestQualityBackdropIndex;
   const mainContentContainer = createMainContentContainer();
   mainContentContainer.append(logoContainer, titleContainer, plotContainer, providerContainer);
 
-  slide.append(
-    gradientOverlay,
-    infoContainer,
-    directorContainer,
-    backdropImg,
-    metaContainer,
-    mainContentContainer,
-    buttonContainer,
-    actorSlider
-  );
+  slide.append(metaContainer, mainContentContainer, buttonContainer, actorSlider, infoContainer, directorContainer);
   slidesContainer.appendChild(slide);
 
   console.log(`Item ${itemId} slide eklendi.`);
@@ -338,6 +294,7 @@ let highestQualityBackdropIndex;
     import("./navigation.js").then(mod => mod.displaySlide(0));
   }
 }
+
 
 function addSlideToSettingsBackground(itemId, backdropUrl) {
   const settingsSlider = document.getElementById("settingsBackgroundSlider");

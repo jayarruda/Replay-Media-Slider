@@ -85,20 +85,20 @@ export async function slidesInit() {
   if (window.sliderResetInProgress) return;
   window.sliderResetInProgress = true;
   fullSliderReset();
-  const rawCred = sessionStorage.getItem("json-credentials")
-                || localStorage.getItem("json-credentials");
-  const apiKey  = sessionStorage.getItem("api-key")
-                || localStorage.getItem("api-key");
+
+  const rawCred = sessionStorage.getItem("json-credentials") || localStorage.getItem("json-credentials");
+  const apiKey = sessionStorage.getItem("api-key") || localStorage.getItem("api-key");
 
   if (!rawCred || !apiKey) {
     console.error("Kullanıcı bilgisi veya API anahtarı bulunamadı.");
     window.sliderResetInProgress = false;
     return;
   }
+
   let userId = null, accessToken = null;
   try {
     const parsed = JSON.parse(rawCred);
-    userId      = parsed.Servers[0].UserId;
+    userId = parsed.Servers[0].UserId;
     accessToken = parsed.Servers[0].AccessToken;
   } catch (err) {
     console.error("Credential JSON hatası:", err);
@@ -109,10 +109,12 @@ export async function slidesInit() {
     window.sliderResetInProgress = false;
     return;
   }
+
   const savedLimit = parseInt(localStorage.getItem("limit") || "20", 10);
-  window.myUserId   = userId;
-  window.myListUrl  = `/web/slider/list/list_${userId}.txt`;
+  window.myUserId = userId;
+  window.myListUrl = `/web/slider/list/list_${userId}.txt`;
   console.log("Liste URL'si:", window.myListUrl);
+
   let items = [];
   try {
     let listItems = null;
@@ -140,44 +142,122 @@ export async function slidesInit() {
     } else {
       console.log("API fallback kullanılıyor.");
       const queryString = config.customQueryString;
-      const shouldShuffle = !config.sortingKeywords.some(k => queryString.includes(k));
-      const res = await fetch(
-        `/Users/${userId}/Items?${queryString}`,
-        { headers: { Authorization:
-          `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
-        }}
+      const shouldShuffle = !config.sortingKeywords?.some(k =>
+        queryString.includes(k) ||
+        queryString.includes("SortBy=") ||
+        queryString.includes("SortOrder=")
       );
-      const data = await res.json();
-      const all = data.Items || [];
-      let pool = shouldShuffle
-        ? shuffleArray(all).slice(0, savedLimit)
-        : all.slice(0, savedLimit);
-      const detailed = await Promise.all(pool.map(i => fetchItemDetails(i.Id)));
+
+      console.log(`Shuffle durumu: ${shouldShuffle ? 'AKTİF (maxShufflingLimit kadar çekip rastgele seçilecek)' : 'PASİF (direkt sıralı alınacak)'}`);
+
+  let playingItems = [];
+  const playingLimit = parseInt(config.playingLimit || 0, 10);
+
+  if (playingLimit > 0) {
+      try {
+          const res = await fetch(
+              `/Users/${userId}/Items/Resume?Limit=${playingLimit}`,
+              { headers: { Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"` }}
+          );
+          const data = await res.json();
+          playingItems = data.Items || [];
+
+        if (config.excludeEpisodesFromPlaying) {
+          playingItems = playingItems.filter(item => item.Type !== 'Episode');
+        }
+    } catch (err) {
+        console.error("İzlenen içerikler alınırken hata:", err);
+    }
+}
+
+      const maxShufflingLimit = parseInt(config.maxShufflingLimit || "10000", 10);
+      const res = await fetch(
+  `/Users/${userId}/Items?${queryString}&Limit=${maxShufflingLimit}`,
+  {
+    headers: {
+      Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
+    }
+  }
+);
+
+const data = await res.json();
+let allItems = data.Items || [];
+
+if (queryString.includes("IncludeItemTypes=Season") || queryString.includes("IncludeItemTypes=Episode")) {
+  console.log("Season/Episode modu aktif");
+  const detailedSeasons = await Promise.all(allItems.map(async (item) => {
+    try {
+      const seasonRes = await fetch(`/Users/${userId}/Items/${item.Id}`, {
+        headers: {
+          Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
+        }
+      });
+      const seasonData = await seasonRes.json();
+      if (seasonData.SeriesId) {
+        const seriesRes = await fetch(`/Users/${userId}/Items/${seasonData.SeriesId}`, {
+          headers: {
+            Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
+          }
+        });
+        seasonData.SeriesData = await seriesRes.json();
+      }
+
+      return seasonData;
+    } catch (error) {
+      console.error("Season detay alınırken hata:", error);
+      return item;
+    }
+  }));
+
+  allItems = detailedSeasons.filter(item => item && item.Id);
+}
+
+      let selectedItems = [];
+
+      if (shouldShuffle) {
+        console.log(`Karıştırma aktif: ${allItems.length} öğe arasından rastgele ${savedLimit} tanesi seçilecek`);
+        if (playingItems.length > 0) {
+          selectedItems = [...playingItems];
+        }
+        const remainingSlots = savedLimit - selectedItems.length;
+        if (remainingSlots > 0) {
+          const shuffled = shuffleArray(allItems);
+          const randomSelection = shuffled.slice(0, remainingSlots);
+          selectedItems.push(...randomSelection);
+        }
+      } else {
+        selectedItems = playingItems.concat(allItems).slice(0, savedLimit);
+      }
+
+      const detailed = await Promise.all(selectedItems.map(i => fetchItemDetails(i.Id)));
       items = detailed.filter(x => x);
     }
   } catch (err) {
     console.error("Slide verisi hazırlanırken hata:", err);
   }
+
   if (!items.length) {
     console.warn("Hiçbir slayt verisi elde edilemedi.");
     window.sliderResetInProgress = false;
     return;
   }
+
   console.groupCollapsed("Slide Oluşturma");
   for (const item of items) {
     console.log("Slider API Bilgisi:", item);
     await createSlide(item);
   }
   console.groupEnd();
+
   const idxPage = document.querySelector("#indexPage:not(.hide)");
   if (idxPage && !idxPage.querySelector("#slides-container")) {
     const c = document.createElement("div");
     c.id = "slides-container";
     idxPage.appendChild(c);
   }
+
   initializeSlider();
 }
-
 
 function initializeSlider() {
   const indexPage = document.querySelector("#indexPage:not(.hide)");

@@ -1,5 +1,6 @@
 import { getConfig } from "./config.js";
 import { applyContainerStyles } from "./positionUtils.js";
+import { fetchItemDetails } from "./api.js";
 
 const config = getConfig();
 
@@ -53,6 +54,8 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
     typeSpan.className = "type";
     const typeTranslations = {
       Series: { text: config.languageLabels.dizi, icon: '<i class="fas fa-tv"></i>' },
+      Season: { text: config.languageLabels.season, icon: '<i class="fas fa-tv"></i>' },
+      Episode: { text: config.languageLabels.episode, icon: '<i class="fas fa-tv"></i>' },
       BoxSet: { text: config.languageLabels.boxset, icon: '<i class="fas fa-film"></i>' },
       Movie: { text: config.languageLabels.film, icon: '<i class="fas fa-film"></i>' }
     };
@@ -132,11 +135,24 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
   return statusContainer;
 }
 
-export function createActorSlider(People, config) {
+export async function createActorSlider(People, config, item) {
   if (config.showActorAll) {
     const emptyDiv = document.createElement("div");
     emptyDiv.style.display = "none";
     return emptyDiv;
+  }
+
+  let actualPeople = People;
+
+  if ((item.Type === "Episode" || item.Type === "Season") && item.SeriesId) {
+    try {
+      const parent = await fetchItemDetails(item.SeriesId);
+      if (parent && Array.isArray(parent.People)) {
+        actualPeople = parent.People;
+      }
+    } catch (e) {
+      console.warn("Ana dizi bilgileri alınamadı:", e);
+    }
   }
 
   const sliderWrapper = document.createElement("div");
@@ -158,8 +174,8 @@ export function createActorSlider(People, config) {
   sliderWrapper.appendChild(actorContainer);
   sliderWrapper.appendChild(rightArrow);
 
-  if (People) {
-    const allActors = People.filter(p => p.Type === "Actor");
+  if (actualPeople) {
+    const allActors = actualPeople.filter(p => p.Type === "Actor");
     const actorsForSlide = allActors.slice(0, config.artistLimit || 9);
 
     actorsForSlide.forEach(actor => {
@@ -209,6 +225,7 @@ export function createActorSlider(People, config) {
 
   return sliderWrapper;
 }
+
 
 export function createInfoContainer({ config, Genres, ProductionYear, ProductionLocations }) {
   const container = document.createElement("div");
@@ -286,14 +303,27 @@ export function createInfoContainer({ config, Genres, ProductionYear, Production
 }
 
 
-export function createDirectorContainer({ config, People }) {
+export async function createDirectorContainer({ config, People, item }) {
   const container = document.createElement("div");
   container.className = "director-container";
   applyContainerStyles(container, 'director');
 
-  if (People && People.length > 0 && config.showDirectorWriter) {
+  let actualPeople = People;
+
+  if ((item.Type === "Episode" || item.Type === "Season") && item.SeriesId) {
+    try {
+      const parent = await fetchItemDetails(item.SeriesId);
+      if (parent && Array.isArray(parent.People)) {
+        actualPeople = parent.People;
+      }
+    } catch (e) {
+      console.warn("Ana dizi bilgileri alınamadı:", e);
+    }
+  }
+
+  if (actualPeople && actualPeople.length > 0 && config.showDirectorWriter) {
     if (config.showDirector) {
-      const directors = People.filter(p => p.Type?.toLowerCase() === "director");
+      const directors = actualPeople.filter(p => p.Type?.toLowerCase() === "director");
       if (directors.length) {
         const directorNames = directors.map(d => d.Name).join(", ");
         const directorSpan = document.createElement("span");
@@ -302,8 +332,9 @@ export function createDirectorContainer({ config, People }) {
         container.appendChild(directorSpan);
       }
     }
+
     if (config.showWriter) {
-      const writers = People.filter(p => p.Type?.toLowerCase() === "writer");
+      const writers = actualPeople.filter(p => p.Type?.toLowerCase() === "writer");
       const matchingWriters = writers.filter(w =>
         config.allowedWriters.includes(w.Name.toLowerCase())
       );
@@ -311,7 +342,7 @@ export function createDirectorContainer({ config, People }) {
         const writerNames = matchingWriters.map(w => w.Name).join(", ");
         const writerSpan = document.createElement("span");
         writerSpan.className = "writer";
-        writerSpan.textContent = `${writerNames} ${config.languageLabels.yazar}  ...`;
+        writerSpan.textContent = `${writerNames} ${config.languageLabels.yazar} ...`;
         container.appendChild(writerSpan);
       }
     }
@@ -319,6 +350,7 @@ export function createDirectorContainer({ config, People }) {
 
   return container;
 }
+
 
 export function createRatingContainer({ config, CommunityRating, CriticRating, OfficialRating }) {
   const container = document.createElement("div");
@@ -469,7 +501,7 @@ export function createMainContentContainer() {
   return container;
 }
 
-export function createPlotContainer(config, Overview) {
+export function createPlotContainer(config, Overview, UserData, RunTimeTicks) {
   const container = document.createElement("div");
   container.className = "plot-container";
   applyContainerStyles(container, 'plot');
@@ -481,23 +513,66 @@ export function createPlotContainer(config, Overview) {
       plotBSpan.textContent = config.languageLabels.konu;
       container.appendChild(plotBSpan);
     }
+
     const plotSpan = document.createElement("span");
     plotSpan.className = "plot";
     plotSpan.textContent = "\u00A0\u00A0" + Overview;
     container.appendChild(plotSpan);
   }
+
+  if (
+    config.showPlaybackProgress &&
+    typeof UserData?.PlaybackPositionTicks === "number" &&
+    typeof RunTimeTicks === "number" &&
+    UserData.PlaybackPositionTicks > 0 &&
+    UserData.PlaybackPositionTicks < RunTimeTicks
+  ) {
+    const progressContainer = document.createElement("div");
+    progressContainer.className = "playing-progress-container";
+
+    const barWrapper = document.createElement("div");
+    barWrapper.className = "duration-bar-wrapper";
+
+    const bar = document.createElement("div");
+    bar.className = "duration-bar";
+
+    const percentage = Math.min(
+      (UserData.PlaybackPositionTicks / RunTimeTicks) * 100,
+      100
+    );
+    bar.style.width = `${percentage.toFixed(1)}%`;
+
+    const remainingMinutes = Math.round(
+      (RunTimeTicks - UserData.PlaybackPositionTicks) / 600000000
+    );
+    const text = document.createElement("span");
+    text.className = "duration-remaining";
+    text.innerHTML = `<i class="fa-regular fa-hourglass-half"></i> ${remainingMinutes} ${config.languageLabels.dakika} ${config.languageLabels.kaldi}`;
+
+    barWrapper.appendChild(bar);
+    progressContainer.appendChild(barWrapper);
+    progressContainer.appendChild(text);
+    container.appendChild(progressContainer);
+  }
+
   return container;
 }
 
-export function createTitleContainer({ config, Taglines, title, OriginalTitle }) {
+export function createTitleContainer({ config, Taglines, title, OriginalTitle, Type, ParentIndexNumber, IndexNumber }) {
   const container = document.createElement("div");
   container.className = "title-container";
   applyContainerStyles(container, 'title');
 
-  if (config.showDescriptions && config.showTitleInfo && title) {
+  if (config.showDescriptions && config.showTitleInfo) {
     const titleSpan = document.createElement("span");
     titleSpan.className = "baslik";
-    titleSpan.textContent = title;
+
+    if (Type === "Episode" && typeof ParentIndexNumber === "number" && typeof IndexNumber === "number") {
+      titleSpan.textContent = `S${ParentIndexNumber} B${IndexNumber}: ${title}`;
+    } else {
+      titleSpan.textContent = title;
+    }
+
     container.appendChild(titleSpan);
   }
 
@@ -521,3 +596,4 @@ export function createTitleContainer({ config, Taglines, title, OriginalTitle })
 
   return container;
 }
+

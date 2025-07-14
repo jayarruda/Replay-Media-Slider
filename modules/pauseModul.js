@@ -308,7 +308,6 @@ export function setupPauseScreen() {
     window.addEventListener('popstate', hideOverlay);
     window.addEventListener('hashchange', hideOverlay);
     document.addEventListener('visibilitychange', () => {
-    // Only hide if the video is no longer on the page when we come back
     if (document.visibilityState === 'visible' && !isVideoVisible()) {
         hideOverlay();
     }
