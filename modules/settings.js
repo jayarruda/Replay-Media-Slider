@@ -510,6 +510,14 @@ export function applySettings(reload = false) {
             pauseOverlayShowMetadata: formData.get('pauseOverlayShowMetadata') === 'on',
             pauseOverlayShowLogo: formData.get('pauseOverlayShowLogo') === 'on',
             pauseOverlayShowBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
+
+
+            slideTransitionType: formData.get('slideTransitionType'),
+            dotPosterTransitionType: formData.get('dotPosterTransitionType'),
+            enableSlideAnimations: formData.get('enableSlideAnimations') === 'on',
+            enableDotPosterAnimations: formData.get('enableDotPosterAnimations') === 'on',
+            slideAnimationDuration: parseInt(formData.get('slideAnimationDuration'), 10) || 800,
+            dotPosterAnimationDuration: parseInt(formData.get('dotPosterAnimationDuration'), 10) || 500,
         };
 
         updateConfig(updatedConfig);
@@ -931,9 +939,136 @@ function createSliderPanel(config, labels) {
     dotopacityDiv.append(dotopacityLabel, dotopacityInput, dotopacityValue);
     sliderDiv.appendChild(dotopacityDiv);
 
-        panel.append(languageDiv, cssDiv, sliderDiv);
-        return panel;
-    }
+    const slideAnimDiv = document.createElement('div');
+    slideAnimDiv.className = 'fsetting-item';
+    const slideAnimLabel = document.createElement('label');
+
+    const slideAnimCheckbox = createCheckbox(
+        'enableSlideAnimations',
+        labels.enableSlideAnimations || 'Slayt Animasyonlarını Etkinleştir',
+        config.enableSlideAnimations
+    );
+    slideAnimLabel.prepend(slideAnimCheckbox);
+    slideAnimDiv.appendChild(slideAnimLabel);
+
+    const slideTypeDiv = document.createElement('div');
+    slideTypeDiv.className = 'fsetting-item slide-anim-container';
+    const slideTypeLabel = document.createElement('label');
+    slideTypeLabel.textContent = labels.slideTransitionType || 'Slayt Geçiş Türü:';
+    const slideTypeSelect = document.createElement('select');
+    slideTypeSelect.name = 'slideTransitionType';
+
+    const slideTypes = [
+        { value: 'flip', label: labels.flipAnimation || '3D Flip' },
+        { value: 'glitch', label: labels.glitchAnimation || 'Glitch Etkisi' },
+        { value: 'morph', label: labels.morphAnimation || 'Morph' },
+        { value: 'cube', label: labels.cubeAnimation || '3D Küp' },
+        { value: 'zoom', label: labels.zoomAnimation || 'Zoom Döngüsü' },
+        { value: 'slide3d', label: labels.slide3dAnimation || '3D Kaydırma' },
+        { value: 'diagonal', label: labels.diagonal || 'Çapraz Kaydırma' },
+        { value: 'fadezoom', label: labels.fadezoom || 'Silinerek Yakınlaşma' },
+        { value: 'slide', label: labels.slide || 'Düz Kaydırma' },
+        { value: 'parallax', label: labels.parallax || 'Paralaks'},
+        { value: 'blur-fade', label: labels.blurfade || 'Bulanıklaşma'},
+    ];
+
+    slideTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type.value;
+        option.textContent = type.label;
+        if (type.value === config.slideTransitionType) {
+            option.selected = true;
+        }
+        slideTypeSelect.appendChild(option);
+    });
+
+    slideTypeDiv.append(slideTypeLabel, slideTypeSelect);
+
+    const slideDurationDiv = document.createElement('div');
+    slideDurationDiv.className = 'fsetting-item slide-anim-container';
+    const slideDurationLabel = document.createElement('label');
+    slideDurationLabel.textContent = labels.slideAnimationDuration || 'Slayt Animasyon Süresi (ms):';
+    const slideDurationInput = document.createElement('input');
+    slideDurationInput.type = 'number';
+    slideDurationInput.value = config.slideAnimationDuration || 800;
+    slideDurationInput.name = 'slideAnimationDuration';
+    slideDurationInput.min = 100;
+    slideDurationInput.max = 3000;
+    slideDurationInput.step = 50;
+    slideDurationDiv.append(slideDurationLabel, slideDurationInput);
+
+    const dotAnimDiv = document.createElement('div');
+    dotAnimDiv.className = 'fsetting-item';
+    const dotAnimLabel = document.createElement('label');
+
+    const dotAnimCheckbox = createCheckbox(
+        'enableDotPosterAnimations',
+        labels.enableDotPosterAnimations || 'Nokta Navigasyon Poster Animasyonlarını Etkinleştir',
+        config.enableDotPosterAnimations
+    );
+
+    dotAnimLabel.prepend(dotAnimCheckbox);
+    dotAnimDiv.appendChild(dotAnimLabel);
+
+    const dotTypeDiv = document.createElement('div');
+    dotTypeDiv.className = 'fsetting-item dot-anim-container';
+    const dotTypeLabel = document.createElement('label');
+    dotTypeLabel.textContent = labels.dotPosterTransitionType || 'Dot Geçiş Türü:';
+    const dotTypeSelect = document.createElement('select');
+    dotTypeSelect.name = 'dotPosterTransitionType';
+
+    const dotTypes = [
+        { value: 'scale', label: labels.scaleAnimation || 'Ölçekleme' },
+        { value: 'bounce', label: labels.bounceAnimation || 'Zıplama' },
+        { value: 'rotate', label: labels.rotateAnimation || 'Döndürme' },
+        { value: 'color', label: labels.colorAnimation || 'Renk Değişimi' },
+        { value: 'float', label: labels.floatAnimation || 'Yüzdürme' },
+        { value: 'pulse', label: labels.pulseAnimation || 'Nabız' },
+        { value: 'tilt', label: labels.tiltAnimation || 'Eğilme' },
+        { value: 'shake', label: labels.shakeAnimation || 'Sallanma' },
+    ];
+
+    dotTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type.value;
+        option.textContent = type.label;
+        if (type.value === config.dotPosterTransitionType) {
+            option.selected = true;
+        }
+        dotTypeSelect.appendChild(option);
+    });
+
+    dotTypeDiv.append(dotTypeLabel, dotTypeSelect);
+
+    const dotDurationDiv = document.createElement('div');
+    dotDurationDiv.className = 'fsetting-item dot-anim-container';
+    const dotDurationLabel = document.createElement('label');
+    dotDurationLabel.textContent = labels.dotPosterAnimationDuration || 'Dot Animasyon Süresi (ms):';
+    const dotDurationInput = document.createElement('input');
+    dotDurationInput.type = 'number';
+    dotDurationInput.value = config.dotPosterAnimationDuration || 500;
+    dotDurationInput.name = 'dotPosterAnimationDuration';
+    dotDurationInput.min = 100;
+    dotDurationInput.max = 3000;
+    dotDurationInput.step = 50;
+    dotDurationDiv.append(dotDurationLabel, dotDurationInput);
+
+    panel.append(
+        languageDiv,
+        cssDiv,
+        sliderDiv,
+        slideAnimDiv,
+        slideTypeDiv,
+        slideDurationDiv,
+        dotAnimDiv,
+        dotTypeDiv,
+       dotDurationDiv
+    );
+
+    bindCheckboxKontrol('#enableSlideAnimations', '.slide-anim-container', 0.6, [slideTypeSelect, slideDurationInput]);
+    bindCheckboxKontrol('#enableDotPosterAnimations', '.dot-anim-container', 0.6, [dotTypeSelect, dotDurationInput]);
+    return panel;
+}
 
     function createStatusRatingPanel(config, labels) {
         const panel = document.createElement('div');
