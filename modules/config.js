@@ -261,6 +261,13 @@ export function getConfig() {
     showBackdrop: localStorage.getItem('pauseOverlayShowBackdrop') !== 'false',
 },
 
+    slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
+    dotPosterTransitionType: localStorage.getItem('dotPosterTransitionType') || 'scale',
+    enableSlideAnimations: localStorage.getItem('enableSlideAnimations') !== 'false',
+    enableDotPosterAnimations: localStorage.getItem('enableDotPosterAnimations') !== 'false',
+    slideAnimationDuration: parseInt(localStorage.getItem('slideAnimationDuration'), 10) || 800,
+    dotPosterAnimationDuration: parseInt(localStorage.getItem('dotPosterAnimationDuration'), 10) || 500,
+
     notificationsEnabled: localStorage.getItem('notificationsEnabled') !== 'false',
     useAlbumArtAsBackground: localStorage.getItem('useAlbumArtAsBackground') === 'true',
     buttonBackgroundBlur: (() => {
