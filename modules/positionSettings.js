@@ -413,7 +413,7 @@ export function createPositionEditor(config, labels, section) {
 
     section.appendChild(
       createSettingItem(
-        config.languageLabels.containerTop || 'Dikey Konum (%):',
+        config.languageLabels.containerTop ?? 'Dikey Konum (%):',
         'slideTop',
         'top',
         config.languageLabels.placeholderText
@@ -421,7 +421,7 @@ export function createPositionEditor(config, labels, section) {
     );
     section.appendChild(
       createSettingItem(
-        config.languageLabels.containerLeft || 'Yatay Konum (%):',
+        config.languageLabels.containerLeft ?? 'Yatay Konum (%):',
         'slideLeft',
         'left',
         config.languageLabels.placeholderText
@@ -429,7 +429,7 @@ export function createPositionEditor(config, labels, section) {
     );
     section.appendChild(
       createSettingItem(
-        config.languageLabels.containerWidth || 'Genişlik (%):',
+        config.languageLabels.containerWidth ?? 'Genişlik (%):',
         'slideWidth',
         'width',
         config.languageLabels.placeholderText
@@ -437,7 +437,7 @@ export function createPositionEditor(config, labels, section) {
     );
     section.appendChild(
       createSettingItem(
-        config.languageLabels.containerHeight || 'Yükseklik (%):',
+        config.languageLabels.containerHeight ?? 'Yükseklik (%):',
         'slideHeight',
         'height',
         config.languageLabels.placeholderText
