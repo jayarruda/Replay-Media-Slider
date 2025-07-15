@@ -115,6 +115,19 @@ async function createSlide(item) {
   slide.style.position = "absolute";
   slide.style.display = "none";
   slide.dataset.detailUrl = `/web/#/details?id=${itemId}`;
+  slide.dataset.itemId = itemId;
+  slide.dataset.played = (UserData?.PlaybackPositionTicks > 0) ? "true" : "false";
+  slide.dataset.played =
+  (typeof UserData?.PlaybackPositionTicks === "number" && UserData.PlaybackPositionTicks > 0)
+    ? "true"
+    : "false";
+
+if (typeof UserData?.PlaybackPositionTicks === "number") {
+  slide.dataset.playbackpositionticks = UserData.PlaybackPositionTicks;
+}
+if (typeof RunTimeTicks === "number") {
+  slide.dataset.runtimeticks = RunTimeTicks;
+}
 
   const selectedOverlayUrl = {
     backdropUrl: autoBackdropUrl,
