@@ -18,6 +18,11 @@
 
 ![full2](https://github.com/user-attachments/assets/1d368599-9b0f-45c1-86f7-1e8420edbf19)
 
+## Konumlandırma yapılmış normal görünüm / Normal view with proper positioning applied.
+
+<img width="1920" height="930" alt="Ekran Görüntüsü_20250715_154632" src="https://github.com/user-attachments/assets/375b36eb-06ed-4768-9865-66e76169da4b" />
+
+
 ## Ayarlar Sayfası / Settings Page
 
 ![settings](https://github.com/user-attachments/assets/e8228f2f-1a6e-4bef-89d1-202655fa1dc4)
