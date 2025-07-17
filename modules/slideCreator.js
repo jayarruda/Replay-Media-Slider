@@ -215,7 +215,7 @@ if (typeof RunTimeTicks === "number") {
     logoImg.alt = "";
     logoImg.loading = "lazy";
     Object.assign(logoImg.style, {
-      maxWidth: "100%", height: "auto", objectFit: "contain", aspectRatio: "initial", display: "block"
+      width: "100%", maxWidth: "90%", height: "100%%", maxHeight: "30%", objectFit: "contain", aspectRatio: "1", display: "block"
     });
     logoImg.onerror = fallback;
     return logoImg;
