@@ -142,46 +142,56 @@ export async function slidesInit() {
     } else {
       console.log("API fallback kullanılıyor.");
       const queryString = config.customQueryString;
+
+      const includeItemTypes = extractItemTypesFromQuery(queryString);
+const shouldBalanceTypes = hasAllTypes(includeItemTypes, ["Movie", "Series"]) ||
+                           hasAllTypes(includeItemTypes, ["Movie", "Series", "BoxSet"]);
+
       const shouldShuffle = !config.sortingKeywords?.some(k =>
         queryString.includes(k) ||
         queryString.includes("SortBy=") ||
         queryString.includes("SortOrder=")
       );
 
-      console.log(`Shuffle durumu: ${shouldShuffle ? 'AKTİF (maxShufflingLimit kadar çekip rastgele seçilecek)' : 'PASİF (direkt sıralı alınacak)'}`);
+      let playingItems = [];
+      const playingLimit = parseInt(config.playingLimit || 0, 10);
 
-  let playingItems = [];
-  const playingLimit = parseInt(config.playingLimit || 0, 10);
-
-  if (playingLimit > 0) {
-      try {
-          const res = await fetch(
-              `/Users/${userId}/Items/Resume?Limit=${playingLimit}`,
-              { headers: { Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"` }}
-          );
-          const data = await res.json();
-          playingItems = data.Items || [];
-
-        if (config.excludeEpisodesFromPlaying) {
-          playingItems = playingItems.filter(item => item.Type !== 'Episode');
+      if (playingLimit > 0) {
+  try {
+    const res = await fetch(
+      `/Users/${userId}/Items/Resume?Limit=${playingLimit * 2}`,
+      {
+        headers: {
+          Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
         }
-    } catch (err) {
-        console.error("İzlenen içerikler alınırken hata:", err);
+      }
+    );
+    const data = await res.json();
+    let fetchedItems = data.Items || [];
+
+    if (config.excludeEpisodesFromPlaying) {
+      playingItems = fetchedItems.filter(item => item.Type !== 'Episode').slice(0, playingLimit);
+    } else {
+      playingItems = fetchedItems.slice(0, playingLimit);
     }
+
+    console.log("Playing Items:", playingItems.map(item => ({
+      id: item.Id,
+      name: item.Name,
+      type: item.Type
+    })));
+  } catch (err) {
+    console.error("İzlenen içerikler alınırken hata:", err);
+  }
 }
 
       const maxShufflingLimit = parseInt(config.maxShufflingLimit || "10000", 10);
       const res = await fetch(
-  `/Users/${userId}/Items?${queryString}&Limit=${maxShufflingLimit}`,
-  {
-    headers: {
-      Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`
-    }
-  }
-);
-
-const data = await res.json();
-let allItems = data.Items || [];
+        `/Users/${userId}/Items?${queryString}&Limit=${maxShufflingLimit}`,
+        { headers: { Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"` }}
+      );
+      const data = await res.json();
+      let allItems = data.Items || [];
 
 if (queryString.includes("IncludeItemTypes=Season") || queryString.includes("IncludeItemTypes=Episode")) {
   console.log("Season/Episode modu aktif");
@@ -214,20 +224,62 @@ if (queryString.includes("IncludeItemTypes=Season") || queryString.includes("Inc
 
       let selectedItems = [];
 
-      if (shouldShuffle) {
-        console.log(`Karıştırma aktif: ${allItems.length} öğe arasından rastgele ${savedLimit} tanesi seçilecek`);
-        if (playingItems.length > 0) {
-          selectedItems = [...playingItems];
+      selectedItems = [...playingItems.slice(0, playingLimit)];
+      const remainingSlots = Math.max(0, savedLimit - selectedItems.length);
+
+      if (remainingSlots > 0) {
+        if (shouldBalanceTypes) {
+          console.log("Tür dengeleme aktif - Movie, Series ve BoxSet eşit dağıtılacak");
+
+          const itemsByType = {};
+          allItems.forEach(item => {
+            const type = item.Type;
+            if (!itemsByType[type]) itemsByType[type] = [];
+            itemsByType[type].push(item);
+          });
+
+          const types = Object.keys(itemsByType);
+          const itemsPerType = Math.floor(remainingSlots / types.length);
+
+          types.forEach(type => {
+            const itemsOfType = itemsByType[type] || [];
+            const shuffled = shouldShuffle ? shuffleArray(itemsOfType) : itemsOfType;
+            selectedItems.push(...shuffled.slice(0, itemsPerType));
+          });
+
+          const finalRemaining = savedLimit - selectedItems.length;
+          if (finalRemaining > 0) {
+            const allShuffled = shouldShuffle ? shuffleArray(allItems) : allItems;
+            selectedItems.push(...allShuffled.slice(0, finalRemaining));
+          }
         }
-        const remainingSlots = savedLimit - selectedItems.length;
-        if (remainingSlots > 0) {
+        else if (shouldShuffle) {
+          console.log(`Karıştırma aktif: ${allItems.length} öğe arasından rastgele ${remainingSlots} tanesi seçilecek`);
           const shuffled = shuffleArray(allItems);
-          const randomSelection = shuffled.slice(0, remainingSlots);
-          selectedItems.push(...randomSelection);
+          selectedItems.push(...shuffled.slice(0, remainingSlots));
         }
-      } else {
-        selectedItems = playingItems.concat(allItems).slice(0, savedLimit);
+        else {
+          selectedItems.push(...allItems.slice(0, remainingSlots));
+        }
       }
+
+      if (shouldShuffle) {
+        if (selectedItems.length > playingItems.length) {
+          const nonPlayingItems = selectedItems.slice(playingItems.length);
+          const shuffledNonPlaying = shuffleArray(nonPlayingItems);
+          selectedItems = [
+            ...selectedItems.slice(0, playingItems.length),
+            ...shuffledNonPlaying
+          ];
+        }
+      }
+
+      console.log("Selected Items:", selectedItems.map((item, index) => ({
+        id: item.Id,
+        name: item.Name,
+        type: item.Type,
+        isPlayingItem: index < playingItems.length
+      })));
 
       const detailed = await Promise.all(selectedItems.map(i => fetchItemDetails(i.Id)));
       items = detailed.filter(x => x);
@@ -427,5 +479,15 @@ const domCheckInterval = setInterval(() => {
         clearInterval(domCheckInterval);
     }
 }, 100);
+
+function extractItemTypesFromQuery(query) {
+  const match = query.match(/IncludeItemTypes=([^&]+)/i);
+  if (!match) return [];
+  return match[1].split(',').map(t => t.trim());
+}
+
+function hasAllTypes(targetTypes, requiredTypes) {
+  return requiredTypes.every(t => targetTypes.includes(t));
+}
 
 window.slidesInit = slidesInit;
