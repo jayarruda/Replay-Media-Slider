@@ -155,6 +155,15 @@ export async function createActorSlider(People, config, item) {
     }
   }
 
+  const allActors = (actualPeople || []).filter(p => p.Type === "Actor");
+  const actorsForSlide = allActors.slice(0, config.artistLimit || 9);
+
+  if (actorsForSlide.length === 0) {
+    const emptyDiv = document.createElement("div");
+    emptyDiv.style.display = "none";
+    return emptyDiv;
+  }
+
   const sliderWrapper = document.createElement("div");
   sliderWrapper.className = "slider-wrapper";
   applyContainerStyles(sliderWrapper, 'slider');
@@ -174,58 +183,52 @@ export async function createActorSlider(People, config, item) {
   sliderWrapper.appendChild(actorContainer);
   sliderWrapper.appendChild(rightArrow);
 
-  if (actualPeople) {
-    const allActors = actualPeople.filter(p => p.Type === "Actor");
-    const actorsForSlide = allActors.slice(0, config.artistLimit || 9);
+  actorsForSlide.forEach(actor => {
+    const actorDiv = document.createElement("div");
+    actorDiv.className = "actor-item";
 
-    actorsForSlide.forEach(actor => {
-      const actorDiv = document.createElement("div");
-      actorDiv.className = "actor-item";
+    const actorContent = document.createElement("div");
+    actorContent.className = "actor-content";
 
-      const actorContent = document.createElement("div");
-      actorContent.className = "actor-content";
+    const actorLink = document.createElement("a");
+    actorLink.href = `/web/#/details?id=${actor.Id}`;
+    actorLink.target = "_blank";
+    actorLink.style.textDecoration = "none";
 
-      const actorLink = document.createElement("a");
-      actorLink.href = `/web/#/details?id=${actor.Id}`;
-      actorLink.target = "_blank";
-      actorLink.style.textDecoration = "none";
-
-      if (config.showActorImg) {
-        const actorImg = document.createElement("img");
-        actorImg.className = "actor-image";
-        if (actor.PrimaryImageTag) {
-          actorImg.src = `/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
-          actorImg.alt = actor.Name;
-        } else {
-          actorImg.src = "slider/src/images/nofoto.png";
-          actorImg.alt = "No Image";
-        }
-        actorImg.onerror = () => {
-          actorImg.src = "slider/src/images/nofoto.png";
-        };
-        actorLink.appendChild(actorImg);
+    if (config.showActorImg) {
+      const actorImg = document.createElement("img");
+      actorImg.className = "actor-image";
+      if (actor.PrimaryImageTag) {
+        actorImg.src = `/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
+        actorImg.alt = actor.Name;
+      } else {
+        actorImg.src = "slider/src/images/nofoto.png";
+        actorImg.alt = "No Image";
       }
+      actorImg.onerror = () => {
+        actorImg.src = "slider/src/images/nofoto.png";
+      };
+      actorLink.appendChild(actorImg);
+    }
 
-      actorContent.appendChild(actorLink);
+    actorContent.appendChild(actorLink);
 
-      const roleSpan = document.createElement("span");
-      roleSpan.className = "actor-role";
-      roleSpan.textContent = config.showActorRole ? actor.Role || "" : "";
-      actorContent.appendChild(roleSpan);
+    const roleSpan = document.createElement("span");
+    roleSpan.className = "actor-role";
+    roleSpan.textContent = config.showActorRole ? actor.Role || "" : "";
+    actorContent.appendChild(roleSpan);
 
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "actor-name";
-      nameSpan.textContent = config.showActorInfo ? actor.Name || "" : "";
-      actorContent.appendChild(nameSpan);
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "actor-name";
+    nameSpan.textContent = config.showActorInfo ? actor.Name || "" : "";
+    actorContent.appendChild(nameSpan);
 
-      actorDiv.appendChild(actorContent);
-      actorContainer.appendChild(actorDiv);
-    });
-  }
+    actorDiv.appendChild(actorContent);
+    actorContainer.appendChild(actorDiv);
+  });
 
   return sliderWrapper;
 }
-
 
 export function createInfoContainer({ config, Genres, ProductionYear, ProductionLocations }) {
   const container = document.createElement("div");
