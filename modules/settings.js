@@ -55,6 +55,7 @@ export function createSettingsModal() {
     tabContent.className = 'settings-tab-content';
 
     const sliderTab = createTab('slider', labels.sliderSettings || 'Slider Ayarları', true);
+    const animationTab = createTab('animation', labels.animationSettings || 'Animasyon Ayarları', true);
     const musicTab = createTab('music', labels.gmmpSettings || 'GMMP Ayarları', true);
     const pauseTab = createTab('pause', labels.pauseSettings || 'Durdurma Ekranı', true);
     const positionTab = createTab('position', labels.positionSettings || 'Konumlardıma Ayarları', true);
@@ -72,13 +73,14 @@ export function createSettingsModal() {
     const aboutTab = createTab('about', labels.aboutHeader || 'Hakkında', true);
 
     tabContainer.append(
-        sliderTab, musicTab, pauseTab, positionTab,
+        sliderTab, animationTab, musicTab, pauseTab, positionTab,
         queryTab, statusRatingTab, actorTab, directorTab,
         languageTab, logoTitleTab, descriptionTab, providerTab,
         buttonsTab, infoTab, exporterTab, aboutTab
     );
 
     const sliderPanel = createSliderPanel(config, labels);
+    const animationPanel = createAnimationPanel(config, labels);
     const musicPanel = createMusicPanel(config, labels);
     const pausePanel = createPausePanel(config, labels);
     const positionPanel = createPositionPanel(config, labels);
@@ -96,7 +98,7 @@ export function createSettingsModal() {
     const aboutPanel = createAboutPanel(labels);
 
     [
-        sliderPanel, musicPanel, positionPanel, queryPanel, statusRatingPanel,
+        sliderPanel, animationPanel, musicPanel, positionPanel, queryPanel, statusRatingPanel,
         actorPanel, directorPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, exporterPanel, aboutPanel
@@ -106,21 +108,21 @@ export function createSettingsModal() {
     sliderPanel.style.display = 'block';
 
     tabContent.append(
-        sliderPanel, musicPanel, statusRatingPanel, actorPanel,
+        sliderPanel, animationPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, positionPanel, aboutPanel, exporterPanel
     );
 
     [
-        sliderTab, musicTab, queryTab, statusRatingTab,
+        sliderTab, animationTab, musicTab, queryTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
         descriptionTab, providerTab, buttonsTab, infoTab,
         positionTab, pauseTab, aboutTab, exporterTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
-                sliderTab, musicTab, queryTab, statusRatingTab,
+                sliderTab, animationTab, musicTab, queryTab, statusRatingTab,
                 actorTab, directorTab, languageTab, logoTitleTab,
                 descriptionTab, providerTab, buttonsTab, infoTab,
                 positionTab, pauseTab, aboutTab, exporterTab,
@@ -128,7 +130,7 @@ export function createSettingsModal() {
                 t.classList.remove('active');
             });
             [
-                sliderPanel, statusRatingPanel, actorPanel, directorPanel,
+                sliderPanel, animationPanel, statusRatingPanel, actorPanel, directorPanel,
                 musicPanel, queryPanel, languagePanel, logoTitlePanel,
                 descriptionPanel, providerPanel, buttonsPanel, infoPanel,
                 positionPanel, aboutPanel, exporterPanel, pausePanel
@@ -939,6 +941,19 @@ function createSliderPanel(config, labels) {
     dotopacityDiv.append(dotopacityLabel, dotopacityInput, dotopacityValue);
     sliderDiv.appendChild(dotopacityDiv);
 
+    panel.append(
+        languageDiv,
+        cssDiv,
+        sliderDiv,
+    );
+    return panel;
+}
+
+function createAnimationPanel(config, labels) {
+    const panel = document.createElement('div');
+    panel.id = 'animation-panel';
+    panel.className = 'settings-panel';
+
     const slideAnimDiv = document.createElement('div');
     slideAnimDiv.className = 'fsetting-item';
     const slideAnimLabel = document.createElement('label');
@@ -964,12 +979,19 @@ function createSliderPanel(config, labels) {
         { value: 'morph', label: labels.morphAnimation || 'Morph' },
         { value: 'cube', label: labels.cubeAnimation || '3D Küp' },
         { value: 'zoom', label: labels.zoomAnimation || 'Zoom Döngüsü' },
+        { value: 'slide', label: labels.slide || 'Düz Kaydırma' },
         { value: 'slide3d', label: labels.slide3dAnimation || '3D Kaydırma' },
+        { value: 'slideTop', label: labels.slideTop || 'Yukarıdan Kaydırma' },
+        { value: 'slideBottom', label: labels.slideBottom || 'Aşağıdan Kaydırma' },
         { value: 'diagonal', label: labels.diagonal || 'Çapraz Kaydırma' },
         { value: 'fadezoom', label: labels.fadezoom || 'Silinerek Yakınlaşma' },
-        { value: 'slide', label: labels.slide || 'Düz Kaydırma' },
         { value: 'parallax', label: labels.parallax || 'Paralaks'},
         { value: 'blur-fade', label: labels.blurfade || 'Bulanıklaşma'},
+        { value: 'rotateIn', label: labels.rotateIn || 'Dönerek Giriş'},
+        { value: 'flipInX', label: labels.flipInX || 'Çevirerek Giriş X'},
+        { value: 'flipInY', label: labels.flipInY || 'Çevirerek Giriş Y'},
+        { value: 'jelly', label: labels.jelly || 'Jöle'},
+        { value: 'eye', label: labels.eye || 'Göz'},
     ];
 
     slideTypes.forEach(type => {
@@ -1025,7 +1047,13 @@ function createSliderPanel(config, labels) {
         { value: 'float', label: labels.floatAnimation || 'Yüzdürme' },
         { value: 'pulse', label: labels.pulseAnimation || 'Nabız' },
         { value: 'tilt', label: labels.tiltAnimation || 'Eğilme' },
-        { value: 'shake', label: labels.shakeAnimation || 'Sallanma' },
+        { value: 'shake', label: labels.shakeAnimation || 'Titreme' },
+        { value: 'glow', label: labels.glow || 'Parıltı' },
+        { value: 'rubberBand', label: labels.rubberBand || 'Lastik' },
+        { value: 'swing', label: labels.swing || 'Sallanma' },
+        { value: 'flip', label: labels.flip || 'Çevir' },
+        { value: 'flash', label: labels.flash || 'flaş' },
+        { value: 'wobble', label: labels.wobble || 'Salla' },
     ];
 
     dotTypes.forEach(type => {
@@ -1054,9 +1082,6 @@ function createSliderPanel(config, labels) {
     dotDurationDiv.append(dotDurationLabel, dotDurationInput);
 
     panel.append(
-        languageDiv,
-        cssDiv,
-        sliderDiv,
         slideAnimDiv,
         slideTypeDiv,
         slideDurationDiv,
