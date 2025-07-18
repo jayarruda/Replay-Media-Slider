@@ -1,5 +1,5 @@
 import { getConfig } from "./config.js";
-import { getSessionInfo, makeApiRequest, getAuthHeader, playNow } from "./api.js";
+import { getSessionInfo, makeApiRequest, getAuthHeader, playNow, fetchItemDetails } from "./api.js";
 import { initSettings } from './settings.js';
 import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification, hideNotification } from './castModule.js';
 import { getProviderUrl, getYoutubeEmbedUrl } from './utils.js';
@@ -7,7 +7,7 @@ import { applyContainerStyles } from './positionUtils.js';
 
 const config = getConfig();
 
-export function createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal) {
+export function createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal, item) {
     const mainContainer = document.createElement('div');
     mainContainer.className = 'main-button-container';
     applyContainerStyles(mainContainer, 'button');
@@ -156,21 +156,40 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
     buttonContainer.appendChild(watchBtnContainer);
 }
 
+  if (config.showTrailerButton && RemoteTrailers?.length > 0) {
+  const trailer = RemoteTrailers[0];
 
-    if (config.showTrailerButton && RemoteTrailers && RemoteTrailers.length > 0) {
-        const trailer = RemoteTrailers[0];
-        const trailerBtnContainer = createButtonWithBackground(
-            "trailer",
-            '<i class="fa-solid fa-film fa-xl icon"></i>',
-            config.languageLabels.fragman,
-            (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                openTrailerModal(trailer.Url, trailer.Name);
-            }
-        );
-        buttonContainer.appendChild(trailerBtnContainer);
+  const trailerBtnContainer = createButtonWithBackground(
+    "trailer",
+    '<i class="fa-solid fa-film fa-xl icon"></i>',
+    config.languageLabels.fragman,
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      let isFav = false;
+      try {
+        const details = await fetchItemDetails(item.Id);
+        isFav = Boolean(details.UserData?.IsFavorite);
+      } catch (err) {
+        console.warn("Favori durumu alınamadı, varsayılan false ile açılıyor", err);
+      }
+      openTrailerModal(
+        trailer.Url,
+        trailer.Name,
+        item.Name || item.OriginalTitle,
+        item.Type,
+        isFav,
+        item.Id,
+        updateFavoriteStatus,
+        item.CommunityRating,
+        item.CriticRating,
+        item.OfficialRating
+      );
     }
+  );
+
+  buttonContainer.appendChild(trailerBtnContainer);
+}
 
     if (config.showPlayedButton) {
     const isPlayed = UserData && UserData.Played;
