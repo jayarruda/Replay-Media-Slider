@@ -215,7 +215,7 @@ if (typeof RunTimeTicks === "number") {
     logoImg.alt = "";
     logoImg.loading = "lazy";
     Object.assign(logoImg.style, {
-      width: "100%", maxWidth: "90%", height: "100%%", maxHeight: "30%", objectFit: "contain", aspectRatio: "1", display: "block"
+      width: "100%", maxWidth: "90%", height: "100%", maxHeight: "40%", objectFit: "contain", aspectRatio: "1", display: "block"
     });
     logoImg.onerror = fallback;
     return logoImg;
@@ -269,7 +269,7 @@ if (typeof RunTimeTicks === "number") {
 
   tryDisplayElement(0);
 
-  const buttonContainer = createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal);
+  const buttonContainer = createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal, item);
   document.body.appendChild(buttonContainer);
 
   const plotContainer = createPlotContainer(config, Overview, UserData, RunTimeTicks);
@@ -331,43 +331,270 @@ function addSlideToSettingsBackground(itemId, backdropUrl) {
   }
 }
 
-function openTrailerModal(trailerUrl, trailerName) {
+function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '', isFavorite = false, itemId = null, updateFavoriteCallback = null, CommunityRating = null, CriticRating = null, OfficialRating = null) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
   const overlay = document.createElement("div");
   overlay.className = "trailer-modal-overlay";
   overlay.style.opacity = "0";
-  overlay.style.transition = "opacity 1s ease-in-out";
+  overlay.style.transition = "opacity 0.3s ease-in-out";
+
   const modal = document.createElement("div");
   modal.className = "trailer-modal";
+  modal.style.maxWidth = "90vw";
+  modal.style.maxHeight = "90vh";
+  modal.style.width = "800px";
+
+  const modalHeader = document.createElement("div");
+  modalHeader.className = "trailer-modal-header";
+
+  const titleElement = document.createElement("h3");
+  const itemDisplayName = itemName ? itemName : 'Bilinmeyen İçerik';
+  titleElement.textContent = `${itemDisplayName} - ${config.languageLabels.fragman}`;
+
   const closeBtn = document.createElement("button");
   closeBtn.className = "trailer-modal-close";
-  closeBtn.innerHTML = "×";
-  closeBtn.addEventListener("click", () => {
-    document.body.removeChild(overlay);
-    document.removeEventListener("keydown", escListener);
-  });
+  closeBtn.innerHTML = "&times;";
+  closeBtn.style.cursor = "pointer";
+
+  modalHeader.append(titleElement, closeBtn);
+  const videoContainer = document.createElement("div");
+  videoContainer.className = "trailer-video-container";
+  videoContainer.style.paddingBottom = "56.25%";
+
+  const loadingSpinner = document.createElement("div");
+  loadingSpinner.className = "trailer-loading";
+  videoContainer.appendChild(loadingSpinner);
+
   const iframe = document.createElement("iframe");
-  iframe.src = embedUrl;
+  iframe.src = embedUrl + "?autoplay=1&rel=0";
   iframe.title = trailerName;
   iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
   iframe.allowFullscreen = true;
-  Object.assign(iframe.style, { width: "100%", height: "100%", border: "none" });
-  modal.appendChild(closeBtn);
-  modal.appendChild(iframe);
+  iframe.style.position = "absolute";
+  iframe.style.top = "0";
+  iframe.style.left = "0";
+  iframe.style.width = "100%";
+  iframe.style.height = "100%";
+  iframe.style.border = "none";
+
+  iframe.onload = () => {
+    loadingSpinner.style.display = "none";
+  };
+
+  videoContainer.appendChild(iframe);
+
+  const modalFooter = document.createElement("div");
+  modalFooter.className = "trailer-modal-footer";
+  modalFooter.style.display = "flex";
+  modalFooter.style.justifyContent = "space-between";
+  modalFooter.style.alignItems = "center";
+  modalFooter.style.width = "100%";
+  modalFooter.style.padding = "10px 20px";
+  modalFooter.style.boxSizing = "border-box";
+
+  const infoContainer = document.createElement("div");
+  infoContainer.style.display = "flex";
+  infoContainer.style.gap = "8px";
+
+  const itemTitleElement = document.createElement("div");
+  const contentType = itemType === 'Movie' ? config.languageLabels.film :
+                    itemType === 'Series' ? config.languageLabels.dizi :
+                    itemType === 'Episode' ? config.languageLabels.dizi :
+                    "İçerik: ";
+  itemTitleElement.textContent = `${contentType}: ${itemDisplayName}`;
+  itemTitleElement.style.fontWeight = "bold";
+  infoContainer.appendChild(itemTitleElement);
+
+  const ratingContainer = document.createElement("div");
+  ratingContainer.style.display = "flex";
+  ratingContainer.style.gap = "15px";
+  ratingContainer.style.alignItems = "center";
+
+  if (CommunityRating) {
+    let ratingValue = Array.isArray(CommunityRating)
+      ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
+      : Math.round(CommunityRating * 10) / 10;
+
+    const ratingPercentage = ratingValue * 9.5;
+
+    const communityRatingElement = document.createElement("div");
+    communityRatingElement.style.display = "flex";
+    communityRatingElement.style.alignItems = "center";
+    communityRatingElement.style.gap = "5px";
+
+    const starContainer = document.createElement("span");
+    starContainer.className = "star-rating";
+    starContainer.style.position = "relative";
+    starContainer.style.display = "inline-block";
+    starContainer.style.fontSize = "1em";
+    starContainer.style.color = "#ccc";
+
+    const emptyStar = document.createElement("i");
+    emptyStar.className = "fa-regular fa-star";
+
+    const filledStarWrapper = document.createElement("span");
+    filledStarWrapper.className = "star-filled";
+    filledStarWrapper.style.position = "absolute";
+    filledStarWrapper.style.bottom = "0";
+    filledStarWrapper.style.left = "0";
+    filledStarWrapper.style.width = "auto";
+    filledStarWrapper.style.color = "gold";
+    filledStarWrapper.style.overflow = "hidden";
+    filledStarWrapper.style.clipPath = `inset(${100 - ratingPercentage}% 0 0 0)`;
+
+    const filledStar = document.createElement("i");
+    filledStar.className = "fa-solid fa-star";
+    filledStar.style.display = "block";
+
+    filledStarWrapper.appendChild(filledStar);
+    starContainer.appendChild(emptyStar);
+    starContainer.appendChild(filledStarWrapper);
+
+    const ratingText = document.createElement("span");
+    ratingText.textContent = ratingValue;
+
+    communityRatingElement.appendChild(starContainer);
+    communityRatingElement.appendChild(ratingText);
+    ratingContainer.appendChild(communityRatingElement);
+  }
+
+  if (CriticRating) {
+    const criticRatingElement = document.createElement("div");
+    criticRatingElement.style.display = "flex";
+    criticRatingElement.style.alignItems = "center";
+    criticRatingElement.style.gap = "5px";
+
+    const tomatoIcon = document.createElement("i");
+    tomatoIcon.className = "fa-duotone fa-tomato";
+    tomatoIcon.style.setProperty("--fa-primary-color", "#01902e");
+    tomatoIcon.style.setProperty("--fa-secondary-color", "#f93208");
+    tomatoIcon.style.setProperty("--fa-secondary-opacity", "1");
+
+    const ratingValue = document.createElement("span");
+    ratingValue.textContent = `${CriticRating}%`;
+
+    criticRatingElement.appendChild(tomatoIcon);
+    criticRatingElement.appendChild(ratingValue);
+    ratingContainer.appendChild(criticRatingElement);
+}
+
+  if (OfficialRating) {
+    const officialRatingElement = document.createElement("div");
+    officialRatingElement.className = "official-rating";
+    officialRatingElement.textContent = OfficialRating;
+    officialRatingElement.style.padding = "2px 5px";
+    officialRatingElement.style.borderRadius = "3px";
+    officialRatingElement.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+    officialRatingElement.style.fontSize = "0.9em";
+    ratingContainer.appendChild(officialRatingElement);
+  }
+
+  if (itemId && updateFavoriteCallback) {
+    const favoriteContainer = document.createElement("div");
+    favoriteContainer.style.cursor = "pointer";
+
+    const initiallyFav = Boolean(isFavorite);
+    const favoriteIcon = document.createElement("i");
+    favoriteIcon.className = initiallyFav
+      ? "fa-solid fa-heart"
+      : "fa-regular fa-heart";
+    favoriteIcon.style.color = initiallyFav ? "#FFC107" : "#fff";
+
+    const favoriteText = document.createElement("span");
+    favoriteText.textContent = initiallyFav
+      ? config.languageLabels.favorilendi
+      : config.languageLabels.favori;
+
+    favoriteContainer.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!itemId || !updateFavoriteCallback) return;
+
+      const newFavoriteStatus = !favoriteIcon.classList.contains("fa-solid");
+      try {
+        await updateFavoriteCallback(itemId, newFavoriteStatus);
+        favoriteIcon.className = newFavoriteStatus
+          ? "fa-solid fa-heart"
+          : "fa-regular fa-heart";
+        favoriteIcon.style.color = newFavoriteStatus ? "#FFC107" : "#fff";
+        favoriteText.textContent = newFavoriteStatus
+          ? config.languageLabels.favorilendi
+          : config.languageLabels.favori;
+        favoriteIcon.style.transform = "scale(1.2)";
+        setTimeout(() => (favoriteIcon.style.transform = ""), 200);
+      } catch (err) {
+        console.error("Favori durumu güncellenirken hata:", err);
+      }
+    });
+
+    favoriteContainer.appendChild(favoriteIcon);
+    favoriteContainer.appendChild(favoriteText);
+    infoContainer.appendChild(favoriteContainer);
+  }
+
+  modalFooter.appendChild(infoContainer);
+  modalFooter.appendChild(ratingContainer);
+
+  modal.append(modalHeader, videoContainer, modalFooter);
   overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-  setTimeout(() => {
-    overlay.style.opacity = "1";
-  }, 1000);
-  const escListener = (e) => {
-    if (e.key === "Escape" || e.keyCode === 27) {
+
+  if (!document.getElementById('trailer-modal-styles')) {
+    const style = document.createElement('style');
+    style.id = 'trailer-modal-styles';
+    style.textContent = `
+      .trailer-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+        z-index: 10;
+      }
+      @keyframes spin {
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  const closeModal = () => {
+    overlay.style.opacity = "0";
+    setTimeout(() => {
       if (document.body.contains(overlay)) {
         document.body.removeChild(overlay);
       }
       document.removeEventListener("keydown", escListener);
+    }, 300);
+  };
+
+  closeBtn.addEventListener("click", closeModal);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      closeModal();
+    }
+  });
+
+  const escListener = (e) => {
+    if (e.key === "Escape" || e.keyCode === 27) {
+      closeModal();
     }
   };
+
   document.addEventListener("keydown", escListener);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    overlay.style.opacity = "1";
+  }, 10);
+
+  return {
+    close: closeModal,
+    getIframe: () => iframe
+  };
 }
 
 export { createSlide, openTrailerModal };
