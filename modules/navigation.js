@@ -9,9 +9,6 @@ import { styleElement, animationStyles, existingStyle, applySlideAnimation, appl
 
 const config = getConfig();
 
-let touchStartX = 0;
-let touchEndX = 0;
-const SWIPE_THRESHOLD = 50;
 let dotNavigationInitialized = false;
 
 export function changeSlide(direction) {
@@ -397,35 +394,40 @@ export function initSwipeEvents() {
   const slidesContainer = indexPage.querySelector("#slides-container");
   if (!slidesContainer) return;
 
-  slidesContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
-  slidesContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-  slidesContainer.addEventListener('touchend', handleTouchEnd, { passive: true });
-}
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchEndX = 0;
 
-function handleTouchStart(e) {
-  touchStartX = e.changedTouches[0].screenX;
-}
+  const handleTouchStart = (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+    e.stopImmediatePropagation?.();
+  };
 
-function handleTouchMove(e) {
-  if (Math.abs(e.changedTouches[0].screenX - touchStartX) >
-      Math.abs(e.changedTouches[0].screenY - touchStartY)) {
-    e.preventDefault();
-  }
-}
+  const handleTouchMove = (e) => {
+    const deltaX = Math.abs(e.changedTouches[0].screenX - touchStartX);
+    const deltaY = Math.abs(e.changedTouches[0].screenY - touchStartY);
 
-function handleTouchEnd(e) {
-  touchEndX = e.changedTouches[0].screenX;
-  handleSwipeGesture();
-}
-
-function handleSwipeGesture() {
-  const deltaX = touchEndX - touchStartX;
-
-  if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
-    if (deltaX > 0) {
-      changeSlide(-1);
-    } else {
-      changeSlide(1);
+    if (deltaX > deltaY) {
+      e.preventDefault();
     }
-  }
+
+    e.stopImmediatePropagation?.();
+  };
+
+  const handleTouchEnd = (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    const deltaX = touchEndX - touchStartX;
+
+    if (Math.abs(deltaX) > 50) {
+      changeSlide(deltaX > 0 ? -1 : 1);
+    }
+
+    e.stopImmediatePropagation?.();
+  };
+
+  slidesContainer.addEventListener("touchstart", handleTouchStart, { passive: false });
+  slidesContainer.addEventListener("touchmove", handleTouchMove, { passive: false });
+  slidesContainer.addEventListener("touchend", handleTouchEnd, { passive: true });
 }
+
