@@ -7,25 +7,36 @@
 
 ## Kompakt Görünüm / Compact View
 
-![1](https://github.com/user-attachments/assets/e18593d9-38fc-4ab1-9203-bf71d41d7145)
+![co](https://github.com/user-attachments/assets/afac00a0-68c7-4a7e-b551-f946ec4f1e7b)
 
-![kompak2](https://github.com/user-attachments/assets/54f145d0-8799-4fb2-abf5-b7394c358909)
 
 ## Tam Ekran / Full Screen
 
-![2](https://github.com/user-attachments/assets/0bb2aaa7-c495-4d8a-9ffd-c4ad7e818a54)
+![fsc](https://github.com/user-attachments/assets/e7ec8a4c-b82c-426c-ab76-8dd561b28845)
 
+## Normal görünüm / Normal view
 
-![full2](https://github.com/user-attachments/assets/1d368599-9b0f-45c1-86f7-1e8420edbf19)
+![ng](https://github.com/user-attachments/assets/80e7b0fb-6c8b-4076-ad33-4832bbf1e972)
+
 
 ## Konumlandırma yapılmış normal görünüm / Normal view with proper positioning applied.
 
-<img width="1920" height="930" alt="Ekran Görüntüsü_20250715_154632" src="https://github.com/user-attachments/assets/375b36eb-06ed-4768-9865-66e76169da4b" />
+![ngy](https://github.com/user-attachments/assets/294cc2a7-3c3c-423b-88ff-a18b79dc6f46)
+
+## Fragman / Trailer
+
+### Yerleşik Fragman / Embedded Trailer
+
+![yf](https://github.com/user-attachments/assets/c16c85b1-d14d-42a5-88c4-aa4de182795f)
+
+### Fragman Modalı (Buton) / Trailer Popup (Button)
+
+![fm](https://github.com/user-attachments/assets/2636496c-4f9b-4a39-8516-8580d39b05fe)
 
 
-## Ayarlar Sayfası / Settings Page
+## Ayarlar Modalı / Settings Popup
 
-![settings](https://github.com/user-attachments/assets/e8228f2f-1a6e-4bef-89d1-202655fa1dc4)
+![st](https://github.com/user-attachments/assets/080a819c-a1a4-4f10-81ec-fe0dcba885e1)
 
 
  </details>
