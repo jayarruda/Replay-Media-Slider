@@ -1,5 +1,5 @@
 import { getConfig } from "./config.js";
-import { applySettings, applyRawConfig } from "./settings.js";
+import { applySettings, applyRawConfig } from "./settings/applySettings.js";
 
 export function downloadConfigBackup() {
   const config = getConfig();

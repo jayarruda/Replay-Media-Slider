@@ -366,10 +366,11 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   videoContainer.appendChild(loadingSpinner);
 
   const iframe = document.createElement("iframe");
-  iframe.src = embedUrl + "?autoplay=1&rel=0";
+  iframe.src = embedUrl + "?autoplay=1&rel=0&fs=1&playsinline=1&modestbranding=1";
   iframe.title = trailerName;
-  iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+  iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
   iframe.allowFullscreen = true;
+  iframe.setAttribute("allowfullscreen", "");
   iframe.style.position = "absolute";
   iframe.style.top = "0";
   iframe.style.left = "0";

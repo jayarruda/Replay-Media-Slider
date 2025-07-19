@@ -13,6 +13,7 @@ export function getConfig() {
       }
     })(),
     showLanguageInfo: localStorage.getItem('showLanguageInfo') !== 'false',
+    balanceItemTypes: localStorage.getItem('balanceItemTypes') !== 'false',
     showRatingInfo: localStorage.getItem('showRatingInfo') !== 'false',
     showProviderInfo: localStorage.getItem('showProviderInfo') !== 'false',
     showDotNavigation: localStorage.getItem('showDotNavigation') !== 'false',
@@ -101,6 +102,7 @@ export function getConfig() {
     girisSure: parseInt(localStorage.getItem('girisSure'), 10) || 1000,
     homeSectionsTop: parseInt(localStorage.getItem('homeSectionsTop'), 10) || 0,
     dotPosterMode: localStorage.getItem('dotPosterMode') === 'true',
+    shuffleSeedLimit: parseInt(localStorage.getItem('shuffleSeedLimit'), 10) || 1000,
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,
