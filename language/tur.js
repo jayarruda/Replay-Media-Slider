@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  balanceItemTypes: "İçerik Türlerini Dengele (Movie/Series/BoxSet)",
+  balanceItemTypesDesc: "İşaretlenirse seçilen içerikler türlere (Movie, Series, BoxSet) göre eşit dağılmaya çalışır.",
+  shuffleSeedLimitDesc: "shuffleSeedLimit, aynı içeriklerin yeniden gösterilmesini önlemek amacıyla, karıştırma seçimleri sırasında kullanılan geçmiş belleğin maksimum uzunluğunu belirler. Bu limit aşıldığında karıştırma geçmişi otomatik olarak temizlenir. (Bu özellik sadece Anahtar Kelimeler listesindeki herhangi bir değerin, Api sorgu Parametresi içerisinde kullanılmıyorsa aktiftir. Yani eğer sıralı veya sabit içerik sorguları yapılıyorsa (örneğin: 'en çok izlenenler', 'yeni eklenenler'), bu filtre devre dışı kalır ve karıştırma geçmişi kullanılmaz ve İçerik Türlerini Dengele aktif ise filtre devre dışı kalır.",
+  shuffleSeedLimit: "shuffleSeedLimit (Tekrar Engelleme Limiti):",
   animationSettings: "Animasyon Ayarları",
   enableSlideAnimations: "Slayt Animasyonlarını Etkinleştir",
   slideTransitionType: "Slayt Geçiş Türü",
