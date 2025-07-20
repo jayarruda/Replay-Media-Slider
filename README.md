@@ -58,6 +58,15 @@ Flexible API integration enables advanced customization to meet specific needs.
 - ### Manual positioning for theme compatibility
 UI elements can be manually positioned to adapt seamlessly to any Jellyfin theme.
 
+- ### GMMP Music Player
+A comprehensive music playback plugin designed for rich and responsive audio experiences in Jellyfin.
+
+- ### Pause Screen
+Displays an informative overlay when content is paused, including media details and playback controls.
+
+- ### Avatar Generator
+A module that creates and applies user avatars automatically based on their usernames.
+
 - ### Advanced settings management
 A user-friendly settings panel makes it easy to configure all features.</summary>
 
@@ -74,6 +83,15 @@ Medya kitaplığındaki değişikliklere göre listeler otomatik olarak güncell
 
 - ### Her temayla uyumlu manuel konumlandırma
 Arayüz öğeleri, farklı temalara uyum sağlayacak şekilde manuel olarak konumlandırılabilir.
+
+- ### GMMP Müzik Oynatıcı
+Zengin ve duyarlı bir müzik deneyimi sunan kapsamlı bir Jellyfin müzik oynatma eklentisidir.
+
+- ### Duraklatma Ekranı
+İçerik duraklatıldığında, medya bilgileri ve oynatma kontrollerini içeren bir karşılama ekranı gösterilir.
+
+- ### Avatar Oluşturucu
+Kullanıcı adından otomatik olarak avatar oluşturan ve uygulayan bir modüldür.
 
 - ### Gelişmiş ayar yönetimi
 Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
