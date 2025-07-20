@@ -1,6 +1,7 @@
 import { getConfig } from "../config.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol, updateConfig } from "../settings.js";
+import { updateHeaderUserAvatar, updateAvatarStyles } from "../userAvatar.js";
 
 export function applySettings(reload = false) {
         const form = document.querySelector('#settings-modal form');
@@ -46,6 +47,15 @@ export function applySettings(reload = false) {
             dotBackgroundBlur: parseInt(formData.get('dotBackgroundBlur')),
             dotBackgroundOpacity: parseFloat(formData.get('dotBackgroundOpacity')),
             dotPosterMode: formData.get('dotPosterMode') === 'on',
+            createAvatar: formData.get('createAvatar') === 'on',
+            avatarWidth: parseInt(formData.get('avatarWidth'), 10),
+            avatarHeight: parseInt(formData.get('avatarHeight'), 10),
+            avatarFontSize: parseInt(formData.get('avatarFontSize'), 10),
+            avatarTextShadow: formData.get('avatarTextShadow'),
+            avatarColorMethod: formData.get('avatarColorMethod'),
+            avatarSolidColor: formData.get('avatarSolidColor'),
+            avatarGradient: formData.get('avatarGradient'),
+            avatarFontFamily: formData.get('avatarFontFamily') || 'Righteous',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -309,6 +319,7 @@ export function applySettings(reload = false) {
 
         updateConfig(updatedConfig);
         updateSlidePosition();
+        updateHeaderUserAvatar();
 
         const rawInput = formData.get('sortingKeywords')?.trim();
         if (!rawInput) {
@@ -318,6 +329,20 @@ export function applySettings(reload = false) {
         }
         if (oldTheme !== updatedConfig.playerTheme || oldPlayerStyle !== updatedConfig.playerStyle) {
         loadCSS();
+    }
+
+    if (config.createAvatar !== updatedConfig.createAvatar ||
+        config.avatarColorMethod !== updatedConfig.avatarColorMethod ||
+        config.avatarSolidColor !== updatedConfig.avatarSolidColor ||
+        config.avatarFontFamily !== updatedConfig.avatarFontFamily ||
+        config.avatarGradient !== updatedConfig.avatarGradient) {
+        updateHeaderUserAvatar();
+    } else {
+        updateAvatarStyles();
+    }
+
+    if (reload) {
+        location.reload();
     }
 
         if (reload) {

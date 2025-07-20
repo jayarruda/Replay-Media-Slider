@@ -13,6 +13,7 @@ import { createStatusRatingPanel, createActorPanel, createDirectorPanel, createI
 import { createQueryPanel } from './settings/apiPage.js';
 import { createPausePanel } from './settings/pausePage.js';
 import { createButtonsPanel } from './settings/buttonsPage.js';
+import { createAvatarPanel } from './settings/avatarPage.js';
 
 let settingsModal = null;
 
@@ -68,6 +69,7 @@ export function createSettingsModal() {
     const pauseTab = createTab('pause', labels.pauseSettings || 'Durdurma Ekranı', true);
     const positionTab = createTab('position', labels.positionSettings || 'Konumlardıma Ayarları', true);
     const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi', true);
+    const avatarTab = createTab('avatar', labels.avatarCreateInput || 'Avatar Ayarları', true);
     const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık', true);
     const statusRatingTab = createTab('status-rating', labels.statusRatingInfo || 'Durum ve Puan Bilgileri', true);
     const actorTab = createTab('actor', labels.actorInfo || 'Artist Bilgileri', true);
@@ -82,7 +84,7 @@ export function createSettingsModal() {
 
     tabContainer.append(
         sliderTab, animationTab, musicTab, pauseTab, positionTab,
-        queryTab, statusRatingTab, actorTab, directorTab,
+        queryTab, avatarTab, statusRatingTab, actorTab, directorTab,
         languageTab, logoTitleTab, descriptionTab, providerTab,
         buttonsTab, infoTab, exporterTab, aboutTab
     );
@@ -93,6 +95,7 @@ export function createSettingsModal() {
     const pausePanel = createPausePanel(config, labels);
     const positionPanel = createPositionPanel(config, labels);
     const queryPanel = createQueryPanel(config, labels);
+    const avatarPanel = createAvatarPanel(config, labels);
     const statusRatingPanel = createStatusRatingPanel(config, labels);
     const actorPanel = createActorPanel(config, labels);
     const directorPanel = createDirectorPanel(config, labels);
@@ -106,7 +109,8 @@ export function createSettingsModal() {
     const aboutPanel = createAboutPanel(labels);
 
     [
-        sliderPanel, animationPanel, musicPanel, positionPanel, queryPanel, statusRatingPanel,
+        sliderPanel, animationPanel, musicPanel, positionPanel, queryPanel,
+        avatarPanel, statusRatingPanel,
         actorPanel, directorPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, exporterPanel, aboutPanel
@@ -117,20 +121,21 @@ export function createSettingsModal() {
 
     tabContent.append(
         sliderPanel, animationPanel, musicPanel, statusRatingPanel, actorPanel,
-        directorPanel, queryPanel, languagePanel, logoTitlePanel,
+        directorPanel, queryPanel, avatarPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, positionPanel, aboutPanel, exporterPanel
     );
 
     [
-        sliderTab, animationTab, musicTab, queryTab, statusRatingTab,
+        sliderTab, animationTab, musicTab, queryTab,
+        avatarTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
         descriptionTab, providerTab, buttonsTab, infoTab,
         positionTab, pauseTab, aboutTab, exporterTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
-                sliderTab, animationTab, musicTab, queryTab, statusRatingTab,
+                sliderTab, animationTab, musicTab, queryTab, avatarTab, statusRatingTab,
                 actorTab, directorTab, languageTab, logoTitleTab,
                 descriptionTab, providerTab, buttonsTab, infoTab,
                 positionTab, pauseTab, aboutTab, exporterTab,
@@ -139,7 +144,7 @@ export function createSettingsModal() {
             });
             [
                 sliderPanel, animationPanel, statusRatingPanel, actorPanel, directorPanel,
-                musicPanel, queryPanel, languagePanel, logoTitlePanel,
+                musicPanel, queryPanel, avatarPanel, languagePanel, logoTitlePanel,
                 descriptionPanel, providerPanel, buttonsPanel, infoPanel,
                 positionPanel, aboutPanel, exporterPanel, pausePanel
             ].forEach(panel => {
@@ -352,6 +357,7 @@ function createQueryPage(config, labels) {
   return panel;
 }
 
+
 function createLanguagePanel(config, labels) {
     const panel = document.createElement('div');
     panel.id = 'language-panel';
@@ -367,6 +373,19 @@ function createLanguagePanel(config, labels) {
 
     panel.appendChild(section);
     return panel;
+}
+
+function createAvatarPage(config, labels) {
+  const panel = document.createElement('div');
+  panel.id = 'avatar-panel';
+  panel.className = 'avatar-panel';
+
+  const section = createSection();
+  const avatarPage = createAvatarPanel(config, labels);
+  avatarPage.render();
+
+  panel.appendChild(section);
+  return panel;
 }
 
 function createLogoTitlePage(config, labels) {
@@ -798,4 +817,81 @@ function setupMobileTextareaBehavior() {
 
 function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+export function createNumberInput(key, label, value, min = 0, max = 100) {
+    const container = document.createElement('div');
+    container.className = 'input-container';
+
+    const labelElement = document.createElement('label');
+    labelElement.textContent = label;
+    labelElement.htmlFor = key;
+    container.appendChild(labelElement);
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.id = key;
+    input.name = key;
+    input.value = value;
+    input.min = min;
+    input.max = max;
+    input.addEventListener('change', (e) => {
+        localStorage.setItem(key, e.target.value);
+    });
+    container.appendChild(input);
+
+    return container;
+}
+
+export function createTextInput(key, label, value) {
+    const container = document.createElement('div');
+    container.className = 'input-container';
+
+    const labelElement = document.createElement('label');
+    labelElement.textContent = label;
+    labelElement.htmlFor = key;
+    container.appendChild(labelElement);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = key;
+    input.name = key;
+    input.value = value;
+    input.addEventListener('change', (e) => {
+        localStorage.setItem(key, e.target.value);
+    });
+    container.appendChild(input);
+
+    return container;
+}
+
+export function createSelect(key, label, options, selectedValue) {
+    const container = document.createElement('div');
+    container.className = 'input-container';
+
+    const labelElement = document.createElement('label');
+    labelElement.textContent = label;
+    labelElement.htmlFor = key;
+    container.appendChild(labelElement);
+
+    const select = document.createElement('select');
+    select.id = key;
+    select.name = key;
+
+    options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.text;
+        if (option.value === selectedValue) {
+            optionElement.selected = true;
+        }
+        select.appendChild(optionElement);
+    });
+
+    select.addEventListener('change', (e) => {
+        localStorage.setItem(key, e.target.value);
+    });
+    container.appendChild(select);
+
+    return container;
 }
