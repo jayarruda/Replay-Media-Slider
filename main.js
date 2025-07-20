@@ -8,6 +8,7 @@ import { attachMouseEvents } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from './modules/positionOverrides.js';
 import { setupPauseScreen } from "./modules/pauseModul.js";
+import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
 
 let cleanupPauseOverlay = null;
 
@@ -30,6 +31,13 @@ const shuffleArray = array => {
 
 forceSkinHeaderPointerEvents();
 forceHomeSectionsTop();
+updateHeaderUserAvatar();
+
+document.addEventListener('DOMContentLoaded', () => {
+  const cleanupAvatarSystem = initAvatarSystem();
+
+  window.addEventListener('beforeunload', cleanupAvatarSystem);
+});
 
 function fullSliderReset() {
     forceSkinHeaderPointerEvents();
