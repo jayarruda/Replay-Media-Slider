@@ -334,24 +334,13 @@ export function displaySlide(index) {
   setTimeout(() => {
     currentSlide.classList.add("active");
     currentSlide.dispatchEvent(new CustomEvent("slideActive"));
-
     const directorContainer = currentSlide.querySelector(".director-container");
     if (directorContainer) {
-      directorContainer.style.transition = "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease";
-      directorContainer.style.transform = "scale(0.95)";
-      directorContainer.style.opacity = "0";
-      directorContainer.style.display = "none";
-
-      setTimeout(() => {
-        directorContainer.style.display = "flex";
-        setTimeout(() => {
-          directorContainer.style.transform = "scale(1)";
-          directorContainer.style.opacity = "1";
-        }, 50);
-        setTimeout(() => {
-          directorContainer.style.opacity = "0";
-        }, config.aktifSure);
-      }, config.girisSure);
+      showAndHideElementWithAnimation(directorContainer, {
+    girisSure: config.girisSure,
+    aktifSure: config.aktifSure,
+    transitionDuration: 600,
+      });
     }
   }, 50);
 
@@ -431,3 +420,31 @@ export function initSwipeEvents() {
   slidesContainer.addEventListener("touchend", handleTouchEnd, { passive: true });
 }
 
+export function showAndHideElementWithAnimation(el, config) {
+  const {
+    girisSure = 0,
+    aktifSure = 2000,
+    transitionDuration = 600,
+  } = config;
+
+  el.style.transition = "none";
+  el.style.opacity = "0";
+  el.style.transform = "scale(0.95)";
+  el.style.display = "none";
+
+  setTimeout(() => {
+    el.style.display = "flex";
+    requestAnimationFrame(() => {
+      el.style.transition = `opacity ${transitionDuration}ms ease, transform ${transitionDuration}ms ease`;
+      el.style.opacity = "1";
+      el.style.transform = "scale(1)";
+      setTimeout(() => {
+        el.style.opacity = "0";
+        el.style.transform = "scale(0.95)";
+        setTimeout(() => {
+          el.style.display = "none";
+        }, transitionDuration);
+      }, aktifSure);
+    });
+  }, girisSure);
+}
