@@ -65,7 +65,7 @@ A comprehensive music playback plugin designed for rich and responsive audio exp
 Displays an informative overlay when content is paused, including media details and playback controls.
 
 - ### Avatar Generator
-A module that creates and applies user avatars automatically based on their usernames.
+It is a module that automatically generates and applies avatars based on the username or with DiceBear support.
 
 - ### Advanced settings management
 A user-friendly settings panel makes it easy to configure all features.</summary>
@@ -91,7 +91,7 @@ Zengin ve duyarlı bir müzik deneyimi sunan kapsamlı bir Jellyfin müzik oynat
 İçerik duraklatıldığında, medya bilgileri ve oynatma kontrollerini içeren bir karşılama ekranı gösterilir.
 
 - ### Avatar Oluşturucu
-Kullanıcı adından otomatik olarak avatar oluşturan ve uygulayan bir modüldür.
+Kullanıcı adına göre veya DiceBear desteği ile otomatik olarak avatar üreten ve uygulayan bir modüldür.
 
 - ### Gelişmiş ayar yönetimi
 Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
