@@ -112,6 +112,13 @@ export function getConfig() {
     avatarSolidColor: localStorage.getItem('avatarSolidColor') || '#FF4081',
     avatarGradient: localStorage.getItem('avatarGradient') || 'linear-gradient(135deg, #FF9A9E 0%, #FAD0C4 100%)',
     avatarFontFamily: localStorage.getItem('avatarFontFamily') || 'Righteous',
+    avatarStyle: localStorage.getItem('avatarStyle') || 'initials',
+    dicebearStyle: localStorage.getItem('dicebearStyle') || 'initials',
+    dicebearBackgroundColor: localStorage.getItem('dicebearBackgroundColor') || 'transparent',
+    dicebearRadius: parseInt(localStorage.getItem('dicebearRadius'), 10) || 50,
+    avatarCacheDuration: parseInt(localStorage.getItem('avatarCacheDuration'), 10) || 1800000,
+    avatarScale: parseFloat(localStorage.getItem('avatarScale')) || 1,
+    dicebearBackgroundEnabled: localStorage.getItem('dicebearBackgroundEnabled') !== 'false',
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,
