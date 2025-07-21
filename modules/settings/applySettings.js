@@ -1,7 +1,7 @@
 import { getConfig } from "../config.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol, updateConfig } from "../settings.js";
-import { updateHeaderUserAvatar, updateAvatarStyles } from "../userAvatar.js";
+import { updateHeaderUserAvatar, updateAvatarStyles, clearAvatarCache } from "../userAvatar.js";
 
 export function applySettings(reload = false) {
         const form = document.querySelector('#settings-modal form');
@@ -56,6 +56,12 @@ export function applySettings(reload = false) {
             avatarSolidColor: formData.get('avatarSolidColor'),
             avatarGradient: formData.get('avatarGradient'),
             avatarFontFamily: formData.get('avatarFontFamily') || 'Righteous',
+            avatarStyle: formData.get('avatarStyle') || 'initials',
+            dicebearStyle: formData.get('dicebearStyle') || 'initials',
+            dicebearBackgroundColor: formData.get('dicebearBackgroundColor') || 'transparent',
+            dicebearRadius: parseInt(formData.get('dicebearRadius'), 10) || 50,
+            avatarScale: parseFloat(formData.get('avatarScale')) || 1,
+            dicebearBackgroundEnabled: formData.get('dicebearBackgroundEnabled') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -331,18 +337,28 @@ export function applySettings(reload = false) {
         loadCSS();
     }
 
-    if (config.createAvatar !== updatedConfig.createAvatar ||
+    if (reload) {
+        location.reload();
+    }
+
+    const avatarSettingsChanged =
+        config.createAvatar !== updatedConfig.createAvatar ||
+        config.avatarStyle !== updatedConfig.avatarStyle ||
+        config.dicebearStyle !== updatedConfig.dicebearStyle ||
+        config.dicebearBackgroundColor !== updatedConfig.dicebearBackgroundColor ||
+        config.dicebearRadius !== updatedConfig.dicebearRadius ||
+        config.avatarScale !== updatedConfig.avatarScale ||
         config.avatarColorMethod !== updatedConfig.avatarColorMethod ||
         config.avatarSolidColor !== updatedConfig.avatarSolidColor ||
         config.avatarFontFamily !== updatedConfig.avatarFontFamily ||
-        config.avatarGradient !== updatedConfig.avatarGradient) {
+        config.avatarGradient !== updatedConfig.avatarGradient;
+
+    if (avatarSettingsChanged) {
+        console.log("Avatar ayarları değişti, hemen güncelleniyor...");
+        clearAvatarCache();
         updateHeaderUserAvatar();
     } else {
         updateAvatarStyles();
-    }
-
-    if (reload) {
-        location.reload();
     }
 
         if (reload) {
