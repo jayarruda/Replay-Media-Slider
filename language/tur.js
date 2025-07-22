@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  dicebearPosition: "Avatarı Çerçeve Dışına Çıkar",
   dicebearBackgroundEnabled: "DiceBear Arka Planını Etkinleştir",
   avatarStyle: "Avatar Stili",
   adventurer: "Maceracı",

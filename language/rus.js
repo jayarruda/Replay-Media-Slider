@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  dicebearPosition: "Аватар Выходит за Пределы Рамки",
   dicebearBackgroundEnabled: "Включить фон DiceBear",
   avatarStyle: "Стиль Аватара",
   adventurer: "Авантюрист",

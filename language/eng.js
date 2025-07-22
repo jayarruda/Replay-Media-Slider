@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  dicebearPosition: "Avatar Extends Outside the Frame",
   dicebearBackgroundEnabled: "Enable DiceBear Background",
   avatarStyle: "Avatar Style",
   adventurer: "Adventurer",
