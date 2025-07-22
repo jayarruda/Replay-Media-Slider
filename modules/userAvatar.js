@@ -1,5 +1,6 @@
 import { makeApiRequest } from "./api.js";
 import { getServerAddress, getConfig } from "./config.js";
+import { addStyleSpecificParams } from "./dicebearSpecificParams.js";
 
 const config = getConfig();
 let customAvatarAdded = false;
@@ -9,7 +10,7 @@ let currentAvatarElement = null;
 const userCache = {
   data: null,
   timestamp: 0,
-  cacheDuration: config.avatarCacheDuration || 1800000
+  cacheDuration: config.avatarCacheDuration || 300000
 };
 
 const DICEBEAR_OPTIONS = {
@@ -50,11 +51,9 @@ const DICEBEAR_OPTIONS = {
 
 export async function updateHeaderUserAvatar() {
   try {
-    console.log("Avatar güncelleme başlatılıyor...");
 
     const config = getConfig?.();
     if (config && config.createAvatar === false) {
-      console.log("Avatar oluşturma devre dışı bırakıldı, temizlik yapılıyor...");
       cleanAvatars();
       return;
     }
@@ -76,7 +75,6 @@ export async function updateHeaderUserAvatar() {
 
     if (hasJellyfinAvatar(headerButton)) {
       if (customAvatarAdded) {
-        console.log("Jellyfin avatarı tespit edildi, özel avatar temizleniyor...");
         cleanAvatars();
         customAvatarAdded = false;
       }
@@ -85,12 +83,10 @@ export async function updateHeaderUserAvatar() {
 
     const existingCustomAvatar = headerButton.querySelector(".custom-user-avatar");
     if (existingCustomAvatar) {
-      console.log("Mevcut avatar güncelleniyor...");
       updateAvatarElement(existingCustomAvatar, user);
       return;
     }
 
-    console.log("Yeni avatar oluşturuluyor...");
     const avatarElement = await createAvatar(user);
     if (!avatarElement) {
       console.warn("Avatar oluşturulamadı!");
@@ -105,7 +101,6 @@ export async function updateHeaderUserAvatar() {
 
     applyAvatarStyles(avatarElement);
     setupAvatarProtection(headerButton, user);
-    console.log("Avatar başarıyla güncellendi!");
 
   } catch (err) {
     console.error("Avatar güncelleme hatası:", err);
@@ -115,7 +110,6 @@ export async function updateHeaderUserAvatar() {
 async function ensureUserData() {
   const now = Date.now();
   if (!userCache.data || now - userCache.timestamp > userCache.cacheDuration) {
-    console.log("Kullanıcı verileri yenileniyor...");
     userCache.data = await makeApiRequest("/Users/Me");
     userCache.timestamp = now;
   }
@@ -125,23 +119,18 @@ async function ensureUserData() {
 async function createAvatar(user) {
   const config = getConfig();
   const cacheKey = `avatar-${user.Id}-${config.avatarStyle}-${config.dicebearStyle || ''}`;
-
-  console.log(`Avatar önbellek anahtarı: ${cacheKey}`);
   const cached = sessionStorage.getItem(cacheKey);
   if (cached) {
-    console.log("Önbellekten avatar yükleniyor...");
     const div = document.createElement('div');
     div.innerHTML = cached;
     return div.firstChild;
   }
 
-  console.log("Yeni avatar oluşturuluyor...");
   const avatar = config.avatarStyle === 'dicebear' && config.dicebearStyle
     ? await createDicebearAvatar(user)
     : createInitialsAvatar(user);
 
   if (avatar) {
-    console.log("Avatar önbelleğe alınıyor...");
     sessionStorage.setItem(cacheKey, avatar.outerHTML);
   }
 
@@ -150,10 +139,9 @@ async function createAvatar(user) {
 
 async function createDicebearAvatar(user) {
   try {
-    console.log("DiceBear avatarı oluşturuluyor...");
     const config = getConfig();
     const style = config.dicebearStyle || 'initials';
-    const seed = encodeURIComponent(user.Name || user.Id);
+    const seed = encodeURIComponent(user.Name || user.Id + Date.now());
     const size = Math.max(config.avatarWidth, config.avatarHeight, 64);
     const scale = parseFloat(getConfig().avatarScale) || 1;
 
@@ -161,14 +149,15 @@ async function createDicebearAvatar(user) {
     params.append('seed', seed);
     params.append('size', size.toString());
 
+    addStyleSpecificParams(params, style);
+
     if (config.dicebearBackgroundEnabled && config.dicebearBackgroundColor && config.dicebearBackgroundColor !== 'transparent') {
       params.append('backgroundColor', config.dicebearBackgroundColor.replace('#', ''));
     }
 
-    params.append('radius', config.dicebearRadius || 50);
+    params.append('radius', (config.dicebearRadius || 50).toString());
 
     const url = `${DICEBEAR_OPTIONS.baseUrl}/${style}/svg?${params.toString()}`;
-    console.log(`DiceBear URL: ${url}`);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -187,8 +176,9 @@ async function createDicebearAvatar(user) {
     svgElement.setAttribute('width', `${config.avatarWidth}px`);
     svgElement.setAttribute('height', `${config.avatarHeight}px`);
     svgElement.style.transformOrigin = 'center';
-    svgElement.style.borderRadius = '50%';
+    svgElement.style.borderRadius = `${config.dicebearRadius || 50}%`;
     svgElement.style.transform = `scale(${scale})`;
+    svgElement.style.position = config.dicebearPosition ? 'fixed' : 'relative';
 
     if (config.dicebearBackgroundEnabled && config.dicebearBackgroundColor && config.dicebearBackgroundColor !== 'transparent') {
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -199,8 +189,6 @@ async function createDicebearAvatar(user) {
     } else {
       svgElement.style.backgroundColor = 'transparent';
     }
-
-    console.log("DiceBear avatarı başarıyla oluşturuldu");
     return svgElement;
   } catch (error) {
     console.error('DiceBear avatar oluşturma hatası, baş harflerle avatar oluşturuluyor:', error);
@@ -209,7 +197,6 @@ async function createDicebearAvatar(user) {
 }
 
 function createInitialsAvatar(user) {
-  console.log("Baş harflerle avatar oluşturuluyor...");
   const initials = getInitials(user.Name);
   const initialsDiv = document.createElement("div");
   initialsDiv.textContent = initials;
@@ -263,50 +250,64 @@ function applyAvatarStyles(element) {
   requestAnimationFrame(() => {
     element.style.opacity = '1';
     element.classList.add('loaded');
-    console.log("Avatar görsel efekti uygulandı");
+    const config = getConfig();
+    if (config.dicebearPosition && config.dicebearStyle !== 'initials') {
+  const headerButton = document.querySelector('button.headerButton.headerButtonRight.headerUserButton.paper-icon-button-light');
+  if (headerButton) {
+    headerButton.style.padding = '15px';
+  }
+}
   });
 }
 
 function updateAvatarElement(avatarElement, user) {
   const config = getConfig();
   if (config.avatarStyle === 'dicebear' && avatarElement.tagName === 'svg') {
-    const currentBg = avatarElement.querySelector('rect')?.getAttribute('fill') || 'transparent';
-    const newBg = config.dicebearBackgroundColor || 'transparent';
-
-    if (currentBg === newBg.replace('#', '')) {
-      console.log("Dicebear avatarı ve arkaplanı aynı, güncelleme atlanıyor.");
-      return;
-    }
-  }
-
-  if (config.avatarStyle === 'dicebear' && avatarElement.tagName === 'svg') {
-    console.log("Dicebear avatarı zaten mevcut, güncelleme atlanıyor.");
     return;
   }
 
   const newInitials = getInitials(user?.Name) || "?";
-  if (avatarElement.textContent === newInitials) {
-    console.log("Avatar zaten güncel, yeniden çizilmeye gerek yok.");
+  const currentColor = avatarElement.style.color || getAvatarColor(user.Id);
+  const newColor = getAvatarColor(user.Id);
+
+  if (avatarElement.textContent === newInitials &&
+      currentColor === newColor &&
+      avatarElement.style.width === `${config.avatarWidth}px` &&
+      avatarElement.style.height === `${config.avatarHeight}px` &&
+      avatarElement.style.fontSize === `${config.avatarFontSize}px` &&
+      avatarElement.style.fontFamily === config.avatarFontFamily &&
+      avatarElement.style.textShadow === config.avatarTextShadow) {
     return;
   }
 
-  console.log("Avatar elementi güncelleniyor...");
   avatarElement.textContent = newInitials;
 
   Object.assign(avatarElement.style, {
     width: `${config.avatarWidth}px`,
     height: `${config.avatarHeight}px`,
     fontSize: `${config.avatarFontSize}px`,
-    color: getAvatarColor(user.Id),
-    textShadow: config.avatarTextShadow
+    fontFamily: config.avatarFontFamily,
+    textShadow: config.avatarTextShadow,
+    color: newColor,
+    backgroundColor: config.avatarColorMethod === 'gradient' ? 'transparent' : '',
+    background: config.avatarColorMethod === 'gradient' ? newColor : ''
   });
+
+  if (config.avatarColorMethod === 'gradient') {
+    avatarElement.style.backgroundClip = 'text';
+    avatarElement.style.webkitBackgroundClip = 'text';
+    avatarElement.style.webkitTextFillColor = 'transparent';
+  } else {
+    avatarElement.style.backgroundClip = '';
+    avatarElement.style.webkitBackgroundClip = '';
+    avatarElement.style.webkitTextFillColor = '';
+  }
 
   applyAvatarStyles(avatarElement);
 }
 
 
 export function cleanAvatars(container = document) {
-  console.log("Eski avatarlar temizleniyor...");
   const elementsToRemove = container.querySelectorAll(`
     .material-icons.person,
     .user-avatar,
@@ -315,6 +316,12 @@ export function cleanAvatars(container = document) {
   `);
   elementsToRemove.forEach(el => el.remove());
   currentAvatarElement = null;
+
+  const headerButton = document.querySelector('button.headerButton.headerButtonRight.headerUserButton.paper-icon-button-light');
+  if (headerButton) {
+    headerButton.style.padding = '';
+  }
+
   if (customAvatarAdded && container instanceof HTMLElement) {
     container.style.backgroundImage = 'none';
   }
@@ -378,11 +385,9 @@ async function waitForElement(selector, attempts = 0) {
 }
 
 function setupAvatarProtection(headerButton, user) {
-  console.log("Avatar koruma sistemi başlatılıyor...");
 
   if (avatarObserver) {
     avatarObserver.disconnect();
-    console.log("Eski gözlemci kapatıldı");
   }
 
   avatarObserver = new MutationObserver((mutations) => {
@@ -390,7 +395,6 @@ function setupAvatarProtection(headerButton, user) {
     const materialIcon = headerButton.querySelector(".material-icons.person");
 
     if (!currentAvatar || materialIcon) {
-      console.log("Avatar değişikliği tespit edildi, yeniden oluşturuluyor...");
       avatarObserver.disconnect();
       updateHeaderUserAvatar();
     }
@@ -400,8 +404,6 @@ function setupAvatarProtection(headerButton, user) {
     childList: true,
     subtree: true
   });
-
-  console.log("Avatar gözlemcisi aktif edildi");
 }
 
 function getDynamicColor(userId) {
@@ -442,7 +444,6 @@ function getRandomColor(userId) {
 }
 
 export function initAvatarSystem() {
-  console.log("Avatar sistemi başlatılıyor...");
 
   const style = document.createElement('style');
   style.textContent = `
@@ -466,7 +467,6 @@ export function initAvatarSystem() {
   const applyButton = document.getElementById('applyDicebearAvatar');
   if (applyButton) {
     applyButton.addEventListener('click', async () => {
-      console.log("DiceBear avatar manuel olarak güncelleniyor...");
       clearAvatarCache();
       await updateHeaderUserAvatar();
     });
@@ -486,8 +486,6 @@ export function initAvatarSystem() {
 
 tryOnce();
 
-
-  console.log("Avatar sistemi başarıyla başlatıldı");
   return () => {
     clearInterval(intervalId);
     if (avatarObserver) {
@@ -497,7 +495,6 @@ tryOnce();
 }
 
 export function updateAvatarStyles() {
-  console.log("Avatar stilleri güncelleniyor...");
   const config = getConfig();
   const avatars = document.querySelectorAll('.custom-user-avatar');
 
@@ -519,7 +516,6 @@ export function updateAvatarStyles() {
 }
 
 export function clearAvatarCache() {
-  console.log("Avatar önbelleği temizleniyor...");
   userCache.data = null;
   userCache.timestamp = 0;
   Object.keys(sessionStorage).forEach(key => {
@@ -527,6 +523,4 @@ export function clearAvatarCache() {
       sessionStorage.removeItem(key);
     }
   });
-
-  console.log("Avatar önbelleği başarıyla temizlendi");
 }
