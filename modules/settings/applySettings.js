@@ -62,6 +62,7 @@ export function applySettings(reload = false) {
             dicebearRadius: parseInt(formData.get('dicebearRadius'), 10) || 50,
             avatarScale: parseFloat(formData.get('avatarScale')) || 1,
             dicebearBackgroundEnabled: formData.get('dicebearBackgroundEnabled') === 'on',
+            dicebearPosition: formData.get('dicebearPosition') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
