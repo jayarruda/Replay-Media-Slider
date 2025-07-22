@@ -64,6 +64,25 @@ export function createAvatarPanel(config, labels) {
     dicebearStyleSelect.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
     section.appendChild(dicebearStyleSelect);
 
+    const dicebearPositionCheckbox = createCheckbox('dicebearPosition', labels.dicebearPosition || 'Avatar Dışa Çıkar', config.dicebearPosition);
+    section.appendChild(dicebearPositionCheckbox);
+
+    const dicebearBgCheckbox = createCheckbox(
+    'dicebearBackgroundEnabled',
+    labels.dicebearBackgroundEnabled || 'Dicebear Arkaplanı Etkinleştir',
+    config.dicebearBackgroundEnabled !== false
+  );
+    dicebearBgCheckbox.style.display = config.avatarStyle === 'dicebear' ? 'flex' : 'none';
+    section.appendChild(dicebearBgCheckbox);
+
+    const dicebearBgColor = createColorInput(
+    'dicebearBackgroundColor',
+    labels.dicebearBackgroundColor || 'Dicebear Arkaplan Rengi',
+    config.dicebearBackgroundColor || '#FF4081'
+  );
+    dicebearBgColor.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
+    section.appendChild(dicebearBgColor);
+
     const applyDicebearBtn = document.createElement('button');
     applyDicebearBtn.type = 'button';
     applyDicebearBtn.id = 'applyDicebearAvatar';
@@ -72,10 +91,15 @@ export function createAvatarPanel(config, labels) {
     applyDicebearBtn.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
 
     applyDicebearBtn.addEventListener('click', async () => {
-    clearAvatarCache();
-    cleanAvatars(document.querySelector('button.headerUserButton'));
-    await updateHeaderUserAvatar();
-    });
+  clearAvatarCache();
+  Object.keys(sessionStorage).forEach(key => {
+    if (key.startsWith('avatar-') && key.includes('dicebear')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+  cleanAvatars(document.querySelector('button.headerUserButton'));
+  await updateHeaderUserAvatar();
+});
 
     section.appendChild(applyDicebearBtn);
 
@@ -113,22 +137,6 @@ export function createAvatarPanel(config, labels) {
 
     scaleSection.append(scaleLabel, scaleInput, scaleValue);
     section.appendChild(scaleSection);
-
-    const dicebearBgCheckbox = createCheckbox(
-    'dicebearBackgroundEnabled',
-    labels.dicebearBackgroundEnabled || 'Dicebear Arkaplanı Etkinleştir',
-    config.dicebearBackgroundEnabled !== false
-  );
-    dicebearBgCheckbox.style.display = config.avatarStyle === 'dicebear' ? 'flex' : 'none';
-    section.appendChild(dicebearBgCheckbox);
-
-    const dicebearBgColor = createColorInput(
-    'dicebearBackgroundColor',
-    labels.dicebearBackgroundColor || 'Dicebear Arkaplan Rengi',
-    config.dicebearBackgroundColor || '#FF4081'
-  );
-    dicebearBgColor.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
-    section.appendChild(dicebearBgColor);
 
     const dicebearRadius = createNumberInput(
     'dicebearRadius',
@@ -238,6 +246,7 @@ export function createAvatarPanel(config, labels) {
     dicebearRadius.style.display = isDicebear ? 'block' : 'none';
     colorMethodSelect.style.display = isDicebear ? 'none' : 'block';
     applyDicebearBtn.style.display = isDicebear ? 'block' : 'none';
+    dicebearPositionCheckbox.style.display = isDicebear ? 'block' : 'none';
     clearAvatarCache();
     applySettings(false);
   });
@@ -245,7 +254,7 @@ export function createAvatarPanel(config, labels) {
     const cacheClearingInputs = [
     dicebearStyleSelect, dicebearBgColor, dicebearBgCheckbox, dicebearRadius,
     solidColorInput, gradientSelect, fontFamilySelect,
-    widthInput, heightInput, fontSizeInput, textShadowInput
+    widthInput, heightInput, fontSizeInput, textShadowInput, dicebearPositionCheckbox
   ];
 
   cacheClearingInputs.forEach(input => {
