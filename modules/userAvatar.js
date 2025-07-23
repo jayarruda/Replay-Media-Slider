@@ -1,3 +1,8 @@
+/**
+ * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
+ * and without obtaining permission is considered unethical and is not permitted.
+ */
+
 import { makeApiRequest } from "./api.js";
 import { getServerAddress, getConfig } from "./config.js";
 import { addStyleSpecificParams } from "./dicebearSpecificParams.js";
@@ -6,6 +11,8 @@ const config = getConfig();
 let customAvatarAdded = false;
 let avatarObserver = null;
 let currentAvatarElement = null;
+let avatarRotationInterval = null;
+const AVATAR_ROTATION_INTERVAL = 10000;
 
 const userCache = {
   data: null,
@@ -51,7 +58,6 @@ const DICEBEAR_OPTIONS = {
 
 export async function updateHeaderUserAvatar() {
   try {
-
     const config = getConfig?.();
     if (config && config.createAvatar === false) {
       cleanAvatars();
@@ -63,15 +69,7 @@ export async function updateHeaderUserAvatar() {
       ensureUserData()
     ]);
 
-    if (!headerButton) {
-      console.warn("Kullanıcı butonu bulunamadı!");
-      return;
-    }
-
-    if (!user) {
-      console.warn("Kullanıcı bilgileri alınamadı!");
-      return;
-    }
+    if (!headerButton || !user) return;
 
     if (hasJellyfinAvatar(headerButton)) {
       if (customAvatarAdded) {
@@ -81,17 +79,8 @@ export async function updateHeaderUserAvatar() {
       return;
     }
 
-    const existingCustomAvatar = headerButton.querySelector(".custom-user-avatar");
-    if (existingCustomAvatar) {
-      updateAvatarElement(existingCustomAvatar, user);
-      return;
-    }
-
     const avatarElement = await createAvatar(user);
-    if (!avatarElement) {
-      console.warn("Avatar oluşturulamadı!");
-      return;
-    }
+    if (!avatarElement) return;
 
     cleanAvatars(headerButton);
     avatarElement.classList.add("custom-user-avatar");
@@ -101,7 +90,6 @@ export async function updateHeaderUserAvatar() {
 
     applyAvatarStyles(avatarElement);
     setupAvatarProtection(headerButton, user);
-
   } catch (err) {
     console.error("Avatar güncelleme hatası:", err);
   }
@@ -251,12 +239,12 @@ function applyAvatarStyles(element) {
     element.style.opacity = '1';
     element.classList.add('loaded');
     const config = getConfig();
-    if (config.dicebearPosition && config.dicebearStyle !== 'initials') {
-  const headerButton = document.querySelector('button.headerButton.headerButtonRight.headerUserButton.paper-icon-button-light');
-  if (headerButton) {
-    headerButton.style.padding = '15px';
-  }
-}
+    if (config.dicebearPosition && config.avatarStyle !== 'initials') {
+    const headerButton = document.querySelector('button.headerButton.headerButtonRight.headerUserButton.paper-icon-button-light');
+    if (headerButton) {
+    headerButton.style.padding = '15px 30px';
+      }
+    }
   });
 }
 
@@ -444,7 +432,6 @@ function getRandomColor(userId) {
 }
 
 export function initAvatarSystem() {
-
   const style = document.createElement('style');
   style.textContent = `
     .custom-user-avatar {
@@ -461,9 +448,18 @@ export function initAvatarSystem() {
     }
   `;
   document.head.appendChild(style);
+
+  const config = getConfig();
+
+  if (config.autoRefreshAvatar) {
+    const refreshTimeMs = (config.avatarRefreshTime ?? 1) * 60000;
+    startAvatarRotation(refreshTimeMs);
+  }
+
   updateHeaderUserAvatar();
   let retryCount = 0;
   const maxRetries = 5;
+
   const applyButton = document.getElementById('applyDicebearAvatar');
   if (applyButton) {
     applyButton.addEventListener('click', async () => {
@@ -471,23 +467,24 @@ export function initAvatarSystem() {
       await updateHeaderUserAvatar();
     });
   }
-  const tryOnce = async () => {
-  try {
-    await updateHeaderUserAvatar();
-  } catch (err) {
-    retryCount++;
-    if (retryCount < maxRetries) {
-      setTimeout(tryOnce, 1000);
-    } else {
-      console.error("Avatar güncellenemedi, maksimum deneme sayısına ulaşıldı.");
-    }
-  }
-};
 
-tryOnce();
+  const tryOnce = async () => {
+    try {
+      await updateHeaderUserAvatar();
+    } catch (err) {
+      retryCount++;
+      if (retryCount < maxRetries) {
+        setTimeout(tryOnce, 1000);
+      } else {
+        console.error("Avatar güncellenemedi, maksimum deneme sayısına ulaşıldı.");
+      }
+    }
+  };
+
+  tryOnce();
 
   return () => {
-    clearInterval(intervalId);
+    stopAvatarRotation();
     if (avatarObserver) {
       avatarObserver.disconnect();
     }
@@ -519,8 +516,30 @@ export function clearAvatarCache() {
   userCache.data = null;
   userCache.timestamp = 0;
   Object.keys(sessionStorage).forEach(key => {
-    if (key.startsWith('avatar-') && key.includes('dicebear')) {
+    if (key.startsWith('avatar-')) {
       sessionStorage.removeItem(key);
     }
   });
+}
+
+function startAvatarRotation(interval = 60000) {
+  if (avatarRotationInterval) {
+    clearInterval(avatarRotationInterval);
+  }
+
+  avatarRotationInterval = setInterval(async () => {
+    try {
+      clearAvatarCache();
+      await updateHeaderUserAvatar();
+    } catch (error) {
+      console.error('Otomatik avatar rotasyonu hatası:', error);
+    }
+  }, interval);
+}
+
+function stopAvatarRotation() {
+  if (avatarRotationInterval) {
+    clearInterval(avatarRotationInterval);
+    avatarRotationInterval = null;
+  }
 }
