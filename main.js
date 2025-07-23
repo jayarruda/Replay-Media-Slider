@@ -10,6 +10,7 @@ import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from './modules/po
 import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
 
+
 let cleanupPauseOverlay = null;
 
 function setupPauseScreenIfNeeded() {
@@ -549,3 +550,5 @@ function hasAllTypes(targetTypes, requiredTypes) {
 }
 
 window.slidesInit = slidesInit;
+const cleanupAvatarSystem = initAvatarSystem();
+window.cleanupAvatarSystem = cleanupAvatarSystem;
