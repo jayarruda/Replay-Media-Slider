@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  autoRefreshAvatar: "Avatarı Otomatik Değiştir",
+  avatarRefreshTime: "Değişim Süresi (dakika)",
   dicebearPosition: "Avatarı Çerçeve Dışına Çıkar",
   dicebearBackgroundEnabled: "DiceBear Arka Planını Etkinleştir",
   avatarStyle: "Avatar Stili",

@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  autoRefreshAvatar: "Automatically Change Avatar",
+  avatarRefreshTime: "Change Interval (minutes)",
   dicebearPosition: "Avatar Extends Outside the Frame",
   dicebearBackgroundEnabled: "Enable DiceBear Background",
   avatarStyle: "Avatar Style",

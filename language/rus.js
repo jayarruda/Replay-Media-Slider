@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  autoRefreshAvatar: "Автоматически менять аватар",
+  avatarRefreshTime: "Интервал смены (в минутах)",
   dicebearPosition: "Аватар Выходит за Пределы Рамки",
   dicebearBackgroundEnabled: "Включить фон DiceBear",
   avatarStyle: "Стиль Аватара",
