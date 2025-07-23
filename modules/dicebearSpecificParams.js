@@ -1,3 +1,8 @@
+/**
+ * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
+ * and without obtaining permission is considered unethical and is not permitted.
+ */
+
 export function addStyleSpecificParams(params, style) {
   const randomBoolean = () => Math.random() > 0.5;
   const randomOption = (options) => options[Math.floor(Math.random() * options.length)];
@@ -286,7 +291,7 @@ export function addStyleSpecificParams(params, style) {
 
       params.append('eyebrowsColor', randomOption(['0e0e0e', '3eac2c', '6a4e35', '85c2c6', '796a45', '562306', '592454', 'ab2a18', 'ac6511', 'afafaf', 'b9a05f', 'cb6820', 'dba3be', 'e5d7a3']));
 
-      params.append('eyesColor', randomOption(['091acd', 'e4e42b', '12bb1e', '53ecb8', 'e30952', 'a86524']));
+      params.append('eyesColor', randomOption(['000000']));
 
       params.append('freckles', randomOption(['variant01']));
 
