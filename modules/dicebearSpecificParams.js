@@ -9,6 +9,8 @@ export function addStyleSpecificParams(params, style) {
 
   switch(style) {
     case 'adventurer':
+      params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
       params.append('earrings', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06']));
 
       params.append('earringsProbability', randomOption(['0', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100']));
@@ -19,11 +21,11 @@ export function addStyleSpecificParams(params, style) {
 
       params.append('hair', randomOption(['long01', 'long02', 'long03', 'long04', 'long05', 'long06', 'long07', 'long08', 'long09', 'long10', 'long11', 'long12', 'long13', 'long14', 'long15', 'long17', 'long18', 'long19', 'long20', 'long21', 'long22', 'long23', 'long24', 'long25', 'long26', 'short01', 'short02', 'short03', 'short04', 'short05', 'short06', 'short07', 'short08', 'short09', 'short10', 'short11', 'short12', 'short13', 'short14', 'short15', 'short16', 'short17', 'short18', 'short19']));
 
-      params.append('hairColor', randomOption(['2c1b18', '4a312c', '724133', 'a55728', 'b58143', 'c93305', 'd6b370', 'e8e1e1', 'ecdcbf', 'f59797']));
+      params.append('hairColor', randomOption(['0e0e0e', '3eac2c', '6a4e35', '85c2c6', '796a45', '562306', '592454', 'ab2a18', 'ac6511', 'afafaf', 'b9a05f', 'cb6820', 'dba3be', 'e5d7a3']));
 
       params.append('hairProbability', randomOption(['0', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100']));
 
-      params.append('skinColor', randomOption(['0e0e0e', '1c274f', '2d2366', '3e1f47', '0b5e65', '1b4332', '0c4b33', '5c1a1b', '6e2b0e', '7b4a11', '5d5d5d', 'a25512', 'a7643b', 'aa9499', 'b48a65', 'd1c7a3']));
+      params.append('skinColor', randomOption(['9e5622', '763900', 'ecad80', 'f2d3b1']));
 
       params.append('mouth', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06', 'variant07', 'variant08', 'variant09', 'variant10', 'variant11', 'variant12', 'variant13', 'variant14', 'variant15', 'variant16', 'variant17', 'variant18', 'variant19', 'variant20', 'variant21', 'variant22', 'variant23', 'variant24', 'variant25', 'variant26', 'variant27', 'variant28', 'variant29', 'variant30']));
 
@@ -41,6 +43,8 @@ export function addStyleSpecificParams(params, style) {
 
 
     case 'adventurer-neutral':
+      params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
       params.append('eyebrows', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06', 'variant07', 'variant08', 'variant09', 'variant10', 'variant11', 'variant12', 'variant13', 'variant14', 'variant15']));
 
       params.append('eyes', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06', 'variant07', 'variant08', 'variant09', 'variant10', 'variant11', 'variant12', 'variant13', 'variant14', 'variant15', 'variant16', 'variant17', 'variant18', 'variant19', 'variant20', 'variant21', 'variant22', 'variant23', 'variant24', 'variant25', 'variant26']));
@@ -53,17 +57,19 @@ export function addStyleSpecificParams(params, style) {
       break;
 
     case 'avataaars':
+      params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
       params.append('accessories', randomOption(['eyepatch', 'kurt', 'prescription01', 'prescription02', 'round', 'sunglasses', 'wayfarers']));
 
-      params.append('accessoriesColor', randomOption(['0e0e0e', '1c274f', '2d2366', '3e1f47', '0b5e65', '1b4332', '0c4b33', '5c1a1b', '6e2b0e', '7b4a11', '5d5d5d', 'a25512', 'a7643b', 'aa9499', 'b48a65', 'd1c7a3']));
+      params.append('accessoriesColor', randomOption(['3c4f5c', '65c9ff', '262e33', '5199e4', '25557c', '929598', 'a7ffc4', 'b1e2ff', 'e6e6e6', 'ff5c5c', 'ff488e', 'ffafb9', 'ffdeb5', 'ffffb1', 'ffffff']));
 
       params.append('accessoriesProbability', randomOption(['0', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100']));
 
-      params.append('clothesColor', randomOption(['0e0e0e', '1c274f', '2d2366', '3e1f47', '0b5e65', '1b4332', '0c4b33', '5c1a1b', '6e2b0e', '7b4a11', '5d5d5d', 'a25512', 'a7643b', 'aa9499', 'b48a65', 'd1c7a3']));
+      params.append('clothesColor', randomOption(['3c4f5c', '65c9ff', '262e33', '5199e4', '25557c', '929598', 'a7ffc4', 'b1e2ff', 'e6e6e6', 'ff5c5c', 'ff488e', 'ffafb9', 'ffffb1', 'ffffff']));
 
       params.append('clothing', randomOption(['blazerAndShirt', 'blazerAndSweater', 'collarAndSweater', 'graphicShirt', 'hoodie', 'overall', 'shirtCrewNeck', 'shirtScoopNeck', 'shirtVNeck']));
 
-      params.append('clothingGraphic', randomOption(['bat', 'bear', 'collarAndSweater', 'cumbia', 'deer', 'diamond', 'hola', 'pizza', 'resist', 'skull', 'skullOutline']));
+      params.append('clothingGraphic', randomOption(['bat', 'bear', 'cumbia', 'deer', 'diamond', 'hola', 'pizza', 'resist', 'skull', 'skullOutline']));
 
       params.append('eyebrows', randomOption(['angry', 'angryNatural', 'default', 'defaultNatural', 'flatNatural', 'frownNatural', 'raisedExcited', 'raisedExcitedNatural', 'sadConcerned', 'sadConcernedNatural', 'unibrowNatural', 'upDown', 'upDownNatural']));
 
@@ -71,17 +77,17 @@ export function addStyleSpecificParams(params, style) {
 
       params.append('facialHair', randomOption(['beardLight', 'beardMajestic', 'beardMedium', 'moustacheFancy', 'moustacheMagnum']));
 
-      params.append('facialHairColor', randomOption(['0e0e0e', '1c274f', '2d2366', '3e1f47', '0b5e65', '1b4332', '0c4b33', '5c1a1b', '6e2b0e', '7b4a11', '5d5d5d', 'a25512', 'a7643b', 'aa9499', 'b48a65', 'd1c7a3']));
+      params.append('facialHairColor', randomOption(['2c1b18', '4a312c', '724133', 'a55728', 'b58143', 'c93305', 'd6b370', 'e8e1e1', 'ecdcbf', 'f59797']));
 
       params.append('facialHairProbability', randomOption(['0', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100']));
 
       params.append('hairColor', randomOption(['2c1b18', '4a312c', '724133', 'a55728', 'b58143', 'c93305', 'd6b370', 'e8e1e1', 'ecdcbf', 'f59797']));
 
-      params.append('hatColor', randomOption(['0e0e0e', '1c274f', '2d2366', '3e1f47', '0b5e65', '1b4332', '0c4b33', '5c1a1b', '6e2b0e', '7b4a11', '5d5d5d', 'a25512', 'a7643b', 'aa9499', 'b48a65', 'd1c7a3']));
+      params.append('hatColor', randomOption(['3c4f5c', '65c9ff', '262e33', '5199e4', '25557c', '929598', 'a7ffc4', 'b1e2ff', 'e6e6e6', 'ff5c5c', 'ff488e', 'ffafb9', 'ffdeb5', 'ffffb1', 'ffffff']));
 
       params.append('mouth', randomOption(['concerned', 'default', 'disbelief', 'eating', 'grimace', 'sad', 'screamOpen', 'serious', 'smile', 'tongue', 'twinkle', 'vomit']));
 
-      params.append('skinColor', randomOption(['0e0e0e', '1c274f', '2d2366', '3e1f47', '0b5e65', '1b4332', '0c4b33', '5c1a1b', '6e2b0e', '7b4a11', '5d5d5d', 'a25512', 'a7643b', 'aa9499', 'b48a65', 'd1c7a3']));
+      params.append('skinColor', randomOption(['614335', 'ae5d29', 'd08b5b', 'edb98a', 'f8d25c', 'fd9841', 'ffdbb4']));
 
       params.append('top', randomOption(['bigHair', 'bob', 'bun', 'curly', 'curvy', 'dreads', 'dreads01', 'dreads02' , 'frida', 'frizzle', 'fro', 'froBand', 'hat', 'hijab', 'longButNotTooLong', 'miaWallace', 'shaggy', 'shaggyMullet', 'shavedSides', 'shortCurly', 'shortFlat', 'shortRound', 'shortWaved', 'sides', 'straight01', 'straight02', 'straightAndStrand', 'theCaesar', 'theCaesarAndSidePart', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04']));
 
@@ -91,6 +97,7 @@ export function addStyleSpecificParams(params, style) {
     case 'avataaars-neutral':
 
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
       params.append('eyebrows', randomOption(['angry', 'angryNatural', 'default', 'defaultNatural', 'flatNatural', 'frownNatural', 'raisedExcited', 'raisedExcitedNatural', 'sadConcerned', 'sadConcernedNatural', 'unibrowNatural', 'upDown', 'upDownNatural']));
 
@@ -102,6 +109,7 @@ export function addStyleSpecificParams(params, style) {
 
     case 'big-ears':
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
       params.append('cheek', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06']));
 
@@ -130,6 +138,7 @@ export function addStyleSpecificParams(params, style) {
 
     case 'big-ears-neutral':
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
       params.append('cheek', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06']));
 
@@ -145,6 +154,7 @@ export function addStyleSpecificParams(params, style) {
 
     case 'big-smile':
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
       params.append('accessories', randomOption(['catEars', "clownNose", "faceMask", "glasses", "mustache", "sailormoonCrown", "sleepMask", "sunglasses"]));
 
@@ -191,6 +201,7 @@ export function addStyleSpecificParams(params, style) {
     case 'croodles':
     case 'croodles-neutral':
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
       params.append('beard', randomOption(['variant01', 'variant02', 'variant03', 'variant04', 'variant05']));
 
@@ -215,6 +226,7 @@ export function addStyleSpecificParams(params, style) {
 
     case 'dylan':
        params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
        params.append('facialHair', randomOption(['default']));
 
@@ -231,6 +243,7 @@ export function addStyleSpecificParams(params, style) {
 
     case 'fun-emoji':
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
        params.append('eyes', randomOption(['closed', 'closed2', 'crying', 'cute', 'glasses', 'love', 'pissed', 'plain', 'sad', 'shades', 'sleepClose', 'stars', 'tearDrop', 'wink', 'wink2']));
 
@@ -239,6 +252,7 @@ export function addStyleSpecificParams(params, style) {
 
       case 'glass':
       params.append('seed', randomOption(['Felix', 'Aneka']));
+      params.append('flip', randomBoolean().toString());
 
        params.append('shape1', randomOption(['a', 'd', 'e', 'g', 'i', 'n', 'r', 't']));
 
@@ -247,12 +261,14 @@ export function addStyleSpecificParams(params, style) {
 
       case 'icons':
        params.append('seed', randomOption(['Felix', 'Aneka']));
+       params.append('flip', randomBoolean().toString());
 
        params.append('icon', randomOption(['alarm', 'archive', 'award', 'bag', 'bandaid' , 'bank', 'basket', 'basket2', 'basket3', 'bell', 'bicycle', 'binoculars', 'book', 'bookshelf', 'boombox', 'box', 'boxes', 'boxSeam', 'bricks', 'briefcase', 'brightnessHigh', 'brush', 'bucket', 'bug', 'building', 'calculator', 'camera', 'cameraReels', 'cart2', 'cashCoin', 'clock', 'cloud', 'cloudDrizzle', 'cloudMoon', 'clouds', 'cloudSnow', 'coin', 'compass', 'controller', 'cup', 'cupStraw', 'dice5', 'disc', 'display', 'doorClosed', 'doorOpen', 'dpad', 'droplet', 'easel', 'egg', 'eggFried', 'emojiHeartEyes', 'emojiLaughing', 'emojiSmile', 'emojiSmileUpsideDown', 'emojiSunglasses', 'emojiWink', 'envelope', 'eyeglasses', 'flag', 'flower1', 'flower2', 'flower3', 'gem', 'gift', 'globe', 'globe2', 'handbag', 'handThumbsUp', 'hdd', 'heart', 'hourglass', 'hourglassSplit', 'house', 'houseDoor', 'inbox', 'inboxes', 'key', 'keyboard', 'ladder', 'lamp', 'laptop', 'lightbulb', 'lightning', 'lightningCharge', 'lock', 'magic', 'mailbox', 'map', 'megaphone', 'minecart', 'minecartLoaded', 'moon', 'moonStars', 'mortarboard', 'mouse', 'mouse2', 'newspaper', 'paintBucket', 'palette', 'palette2', 'paperclip', 'pen', 'pencil', 'phone', 'piggyBank', 'pinAngle', 'plug', 'printer', 'projector', 'puzzle', 'router', 'scissors', 'sdCard', 'search', 'send', 'shop', 'shopWindow', 'signpost', 'signpost2', 'signpostSplit', 'smartwatch', 'snow', 'snow2', 'snow3', 'speaker', 'star', 'stoplights', 'stopwatch', 'sun', 'tablet', 'thermometer', 'ticketPerforated', 'tornado', 'trash', 'trash2', 'tree', 'trophy', 'truck', 'truckFlatbed', 'tsunami', 'umbrella', 'wallet', 'wallet2', 'watch', 'webcam']));
       break;
 
       case 'identicon':
        params.append('seed', randomOption(['Felix', 'Aneka']));
+       params.append('flip', randomBoolean().toString());
 
        params.append('row1', randomOption(['ooxoo', 'oxoxo', 'oxxxo', 'xooox', 'xoxox', 'xxoxx', 'xxxxx']));
 
