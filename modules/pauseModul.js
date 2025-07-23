@@ -1,3 +1,8 @@
+/**
+ * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
+ * and without obtaining permission is considered unethical and is not permitted.
+ */
+
 import { getSessionInfo, fetchItemDetails } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
