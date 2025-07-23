@@ -5,6 +5,11 @@
 <details>
 <summary>🖼️ Ekran Görüntüleri / Screenshots </summary>
 
+## DiceBear Avatar Görünümü / DiceBear Avatar Skin
+
+![diceBear](https://github.com/user-attachments/assets/713fc481-7e60-43ab-bdf8-463bbb47ff78)
+
+
 ## Kompakt Görünüm / Compact View
 
 ![co](https://github.com/user-attachments/assets/afac00a0-68c7-4a7e-b551-f946ec4f1e7b)
