@@ -9,6 +9,10 @@
 
 ![diceBear](https://github.com/user-attachments/assets/713fc481-7e60-43ab-bdf8-463bbb47ff78)
 
+## Duraklatma Ekranı / Pause Screen
+
+![pause](https://github.com/user-attachments/assets/8e3ec49b-b7f2-406a-818d-064f6f64eac7)
+
 
 ## Kompakt Görünüm / Compact View
 
