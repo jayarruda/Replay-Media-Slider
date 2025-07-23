@@ -1,8 +1,9 @@
 import { getConfig } from "../config.js";
 import { createCheckbox, createSection, createNumberInput, createTextInput, createSelect } from "../settings.js";
 import { applySettings } from "./applySettings.js";
-import { clearAvatarCache, cleanAvatars, updateHeaderUserAvatar  } from "../userAvatar.js";
+import { clearAvatarCache, cleanAvatars, updateHeaderUserAvatar } from "../userAvatar.js";
 import { debounce } from "../utils.js";
+
 export function createAvatarPanel(config, labels) {
   const panel = document.createElement('div');
   panel.id = 'avatar-panel';
@@ -23,6 +24,8 @@ export function createAvatarPanel(config, labels) {
     config.avatarStyle || 'initials'
   );
   section.appendChild(avatarStyleSelect);
+
+  const dicebearElements = [];
 
   const dicebearStyleSelect = createSelect(
     'dicebearStyle',
@@ -61,93 +64,58 @@ export function createAvatarPanel(config, labels) {
     ],
     config.dicebearStyle || 'initials'
   );
-    dicebearStyleSelect.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
-    section.appendChild(dicebearStyleSelect);
+  dicebearElements.push(dicebearStyleSelect);
+  section.appendChild(dicebearStyleSelect);
 
-    const dicebearPositionCheckbox = createCheckbox('dicebearPosition', labels.dicebearPosition || 'Avatar Dışa Çıkar', config.dicebearPosition);
-    section.appendChild(dicebearPositionCheckbox);
+  const commonElements = [];
 
-    const dicebearBgCheckbox = createCheckbox(
-    'dicebearBackgroundEnabled',
-    labels.dicebearBackgroundEnabled || 'Dicebear Arkaplanı Etkinleştir',
-    config.dicebearBackgroundEnabled !== false
-  );
-    dicebearBgCheckbox.style.display = config.avatarStyle === 'dicebear' ? 'flex' : 'none';
-    section.appendChild(dicebearBgCheckbox);
+  const widthInput = createNumberInput('avatarWidth', labels.avatarWidth || 'Avatar Genişliği (px)', config.avatarWidth, 10, 50);
+  commonElements.push(widthInput);
+  section.appendChild(widthInput);
 
-    const dicebearBgColor = createColorInput(
-    'dicebearBackgroundColor',
-    labels.dicebearBackgroundColor || 'Dicebear Arkaplan Rengi',
-    config.dicebearBackgroundColor || '#FF4081'
-  );
-    dicebearBgColor.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
-    section.appendChild(dicebearBgColor);
+  const heightInput = createNumberInput('avatarHeight', labels.avatarHeight || 'Avatar Yüksekliği (px)', config.avatarHeight, 10, 50);
+  commonElements.push(heightInput);
+  section.appendChild(heightInput);
 
-    const applyDicebearBtn = document.createElement('button');
-    applyDicebearBtn.type = 'button';
-    applyDicebearBtn.id = 'applyDicebearAvatar';
-    applyDicebearBtn.textContent = labels.uygula || 'DiceBear Avatar Uygula';
-    applyDicebearBtn.className = 'btn';
-    applyDicebearBtn.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
+  const scaleSection = document.createElement('div');
+  scaleSection.className = 'avatar-item';
 
-    applyDicebearBtn.addEventListener('click', async () => {
-  clearAvatarCache();
-  Object.keys(sessionStorage).forEach(key => {
-    if (key.startsWith('avatar-') && key.includes('dicebear')) {
-      sessionStorage.removeItem(key);
-    }
+  const scaleLabel = document.createElement('label');
+  scaleLabel.textContent = labels.avatarScale || 'Avatar Büyütme Oranı';
+  scaleLabel.htmlFor = 'avatarScale';
+
+  const scaleInput = document.createElement('input');
+  scaleInput.type = 'range';
+  scaleInput.min = '0.5';
+  scaleInput.max = '5';
+  scaleInput.step = '0.1';
+  scaleInput.value = config.avatarScale || '1';
+  scaleInput.name = 'avatarScale';
+  scaleInput.id = 'avatarScale';
+  scaleInput.className = 'range-input';
+
+  const scaleValue = document.createElement('span');
+  scaleValue.className = 'range-value';
+  scaleValue.textContent = `${scaleInput.value}x`;
+
+  scaleInput.addEventListener('input', () => {
+    scaleValue.textContent = `${scaleInput.value}x`;
   });
-  cleanAvatars(document.querySelector('button.headerUserButton'));
-  await updateHeaderUserAvatar();
-});
 
-    section.appendChild(applyDicebearBtn);
-
-    const scaleSection = document.createElement('div');
-    scaleSection.className = 'avatar-item';
-
-    const scaleLabel = document.createElement('label');
-    scaleLabel.textContent = labels.avatarScale || 'Avatar Büyütme Oranı';
-    scaleLabel.htmlFor = 'avatarScale';
-
-    const scaleInput = document.createElement('input');
-    scaleInput.type = 'range';
-    scaleInput.min = '0.5';
-    scaleInput.max = '3';
-    scaleInput.step = '0.1';
-    scaleInput.value = config.avatarScale || '1';
-    scaleInput.name = 'avatarScale';
-    scaleInput.id = 'avatarScale';
-    scaleInput.className = 'range-input';
-
-    const scaleValue = document.createElement('span');
-    scaleValue.className = 'range-value';
-    scaleValue.textContent = `${scaleInput.value}x`;
-
-    scaleInput.addEventListener('input', () => {
-    scaleValue.textContent = `${scaleInput.value}x`;
-});
-
-    const debouncedScaleUpdate = debounce(() => {
+  const debouncedScaleUpdate = debounce(() => {
     clearAvatarCache();
     applySettings(false);
   }, 300);
 
-    scaleInput.addEventListener('change', debouncedScaleUpdate);
+  scaleInput.addEventListener('change', debouncedScaleUpdate);
 
-    scaleSection.append(scaleLabel, scaleInput, scaleValue);
-    section.appendChild(scaleSection);
+  scaleSection.append(scaleLabel, scaleInput, scaleValue);
+  commonElements.push(scaleSection);
+  section.appendChild(scaleSection);
 
-    const dicebearRadius = createNumberInput(
-    'dicebearRadius',
-    labels.dicebearRadius || 'Dicebear Yuvarlaklık (0-50)',
-    config.dicebearRadius || 50,
-    0,
-    50
-  );
-    dicebearRadius.style.display = config.avatarStyle === 'dicebear' ? 'block' : 'none';
-    section.appendChild(dicebearRadius);
-    const colorMethodSelect = createSelect(
+  const initialsElements = [];
+
+  const colorMethodSelect = createSelect(
     'avatarColorMethod',
     labels.avatarColorMethod || 'Renk Belirleme Yöntemi',
     [
@@ -158,67 +126,192 @@ export function createAvatarPanel(config, labels) {
     ],
     config.avatarColorMethod
   );
-    colorMethodSelect.style.display = config.avatarStyle === 'initials' ? 'block' : 'none';
-    section.appendChild(colorMethodSelect);
+  initialsElements.push(colorMethodSelect);
+  section.appendChild(colorMethodSelect);
 
+  const solidColorInput = createColorInput('avatarSolidColor', labels.avatarSolidColor || 'Sabit Renk Seçin', config.avatarSolidColor || '#FF4081');
+  solidColorInput.style.display = config.avatarColorMethod === 'solid' ? 'flex' : 'none';
+  initialsElements.push(solidColorInput);
+  section.appendChild(solidColorInput);
 
-    const solidColorInput = createColorInput('avatarSolidColor', labels.avatarSolidColor || 'Sabit Renk Seçin', config.avatarSolidColor || '#FF4081');
-    solidColorInput.style.display = config.avatarColorMethod === 'solid' ? 'block' : 'none';
-    section.appendChild(solidColorInput);
-
-   const gradientSelect = createSelect(
+  const gradientSelect = createSelect(
     'avatarGradient',
     labels.avatarGradient || 'Gradyan Seçimi',
     [
-        { value: 'linear-gradient(135deg, #FF5F6D 0%, #FFC371 100%)', text: labels.gradient1 || 'Kızıl Güneş' },
-        { value: 'linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%)', text: labels.gradient2 || 'Deniz Mavisi' },
-        { value: 'linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)', text: labels.gradient3 || 'Tropikal Yeşil' },
-        { value: 'linear-gradient(135deg, #FF9A9E 0%, #FAD0C4 100%)', text: labels.gradient4 || 'Tatlı Pembe' },
-        { value: 'linear-gradient(135deg, #FDBB2D 0%, #3A1C71 100%)', text: labels.gradient5 || 'Altın-Mor Gece' },
-        { value: 'linear-gradient(135deg, #FC6076 0%, #FF9A44 100%)', text: labels.gradient6 || 'Turuncu Şafak' },
-        { value: 'linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%)', text: labels.gradient7 || 'Aqua-Lime' },
-        { value: 'linear-gradient(135deg, #C33764 0%, #1D2671 100%)', text: labels.gradient8 || 'Gece Yarısı Moru' },
-        { value: 'linear-gradient(135deg, #FBD3E9 0%, #BB377D 100%)', text: labels.gradient9 || 'Pembe Lila' },
-        { value: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)', text: labels.gradient10 || 'Kraliyet Mavisi' },
-        { value: 'linear-gradient(135deg, #30E8BF 0%, #FF8235 100%)', text: labels.gradient11 || 'Yeşil-Turuncu Enerji' },
-        { value: 'linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%)', text: labels.gradient12 || 'Altın Turuncu' },
-        { value: 'linear-gradient(135deg, #D38312 0%, #A83279 100%)', text: labels.gradient13 || 'Çöl Işıltısı' },
-        { value: 'linear-gradient(135deg, #3CA55C 0%, #B5AC49 100%)', text: labels.gradient14 || 'Orman Yolu' },
-        { value: 'linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%)', text: labels.gradient15 || 'Pembe-Buz Mavisi' }
-        ],
-        config.avatarGradient
-    );
-    gradientSelect.style.display = config.avatarColorMethod === 'gradient' ? 'block' : 'none';
-    section.appendChild(gradientSelect);
+      { value: 'linear-gradient(135deg, #FF5F6D 0%, #FFC371 100%)', text: labels.gradient1 || 'Kızıl Güneş' },
+      { value: 'linear-gradient(135deg, #36D1DC 0%, #5B86E5 100%)', text: labels.gradient2 || 'Deniz Mavisi' },
+      { value: 'linear-gradient(135deg, #43E97B 0%, #38F9D7 100%)', text: labels.gradient3 || 'Tropikal Yeşil' },
+      { value: 'linear-gradient(135deg, #FF9A9E 0%, #FAD0C4 100%)', text: labels.gradient4 || 'Tatlı Pembe' },
+      { value: 'linear-gradient(135deg, #FDBB2D 0%, #3A1C71 100%)', text: labels.gradient5 || 'Altın-Mor Gece' },
+      { value: 'linear-gradient(135deg, #FC6076 0%, #FF9A44 100%)', text: labels.gradient6 || 'Turuncu Şafak' },
+      { value: 'linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%)', text: labels.gradient7 || 'Aqua-Lime' },
+      { value: 'linear-gradient(135deg, #C33764 0%, #1D2671 100%)', text: labels.gradient8 || 'Gece Yarısı Moru' },
+      { value: 'linear-gradient(135deg, #FBD3E9 0%, #BB377D 100%)', text: labels.gradient9 || 'Pembe Lila' },
+      { value: 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)', text: labels.gradient10 || 'Kraliyet Mavisi' },
+      { value: 'linear-gradient(135deg, #30E8BF 0%, #FF8235 100%)', text: labels.gradient11 || 'Yeşil-Turuncu Enerji' },
+      { value: 'linear-gradient(135deg, #FFB75E 0%, #ED8F03 100%)', text: labels.gradient12 || 'Altın Turuncu' },
+      { value: 'linear-gradient(135deg, #D38312 0%, #A83279 100%)', text: labels.gradient13 || 'Çöl Işıltısı' },
+      { value: 'linear-gradient(135deg, #3CA55C 0%, #B5AC49 100%)', text: labels.gradient14 || 'Orman Yolu' },
+      { value: 'linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%)', text: labels.gradient15 || 'Pembe-Buz Mavisi' }
+    ],
+    config.avatarGradient
+  );
+  gradientSelect.style.display = config.avatarColorMethod === 'gradient' ? 'flex' : 'none';
+  initialsElements.push(gradientSelect);
+  section.appendChild(gradientSelect);
 
-    const fontFamilySelect = createSelect(
-        'avatarFontFamily',
-        labels.avatarFontFamily || 'Yazı Tipi',
-        getSystemFonts(labels),
-        config.avatarFontFamily
-    );
-    fontFamilySelect.querySelector('select').addEventListener('change', () => applySettings(false));
-    section.appendChild(fontFamilySelect);
+  const fontFamilySelect = createSelect(
+    'avatarFontFamily',
+    labels.avatarFontFamily || 'Yazı Tipi',
+    getSystemFonts(labels),
+    config.avatarFontFamily
+  );
+  initialsElements.push(fontFamilySelect);
+  section.appendChild(fontFamilySelect);
 
-    const widthInput = createNumberInput('avatarWidth', labels.avatarWidth || 'Avatar Genişliği (px)', config.avatarWidth, 10, 50);
-    widthInput.querySelector('input').addEventListener('change', () => applySettings(false));
-    section.appendChild(widthInput);
+  const fontSizeInput = createNumberInput('avatarFontSize', labels.avatarFontSize || 'Yazı Boyutu (px)', config.avatarFontSize, 8, 20);
+  initialsElements.push(fontSizeInput);
+  section.appendChild(fontSizeInput);
 
-    const heightInput = createNumberInput('avatarHeight', labels.avatarHeight || 'Avatar Yüksekliği (px)', config.avatarHeight, 10, 50);
-    heightInput.querySelector('input').addEventListener('change', () => applySettings(false));
-    section.appendChild(heightInput);
+  const textShadowInput = createTextInput('avatarTextShadow', labels.avatarTextShadow || 'Yazı Gölgesi', config.avatarTextShadow);
+  initialsElements.push(textShadowInput);
+  section.appendChild(textShadowInput);
 
-    const fontSizeInput = createNumberInput('avatarFontSize', labels.avatarFontSize || 'Yazı Boyutu (px)', config.avatarFontSize, 8, 20);
-    fontSizeInput.querySelector('input').addEventListener('change', () => applySettings(false));
-    section.appendChild(fontSizeInput);
+  const dicebearPositionCheckbox = createCheckbox('dicebearPosition', labels.dicebearPosition || 'Avatar Dışa Çıkar', config.dicebearPosition);
+  dicebearElements.push(dicebearPositionCheckbox);
+  section.appendChild(dicebearPositionCheckbox);
 
-    const textShadowInput = createTextInput('avatarTextShadow', labels.avatarTextShadow || 'Yazı Gölgesi', config.avatarTextShadow);
-    textShadowInput.querySelector('input').addEventListener('change', () => applySettings(false));
-    section.appendChild(textShadowInput);
+  const dicebearBgCheckbox = createCheckbox(
+    'dicebearBackgroundEnabled',
+    labels.dicebearBackgroundEnabled || 'Dicebear Arkaplanı Etkinleştir',
+    config.dicebearBackgroundEnabled !== false
+  );
+  dicebearElements.push(dicebearBgCheckbox);
+  section.appendChild(dicebearBgCheckbox);
 
-    colorMethodSelect.querySelector('select').addEventListener('change', (e) => {
-    solidColorInput.style.display = e.target.value === 'solid' ? 'block' : 'none';
-    gradientSelect.style.display = e.target.value === 'gradient' ? 'block' : 'none';
+  const dicebearBgColor = createColorInput(
+    'dicebearBackgroundColor',
+    labels.dicebearBackgroundColor || 'Dicebear Arkaplan Rengi',
+    config.dicebearBackgroundColor || '#FF4081'
+  );
+  dicebearElements.push(dicebearBgColor);
+  section.appendChild(dicebearBgColor);
+
+  dicebearBgCheckbox.querySelector('input').addEventListener('change', (e) => {
+  dicebearBgColor.style.display = e.target.checked ? 'flex' : 'none';
+  clearAvatarCache();
+  applySettings(false);
+});
+
+  const dicebearRadius = createNumberInput(
+    'dicebearRadius',
+    labels.dicebearRadius || 'Dicebear Yuvarlaklık (0-50)',
+    config.dicebearRadius || 50,
+    0,
+    50
+  );
+  dicebearElements.push(dicebearRadius);
+  section.appendChild(dicebearRadius);
+
+  const autoRefreshSection = document.createElement('div');
+  autoRefreshSection.className = 'avatar-item';
+
+  const autoRefreshCheckbox = createCheckbox(
+    'autoRefreshAvatar',
+    labels.autoRefreshAvatar || 'Avatarı Otomatik Değiştir',
+    config.autoRefreshAvatar || false
+  );
+  dicebearElements.push(autoRefreshCheckbox);
+  autoRefreshSection.appendChild(autoRefreshCheckbox);
+
+  const refreshTimeInput = createNumberInput(
+    'avatarRefreshTime',
+    labels.avatarRefreshTime || 'Değişim Süresi (dakika)',
+    config.avatarRefreshTime || 10,
+    1,
+    1440
+  );
+  dicebearElements.push(refreshTimeInput);
+  autoRefreshSection.appendChild(refreshTimeInput);
+
+  const initDisplayStyle = () => {
+    const isDicebear = config.avatarStyle === 'dicebear';
+    const isAutoRefresh = config.autoRefreshAvatar;
+    refreshTimeInput.style.display = (isDicebear && isAutoRefresh) ? 'flex' : 'none';
+  };
+  initDisplayStyle();
+
+  autoRefreshCheckbox.querySelector('input').addEventListener('change', (e) => {
+    const isDicebear = document.querySelector('#avatarStyle').value === 'dicebear';
+    refreshTimeInput.style.display = (e.target.checked && isDicebear) ? 'flex' : 'none';
+    applySettings(false);
+  });
+
+  avatarStyleSelect.querySelector('select').addEventListener('change', (e) => {
+    const isDicebear = e.target.value === 'dicebear';
+
+    initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
+    dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
+    commonElements.forEach(el => el.style.display = 'flex');
+
+    const isAutoRefresh = autoRefreshCheckbox.querySelector('input').checked;
+    refreshTimeInput.style.display = (isDicebear && isAutoRefresh) ? 'flex' : 'none';
+
+    clearAvatarCache();
+    applySettings(false);
+  });
+
+  section.appendChild(autoRefreshSection);
+
+  const applyDicebearBtn = document.createElement('button');
+    applyDicebearBtn.type = 'button';
+    applyDicebearBtn.id = 'applyDicebearAvatar';
+    applyDicebearBtn.textContent = labels.uygula || 'DiceBear Avatar Uygula';
+    applyDicebearBtn.className = 'btn';
+    applyDicebearBtn.style.display = config.avatarStyle === 'dicebear' ? 'flex' : 'none';
+    applyDicebearBtn.addEventListener('click', applyDicebearAvatar);
+    section.appendChild(applyDicebearBtn);
+
+  const isDicebear = config.avatarStyle === 'dicebear';
+  initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
+  dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
+  commonElements.forEach(el => el.style.display = 'flex');
+
+  const autoRefreshInitialChecked = autoRefreshCheckbox.querySelector('input').checked;
+  refreshTimeInput.style.display = (isDicebear && autoRefreshInitialChecked) ? 'flex' : 'none';
+
+  const bgCheckboxInitialChecked = dicebearBgCheckbox.querySelector('input').checked;
+  dicebearBgColor.style.display = bgCheckboxInitialChecked ? 'flex' : 'none';
+
+  avatarStyleSelect.querySelector('select').addEventListener('change', (e) => {
+    const isDicebear = e.target.value === 'dicebear';
+
+    initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
+
+    dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
+
+    commonElements.forEach(el => el.style.display = 'flex');
+
+    clearAvatarCache();
+    applySettings(false);
+  });
+
+  const description = document.createElement('div');
+  description.className = 'description-text';
+  description.textContent = labels.avatarOverlayDescription ||
+    'Bu özellik etkinleştirildiğinde, profil resmi olmayan kullanıcıların kullanıcı isimlerinden avatar oluşturur.';
+  section.appendChild(description);
+
+  panel.appendChild(section);
+
+  const initialColorMethod = config.avatarColorMethod;
+
+  solidColorInput.style.display = (!isDicebear && initialColorMethod === 'solid') ? 'flex' : 'none';
+  gradientSelect.style.display = (!isDicebear && initialColorMethod === 'gradient') ? 'flex' : 'none';
+
+  colorMethodSelect.querySelector('select').addEventListener('change', (e) => {
+    solidColorInput.style.display = e.target.value === 'solid' ? 'flex' : 'none';
+    gradientSelect.style.display = e.target.value === 'gradient' ? 'flex' : 'none';
     clearAvatarCache();
     applySettings(false);
   });
@@ -228,30 +321,7 @@ export function createAvatarPanel(config, labels) {
     applySettings(false);
   });
 
-    const description = document.createElement('div');
-    description.className = 'description-text';
-    description.textContent = labels.avatarOverlayDescription ||
-        'Bu özellik etkinleştirildiğinde, profil resmi olmayan kullanıcıların kullanıcı isimlerinden avatar oluşturur.';
-    section.appendChild(description);
-
-    panel.appendChild(section);
-    solidColorInput.querySelector('input[type="color"]').addEventListener('change', () => applySettings(false));
-    solidColorInput.querySelector('input[type="text"]').addEventListener('change', () => applySettings(false));
-    gradientSelect.querySelector('select').addEventListener('change', () => applySettings(false));
-    avatarStyleSelect.querySelector('select').addEventListener('change', (e) => {
-    const isDicebear = e.target.value === 'dicebear';
-    dicebearStyleSelect.style.display = isDicebear ? 'block' : 'none';
-    dicebearBgColor.style.display = isDicebear ? 'block' : 'none';
-    dicebearBgCheckbox.style.display = isDicebear ? 'block' : 'none';
-    dicebearRadius.style.display = isDicebear ? 'block' : 'none';
-    colorMethodSelect.style.display = isDicebear ? 'none' : 'block';
-    applyDicebearBtn.style.display = isDicebear ? 'block' : 'none';
-    dicebearPositionCheckbox.style.display = isDicebear ? 'block' : 'none';
-    clearAvatarCache();
-    applySettings(false);
-  });
-
-    const cacheClearingInputs = [
+  const cacheClearingInputs = [
     dicebearStyleSelect, dicebearBgColor, dicebearBgCheckbox, dicebearRadius,
     solidColorInput, gradientSelect, fontFamilySelect,
     widthInput, heightInput, fontSizeInput, textShadowInput, dicebearPositionCheckbox
@@ -271,106 +341,128 @@ export function createAvatarPanel(config, labels) {
 }
 
 export function createColorInput(name, label, value) {
-    const container = document.createElement('div');
-    container.className = 'input-container';
+  const container = document.createElement('div');
+  container.className = 'input-container';
 
-    const labelElement = document.createElement('label');
-    labelElement.textContent = label;
-    labelElement.htmlFor = name;
+  const labelElement = document.createElement('label');
+  labelElement.textContent = label;
+  labelElement.htmlFor = name;
 
-    const colorContainer = document.createElement('div');
-    colorContainer.style.display = 'flex';
-    colorContainer.style.alignItems = 'center';
-    colorContainer.style.gap = '8px';
+  const colorContainer = document.createElement('div');
+  colorContainer.style.display = 'flex';
+  colorContainer.style.alignItems = 'center';
+  colorContainer.style.gap = '8px';
 
-    const input = document.createElement('input');
-    input.type = 'color';
-    input.id = name;
-    input.name = name;
-    input.value = value || '#FF4081';
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.id = name;
+  input.name = name;
+  input.value = value || '#FF4081';
 
-    const textInput = document.createElement('input');
-    textInput.type = 'text';
-    textInput.value = value || '#FF4081';
-    textInput.className = 'color-text-input';
-    textInput.style.flex = '1';
+  const textInput = document.createElement('input');
+  textInput.type = 'text';
+  textInput.value = value || '#FF4081';
+  textInput.className = 'color-text-input';
+  textInput.style.flex = '1';
 
-    const debouncedApply = debounce(() => {
-        applySettings(false);
-    }, 300);
+  const debouncedApply = debounce(() => {
+    applySettings(false);
+  }, 300);
 
-    input.addEventListener('change', () => {
-        textInput.value = input.value;
-        debouncedApply();
-    });
+  input.addEventListener('change', () => {
+    textInput.value = input.value;
+    debouncedApply();
+  });
 
-    textInput.addEventListener('change', () => {
-        if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
-            input.value = textInput.value;
-            debouncedApply();
-        }
-    });
+  textInput.addEventListener('change', () => {
+    if (/^#[0-9A-F]{6}$/i.test(textInput.value)) {
+      input.value = textInput.value;
+      debouncedApply();
+    }
+  });
 
-    colorContainer.appendChild(input);
-    colorContainer.appendChild(textInput);
+  colorContainer.appendChild(input);
+  colorContainer.appendChild(textInput);
 
-    container.appendChild(labelElement);
-    container.appendChild(colorContainer);
+  container.appendChild(labelElement);
+  container.appendChild(colorContainer);
 
-    return container;
+  return container;
 }
 
-
 function getSystemFonts(labels) {
-    const systemFonts = [
-        { value: 'inherit', text: labels.fontInherit || 'Varsayılan' },
-        { value: 'Arial, sans-serif', text: 'Arial' },
-        { value: 'Helvetica, sans-serif', text: 'Helvetica' },
-        { value: '"Times New Roman", serif', text: 'Times New Roman' },
-        { value: 'Georgia, serif', text: 'Georgia' },
-        { value: 'Verdana, sans-serif', text: 'Verdana' },
-        { value: '"Trebuchet MS", sans-serif', text: 'Trebuchet MS' },
-        { value: '"Palatino Linotype", serif', text: 'Palatino Linotype' },
-        { value: '"Lucida Sans Unicode", sans-serif', text: 'Lucida Sans Unicode' },
-        { value: '"Segoe UI", sans-serif', text: 'Segoe UI' },
-        { value: 'Courier New, monospace', text: 'Courier New' },
-        { value: 'Impact, sans-serif', text: 'Impact' },
-        { value: '"Comic Sans MS", cursive, sans-serif', text: 'Comic Sans MS' },
-        { value: 'Roboto, sans-serif', text: 'Roboto' },
-        { value: '"Open Sans", sans-serif', text: 'Open Sans' },
-        { value: '"Poppins", sans-serif', text: 'Poppins' },
-        { value: '"Montserrat", sans-serif', text: 'Montserrat' },
-        { value: '"Lato", sans-serif', text: 'Lato' },
-        { value: '"Raleway", sans-serif', text: 'Raleway' },
-        { value: '"Nunito", sans-serif', text: 'Nunito' },
-        { value: '"Quicksand", sans-serif', text: 'Quicksand' },
-        { value: '"Rubik", sans-serif', text: 'Rubik' },
-        { value: '"Ubuntu", sans-serif', text: 'Ubuntu' },
-        { value: '"Merriweather", serif', text: 'Merriweather' },
-        { value: '"Playfair Display", serif', text: 'Playfair Display' },
-        { value: 'Righteous, cursive', text: 'Righteous' },
-        { value: '"Pacifico", cursive', text: 'Pacifico' },
-        { value: '"Caveat", cursive', text: 'Caveat (El Yazısı)' },
-        { value: '"Shadows Into Light", cursive', text: 'Shadows Into Light' },
-        { value: '"Indie Flower", cursive', text: 'Indie Flower' },
-        { value: 'system-ui, sans-serif', text: labels.systemdefault || 'Sistem Varsayılanı' },
-        { value: '-apple-system, BlinkMacSystemFont', text: labels.appledefault || 'Apple Sistem Varsayılanı' },
-        { value: '"Segoe UI", Roboto, Oxygen', text: 'Windows/Linux' }
-    ];
+  const systemFonts = [
+    { value: 'inherit', text: labels.fontInherit || 'Varsayılan' },
+    { value: 'Arial, sans-serif', text: 'Arial' },
+    { value: 'Helvetica, sans-serif', text: 'Helvetica' },
+    { value: '"Times New Roman", serif', text: 'Times New Roman' },
+    { value: 'Georgia, serif', text: 'Georgia' },
+    { value: 'Verdana, sans-serif', text: 'Verdana' },
+    { value: '"Trebuchet MS", sans-serif', text: 'Trebuchet MS' },
+    { value: '"Palatino Linotype", serif', text: 'Palatino Linotype' },
+    { value: '"Lucida Sans Unicode", sans-serif', text: 'Lucida Sans Unicode' },
+    { value: '"Segoe UI", sans-serif', text: 'Segoe UI' },
+    { value: 'Courier New, monospace', text: 'Courier New' },
+    { value: 'Impact, sans-serif', text: 'Impact' },
+    { value: '"Comic Sans MS", cursive, sans-serif', text: 'Comic Sans MS' },
+    { value: 'Roboto, sans-serif', text: 'Roboto' },
+    { value: '"Open Sans", sans-serif', text: 'Open Sans' },
+    { value: '"Poppins", sans-serif', text: 'Poppins' },
+    { value: '"Montserrat", sans-serif', text: 'Montserrat' },
+    { value: '"Lato", sans-serif', text: 'Lato' },
+    { value: '"Raleway", sans-serif', text: 'Raleway' },
+    { value: '"Nunito", sans-serif', text: 'Nunito' },
+    { value: '"Quicksand", sans-serif', text: 'Quicksand' },
+    { value: '"Rubik", sans-serif', text: 'Rubik' },
+    { value: '"Ubuntu", sans-serif', text: 'Ubuntu' },
+    { value: '"Merriweather", serif', text: 'Merriweather' },
+    { value: '"Playfair Display", serif', text: 'Playfair Display' },
+    { value: 'Righteous, cursive', text: 'Righteous' },
+    { value: '"Pacifico", cursive', text: 'Pacifico' },
+    { value: '"Caveat", cursive', text: 'Caveat (El Yazısı)' },
+    { value: '"Shadows Into Light", cursive', text: 'Shadows Into Light' },
+    { value: '"Indie Flower", cursive', text: 'Indie Flower' },
+    { value: 'system-ui, sans-serif', text: labels.systemdefault || 'Sistem Varsayılanı' },
+    { value: '-apple-system, BlinkMacSystemFont', text: labels.appledefault || 'Apple Sistem Varsayılanı' },
+    { value: '"Segoe UI", Roboto, Oxygen', text: 'Windows/Linux' }
+  ];
 
-    if (navigator.userAgent.includes('Windows')) {
-        systemFonts.push(
-            { value: '"Microsoft YaHei", sans-serif', text: 'Microsoft YaHei (Çince)' },
-            { value: '"Microsoft JhengHei", sans-serif', text: 'Microsoft JhengHei (Çince-TW)' }
-        );
-    }
+  if (navigator.userAgent.includes('Windows')) {
+    systemFonts.push(
+      { value: '"Microsoft YaHei", sans-serif', text: 'Microsoft YaHei (Çince)' },
+      { value: '"Microsoft JhengHei", sans-serif', text: 'Microsoft JhengHei (Çince-TW)' }
+    );
+  }
 
-    if (navigator.userAgent.includes('Mac')) {
-        systemFonts.push(
-            { value: '"San Francisco", -apple-system', text: 'San Francisco' },
-            { value: '"SF Pro Display", -apple-system', text: 'SF Pro Display' }
-        );
-    }
+  if (navigator.userAgent.includes('Mac')) {
+    systemFonts.push(
+      { value: '"San Francisco", -apple-system', text: 'San Francisco' },
+      { value: '"SF Pro Display", -apple-system', text: 'SF Pro Display' }
+    );
+  }
 
-    return systemFonts;
+  return systemFonts;
+}
+
+export async function applyDicebearAvatar() {
+
+  const headerButton = document.querySelector('button.headerUserButton');
+  if (!headerButton) {
+    return false;
+  }
+
+  try {
+    clearAvatarCache();
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith('avatar-') && key.includes('dicebear')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+    cleanAvatars(headerButton);
+    await updateHeaderUserAvatar();
+    return true;
+  } catch (error) {
+    console.error('Avatar uygulanırken hata:', error);
+    throw error;
+  }
 }
