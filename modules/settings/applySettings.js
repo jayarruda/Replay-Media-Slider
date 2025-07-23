@@ -63,6 +63,8 @@ export function applySettings(reload = false) {
             avatarScale: parseFloat(formData.get('avatarScale')) || 1,
             dicebearBackgroundEnabled: formData.get('dicebearBackgroundEnabled') === 'on',
             dicebearPosition: formData.get('dicebearPosition') === 'on',
+            autoRefreshAvatar: formData.get('autoRefreshAvatar') === 'on',
+            avatarRefreshTime: parseInt(formData.get('avatarRefreshTime'), 10),
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
