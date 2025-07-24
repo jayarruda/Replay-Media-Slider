@@ -738,7 +738,11 @@ export function isLocalStorageAvailable() {
 }
 
 export function updateConfig(updatedConfig) {
+     const existingDicebearParams = localStorage.getItem('dicebearParams');
+
     Object.entries(updatedConfig).forEach(([key, value]) => {
+        if (key === 'dicebearParams') return;
+
         if (typeof value === 'boolean') {
             localStorage.setItem(key, value ? 'true' : 'false');
         } else if (Array.isArray(value)) {
@@ -747,6 +751,10 @@ export function updateConfig(updatedConfig) {
             localStorage.setItem(key, value.toString());
         }
     });
+
+    if (existingDicebearParams) {
+        localStorage.setItem('dicebearParams', existingDicebearParams);
+    }
 
     if (updatedConfig.defaultLanguage !== undefined) {
         localStorage.setItem('defaultLanguage', updatedConfig.defaultLanguage);
