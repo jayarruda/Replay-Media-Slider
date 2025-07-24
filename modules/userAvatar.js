@@ -56,6 +56,42 @@ const DICEBEAR_OPTIONS = {
   baseUrl: 'https://api.dicebear.com/9.x'
 };
 
+function getValidParamsForStyle(style) {
+  const paramsMap = {
+  'adventurer': ['seed', 'flip', 'earrings', 'earringsProbability', 'glasses', 'glassesProbability', 'hair', 'hairColor', 'hairProbability', 'skinColor', 'mouth', 'eyebrows', 'eyes', 'features', 'featuresProbability'],
+  'adventurer-neutral': ['seed', 'flip', 'eyebrows', 'eyes', 'glasses', 'glassesProbability', 'mouth'],
+  'avataaars': ['seed', 'flip', 'accessories', 'accessoriesColor', 'accessoriesProbability', 'clothesColor', 'clothing', 'clothingGraphic', 'eyebrows', 'eyes', 'facialHair', 'facialHairColor', 'facialHairProbability', 'hairColor', 'hatColor', 'mouth', 'skinColor', 'top', 'topProbability'],
+  'avataaars-neutral': ['seed', 'flip', 'eyebrows', 'eyes', 'mouth'],
+  'big-ears': ['seed', 'flip', 'cheek', 'cheekProbability', 'ear', 'eyes', 'face', 'frontHair', 'hair', 'hairColor', 'mouth', 'nose', 'sideburn', 'skinColor'],
+  'big-ears-neutral': ['seed', 'flip', 'cheek', 'cheekProbability', 'eyes', 'mouth', 'nose'],
+  'big-smile': ['seed', 'flip', 'accessories', 'accessoriesProbability', 'eyes', 'hair', 'hairColor', 'mouth', 'skinColor'],
+  'bottts': ['seed', 'baseColor', 'eyes', 'face', 'mouth', 'mouthProbability', 'sides', 'sidesProbability', 'texture', 'textureProbability', 'top', 'topProbability'],
+  'bottts-neutral': ['seed', 'baseColor', 'eyes', 'face', 'mouth', 'mouthProbability', 'sides', 'sidesProbability', 'texture', 'textureProbability', 'top', 'topProbability'],
+  'croodles': ['seed', 'flip', 'beard', 'beardProbability', 'eyes', 'face', 'mouth', 'mustache', 'mustacheProbability', 'nose', 'top', 'topColor'],
+  'croodles-neutral': ['seed', 'flip', 'beard', 'beardProbability', 'eyes', 'face', 'mouth', 'mustache', 'mustacheProbability', 'nose', 'top', 'topColor'],
+  'dylan': ['seed', 'flip', 'facialHair', 'facialHairProbability', 'hair', 'hairColor', 'mood', 'skinColor'],
+  'fun-emoji': ['seed', 'flip', 'eyes', 'mouth'],
+  'glass': ['seed', 'flip', 'shape1', 'shape2'],
+  'icons': ['seed', 'flip', 'icon'],
+  'identicon': ['seed', 'flip', 'row1', 'row2', 'row3', 'row4', 'row5', 'rowColor'],
+  'initials': ['seed', 'flip'],
+  'lorelei': ['seed', 'flip', 'beard', 'beardProbability', 'earrings', 'earringsProbability', 'eyebrows', 'eyes', 'eyebrowsColor', 'eyesColor', 'freckles', 'frecklesProbability', 'glasses', 'glassesProbability', 'hair', 'hairColor', 'hairAccessories', 'hairAccessoriesColor', 'hairAccessoriesProbability', 'head', 'mouth', 'nose'],
+  'lorelei-neutral': ['seed', 'flip', 'beard', 'beardProbability', 'earrings', 'earringsProbability', 'eyebrows', 'eyes', 'eyebrowsColor', 'eyesColor', 'freckles', 'frecklesProbability', 'glasses', 'glassesProbability', 'hair', 'hairColor', 'hairAccessories', 'hairAccessoriesColor', 'hairAccessoriesProbability', 'head', 'mouth', 'nose'],
+  'micah': ['seed', 'flip', 'baseColor', 'earringColor', 'earrings', 'earringsProbability', 'ears', 'eyeShadowColor', 'eyebrows', 'eyebrowsColor', 'eyes', 'eyesColor', 'facialHair', 'facialHairColor', 'facialHairProbability', 'glasses', 'glassesColor', 'glassesProbability', 'hair', 'hairColor', 'hairProbability', 'mouth', 'nose', 'shirt', 'shirtColor'],
+  'miniavs': ['seed', 'flip', 'blushesProbability', 'body', 'bodyColor', 'eyes', 'glasses', 'glassesProbability', 'hair', 'hairColor', 'head', 'mouth', 'mustache', 'mustacheProbability', 'skinColor'],
+  'notionists': ['seed', 'flip', 'beard', 'beardProbability', 'body', 'bodyIcon', 'bodyIconProbability', 'brows', 'eyes', 'gesture', 'gestureProbability', 'glasses', 'glassesProbability', 'hair', 'lips', 'nose'],
+  'notionists-neutral': ['seed', 'flip', 'beard', 'beardProbability', 'body', 'bodyIcon', 'bodyIconProbability', 'brows', 'eyes', 'gesture', 'gestureProbability', 'glasses', 'glassesProbability', 'hair', 'lips', 'nose'],
+  'open-peeps': ['seed', 'flip', 'accessories', 'accessoriesProbability', 'clothingColor', 'face', 'facialHair', 'facialHairProbability', 'head', 'mask', 'maskProbability', 'skinColor'],
+  'personas': ['seed', 'flip', 'body', 'clothingColor', 'eyes', 'facialHair', 'facialHairProbability', 'hair', 'hairColor', 'mouth', 'nose', 'skinColor'],
+  'pixel-art': ['seed', 'flip', 'accessories', 'accessoriesColor', 'accessoriesProbability', 'beard', 'beardProbability', 'clothing', 'clothingColor', 'eyes', 'eyesColor', 'glasses', 'glassesColor', 'glassesProbability', 'hair', 'hairColor', 'hat', 'hatColor', 'hatProbability', 'mouth', 'mouthColor', 'skinColor'],
+  'pixel-art-neutral': ['seed', 'flip', 'accessories', 'accessoriesColor', 'accessoriesProbability', 'beard', 'beardProbability', 'clothing', 'clothingColor', 'eyes', 'eyesColor', 'glasses', 'glassesColor', 'glassesProbability', 'hair', 'hairColor', 'hat', 'hatColor', 'hatProbability', 'mouth', 'mouthColor', 'skinColor'],
+  'rings': ['seed', 'flip', 'ringColor', 'ringRotation', 'ringFive', 'ringFiveRotation', 'ringFour', 'ringFourRotation', 'ringOne', 'ringOneRotation', 'ringThree', 'ringThreeRotation', 'ringTwo', 'ringTwoRotation'],
+  'shapes': ['seed', 'flip', 'shape1', 'shape1Color', 'shape1OffsetX', 'shape1OffsetY', 'shape1Rotation', 'shape2', 'shape2Color', 'shape2OffsetX', 'shape2OffsetY', 'shape2Rotation', 'shape3', 'shape3Color', 'shape3OffsetX', 'shape3OffsetY', 'shape3Rotation'],
+  'thumbs': ['seed', 'flip', 'eyes', 'eyesColor', 'face', 'faceOffsetX', 'faceOffsetY', 'faceRotation', 'mouth', 'mouthColor', 'shape', 'shapeColor', 'shapeOffsetX', 'shapeOffsetY', 'shapeRotation']
+};
+  return paramsMap[style] || [];
+}
+
 export async function updateHeaderUserAvatar() {
   try {
     const config = getConfig?.();
@@ -137,7 +173,16 @@ async function createDicebearAvatar(user) {
     params.append('seed', seed);
     params.append('size', size.toString());
 
-    addStyleSpecificParams(params, style);
+    if (config.randomDicebearAvatar) {
+      addStyleSpecificParams(params, style);
+    } else if (config.dicebearParams) {
+      const validParams = getValidParamsForStyle(style);
+      Object.entries(config.dicebearParams).forEach(([key, value]) => {
+        if (validParams.includes(key) && value) {
+          params.append(key, value);
+        }
+      });
+    }
 
     if (config.dicebearBackgroundEnabled && config.dicebearBackgroundColor && config.dicebearBackgroundColor !== 'transparent') {
       params.append('backgroundColor', config.dicebearBackgroundColor.replace('#', ''));
@@ -149,7 +194,7 @@ async function createDicebearAvatar(user) {
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`DiceBear hatası: ${response.status}`);
+      throw new Error(`DiceBear error: ${response.status}`);
     }
 
     const svg = await response.text();
@@ -157,7 +202,7 @@ async function createDicebearAvatar(user) {
     const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
 
     if (svgDoc.querySelector('parsererror')) {
-      throw new Error('Geçersiz SVG verisi alındı');
+      throw new Error('Invalid SVG data received');
     }
 
     const svgElement = svgDoc.documentElement;
