@@ -122,6 +122,20 @@ export function getConfig() {
     dicebearPosition: localStorage.getItem('dicebearPosition') !== 'false',
     autoRefreshAvatar: localStorage.getItem('autoRefreshAvatar') !== 'false',
     avatarRefreshTime: parseInt(localStorage.getItem('avatarRefreshTime'), 10) || 10,
+    randomDicebearAvatar: localStorage.getItem('randomDicebearAvatar') !== 'false',
+    dicebearParams: (() => {
+  try {
+    const raw = localStorage.getItem('dicebearParams');
+    if (raw === '[object Object]') {
+      localStorage.removeItem('dicebearParams');
+      return {};
+    }
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    console.error('Dicebear params parse error:', e);
+    return {};
+  }
+})(),
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,
