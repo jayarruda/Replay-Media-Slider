@@ -3,17 +3,19 @@ import { createCheckbox, createSection, createNumberInput, createTextInput, crea
 import { applySettings } from "./applySettings.js";
 import { clearAvatarCache, cleanAvatars, updateHeaderUserAvatar } from "../userAvatar.js";
 import { debounce } from "../utils.js";
+import { createDicebearParamsSection } from "../dicebearSpecificParams.js";
 
 export function createAvatarPanel(config, labels) {
   const panel = document.createElement('div');
   panel.id = 'avatar-panel';
   panel.className = 'settings-panel';
 
-  const section = createSection(labels.avatarCreateInput || 'Avatar Ayarları');
+  const initialIsRandom = config.randomDicebearAvatar !== false;
+  const initialIsDicebear = config.avatarStyle === 'dicebear';
 
+  const section = createSection(labels.avatarCreateInput || 'Avatar Ayarları');
   const avatarCheckbox = createCheckbox('createAvatar', labels.createAvatar || 'Avatar Oluşturmayı Etkinleştir', config.createAvatar);
   section.appendChild(avatarCheckbox);
-
   const avatarStyleSelect = createSelect(
     'avatarStyle',
     labels.avatarStyle || 'Avatar Stili',
@@ -24,50 +26,70 @@ export function createAvatarPanel(config, labels) {
     config.avatarStyle || 'initials'
   );
   section.appendChild(avatarStyleSelect);
-
   const dicebearElements = [];
-
+  const dicebearParamsElements = [];
+  const commonElements = [];
+  const initialsElements = [];
+  const randomAvatarCheckbox = createCheckbox(
+    'randomDicebearAvatar',
+    labels.randomDicebearAvatar || 'Rastgele Avatar Oluştur',
+    config.randomDicebearAvatar !== false
+  );
+  dicebearElements.push(randomAvatarCheckbox);
+  section.appendChild(randomAvatarCheckbox);
   const dicebearStyleSelect = createSelect(
     'dicebearStyle',
     labels.dicebearStyle || 'Dicebear Stili',
     [
-      { value: 'adventurer', text: labels.adventurer },
-      { value: 'adventurer-neutral', text: labels.adventurerNeutral },
-      { value: 'avataaars', text: labels.avataaars },
-      { value: 'avataaars-neutral', text: labels.avataaarsNeutral },
-      { value: 'big-ears', text: labels.bigEars },
-      { value: 'big-ears-neutral', text: labels.bigEarsNeutral },
-      { value: 'big-smile', text: labels.bigSmile },
-      { value: 'bottts', text: labels.bottts },
-      { value: 'bottts-neutral', text: labels.botttsNeutral },
-      { value: 'croodles', text: labels.croodles },
-      { value: 'croodles-neutral', text: labels.croodlesNeutral },
-      { value: 'dylan', text: labels.dylan },
-      { value: 'fun-emoji', text: labels.funEmoji },
-      { value: 'glass', text: labels.glass },
-      { value: 'icons', text: labels.icons },
-      { value: 'identicon', text: labels.identicon },
-      { value: 'initials', text: labels.initials },
-      { value: 'lorelei', text: labels.lorelei },
-      { value: 'lorelei-neutral', text: labels.loreleiNeutral },
-      { value: 'micah', text: labels.micah },
-      { value: 'miniavs', text: labels.miniAvatars },
-      { value: 'notionists', text: labels.notionists },
-      { value: 'notionists-neutral', text: labels.notionistsNeutral },
-      { value: 'open-peeps', text: labels.openPeeps },
-      { value: 'personas', text: labels.personas },
-      { value: 'pixel-art', text: labels.pixelArt },
-      { value: 'pixel-art-neutral', text: labels.pixelArtNeutral },
-      { value: 'rings', text: labels.rings },
-      { value: 'shapes', text: labels.shapes },
-      { value: 'thumbs', text: labels.thumbs }
+      { value: 'adventurer', text: labels.adventurer || 'Adventurer' },
+      { value: 'adventurer-neutral', text: labels.adventurerNeutral || 'Adventurer Neutral' },
+      { value: 'avataaars', text: labels.avataaars || 'Avataaars' },
+      { value: 'avataaars-neutral', text: labels.avataaarsNeutral || 'Avataaars Neutral' },
+      { value: 'big-ears', text: labels.bigEars || 'Big Ears' },
+      { value: 'big-ears-neutral', text: labels.bigEarsNeutral || 'Big Ears Neutral' },
+      { value: 'big-smile', text: labels.bigSmile || 'Big Smile' },
+      { value: 'bottts', text: labels.bottts || 'Bottts' },
+      { value: 'bottts-neutral', text: labels.botttsNeutral || 'Bottts Neutral' },
+      { value: 'croodles', text: labels.croodles || 'Croodles' },
+      { value: 'croodles-neutral', text: labels.croodlesNeutral || 'Croodles Neutral' },
+      { value: 'dylan', text: labels.dylan || 'Dylan' },
+      { value: 'fun-emoji', text: labels.funEmoji || 'Fun Emoji' },
+      { value: 'glass', text: labels.glass || 'Glass' },
+      { value: 'icons', text: labels.icons || 'Icons' },
+      { value: 'identicon', text: labels.identicon || 'Identicon' },
+      { value: 'initials', text: labels.initials || 'Initials' },
+      { value: 'lorelei', text: labels.lorelei || 'Lorelei' },
+      { value: 'lorelei-neutral', text: labels.loreleiNeutral || 'Lorelei Neutral' },
+      { value: 'micah', text: labels.micah || 'Micah' },
+      { value: 'miniavs', text: labels.miniAvatars || 'Mini Avatars' },
+      { value: 'notionists', text: labels.notionists || 'Notionists' },
+      { value: 'notionists-neutral', text: labels.notionistsNeutral || 'Notionists Neutral' },
+      { value: 'open-peeps', text: labels.openPeeps || 'Open Peeps' },
+      { value: 'personas', text: labels.personas || 'Personas' },
+      { value: 'pixel-art', text: labels.pixelArt || 'Pixel Art' },
+      { value: 'pixel-art-neutral', text: labels.pixelArtNeutral || 'Pixel Art Neutral' },
+      { value: 'rings', text: labels.rings || 'Rings' },
+      { value: 'shapes', text: labels.shapes || 'Shapes' },
+      { value: 'thumbs', text: labels.thumbs || 'Thumbs' }
     ],
     config.dicebearStyle || 'initials'
   );
   dicebearElements.push(dicebearStyleSelect);
   section.appendChild(dicebearStyleSelect);
 
-  const commonElements = [];
+  const dicebearParamsSection = document.createElement('div');
+  dicebearParamsSection.id = 'dicebearParamsSection';
+  dicebearParamsSection.className = 'dicebear-params-section';
+
+  const initialStyle = config.dicebearStyle || 'initials';
+  const paramsContent = createDicebearParamsSection(initialStyle);
+  dicebearParamsSection.appendChild(paramsContent);
+  attachDicebearParamsListeners(dicebearParamsSection);
+
+  dicebearParamsSection.style.display = (initialIsDicebear && !initialIsRandom) ? 'flex' : 'none';
+
+  section.appendChild(dicebearParamsSection);
+  dicebearParamsElements.push(dicebearParamsSection);
 
   const widthInput = createNumberInput('avatarWidth', labels.avatarWidth || 'Avatar Genişliği (px)', config.avatarWidth, 10, 50);
   commonElements.push(widthInput);
@@ -76,6 +98,16 @@ export function createAvatarPanel(config, labels) {
   const heightInput = createNumberInput('avatarHeight', labels.avatarHeight || 'Avatar Yüksekliği (px)', config.avatarHeight, 10, 50);
   commonElements.push(heightInput);
   section.appendChild(heightInput);
+
+  const dicebearRadius = createNumberInput(
+    'dicebearRadius',
+    labels.dicebearRadius || 'Dicebear Yuvarlaklık (0-50)',
+    config.dicebearRadius || 50,
+    0,
+    50
+  );
+  dicebearElements.push(dicebearRadius);
+  section.appendChild(dicebearRadius);
 
   const scaleSection = document.createElement('div');
   scaleSection.className = 'avatar-item';
@@ -112,8 +144,6 @@ export function createAvatarPanel(config, labels) {
   scaleSection.append(scaleLabel, scaleInput, scaleValue);
   commonElements.push(scaleSection);
   section.appendChild(scaleSection);
-
-  const initialsElements = [];
 
   const colorMethodSelect = createSelect(
     'avatarColorMethod',
@@ -169,6 +199,7 @@ export function createAvatarPanel(config, labels) {
   initialsElements.push(fontFamilySelect);
   section.appendChild(fontFamilySelect);
 
+
   const fontSizeInput = createNumberInput('avatarFontSize', labels.avatarFontSize || 'Yazı Boyutu (px)', config.avatarFontSize, 8, 20);
   initialsElements.push(fontSizeInput);
   section.appendChild(fontSizeInput);
@@ -176,6 +207,7 @@ export function createAvatarPanel(config, labels) {
   const textShadowInput = createTextInput('avatarTextShadow', labels.avatarTextShadow || 'Yazı Gölgesi', config.avatarTextShadow);
   initialsElements.push(textShadowInput);
   section.appendChild(textShadowInput);
+
 
   const dicebearPositionCheckbox = createCheckbox('dicebearPosition', labels.dicebearPosition || 'Avatar Dışa Çıkar', config.dicebearPosition);
   dicebearElements.push(dicebearPositionCheckbox);
@@ -198,20 +230,10 @@ export function createAvatarPanel(config, labels) {
   section.appendChild(dicebearBgColor);
 
   dicebearBgCheckbox.querySelector('input').addEventListener('change', (e) => {
-  dicebearBgColor.style.display = e.target.checked ? 'flex' : 'none';
-  clearAvatarCache();
-  applySettings(false);
-});
-
-  const dicebearRadius = createNumberInput(
-    'dicebearRadius',
-    labels.dicebearRadius || 'Dicebear Yuvarlaklık (0-50)',
-    config.dicebearRadius || 50,
-    0,
-    50
-  );
-  dicebearElements.push(dicebearRadius);
-  section.appendChild(dicebearRadius);
+    dicebearBgColor.style.display = e.target.checked ? 'flex' : 'none';
+    clearAvatarCache();
+    applySettings(false);
+  });
 
   const autoRefreshSection = document.createElement('div');
   autoRefreshSection.className = 'avatar-item';
@@ -235,66 +257,47 @@ export function createAvatarPanel(config, labels) {
   autoRefreshSection.appendChild(refreshTimeInput);
 
   const initDisplayStyle = () => {
-    const isDicebear = config.avatarStyle === 'dicebear';
-    const isAutoRefresh = config.autoRefreshAvatar;
-    refreshTimeInput.style.display = (isDicebear && isAutoRefresh) ? 'flex' : 'none';
-  };
+  const isDicebear = config.avatarStyle === 'dicebear';
+  const isRandom = config.randomDicebearAvatar !== false;
+  const isAutoRefresh = config.autoRefreshAvatar === true;
+  const colorMethod = config.avatarColorMethod;
+
+  autoRefreshSection.style.display = (isDicebear && isRandom) ? 'flex' : 'none';
+  refreshTimeInput.style.display = (isDicebear && isRandom && isAutoRefresh) ? 'flex' : 'none';
+
+  colorMethodSelect.style.display = isDicebear ? 'none' : 'flex';
+
+  if (!isDicebear) {
+    solidColorInput.style.display = colorMethod === 'solid' ? 'flex' : 'none';
+    gradientSelect.style.display = colorMethod === 'gradient' ? 'flex' : 'none';
+  } else {
+    solidColorInput.style.display = 'none';
+    gradientSelect.style.display = 'none';
+  }
+};
   initDisplayStyle();
 
   autoRefreshCheckbox.querySelector('input').addEventListener('change', (e) => {
-    const isDicebear = document.querySelector('#avatarStyle').value === 'dicebear';
-    refreshTimeInput.style.display = (e.target.checked && isDicebear) ? 'flex' : 'none';
-    applySettings(false);
-  });
+  const isAuto = e.target.checked;
+  const isDicebear = document.querySelector('#avatarStyle').value === 'dicebear';
+  const isRandom = randomAvatarCheckbox.querySelector('input').checked;
 
-  avatarStyleSelect.querySelector('select').addEventListener('change', (e) => {
-    const isDicebear = e.target.value === 'dicebear';
+  refreshTimeInput.style.display = (isDicebear && isRandom && isAuto) ? 'flex' : 'none';
+  autoRefreshSection.style.display = (isDicebear && isRandom) ? 'flex' : 'none';
 
-    initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
-    dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
-    commonElements.forEach(el => el.style.display = 'flex');
-
-    const isAutoRefresh = autoRefreshCheckbox.querySelector('input').checked;
-    refreshTimeInput.style.display = (isDicebear && isAutoRefresh) ? 'flex' : 'none';
-
-    clearAvatarCache();
-    applySettings(false);
-  });
+  applySettings(false);
+});
 
   section.appendChild(autoRefreshSection);
 
   const applyDicebearBtn = document.createElement('button');
-    applyDicebearBtn.type = 'button';
-    applyDicebearBtn.id = 'applyDicebearAvatar';
-    applyDicebearBtn.textContent = labels.uygula || 'DiceBear Avatar Uygula';
-    applyDicebearBtn.className = 'btn';
-    applyDicebearBtn.style.display = config.avatarStyle === 'dicebear' ? 'flex' : 'none';
-    applyDicebearBtn.addEventListener('click', applyDicebearAvatar);
-    section.appendChild(applyDicebearBtn);
-
-  const isDicebear = config.avatarStyle === 'dicebear';
-  initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
-  dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
-  commonElements.forEach(el => el.style.display = 'flex');
-
-  const autoRefreshInitialChecked = autoRefreshCheckbox.querySelector('input').checked;
-  refreshTimeInput.style.display = (isDicebear && autoRefreshInitialChecked) ? 'flex' : 'none';
-
-  const bgCheckboxInitialChecked = dicebearBgCheckbox.querySelector('input').checked;
-  dicebearBgColor.style.display = bgCheckboxInitialChecked ? 'flex' : 'none';
-
-  avatarStyleSelect.querySelector('select').addEventListener('change', (e) => {
-    const isDicebear = e.target.value === 'dicebear';
-
-    initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
-
-    dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
-
-    commonElements.forEach(el => el.style.display = 'flex');
-
-    clearAvatarCache();
-    applySettings(false);
-  });
+  applyDicebearBtn.type = 'button';
+  applyDicebearBtn.id = 'applyDicebearAvatar';
+  applyDicebearBtn.textContent = labels.uygula || 'DiceBear Avatar Uygula';
+  applyDicebearBtn.className = 'btn';
+  applyDicebearBtn.style.display = config.avatarStyle === 'dicebear' ? 'flex' : 'none';
+  applyDicebearBtn.addEventListener('click', applyDicebearAvatar);
+  section.appendChild(applyDicebearBtn);
 
   const description = document.createElement('div');
   description.className = 'description-text';
@@ -302,41 +305,126 @@ export function createAvatarPanel(config, labels) {
     'Bu özellik etkinleştirildiğinde, profil resmi olmayan kullanıcıların kullanıcı isimlerinden avatar oluşturur.';
   section.appendChild(description);
 
-  panel.appendChild(section);
+  randomAvatarCheckbox.querySelector('input').addEventListener('change', (e) => {
+  const isRandom = e.target.checked;
+  const isDicebear = document.querySelector('#avatarStyle').value === 'dicebear';
+  const isAutoRefresh = autoRefreshCheckbox.querySelector('input').checked;
 
-  const initialColorMethod = config.avatarColorMethod;
+  dicebearStyleSelect.style.display = isDicebear ? 'flex' : 'none';
+  dicebearParamsSection.style.display = (isDicebear && !isRandom) ? 'flex' : 'none';
 
-  solidColorInput.style.display = (!isDicebear && initialColorMethod === 'solid') ? 'flex' : 'none';
-  gradientSelect.style.display = (!isDicebear && initialColorMethod === 'gradient') ? 'flex' : 'none';
+  autoRefreshSection.style.display = (isDicebear && isRandom) ? 'flex' : 'none';
+  refreshTimeInput.style.display = (isDicebear && isRandom && isAutoRefresh) ? 'flex' : 'none';
+
+  if (!isRandom && isDicebear) {
+    updateDicebearParamsSection();
+  }
+
+  clearAvatarCache();
+  applySettings(false);
+
+  const params = collectDicebearParams();
+  localStorage.setItem('dicebearParams', JSON.stringify(params));
+});
+
+
+avatarStyleSelect.querySelector('select').addEventListener('change', (e) => {
+  const isDicebear = e.target.value === 'dicebear';
+  const isRandom = randomAvatarCheckbox.querySelector('input').checked;
+
+  initialsElements.forEach(el => el.style.display = isDicebear ? 'none' : 'flex');
+  dicebearElements.forEach(el => el.style.display = isDicebear ? 'flex' : 'none');
+  commonElements.forEach(el => el.style.display = 'flex');
+  colorMethodSelect.style.display = isDicebear ? 'none' : 'flex';
+
+  if (!isDicebear) {
+    const colorMethod = colorMethodSelect.querySelector('select').value;
+    solidColorInput.style.display = colorMethod === 'solid' ? 'flex' : 'none';
+    gradientSelect.style.display = colorMethod === 'gradient' ? 'flex' : 'none';
+  } else {
+    solidColorInput.style.display = 'none';
+    gradientSelect.style.display = 'none';
+  }
+
+  dicebearParamsSection.style.display = (isDicebear && !isRandom) ? 'flex' : 'none';
+  applyDicebearBtn.style.display = isDicebear ? 'flex' : 'none';
+
+  const isAutoRefresh = autoRefreshCheckbox.querySelector('input').checked;
+  refreshTimeInput.style.display = (isDicebear && isAutoRefresh && isRandom) ? 'flex' : 'none';
+  autoRefreshSection.style.display = (isDicebear && isRandom) ? 'flex' : 'none';
+
+  if (isDicebear && !isRandom) {
+    updateDicebearParamsSection();
+  }
+
+  clearAvatarCache();
+  applySettings(false);
+
+  if (isDicebear) {
+    const params = collectDicebearParams();
+    saveDicebearParams(params);
+  }
+});
+
+  dicebearStyleSelect.querySelector('select').addEventListener('change', (e) => {
+  const isRandom = randomAvatarCheckbox.querySelector('input').checked;
+  if (!isRandom) {
+    updateDicebearParamsSection();
+  }
+
+  const params = collectDicebearParams();
+  localStorage.setItem('dicebearParams', JSON.stringify(params));
+
+  clearAvatarCache();
+  applySettings(false);
+});
 
   colorMethodSelect.querySelector('select').addEventListener('change', (e) => {
-    solidColorInput.style.display = e.target.value === 'solid' ? 'flex' : 'none';
-    gradientSelect.style.display = e.target.value === 'gradient' ? 'flex' : 'none';
-    clearAvatarCache();
-    applySettings(false);
-  });
+  const value = e.target.value;
+  const isDicebear = document.querySelector('#avatarStyle').value === 'dicebear';
 
-  avatarCheckbox.querySelector('input').addEventListener('change', () => {
-    clearAvatarCache();
-    applySettings(false);
-  });
+  if (!isDicebear) {
+    solidColorInput.style.display = value === 'solid' ? 'flex' : 'none';
+    gradientSelect.style.display = value === 'gradient' ? 'flex' : 'none';
+  } else {
+    solidColorInput.style.display = 'none';
+    gradientSelect.style.display = 'none';
+  }
 
-  const cacheClearingInputs = [
-    dicebearStyleSelect, dicebearBgColor, dicebearBgCheckbox, dicebearRadius,
-    solidColorInput, gradientSelect, fontFamilySelect,
-    widthInput, heightInput, fontSizeInput, textShadowInput, dicebearPositionCheckbox
-  ];
+  clearAvatarCache();
+  applySettings(false);
+});
 
-  cacheClearingInputs.forEach(input => {
-    const element = input.querySelector('input, select');
-    if (element) {
-      element.addEventListener('change', () => {
-        clearAvatarCache();
-        applySettings(false);
-      });
+randomAvatarCheckbox.querySelector('input').checked = initialIsRandom;
+dicebearParamsSection.style.display = (initialIsDicebear && !initialIsRandom) ? 'flex' : 'none';
+dicebearStyleSelect.style.display = initialIsDicebear ? 'flex' : 'none';
+
+initialsElements.forEach(el => el.style.display = initialIsDicebear ? 'none' : 'flex');
+dicebearElements.forEach(el => el.style.display = initialIsDicebear ? 'flex' : 'none');
+commonElements.forEach(el => el.style.display = 'flex');
+
+  const bgCheckboxInitialChecked = dicebearBgCheckbox.querySelector('input').checked;
+  dicebearBgColor.style.display = bgCheckboxInitialChecked ? 'flex' : 'none';
+
+  function updateDicebearParamsSection() {
+    const styleSelect = document.querySelector('#dicebearStyle');
+    if (!styleSelect) {
+      console.error('Dicebear stil seçim öğesi bulunamadı');
+      return;
     }
-  });
 
+    const style = styleSelect.value;
+    const newParamsSection = createDicebearParamsSection(style);
+
+    const oldParamsSection = document.getElementById('dicebearParamsSection');
+    if (oldParamsSection) {
+      oldParamsSection.innerHTML = '';
+      oldParamsSection.appendChild(newParamsSection);
+      attachDicebearParamsListeners(oldParamsSection);
+    }
+  }
+
+  panel.appendChild(section);
   return panel;
 }
 
@@ -445,19 +533,22 @@ function getSystemFonts(labels) {
 }
 
 export async function applyDicebearAvatar() {
-
-  const headerButton = document.querySelector('button.headerUserButton');
-  if (!headerButton) {
-    return false;
-  }
-
   try {
+    const params = collectDicebearParams();
+    if (!saveDicebearParams(params)) {
+      throw new Error('Parametreler kaydedilemedi');
+    }
+
+    const headerButton = document.querySelector('button.headerUserButton');
+    if (!headerButton) return false;
+
     clearAvatarCache();
     Object.keys(sessionStorage).forEach(key => {
       if (key.startsWith('avatar-') && key.includes('dicebear')) {
         sessionStorage.removeItem(key);
       }
     });
+
     cleanAvatars(headerButton);
     await updateHeaderUserAvatar();
     return true;
@@ -465,4 +556,106 @@ export async function applyDicebearAvatar() {
     console.error('Avatar uygulanırken hata:', error);
     throw error;
   }
+}
+
+
+function saveDicebearParams(params) {
+  try {
+    const paramsToSave = params || collectDicebearParams();
+
+    if (!paramsToSave || typeof paramsToSave !== 'object') {
+      console.error('Geçersiz parametreler:', paramsToSave);
+      return false;
+    }
+
+    const jsonString = JSON.stringify(paramsToSave);
+    if (!jsonString || jsonString === '{}') {
+      console.warn('Boş parametreler kaydedilmeye çalışılıyor');
+      return false;
+    }
+
+    localStorage.setItem('dicebearParams', jsonString);
+    const saved = localStorage.getItem('dicebearParams');
+    if (saved !== jsonString) {
+      console.error('Kayıt başarısız oldu!');
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Dicebear parametreleri kaydedilirken hata oluştu:', e);
+    localStorage.removeItem('dicebearParams');
+    return false;
+  }
+}
+
+
+function getDicebearParams() {
+  try {
+    const params = localStorage.getItem('dicebearParams');
+    return params ? JSON.parse(params) : {};
+  } catch (e) {
+    console.error('Dicebear ayarları yüklenirken hata oluştu:', e);
+    return {};
+  }
+}
+
+function collectDicebearParams() {
+  const container = document.querySelector('#dicebearParamsSection');
+  if (!container) return {};
+
+  const inputs = container.querySelectorAll('input, select');
+  const params = {};
+
+  inputs.forEach(input => {
+    let name = input.name || input.id;
+    if (!name) return;
+    if (name.startsWith('dicebearParams.')) {
+      name = name.replace('dicebearParams.', '');
+    }
+
+    if (input.type === 'checkbox') {
+      params[name] = input.checked;
+    } else if (input.type === 'number') {
+      params[name] = Number(input.value);
+    } else if (input.type === 'range') {
+      params[name] = parseFloat(input.value);
+    } else {
+      params[name] = input.value;
+    }
+  });
+
+  return params;
+}
+
+function attachDicebearParamsListeners(container) {
+  const inputs = container.querySelectorAll('input, select');
+  inputs.forEach(input => {
+    input.addEventListener('change', () => {
+      const params = collectDicebearParams();
+
+      if (params && typeof params === 'object' && !Array.isArray(params)) {
+        if (!saveDicebearParams(params)) {
+          console.error('Parametreler kaydedilemedi!');
+        }
+      } else {
+        console.error('Geçersiz parametre formatı:', params);
+      }
+
+      clearAvatarCache();
+      applySettings(false);
+    });
+  });
+}
+function updateColorVisibility() {
+  const methodSelect = document.querySelector('#avatarColorMethod');
+  const value = methodSelect?.value;
+
+  const solidColor = document.querySelector('#solidColorInput');
+  const gradientColor = document.querySelector('#gradientSelect');
+
+  if (!solidColor || !gradientColor) return;
+
+  solidColor.style.display = value === 'solid' ? 'flex' : 'none';
+  gradientColor.style.display = value === 'gradient' ? 'flex' : 'none';
 }
