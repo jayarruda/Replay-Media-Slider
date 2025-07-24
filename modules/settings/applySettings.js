@@ -65,6 +65,8 @@ export function applySettings(reload = false) {
             dicebearPosition: formData.get('dicebearPosition') === 'on',
             autoRefreshAvatar: formData.get('autoRefreshAvatar') === 'on',
             avatarRefreshTime: parseInt(formData.get('avatarRefreshTime'), 10),
+            randomDicebearAvatar: formData.get('randomDicebearAvatar') === 'on',
+            dicebearParams: config.dicebearParams || {},
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
