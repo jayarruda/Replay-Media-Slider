@@ -63,6 +63,7 @@ export function getConfig() {
     gradientOverlayImageType: localStorage.getItem('gradientOverlayImageType') || 'backdropUrl',
     backdropImageType: localStorage.getItem('backdropImageType') || 'backdropUrl',
     enableTrailerPlayback: localStorage.getItem('enableTrailerPlayback') !== 'false',
+    enableVideoPlayback: localStorage.getItem('enableVideoPlayback') !== 'false',
     dotBackgroundImageType: localStorage.getItem('dotBackgroundImageType') || 'none',
     trailerBackgroundImageType: localStorage.getItem('trailerBackgroundImageType') || 'trailerBgImage',
     watchBackgroundImageType: localStorage.getItem('watchBackgroundImageType') || 'watchBgImage',
