@@ -76,16 +76,45 @@ export function createSliderPanel(config, labels) {
     sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
     sliderDiv.appendChild(sliderDesc);
 
-
     const showProgressCheckbox = createCheckbox('showProgressBar', labels.progressBar || 'ProgressBar\'ı Göster', config.showProgressBar);
     sliderDiv.appendChild(showProgressCheckbox);
 
+    const playbackOptionsDiv = document.createElement('div');
+    playbackOptionsDiv.className = 'playback-options-container';
+
+    const playbackCheckboxesDiv = document.createElement('div');
+    playbackCheckboxesDiv.style.display = 'flex';
+    playbackCheckboxesDiv.style.gap = '20px';
+
     const trailerPlaybackCheckbox = createCheckbox(
-        'enableTrailerPlayback',
-        labels.enableTrailerPlayback || 'Yerleşik Fragman Oynatımına İzin Ver',
-        config.enableTrailerPlayback
-    );
-    sliderDiv.appendChild(trailerPlaybackCheckbox);
+    'enableTrailerPlayback',
+    labels.enableTrailerPlayback || 'Yerleşik Fragman Oynatımına İzin Ver',
+    config.enableTrailerPlayback
+);
+
+    const videoPlaybackCheckbox = createCheckbox(
+    'enableVideoPlayback',
+    labels.enableVideoPlayback || 'Yerleşik Video Oynatımına İzin Ver',
+    config.enableVideoPlayback
+);
+
+    playbackCheckboxesDiv.appendChild(trailerPlaybackCheckbox);
+    playbackCheckboxesDiv.appendChild(videoPlaybackCheckbox);
+    playbackOptionsDiv.appendChild(playbackCheckboxesDiv);
+
+    trailerPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+    if (e.target.checked) {
+        videoPlaybackCheckbox.querySelector('input').checked = false;
+    }
+});
+
+    videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) {
+        trailerPlaybackCheckbox.querySelector('input').checked = false;
+    }
+});
+
+    sliderDiv.appendChild(playbackOptionsDiv);
 
     const delayDiv = document.createElement('div');
     delayDiv.className = 'fsetting-item trailer-delay-container';
@@ -111,6 +140,8 @@ export function createSliderPanel(config, labels) {
 
     bindCheckboxKontrol('#enableTrailerPlayback', '.trailer-delay-container', 0.6, [delayInput]);
     bindCheckboxKontrol('#enableTrailerPlayback', '.gradient-overlay-container', 0.6, [gradientSelect]);
+    bindCheckboxKontrol('#enableVideoPlayback', '.trailer-delay-container', 0.6, [delayInput]);
+    bindCheckboxKontrol('#enableVideoPlayback', '.gradient-overlay-container', 0.6, [gradientSelect]);
 
     const indexZeroCheckbox = createCheckbox(
     'indexZeroSelection',
