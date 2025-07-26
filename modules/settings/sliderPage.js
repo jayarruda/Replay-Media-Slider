@@ -106,12 +106,14 @@ export function createSliderPanel(config, labels) {
     if (e.target.checked) {
         videoPlaybackCheckbox.querySelector('input').checked = false;
     }
+    updateTrailerRelatedFields();
 });
 
-    videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
-        if (e.target.checked) {
+videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+    if (e.target.checked) {
         trailerPlaybackCheckbox.querySelector('input').checked = false;
     }
+    updateTrailerRelatedFields();
 });
 
     sliderDiv.appendChild(playbackOptionsDiv);
@@ -137,11 +139,6 @@ export function createSliderPanel(config, labels) {
     const gradientSelect = createImageTypeSelect('gradientOverlayImageType', config.gradientOverlayImageType || 'backdropUrl', true);
     gradientDiv.append(gradientLabel, gradientSelect);
     sliderDiv.appendChild(gradientDiv);
-
-    bindCheckboxKontrol('#enableTrailerPlayback', '.trailer-delay-container', 0.6, [delayInput]);
-    bindCheckboxKontrol('#enableTrailerPlayback', '.gradient-overlay-container', 0.6, [gradientSelect]);
-    bindCheckboxKontrol('#enableVideoPlayback', '.trailer-delay-container', 0.6, [delayInput]);
-    bindCheckboxKontrol('#enableVideoPlayback', '.gradient-overlay-container', 0.6, [gradientSelect]);
 
     const indexZeroCheckbox = createCheckbox(
     'indexZeroSelection',
@@ -379,5 +376,25 @@ export function createSliderPanel(config, labels) {
         cssDiv,
         sliderDiv,
     );
+    requestAnimationFrame(() => {
+    updateTrailerRelatedFields();
+});
     return panel;
+}
+
+function updateTrailerRelatedFields() {
+    const trailerChecked = document.querySelector('#enableTrailerPlayback')?.checked;
+    const videoChecked = document.querySelector('#enableVideoPlayback')?.checked;
+    const isEnabled = trailerChecked || videoChecked;
+
+    const trailerDelayContainer = document.querySelector('.trailer-delay-container');
+    const gradientOverlayContainer = document.querySelector('.gradient-overlay-container');
+
+    if (trailerDelayContainer && gradientOverlayContainer) {
+        trailerDelayContainer.style.opacity = isEnabled ? 1 : 0.6;
+        gradientOverlayContainer.style.opacity = isEnabled ? 1 : 0.6;
+
+        trailerDelayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
+        gradientOverlayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
+    }
 }
