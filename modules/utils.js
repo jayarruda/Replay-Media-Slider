@@ -79,130 +79,185 @@ export function isValidUrl(url) {
 }
 
 export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId }) {
-    if (!config.enableTrailerPlayback && !config.enableVideoPlayback) return;
+  if (!config.enableTrailerPlayback && !config.enableVideoPlayback) return;
+  if (config.enableVideoPlayback && itemId) {
+    const videoContainer = document.createElement("div");
+    videoContainer.className = "intro-video-container";
+    Object.assign(videoContainer.style, {
+      width: "70%",
+      height: "90%",
+      border: "none",
+      display: "none",
+      position: "absolute",
+      top: "0%",
+      right: "0%"
+    });
 
-    else if (config.enableVideoPlayback && itemId) {
-        const videoContainer = document.createElement("div");
-        videoContainer.className = "intro-video-container";
-        Object.assign(videoContainer.style, {
-            width: "70%",
-            height: "90%",
-            border: "none",
-            display: "none",
-            position: "absolute",
-            top: "0%",
-            right: "0%"
-        });
-
-        const videoElement = document.createElement("video");
-        videoElement.controls = true;
-        videoElement.muted = false;
-        videoElement.playsinline = true;
-        videoElement.style.width = "100%";
-        videoElement.style.height = "100%";
-        videoElement.style.transition = "opacity 0.4s ease-in-out";
-        videoElement.style.opacity = "0";
-
-        videoContainer.appendChild(videoElement);
-        slide.appendChild(videoContainer);
-
-        let videoPlaying = false;
-        let videoEnterTimeout = null;
-        let currentSegment = 1;
-        const segmentDuration = 10;
-        const segmentInterval = 600;
-        let totalSegments = 9;
-
-        const handleVideoMouseEnter = debounce(async () => {
-            backdropImg.style.opacity = "0";
-            videoContainer.style.display = "block";
-            videoElement.src = "";
-
-            slide.classList.add("video-active", "intro-active");
-            videoPlaying = true;
-            currentSegment = 1;
-
-            try {
-                const introUrl = await getVideoStreamUrl(itemId, 480);
-                if (!introUrl) throw new Error("Video URL alınamadı");
-
-                videoElement.src = introUrl;
-
-                videoElement.onloadedmetadata = () => {
-                    const duration = videoElement.duration;
-                    totalSegments = Math.floor(duration / segmentInterval);
-                    if (totalSegments === 0) {
-                        console.warn("Video çok kısa, segment yapılamıyor");
-                        return;
-                    }
-
-                    const playNextSegment = () => {
-    if (!videoPlaying) return;
-
-    const segmentStartTime = currentSegment * segmentInterval;
-    if (segmentStartTime >= videoElement.duration) {
-        currentSegment = 1;
-    }
+    const videoElement = document.createElement("video");
+    videoElement.controls = true;
+    videoElement.muted = false;
+    videoElement.playsinline = true;
+    videoElement.style.width = "100%";
+    videoElement.style.height = "100%";
     videoElement.style.transition = "opacity 0.4s ease-in-out";
     videoElement.style.opacity = "0";
 
-    setTimeout(() => {
-        videoElement.pause();
-        videoElement.currentTime = segmentStartTime;
+    videoContainer.appendChild(videoElement);
+    slide.appendChild(videoContainer);
 
-        videoElement.onseeked = () => {
+    let videoPlaying = false;
+    let videoEnterTimeout = null;
+    let currentSegment = 1;
+    const segmentDuration = 10;
+    const segmentInterval = 600;
+    let totalSegments = 9;
+
+    const handleVideoMouseEnter = debounce(async () => {
+      backdropImg.style.opacity = "0";
+      videoContainer.style.display = "block";
+      videoElement.src = "";
+
+      slide.classList.add("video-active", "intro-active");
+      videoPlaying = true;
+      currentSegment = 1;
+
+      try {
+        const introUrl = await getVideoStreamUrl(itemId, 480);
+        if (!introUrl) throw new Error("Video URL alınamadı");
+
+        videoElement.src = introUrl;
+
+        videoElement.onloadedmetadata = () => {
+          const duration = videoElement.duration;
+          totalSegments = Math.floor(duration / segmentInterval);
+          if (totalSegments === 0) {
+            console.warn("Video çok kısa, segment yapılamıyor");
+            return;
+          }
+
+          const playNextSegment = () => {
             if (!videoPlaying) return;
 
-            videoElement.play().then(() => {
-                setTimeout(() => {
+            const segmentStartTime = currentSegment * segmentInterval;
+            if (segmentStartTime >= videoElement.duration) {
+              currentSegment = 1;
+            }
+            videoElement.style.transition = "opacity 0.4s ease-in-out";
+            videoElement.style.opacity = "0";
+
+            setTimeout(() => {
+              videoElement.pause();
+              videoElement.currentTime = segmentStartTime;
+
+              videoElement.onseeked = () => {
+                if (!videoPlaying) return;
+
+                videoElement.play().then(() => {
+                  setTimeout(() => {
                     videoElement.style.opacity = "1";
-                }, 150);
-                setTimeout(() => {
-                        if (videoPlaying) {
-                            currentSegment++;
-                            playNextSegment();
-                          }
-                        }, segmentDuration * 1000);
-                      }).catch(e => console.error("Segment oynatma hatası:", e));
-                  };
-              }, 300);
-            };
+                  }, 150);
+                  setTimeout(() => {
+                    if (videoPlaying) {
+                      currentSegment++;
+                      playNextSegment();
+                    }
+                  }, segmentDuration * 1000);
+                }).catch(e => console.error("Segment oynatma hatası:", e));
+              };
+            }, 300);
+          };
 
-                    videoElement.currentTime = currentSegment * segmentInterval;
-                    videoElement.play().then(() => {
-                        videoElement.style.opacity = "1";
-                        playNextSegment();
-                    }).catch(e => console.error("İlk oynatma hatası:", e));
-                };
-            } catch (e) {
-                console.error("Video yükleme hatası:", e);
-            }
-        }, 0);
-
-        const handleVideoMouseLeave = () => {
-            if (videoEnterTimeout) {
-                clearTimeout(videoEnterTimeout);
-                videoEnterTimeout = null;
-            }
-            if (videoPlaying) {
-                videoElement.pause();
-                videoElement.src = "";
-                videoContainer.style.display = "none";
-                backdropImg.style.opacity = "1";
-                slide.classList.remove("video-active", "intro-active");
-                videoElement.style.opacity = "0";
-                videoPlaying = false;
-                currentSegment = 1;
-            }
+          videoElement.currentTime = currentSegment * segmentInterval;
+          videoElement.play().then(() => {
+            videoElement.style.opacity = "1";
+            playNextSegment();
+          }).catch(e => console.error("İlk oynatma hatası:", e));
         };
+      } catch (e) {
+        console.error("Video yükleme hatası:", e);
+      }
+    }, 0);
 
-        backdropImg.addEventListener("mouseenter", () => {
-            videoEnterTimeout = setTimeout(handleVideoMouseEnter, config.gecikmeSure || 500);
-        });
+    const handleVideoMouseLeave = () => {
+      if (videoEnterTimeout) {
+        clearTimeout(videoEnterTimeout);
+        videoEnterTimeout = null;
+      }
+      if (videoPlaying) {
+        videoElement.pause();
+        videoElement.src = "";
+        videoContainer.style.display = "none";
+        backdropImg.style.opacity = "1";
+        slide.classList.remove("video-active", "intro-active");
+        videoElement.style.opacity = "0";
+        videoPlaying = false;
+        currentSegment = 1;
+      }
+    };
 
-        backdropImg.addEventListener("mouseleave", handleVideoMouseLeave);
-        slide.addEventListener("slideChange", handleVideoMouseLeave);
-    }
+    backdropImg.addEventListener("mouseenter", () => {
+      videoEnterTimeout = setTimeout(handleVideoMouseEnter, config.gecikmeSure || 500);
+    });
+
+    backdropImg.addEventListener("mouseleave", handleVideoMouseLeave);
+    slide.addEventListener("slideChange", handleVideoMouseLeave);
+  }
+
+  else if (config.enableTrailerPlayback && RemoteTrailers?.length) {
+    const trailer = RemoteTrailers[0];
+    const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
+    if (!isValidUrl(trailerUrl)) return;
+
+    const trailerIframe = document.createElement("iframe");
+    trailerIframe.title = trailer.Name;
+    trailerIframe.allow =
+      "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+    trailerIframe.allowFullscreen = true;
+
+    Object.assign(trailerIframe.style, {
+      width: "70%",
+      height: "90%",
+      border: "none",
+      display: "none",
+      position: "absolute",
+      top: "0%",
+      right: "0%"
+    });
+
+    slide.appendChild(trailerIframe);
+
+    let trailerPlaying = false;
+    let enterTimeout = null;
+
+    const handleMouseEnter = debounce(() => {
+      backdropImg.style.opacity = "0";
+      trailerIframe.style.display = "block";
+      trailerIframe.src = trailerUrl;
+      slide.classList.add("trailer-active");
+      trailerPlaying = true;
+    }, 0);
+
+    const handleMouseLeave = () => {
+      if (enterTimeout) {
+        clearTimeout(enterTimeout);
+        enterTimeout = null;
+      }
+      if (trailerPlaying) {
+        trailerIframe.style.display = "none";
+        trailerIframe.src = "";
+        backdropImg.style.opacity = "1";
+        slide.classList.remove("trailer-active");
+        trailerPlaying = false;
+      }
+    };
+
+    backdropImg.addEventListener("mouseenter", () => {
+      enterTimeout = setTimeout(handleMouseEnter, config.gecikmeSure || 500);
+    });
+
+    backdropImg.addEventListener("mouseleave", handleMouseLeave);
+    slide.addEventListener("slideChange", handleMouseLeave);
+  }
 }
 
 export function prefetchImages(urls) {
