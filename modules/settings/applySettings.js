@@ -32,6 +32,7 @@ export function applySettings(reload = false) {
             showCast: formData.get('showCast') === 'on',
             showProgressBar: formData.get('showProgressBar') === 'on',
             enableTrailerPlayback: formData.get('enableTrailerPlayback') === 'on',
+            enableVideoPlayback: formData.get('enableVideoPlayback') === 'on',
             gradientOverlayImageType: formData.get('gradientOverlayImageType'),
             manualBackdropSelection: formData.get('manualBackdropSelection') === 'on',
             indexZeroSelection: formData.get('indexZeroSelection') === 'on',
