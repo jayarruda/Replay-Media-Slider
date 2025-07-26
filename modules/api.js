@@ -33,33 +33,33 @@ export function getSessionInfo() {
   if (!raw) throw new Error("Kimlik bilgisi bulunamadı.");
   const parsed = JSON.parse(raw);
 
-  const topLevelToken     = parsed.AccessToken;
+  const topLevelToken = parsed.AccessToken;
   const topLevelSessionId = parsed.SessionId;
-  const topLevelUser      = parsed.User?.Id;
+  const topLevelUser = parsed.User?.Id;
 
   if (topLevelToken && topLevelSessionId && topLevelUser) {
     return {
-      userId:      topLevelUser,
+      userId: topLevelUser,
       accessToken: topLevelToken,
-      sessionId:   topLevelSessionId,
-      deviceId:    parsed.DeviceId   || parsed.ClientDeviceId || "web-client",
-      clientName:  parsed.Client   || "Jellyfin Web Client",
+      sessionId: topLevelSessionId,
+      deviceId: parsed.DeviceId || parsed.ClientDeviceId || "web-client",
+      clientName: parsed.Client || "Jellyfin Web Client",
       clientVersion: parsed.Version || "1.0.0"
     };
   }
 
   const server = (parsed.Servers && parsed.Servers[0]) || {};
-  const oldToken     = server.AccessToken;
+  const oldToken = server.AccessToken;
   const oldSessionId = server.Id;
-  const oldUser      = server.UserId;
+  const oldUser = server.UserId;
 
   if (oldToken && oldSessionId && oldUser) {
     return {
-      userId:      oldUser,
+      userId: oldUser,
       accessToken: oldToken,
-      sessionId:   oldSessionId,
-      deviceId:    server.SystemId || "web-client",
-      clientName:  parsed.Client   || "Jellyfin Web Client",
+      sessionId: oldSessionId,
+      deviceId: server.SystemId || "web-client",
+      clientName: parsed.Client || "Jellyfin Web Client",
       clientVersion: parsed.Version || "1.0.0"
     };
   }
@@ -68,7 +68,6 @@ export function getSessionInfo() {
     "Kimlik bilgisi eksik: ne top-level ne de Servers[0] altından gerekli alanlar bulunamadı"
   );
 }
-
 
 async function makeApiRequest(url, options = {}) {
   try {
@@ -80,10 +79,12 @@ async function makeApiRequest(url, options = {}) {
     const response = await fetch(url, options);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.message ||
-        `API isteği başarısız oldu (durum: ${response.status})`
-      );
+      const errorMsg = errorData.message ||
+                     (errorData.Title && errorData.Description ?
+                      `${errorData.Title}: ${errorData.Description}` :
+                      `API isteği başarısız oldu (durum: ${response.status})`);
+
+      throw new Error(errorMsg);
     }
     const contentType = response.headers.get("content-type") || "";
     if (response.status === 204 || !contentType.includes("application/json")) {
@@ -96,7 +97,6 @@ async function makeApiRequest(url, options = {}) {
     throw error;
   }
 }
-
 
 export async function fetchItemDetails(itemId) {
   const { userId } = getSessionInfo();
@@ -124,7 +124,6 @@ export async function updatePlayedStatus(itemId, played) {
     body: JSON.stringify({ Played: played })
   });
 }
-
 
 export async function getImageDimensions(url) {
   return new Promise((resolve, reject) => {
@@ -159,17 +158,23 @@ export async function getImageDimensions(url) {
 
 export async function playNow(itemId) {
   try {
-    const { deviceId, userId, sessionId } = getSessionInfo();
+    const { userId } = getSessionInfo();
 
+    const item = await fetchItemDetails(itemId);
+    if (item.Type === "Series") {
+  itemId = await getRandomEpisodeId(itemId);
+}
+
+    const { deviceId, sessionId } = getSessionInfo();
     const sessions = await makeApiRequest(`/Sessions?UserId=${userId}`);
     const videoClients = sessions.filter(s =>
       s.Capabilities?.PlayableMediaTypes?.includes('Video')
     );
 
-    let target = videoClients.find(s => s.Id === sessionId)
-      || videoClients.find(s => s.DeviceId === deviceId)
-      || videoClients.find(s => s.NowPlayingItem)
-      || videoClients.sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))[0];
+    let target = videoClients.find(s => s.Id === sessionId) ||
+      videoClients.find(s => s.DeviceId === deviceId) ||
+      videoClients.find(s => s.NowPlayingItem) ||
+      videoClients.sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))[0];
 
     if (!target) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
@@ -198,6 +203,147 @@ export async function playNow(itemId) {
     console.error("Oynatma hatası:", err);
     return false;
   }
+}
+
+async function getRandomEpisodeId(seriesId) {
+  const { userId } = getSessionInfo();
+  const response = await makeApiRequest(
+    `/Users/${userId}/Items?ParentId=${seriesId}` +
+    `&Recursive=true&IncludeItemTypes=Episode&Fields=Id`
+  );
+  const allEpisodes = Array.isArray(response.Items)
+    ? response.Items
+    : [];
+
+  if (!allEpisodes.length) {
+    throw new Error("Bölüm bulunamadı");
+  }
+  const randomIndex = Math.floor(Math.random() * allEpisodes.length);
+  return allEpisodes[randomIndex].Id;
+}
+
+
+export async function getVideoStreamUrl(
+  itemId,
+  maxHeight = 480,
+  startTimeTicks = 0,
+  audioLanguage = null,
+  enableH265 = true,
+  enableHdr = true
+) {
+  const { userId } = getSessionInfo();
+  try {
+    const item = await fetchItemDetails(itemId);
+    if (item.Type === "Series") {
+      itemId = await getRandomEpisodeId(itemId);
+    }
+
+    const mediaSources = await makeApiRequest(`/Items/${itemId}/PlaybackInfo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        UserId: userId,
+        MaxStreamingBitrate: 2000000,
+        StartTimeTicks: startTimeTicks
+      })
+    });
+
+    if (!mediaSources?.MediaSources?.length) {
+      console.error("Medya kaynağı bulunamadı");
+      return null;
+    }
+
+    const videoSource = mediaSources.MediaSources[0];
+    let videoCodec = videoSource.SupportsDirectStream ? "copy" : "h264";
+    if (enableH265) {
+      const hasHevcStream = videoSource.MediaStreams.some(
+        s => s.Type === "Video" && s.Codec && s.Codec.toLowerCase().includes("hevc")
+      );
+      if (hasHevcStream || !videoSource.SupportsDirectStream) {
+        videoCodec = "hevc";
+      }
+    }
+
+    const audioCodec = videoSource.SupportsDirectStream ? "copy" : "aac";
+
+    let audioStreamIndex = 1;
+    if (audioLanguage) {
+      const audioStream = videoSource.MediaStreams.find(
+        s => s.Type === "Audio" && s.Language === audioLanguage
+      );
+      if (audioStream) {
+        audioStreamIndex = audioStream.Index;
+      }
+    }
+
+    const hasHdr = videoSource.MediaStreams.some(
+      s => s.Type === "Video" && s.VideoRangeType === "HDR"
+    );
+
+    let url = `/Videos/${itemId}/stream.${videoSource.Container || "mp4"}?`;
+    url += `Static=true&`;
+    url += `MediaSourceId=${videoSource.Id}&`;
+    url += `DeviceId=${getSessionInfo().deviceId}&`;
+    url += `api_key=${getSessionInfo().accessToken}&`;
+    url += `VideoCodec=${videoCodec}&`;
+    url += `AudioCodec=${audioCodec}&`;
+    url += `VideoBitrate=1000000&`;
+    url += `AudioBitrate=128000&`;
+    url += `MaxHeight=${maxHeight}&`;
+    url += `StartTimeTicks=${startTimeTicks}&`;
+    url += `AudioStreamIndex=${audioStreamIndex}`;
+
+    if (enableHdr && hasHdr) {
+      url += `&EnableHdr=true`;
+      url += `&Hdr10=true`;
+      const hasDolbyVision = videoSource.MediaStreams.some(
+        s => s.Type === "Video" && s.VideoRangeType === "DOVI"
+      );
+      if (hasDolbyVision) {
+        url += `&DolbyVision=true`;
+      }
+    }
+
+    return url;
+  } catch (error) {
+    console.error("Stream URL oluşturma hatası:", error);
+    return null;
+  }
+}
+
+
+export async function getIntroVideoUrl(itemId) {
+  try {
+    const { userId } = getSessionInfo();
+    const response = await makeApiRequest(`/Items/${itemId}/Intros`);
+    const intros = response.Items || [];
+    if (intros.length > 0) {
+      const intro = intros[0];
+      const startTimeTicks = 600 * 10_000_000;
+      const url = await getVideoStreamUrl(intro.Id, 480, startTimeTicks);
+      return url;
+    }
+    return null;
+  } catch (error) {
+    console.error("Intro video alınırken hata:", error);
+    return null;
+  }
+}
+
+const videoPreviewCache = new Map();
+
+export async function getCachedVideoPreview(itemId) {
+  if (videoPreviewCache.has(itemId)) {
+    return videoPreviewCache.get(itemId);
+  }
+
+  const url = await getVideoStreamUrl(itemId, 480, 0);
+  if (url) {
+    videoPreviewCache.set(itemId, url);
+    setTimeout(() => videoPreviewCache.delete(itemId), 300000);
+  }
+
+  return url;
 }
 
 export {
