@@ -164,47 +164,79 @@ export function setupPauseScreen() {
 
 
     async function setBackdrop() {
-        if (!currentMediaId) return;
-        const url = `/Items/${currentMediaId}/Images/Backdrop/0`;
+    if (!currentMediaId) return;
+
+    const url = `/Items/${currentMediaId}/Images/Backdrop/0`;
+    try {
         const ok = await checkExists(url);
         backdropEl.style.backgroundImage = ok ? `url('${url}')` : 'none';
         backdropEl.style.opacity = ok ? '0.7' : '0';
+    } catch (e) {
+        backdropEl.style.backgroundImage = 'none';
+        backdropEl.style.opacity = '0';
     }
+}
 
     async function setLogo(data) {
-        if (!currentMediaId) return;
-        const imagePref = config.pauseOverlay?.imagePreference || 'auto';
-        const logoUrl = `/Items/${currentMediaId}/Images/Logo`;
-        const discUrl = `/Items/${currentMediaId}/Images/Disc`;
+    if (!currentMediaId || !data) return;
 
-        const logoExists = await checkExists(logoUrl);
-        const discExists = await checkExists(discUrl);
+    const imagePref = config.pauseOverlay?.imagePreference || 'auto';
+    const logoUrl = `/Items/${currentMediaId}/Images/Logo`;
+    const discUrl = `/Items/${currentMediaId}/Images/Disc`;
 
-        let shown = false;
+    try {
+        const shouldCheckLogo = (imagePref === 'logo' || imagePref === 'auto');
+        const shouldCheckDisc = (imagePref === 'disc' || imagePref === 'auto');
+
+        const [logoExists, discExists] = await Promise.all([
+            shouldCheckLogo ? checkExists(logoUrl) : Promise.resolve(false),
+            shouldCheckDisc ? checkExists(discUrl) : Promise.resolve(false)
+        ]);
 
         if (imagePref === 'logo' && logoExists) {
-            logoEl.innerHTML = `<img class="pause-logo" src="${logoUrl}" alt=""/>`;
-            shown = true;
+            logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
         } else if (imagePref === 'disc' && discExists) {
-            logoEl.innerHTML = `<img class="pause-disk" src="${discUrl}" alt=""/>`;
-            shown = true;
+            logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
         } else if (imagePref === 'title') {
-            logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle}</div>`;
-            shown = true;
+            logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
+        } else if (imagePref === 'auto') {
+            if (logoExists) {
+                logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
+            } else if (discExists) {
+                logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
+            } else {
+                logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
+            }
         }
-
-        if (!shown && imagePref === 'auto') {
-            logoEl.innerHTML = logoExists
-                ? `<img class="pause-logo" src="${logoUrl}" alt=""/>`
-                : discExists
-                    ? `<img class="pause-disk" src="${discUrl}" alt=""/>`
-                    : `<div class="pause-text-logo">${data.Name || data.OriginalTitle}</div>`;
-        }
+    } catch (e) {
+        logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
     }
-
+}
     async function checkExists(url) {
-        try { const res = await fetch(url, { method: 'HEAD' }); return res.ok; } catch { return false; }
+    if (!url) return false;
+    if (window.__imageCache === undefined) {
+        window.__imageCache = {};
     }
+
+    if (window.__imageCache[url] !== undefined) {
+        return window.__imageCache[url];
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: 'HEAD',
+            cache: 'no-store',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        const exists = response.ok;
+        window.__imageCache[url] = exists;
+        return exists;
+    } catch (e) {
+        window.__imageCache[url] = false;
+        return false;
+    }
+}
 
     function getCurrentMediaId(force = false) {
         const now = Date.now();
@@ -226,6 +258,9 @@ export function setupPauseScreen() {
 
     function bindVideo(video) {
         if (removeHandlers) removeHandlers();
+         if (video.closest('.intro-video-container')) {
+        return;
+    }
         activeVideo = video;
         const onPause = async () => {
             if (video.ended) return;

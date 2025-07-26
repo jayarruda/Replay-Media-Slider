@@ -197,7 +197,7 @@ if (typeof RunTimeTicks === "number") {
   slide.append(backdropImg, gradientOverlay, horizontalGradientOverlay);
   slidesContainer.appendChild(slide);
 
-  createTrailerIframe({ config, RemoteTrailers, slide, backdropImg });
+  createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId });
 
   const logoContainer = createLogoContainer();
   const order = config.showDiscOnly
