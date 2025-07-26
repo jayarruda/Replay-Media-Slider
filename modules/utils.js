@@ -1,5 +1,5 @@
 import { getConfig } from "./config.js";
-import { fetchItemDetails, getImageDimensions } from "./api.js";
+import { fetchItemDetails, getImageDimensions, getIntroVideoUrl, getVideoStreamUrl } from "./api.js";
 
 const config = getConfig();
 
@@ -78,63 +78,131 @@ export function isValidUrl(url) {
   }
 }
 
-export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg }) {
-  if (!config.enableTrailerPlayback || !RemoteTrailers?.length) return;
+export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId }) {
+    if (!config.enableTrailerPlayback && !config.enableVideoPlayback) return;
 
-  const trailer = RemoteTrailers[0];
-  const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
-  if (!isValidUrl(trailerUrl)) return;
+    else if (config.enableVideoPlayback && itemId) {
+        const videoContainer = document.createElement("div");
+        videoContainer.className = "intro-video-container";
+        Object.assign(videoContainer.style, {
+            width: "70%",
+            height: "90%",
+            border: "none",
+            display: "none",
+            position: "absolute",
+            top: "0%",
+            right: "0%"
+        });
 
-  const trailerIframe = document.createElement("iframe");
-  trailerIframe.title = trailer.Name;
-  trailerIframe.allow =
-    "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-  trailerIframe.allowFullscreen = true;
+        const videoElement = document.createElement("video");
+        videoElement.controls = true;
+        videoElement.muted = false;
+        videoElement.playsinline = true;
+        videoElement.style.width = "100%";
+        videoElement.style.height = "100%";
+        videoElement.style.transition = "opacity 0.4s ease-in-out";
+        videoElement.style.opacity = "0";
 
-  Object.assign(trailerIframe.style, {
-    width: "70%",
-    height: "90%",
-    border: "none",
-    display: "none",
-    position: "absolute",
-    top: "0%",
-    right: "0%"
-  });
+        videoContainer.appendChild(videoElement);
+        slide.appendChild(videoContainer);
 
-  slide.appendChild(trailerIframe);
+        let videoPlaying = false;
+        let videoEnterTimeout = null;
+        let currentSegment = 1;
+        const segmentDuration = 10;
+        const segmentInterval = 600;
+        let totalSegments = 9;
 
-  let trailerPlaying = false;
-  let enterTimeout = null;
+        const handleVideoMouseEnter = debounce(async () => {
+            backdropImg.style.opacity = "0";
+            videoContainer.style.display = "block";
+            videoElement.src = "";
 
-  const handleMouseEnter = debounce(() => {
-    backdropImg.style.opacity = "0";
-    trailerIframe.style.display = "block";
-    trailerIframe.src = trailerUrl;
-    slide.classList.add("trailer-active");
-    trailerPlaying = true;
-  }, 0);
+            slide.classList.add("video-active", "intro-active");
+            videoPlaying = true;
+            currentSegment = 1;
 
-  const handleMouseLeave = () => {
-    if (enterTimeout) {
-      clearTimeout(enterTimeout);
-      enterTimeout = null;
+            try {
+                const introUrl = await getVideoStreamUrl(itemId, 480);
+                if (!introUrl) throw new Error("Video URL alınamadı");
+
+                videoElement.src = introUrl;
+
+                videoElement.onloadedmetadata = () => {
+                    const duration = videoElement.duration;
+                    totalSegments = Math.floor(duration / segmentInterval);
+                    if (totalSegments === 0) {
+                        console.warn("Video çok kısa, segment yapılamıyor");
+                        return;
+                    }
+
+                    const playNextSegment = () => {
+    if (!videoPlaying) return;
+
+    const segmentStartTime = currentSegment * segmentInterval;
+    if (segmentStartTime >= videoElement.duration) {
+        currentSegment = 1;
     }
-    if (trailerPlaying) {
-      trailerIframe.style.display = "none";
-      trailerIframe.src = "";
-      backdropImg.style.opacity = "1";
-      slide.classList.remove("trailer-active");
-      trailerPlaying = false;
+    videoElement.style.transition = "opacity 0.4s ease-in-out";
+    videoElement.style.opacity = "0";
+
+    setTimeout(() => {
+        videoElement.pause();
+        videoElement.currentTime = segmentStartTime;
+
+        videoElement.onseeked = () => {
+            if (!videoPlaying) return;
+
+            videoElement.play().then(() => {
+                setTimeout(() => {
+                    videoElement.style.opacity = "1";
+                }, 150);
+                setTimeout(() => {
+                        if (videoPlaying) {
+                            currentSegment++;
+                            playNextSegment();
+                          }
+                        }, segmentDuration * 1000);
+                      }).catch(e => console.error("Segment oynatma hatası:", e));
+                  };
+              }, 300);
+            };
+
+                    videoElement.currentTime = currentSegment * segmentInterval;
+                    videoElement.play().then(() => {
+                        videoElement.style.opacity = "1";
+                        playNextSegment();
+                    }).catch(e => console.error("İlk oynatma hatası:", e));
+                };
+            } catch (e) {
+                console.error("Video yükleme hatası:", e);
+            }
+        }, 0);
+
+        const handleVideoMouseLeave = () => {
+            if (videoEnterTimeout) {
+                clearTimeout(videoEnterTimeout);
+                videoEnterTimeout = null;
+            }
+            if (videoPlaying) {
+                videoElement.pause();
+                videoElement.src = "";
+                videoContainer.style.display = "none";
+                backdropImg.style.opacity = "1";
+                slide.classList.remove("video-active", "intro-active");
+                videoElement.style.opacity = "0";
+                videoPlaying = false;
+                currentSegment = 1;
+            }
+        };
+
+        backdropImg.addEventListener("mouseenter", () => {
+            videoEnterTimeout = setTimeout(handleVideoMouseEnter, config.gecikmeSure || 500);
+        });
+
+        backdropImg.addEventListener("mouseleave", handleVideoMouseLeave);
+        slide.addEventListener("slideChange", handleVideoMouseLeave);
     }
-  };
-
-  backdropImg.addEventListener("mouseenter", () => {
-    enterTimeout = setTimeout(handleMouseEnter, config.gecikmeSure || 500);
-  });
-
-  backdropImg.addEventListener("mouseleave", handleMouseLeave);
-
-  slide.addEventListener("slideChange", handleMouseLeave);
 }
 
 export function prefetchImages(urls) {
@@ -246,4 +314,3 @@ async function getImageSizeInBytes(url) {
   if (!size) throw new Error("Görsel boyutu alınamadı");
   return parseInt(size, 10);
 }
-
