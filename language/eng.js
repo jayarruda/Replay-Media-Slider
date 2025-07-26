@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  enableVideoPlayback: "Play Segments from Content (Experimental)",
+  enableTrailerPlayback: "Play Embedded YouTube Trailers",
   randomDicebearAvatar: "Generate Random",
   avatarSeed: "Seed",
   avatarFlip: "Flip",
@@ -481,7 +483,6 @@ export const languageLabels = {
   sliderDuration: "Slider Duration:",
   sliderDurationDescription: "This setting should be in milliseconds.",
   limit: "Slider Limit:",
-  enableTrailerPlayback: "Enable embedded trailer playback",
   gradientOverlayImageType: "Image type to display when playing an embedded trailer:",
   dotBackgroundImageType: "Dot Background Image Type:",
   imageTypeBackdrop: "Backdrop Image",

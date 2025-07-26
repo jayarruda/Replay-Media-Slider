@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  enableVideoPlayback: "Воспроизводить фрагменты контента (экспериментально)",
+  enableTrailerPlayback: "Воспроизводить встроенные трейлеры YouTube",
   randomDicebearAvatar: "Сгенерировать случайно",
   avatarSeed: "Семя",
   avatarFlip: "Отразить",
@@ -478,7 +480,6 @@ export const languageLabels = {
   sliderDuration: "Длительность слайдера:",
   sliderDurationDescription: "Это значение должно быть указано в миллисекундах.",
   limit: "Лимит слайдера:",
-  enableTrailerPlayback: "Разрешить встроенное воспроизведение трейлеров",
   gradientOverlayImageType: "Тип изображения для отображения при воспроизведении трейлера:",
   dotBackgroundImageType: "Тип фонового изображения для точек:",
   imageTypeBackdrop: "Фоновое изображение",

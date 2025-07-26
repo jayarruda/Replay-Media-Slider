@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  enableVideoPlayback: "Ausschnitte aus Inhalten abspielen (experimentell)",
+  enableTrailerPlayback: "Eingebettete YouTube-Trailer abspielen",
   randomDicebearAvatar: "Zufällig generieren",
   avatarSeed: "Samen",
   avatarFlip: "Umdrehen",
@@ -478,7 +480,6 @@ export const languageLabels = {
   sliderDuration: "Slider-Dauer:",
   sliderDurationDescription: "Diese Einstellung sollte in Millisekunden angegeben werden.",
   limit: "Slider-Limit:",
-  enableTrailerPlayback: "Inline-Trailer-Wiedergabe aktivieren",
   gradientOverlayImageType: "Bildtyp, der bei Inline-Trailer-Wiedergabe angezeigt wird:",
   dotBackgroundImageType: "Dot-Hintergrundbildtyp:",
   imageTypeBackdrop: "Hintergrundbild",

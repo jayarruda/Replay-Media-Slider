@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Langue par défaut",
+  enableVideoPlayback: "Lire des extraits du contenu (expérimental)",
+  enableTrailerPlayback: "Lire les bandes-annonces YouTube intégrées",
   randomDicebearAvatar: "Générer au hasard",
   avatarSeed: 'Graine',
   avatarFlip: 'Retourner',
@@ -478,7 +480,6 @@ export const languageLabels = {
   sliderDuration: "Durée du Slider :",
   sliderDurationDescription: "Ce paramètre doit être en millisecondes.",
   limit: "Limite du Slider :",
-  enableTrailerPlayback: "Activer la lecture intégrée de la bande-annonce",
   gradientOverlayImageType: "Type d'image à afficher lors de la lecture intégrée de la bande-annonce :",
   dotBackgroundImageType: "Type d'image d'arrière-plan des points :",
   imageTypeBackdrop: "Image de fond",

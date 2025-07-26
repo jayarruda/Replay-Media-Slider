@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  enableVideoPlayback: "İçerikten Kesitler Oynat (Deneysel)",
+  enableTrailerPlayback: "Yerleşik Youtube Fragmanları Oynat",
   randomDicebearAvatar: "Rastgele oluştur",
   avatarSeed: "Tohum",
   avatarFlip: "Çevir",
@@ -479,7 +481,6 @@ export const languageLabels = {
   sliderDuration: "Slider Süresi:",
   sliderDurationDescription: "Bu ayar, ms cinsinden olmalıdır.",
   limit: "Slider Limiti:",
-  enableTrailerPlayback: "Yerleşik Fragman Oynatımına İzin Ver",
   gradientOverlayImageType: "Yerleşik Fragman Oynatıldığında Gösterilecek Görsel Türü:",
   dotBackgroundImageType: "Nokta Navigasyon Arka Plan Görsel Türü:",
   imageTypeBackdrop: "Backdrop Görseli",
