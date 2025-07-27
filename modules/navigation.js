@@ -811,10 +811,10 @@ function createVideoModal() {
     display: flex;
     gap: 10px;
     position: absolute;
-    bottom: 20px;
+    bottom: 25px;
     right: 0px;
     z-index: 2;
-    opacity: 0;
+    opacity: 1;
     transform: scale(0.9);
   `;
 
@@ -825,7 +825,7 @@ function createVideoModal() {
     color: black;
     border: none;
     border-radius: 4px;
-    padding: 8px 15px;
+    padding: 4px 8px;
     font-weight: bold;
     font-size: 14px;
     display: flex;
@@ -968,7 +968,7 @@ function createVideoModal() {
 
   modal.addEventListener('mouseleave', () => {
     modalHoverState = false;
-    buttonsContainer.style.opacity = '0';
+    buttonsContainer.style.opacity = '1';
     modalHideTimeout = setTimeout(closeVideoModal, 150);
   });
 
