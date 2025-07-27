@@ -1,3 +1,38 @@
+import { saveCredentials, saveApiKey, getAuthToken } from "./auth.js";
+
+(async function bootstrapCredentials() {
+  try {
+    const token = getAuthToken();
+    if (!token || localStorage.getItem("json-credentials")) return;
+
+    saveApiKey(token);
+    const res = await fetch(`/Sessions?UserId=&api_key=${token}`);
+    if (!res.ok) throw new Error("Sessions alınamadı");
+
+    const sessions = await res.json();
+    const sess = sessions
+      .filter(s => s.UserId)
+      .sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))[0];
+
+    if (!sess) throw new Error("Oturum bulunamadı");
+    const creds = {
+      AccessToken: token,
+      SessionId: sess.Id,
+      User: { Id: sess.UserId },
+      DeviceId: sess.DeviceId || "web-client",
+      Client: sess.Client || "Jellyfin Web Client",
+      Version: sess.Version || "1.0.0"
+    };
+
+    console.log(">> bootstrapCredentials: kaydediliyor", creds);
+    saveCredentials(creds);
+  } catch (e) {
+    console.warn("bootstrapCredentials hatası:", e);
+  }
+})();
+
+
+
 import { getConfig } from "./modules/config.js";
 import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
 import { startSlideTimer, stopSlideTimer } from "./modules/timer.js";
@@ -9,7 +44,6 @@ import { fetchItemDetails } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from './modules/positionOverrides.js';
 import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
-
 
 let cleanupPauseOverlay = null;
 
@@ -126,8 +160,15 @@ export async function slidesInit() {
     let userId = null, accessToken = null;
     try {
         const parsed = JSON.parse(rawCred);
-        userId = parsed.Servers[0].UserId;
-        accessToken = parsed.Servers[0].AccessToken;
+    if (parsed.Servers && Array.isArray(parsed.Servers) && parsed.Servers[0]) {
+      userId = parsed.Servers[0].UserId;
+      accessToken = parsed.Servers[0].AccessToken;
+    } else if (parsed.AccessToken && parsed.User && parsed.User.Id) {
+      userId = parsed.User.Id;
+      accessToken = parsed.AccessToken;
+    } else {
+      throw new Error("Credential JSON yapısı tanınamadı");
+    }
     } catch (err) {
         console.error("Credential JSON hatası:", err);
     }
