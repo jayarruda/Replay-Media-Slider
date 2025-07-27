@@ -225,13 +225,16 @@ async function getRandomEpisodeId(seriesId) {
 
 export async function getVideoStreamUrl(
   itemId,
-  maxHeight = 480,
+  maxHeight = 1080,
   startTimeTicks = 0,
   audioLanguage = null,
-  enableH265 = true,
-  enableHdr = true
+  preferredVideoCodecs = ["hevc", "h264", "av1"],
+  preferredAudioCodecs = ["eac3", "ac3", "opus", "aac"],
+  enableHdr = true,
+  forceDirectPlay = false
 ) {
-  const { userId } = getSessionInfo();
+  const { userId, deviceId, accessToken } = getSessionInfo();
+
   try {
     const item = await fetchItemDetails(itemId);
     if (item.Type === "Series") {
@@ -243,8 +246,11 @@ export async function getVideoStreamUrl(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         UserId: userId,
-        MaxStreamingBitrate: 2000000,
-        StartTimeTicks: startTimeTicks
+        MaxStreamingBitrate: 150000000,
+        StartTimeTicks: startTimeTicks,
+        EnableDirectPlay: forceDirectPlay,
+        EnableDirectStream: true,
+        EnableTranscoding: !forceDirectPlay,
       })
     });
 
@@ -254,17 +260,38 @@ export async function getVideoStreamUrl(
     }
 
     const videoSource = mediaSources.MediaSources[0];
-    let videoCodec = videoSource.SupportsDirectStream ? "copy" : "h264";
-    if (enableH265) {
-      const hasHevcStream = videoSource.MediaStreams.some(
-        s => s.Type === "Video" && s.Codec && s.Codec.toLowerCase().includes("hevc")
-      );
-      if (hasHevcStream || !videoSource.SupportsDirectStream) {
-        videoCodec = "hevc";
+
+    let videoCodec = "h264";
+    if (preferredVideoCodecs.length && !videoSource.SupportsDirectStream) {
+      const availableVideoCodecs = videoSource.MediaStreams
+        .filter(s => s.Type === "Video" && s.Codec)
+        .map(s => s.Codec.toLowerCase());
+
+      for (const codec of preferredVideoCodecs) {
+        if (availableVideoCodecs.includes(codec.toLowerCase())) {
+          videoCodec = codec;
+          break;
+        }
       }
+    } else if (videoSource.SupportsDirectStream) {
+      videoCodec = "copy";
     }
 
-    const audioCodec = videoSource.SupportsDirectStream ? "copy" : "aac";
+    let audioCodec = "aac";
+    if (preferredAudioCodecs.length && !videoSource.SupportsDirectStream) {
+      const availableAudioCodecs = videoSource.MediaStreams
+        .filter(s => s.Type === "Audio" && s.Codec)
+        .map(s => s.Codec.toLowerCase());
+
+      for (const codec of preferredAudioCodecs) {
+        if (availableAudioCodecs.includes(codec.toLowerCase())) {
+          audioCodec = codec;
+          break;
+        }
+      }
+    } else if (videoSource.SupportsDirectStream) {
+      audioCodec = "copy";
+    }
 
     let audioStreamIndex = 1;
     if (audioLanguage) {
@@ -283,8 +310,8 @@ export async function getVideoStreamUrl(
     let url = `/Videos/${itemId}/stream.${videoSource.Container || "mp4"}?`;
     url += `Static=true&`;
     url += `MediaSourceId=${videoSource.Id}&`;
-    url += `DeviceId=${getSessionInfo().deviceId}&`;
-    url += `api_key=${getSessionInfo().accessToken}&`;
+    url += `DeviceId=${deviceId}&`;
+    url += `api_key=${accessToken}&`;
     url += `VideoCodec=${videoCodec}&`;
     url += `AudioCodec=${audioCodec}&`;
     url += `VideoBitrate=1000000&`;
@@ -310,7 +337,6 @@ export async function getVideoStreamUrl(
     return null;
   }
 }
-
 
 export async function getIntroVideoUrl(itemId) {
   try {
