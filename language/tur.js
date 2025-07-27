@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  uygun: "Öneriliyor",
   enableVideoPlayback: "İçerikten Kesitler Oynat (Deneysel)",
   enableTrailerPlayback: "Yerleşik Youtube Fragmanları Oynat",
   randomDicebearAvatar: "Rastgele oluştur",

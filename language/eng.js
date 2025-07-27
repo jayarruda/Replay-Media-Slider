@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  uygun: "Recommended",
   enableVideoPlayback: "Play Segments from Content (Experimental)",
   enableTrailerPlayback: "Play Embedded YouTube Trailers",
   randomDicebearAvatar: "Generate Random",
