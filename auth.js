@@ -46,28 +46,37 @@ export function getAuthToken() {
   const orig = console.log;
   console.log = function(...args) {
     args.forEach(arg => {
-      if (typeof arg === "string") {
-        if (arg.startsWith(JSON_PREFIX)) {
+      if (typeof arg === "string" && arg.startsWith(JSON_PREFIX)) {
+        try {
+          const cred = JSON.parse(arg.slice(JSON_PREFIX.length).trim());
+          clearCredentials();
+          saveCredentials(cred);
+        } catch {}
+      }
+      else if (arg && typeof arg === "object" && arg.AccessToken && arg.SessionId && arg.User) {
+        clearCredentials();
+        saveCredentials(arg);
+      }
+      if (typeof arg === "string" && arg.startsWith(WS_PREFIX)) {
+        const url = arg.split("url:")[1]?.trim();
+        if (url) {
           try {
-            const cred = JSON.parse(arg.slice(JSON_PREFIX.length).trim());
-            clearCredentials();
-            saveCredentials(cred);
+            const key = new URL(url).searchParams.get("api_key");
+            if (key) saveApiKey(key);
           } catch {}
-        }
-        if (arg.startsWith(WS_PREFIX)) {
-          const url = arg.split("url:")[1]?.trim();
-          if (url) {
-            try {
-              const key = new URL(url).searchParams.get("api_key");
-              if (key) saveApiKey(key);
-            } catch {}
-          }
         }
       }
     });
     orig.apply(console, args);
   };
 })();
+
+async function onLoginSubmit(credentials) {
+  const response = await authenticateUser(username, password);
+  saveCredentials(response);
+  saveApiKey(response.AccessToken);
+  initApp();
+}
 
 export {
   clearCredentials,
