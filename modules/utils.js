@@ -80,6 +80,7 @@ export function isValidUrl(url) {
 
 export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId }) {
   if (!config.enableTrailerPlayback && !config.enableVideoPlayback) return;
+
   if (config.enableVideoPlayback && itemId) {
     const videoContainer = document.createElement("div");
     videoContainer.className = "intro-video-container";
@@ -108,7 +109,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     let videoPlaying = false;
     let videoEnterTimeout = null;
     let currentSegment = 1;
-    const segmentDuration = 10;
+    const segmentDuration = 4;
     const segmentInterval = 600;
     let totalSegments = 9;
 
@@ -127,7 +128,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
 
         videoElement.src = introUrl;
 
-        videoElement.onloadedmetadata = () => {
+        videoElement.onloadedmetadata = async () => {
           const duration = videoElement.duration;
           totalSegments = Math.floor(duration / segmentInterval);
           if (totalSegments === 0) {
@@ -135,24 +136,25 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
             return;
           }
 
-          const playNextSegment = () => {
+          const playNextSegment = async () => {
             if (!videoPlaying) return;
 
             const segmentStartTime = currentSegment * segmentInterval;
             if (segmentStartTime >= videoElement.duration) {
               currentSegment = 1;
             }
-            videoElement.style.transition = "opacity 0.4s ease-in-out";
+
             videoElement.style.opacity = "0";
 
             setTimeout(() => {
               videoElement.pause();
               videoElement.currentTime = segmentStartTime;
 
-              videoElement.onseeked = () => {
+              videoElement.onseeked = async () => {
                 if (!videoPlaying) return;
 
-                videoElement.play().then(() => {
+                try {
+                  await videoElement.play();
                   setTimeout(() => {
                     videoElement.style.opacity = "1";
                   }, 150);
@@ -162,16 +164,28 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
                       playNextSegment();
                     }
                   }, segmentDuration * 1000);
-                }).catch(e => console.error("Segment oynatma hatası:", e));
+                } catch (e) {
+                  if (e.name === 'AbortError') {
+                    console.warn("Segment oynatma AbortError ile kesildi.");
+                  } else {
+                    console.error("Segment oynatma hatası:", e);
+                  }
+                }
               };
             }, 300);
           };
 
-          videoElement.currentTime = currentSegment * segmentInterval;
-          videoElement.play().then(() => {
+          try {
+            videoElement.currentTime = currentSegment * segmentInterval;
+            await videoElement.play();
             videoElement.style.opacity = "1";
             playNextSegment();
-          }).catch(e => console.error("İlk oynatma hatası:", e));
+          } catch (e) {
+            if (e.name === 'AbortError') {
+            } else {
+              console.error("İlk oynatma hatası:", e);
+            }
+          }
         };
       } catch (e) {
         console.error("Video yükleme hatası:", e);
