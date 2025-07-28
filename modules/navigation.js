@@ -1,19 +1,19 @@
 import { stopSlideTimer, startSlideTimer } from "./timer.js";
 import { SLIDE_DURATION } from "./timer.js";
 import { getConfig } from './config.js';
-import { ensureProgressBarExists, resetProgressBar, startProgressBarWithDuration, pauseProgressBar, resumeProgressBar } from "./progressBar.js";
-import { getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout, setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime } from "./sliderState.js";
+import { resetProgressBar } from "./progressBar.js";
+import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js"
-import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus } from "./api.js";
-import { styleElement, animationStyles, existingStyle, applySlideAnimation, applyDotPosterAnimation} from "./animations.js";
+import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus,  getCachedUserTopGenres, getGenresForDot } from "./api.js";
+import { applySlideAnimation, applyDotPosterAnimation} from "./animations.js";
 
 const config = getConfig();
 
-let dotNavigationInitialized = false;
 let videoModal, modalVideo, modalTitle, modalMeta, modalMatchInfo, modalGenres, modalPlayButton, modalFavoriteButton;
 let modalHoverState = false;
 let modalHideTimeout;
 let modalEventListeners = [];
+let dotHideTimeout;
 
 function cleanupModalEvents() {
   modalEventListeners.forEach(({ element, event, handler }) => {
@@ -130,7 +130,7 @@ export function createDotNavigation() {
   }
 
   const slides = slidesContainer.querySelectorAll(".slide");
-  if (!slides.length) return;
+  if (!slides || slides.length === 0) return;
 
   let dotContainer = slidesContainer.querySelector(".dot-navigation-container");
   if (!dotContainer) {
@@ -149,321 +149,206 @@ export function createDotNavigation() {
     const scrollWrapper = document.createElement("div");
     scrollWrapper.className = "dot-scroll-wrapper";
 
-    slides.forEach(async (slide, index) => {
-  const itemId = slide.dataset.itemId;
-  if (!itemId) {
-    console.warn(`Dot oluşturulamadı: slide ${index} için itemId eksik`);
-    return;
-  }
+    const slidesArray = Array.from(slides);
 
-  if (slide.dataset.favorite === undefined || slide.dataset.played === undefined) {
-    try {
-      const item = await fetchItemDetails(itemId);
-      const isFavorite = item.UserData?.IsFavorite || false;
-      slide.dataset.favorite = isFavorite.toString();
-    } catch (e) {
-      console.warn(`Favori durumu alınamadı: ${itemId}`, e);
-    }
-  }
-
-  const dot = document.createElement("div");
-  dot.className = "dot poster-dot";
-  dot.dataset.index = index;
-  dot.dataset.itemId = itemId;
-
-  const imageUrl = dotType === "useSlideBackground"
-    ? slide.dataset.background
-    : slide.dataset[dotType];
-
-      if (imageUrl) {
-        const image = document.createElement("img");
-        image.src = imageUrl;
-        image.className = "dot-poster-image";
-        image.style.opacity = config.dotBackgroundOpacity || 0.3;
-        image.style.filter = `blur(${config.dotBackgroundBlur ?? 10}px)`;
-        dot.appendChild(image);
-      }
-
-      const positionTicks = Number(slide.dataset.playbackpositionticks);
-      const runtimeTicks = Number(slide.dataset.runtimeticks);
-
-      if (config.showPlaybackProgress && !isNaN(positionTicks) && !isNaN(runtimeTicks) && positionTicks > 0 && positionTicks < runtimeTicks) {
-        const progressContainer = document.createElement("div");
-        progressContainer.className = "dot-progress-container";
-
-        const barWrapper = document.createElement("div");
-        barWrapper.className = "dot-duration-bar-wrapper";
-
-        const bar = document.createElement("div");
-        bar.className = "dot-duration-bar";
-
-        const percentage = Math.min((positionTicks / runtimeTicks) * 100, 100);
-        bar.style.width = `${percentage.toFixed(1)}%`;
-
-        const remainingMinutes = Math.round((runtimeTicks - positionTicks) / 600000000);
-        const text = document.createElement("span");
-        text.className = "dot-duration-remaining";
-        text.innerHTML = `<i class="fa-regular fa-hourglass-half"></i> ${remainingMinutes} ${config.languageLabels.dakika} ${config.languageLabels.kaldi}`;
-
-        barWrapper.appendChild(bar);
-        progressContainer.appendChild(barWrapper);
-        progressContainer.appendChild(text);
-        dot.appendChild(progressContainer);
-      }
-
-
-      const playButton = document.createElement("button");
-      playButton.className = "dot-play-button";
-      const isPlayed = slide.dataset.played === "true";
-      playButton.textContent = isPlayed ? config.languageLabels.devamet : config.languageLabels.izle;
-
-      const item = await fetchItemDetails(itemId);
-      const matchPercentage = calculateMatchPercentage(item.UserData, item);
-
-      const matchBadge = document.createElement("div");
-      matchBadge.className = "dot-match-div";
-      matchBadge.textContent = `${matchPercentage}% ${config.languageLabels.uygun}`;
-
-      playButton.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const itemId = e.currentTarget.closest(".poster-dot")?.dataset.itemId;
+    const dotElements = slidesArray.map((slide, index) => {
+        const itemId = slide.dataset.itemId;
         if (!itemId) {
-          alert("Oynatma başlatılamadı: itemId eksik");
-          return;
+            console.warn(`Dot oluşturulamadı: slide ${index} için itemId eksik`);
+            return null;
         }
-        try {
-          await playNow(itemId);
-        } catch (error) {
-          console.error("Oynatma hatası:", error);
-          alert("Oynatma başlatılamadı: " + error.message);
+
+        const dot = document.createElement("div");
+        dot.className = "dot poster-dot";
+        dot.dataset.index = index;
+        dot.dataset.itemId = itemId;
+
+        const imageUrl = dotType === "useSlideBackground"
+            ? slide.dataset.background
+            : slide.dataset[dotType];
+
+        if (imageUrl) {
+            const image = document.createElement("img");
+            image.src = imageUrl;
+            image.className = "dot-poster-image";
+            image.style.opacity = config.dotBackgroundOpacity || 0.3;
+            image.style.filter = `blur(${config.dotBackgroundBlur ?? 10}px)`;
+            dot.appendChild(image);
         }
-      });
 
-      dot.append(playButton, matchBadge);
-      dot.classList.toggle("active", index === currentIndex);
+        const positionTicks = Number(slide.dataset.playbackpositionticks);
+        const runtimeTicks = Number(slide.dataset.runtimeticks);
 
-      if (config.dotPosterMode && config.enableDotPosterAnimations) {
-        applyDotPosterAnimation(dot, index === currentIndex);
-      }
+        if (config.showPlaybackProgress && !isNaN(positionTicks) && !isNaN(runtimeTicks) && positionTicks > 0 && positionTicks < runtimeTicks) {
+            const progressContainer = document.createElement("div");
+            progressContainer.className = "dot-progress-container";
 
-      dot.addEventListener("click", () => {
-        if (index !== getCurrentIndex()) {
-          changeSlide(index - getCurrentIndex());
+            const barWrapper = document.createElement("div");
+            barWrapper.className = "dot-duration-bar-wrapper";
+
+            const bar = document.createElement("div");
+            bar.className = "dot-duration-bar";
+            const percentage = Math.min((positionTicks / runtimeTicks) * 100, 100);
+            bar.style.width = `${percentage.toFixed(1)}%`;
+
+            const remainingMinutes = Math.round((runtimeTicks - positionTicks) / 600000000);
+            const text = document.createElement("span");
+            text.className = "dot-duration-remaining";
+            text.innerHTML = `<i class="fa-regular fa-hourglass-half"></i> ${remainingMinutes} ${config.languageLabels.dakika} ${config.languageLabels.kaldi}`;
+
+            barWrapper.appendChild(bar);
+            progressContainer.appendChild(barWrapper);
+            progressContainer.appendChild(text);
+            dot.appendChild(progressContainer);
         }
-      });
 
-      dot.addEventListener("mouseenter", async () => {
-  if (videoModal) {
-    clearTimeout(videoModal.hideTimeout);
-  }
-  modalHoverState = true;
+        const playButton = document.createElement("button");
+        playButton.className = "dot-play-button";
+        playButton.textContent = config.languageLabels.izle;
 
-  if (!dot.classList.contains("active")) {
-    dot.style.transform = "scale(1.05)";
-    dot.style.zIndex = "5";
-  }
+        const matchBadge = document.createElement("div");
+        matchBadge.className = "dot-match-div";
+        matchBadge.textContent = `...% ${config.languageLabels.uygun}`;
 
-  const itemId = dot.dataset.itemId;
-  if (!itemId) return;
+        dot.append(playButton, matchBadge);
+        dot.classList.toggle("active", index === currentIndex);
 
-  if (dot.abortController) {
-    dot.abortController.abort();
-  }
-  dot.abortController = new AbortController();
-
-  try {
-    if (!videoModal) {
-      const modalElements = createVideoModal();
-      videoModal = modalElements.modal;
-      modalVideo = modalElements.video;
-      modalTitle = modalElements.title;
-      modalMeta = modalElements.meta;
-      modalMatchInfo = modalElements.matchInfo;
-      modalGenres = modalElements.genres;
-      modalPlayButton = modalElements.playButton;
-      modalFavoriteButton = modalElements.favoriteButton;
-    }
-
-    videoModal.dataset.itemId = itemId;
-    positionModalRelativeToDot(videoModal, dot);
-
-    const slide = document.querySelector(`.slide[data-item-id="${itemId}"]`);
-    if (slide) {
-      const item = await fetchItemDetails(itemId);
-
-      modalTitle.textContent = item.Name || slide.dataset.title || '';
-
-      const year = item.ProductionYear ? ` ${item.ProductionYear}` : '';
-      const rating = item.CommunityRating ? ` • ${parseFloat(item.CommunityRating).toFixed(1)}` : '';
-      const runtime = item.RunTimeTicks ? ` • ${Math.floor(item.RunTimeTicks / 600000000)} ${config.languageLabels.dk}` : '';
-
-      modalMeta.textContent = `${year}${rating}${runtime}`;
-      const match = calculateMatchPercentage(item.UserData, item);
-      modalMatchInfo.textContent = `${match}%  ${config.languageLabels.uygun}`;
-
-      modalGenres.innerHTML = '';
-      if (item.Genres && item.Genres.length > 0) {
-        item.Genres.slice(0, 3).forEach(genre => {
-          const genreBadge = document.createElement('span');
-          genreBadge.textContent = genre.trim();
-          modalGenres.appendChild(genreBadge);
-        });
-      }
-
-      const isPlayed = slide.dataset.played === "true";
-      modalPlayButton.innerHTML = `<i class="fa-solid fa-play"></i> ${isPlayed ? config.languageLabels.devamet : config.languageLabels.izle}`;
-
-      const isFavorite = slide.dataset.favorite === "true";
-      modalFavoriteButton.classList.toggle('favorited', isFavorite);
-      modalFavoriteButton.innerHTML = isFavorite
-        ? '<i class="fa-solid fa-check"></i>'
-        : '<i class="fa-solid fa-plus"></i>';
-    }
-
-    videoModal.style.display = 'block';
-    videoModal.style.opacity = '0';
-    videoModal.style.transform = 'translateY(20px)';
-    setTimeout(() => {
-      videoModal.style.opacity = '1';
-      videoModal.style.transform = 'translateY(10px)';
-    }, 10);
-
-    const signal = dot.abortController?.signal;
-    const videoUrl = await getVideoStreamUrl(itemId, 360, 0, signal ? { signal } : {});
-    if (videoUrl && modalVideo) {
-      modalVideo.onloadedmetadata = null;
-      modalVideo.ontimeupdate = null;
-      modalVideo.onseeked = null;
-
-      modalVideo.pause();
-      modalVideo.src = '';
-      modalVideo.load();
-      modalVideo.src = videoUrl;
-      modalVideo.currentTime = 0;
-      modalVideo.muted = true;
-      modalVideo.loop = true;
-      modalVideo.style.transition = 'opacity 0.3s ease';
-
-      modalVideo.play().catch(e => {
-        if (e.name !== "AbortError") {
-          console.error("Video oynatma hatası:", e);
+        if (config.dotPosterMode && config.enableDotPosterAnimations) {
+            applyDotPosterAnimation(dot, index === currentIndex);
         }
-      });
 
-      modalVideo.onloadedmetadata = () => {
-        if (!modalVideo) return;
-
-        const actualDuration = modalVideo.duration;
-        const segmentStartTime = 5 * 60;
-        const segmentDuration = 3;
-        const segmentInterval = 5 * 60;
-        const totalSegmentCount = Math.floor((actualDuration - segmentStartTime) / segmentInterval);
-
-        if (totalSegmentCount <= 0) return;
-
-        const segmentTimes = Array.from({ length: totalSegmentCount }, (_, i) =>
-          segmentStartTime + i * segmentInterval);
-
-        let currentSegment = 0;
-        modalVideo.currentTime = segmentTimes[currentSegment];
-
-        const onTimeUpdate = () => {
-          if (!modalVideo) return;
-
-          const segmentEnd = segmentTimes[currentSegment] + segmentDuration;
-
-          if (modalVideo.currentTime >= segmentEnd) {
-            currentSegment++;
-
-            if (currentSegment >= segmentTimes.length) {
-              modalVideo.removeEventListener("timeupdate", onTimeUpdate);
-              modalVideo.pause();
-              modalVideo.currentTime = 0;
-              currentSegment = 0;
-              modalVideo.addEventListener("timeupdate", onTimeUpdate);
-              modalVideo.play();
-              return;
+        dot.addEventListener("click", () => {
+            if (index !== getCurrentIndex()) {
+                changeSlide(index - getCurrentIndex());
             }
+        });
 
-            modalVideo.style.opacity = "0";
+        dot.addEventListener("mouseenter", async () => {
+    if (dot.abortController) {
+        dot.abortController.abort();
+    }
+    dot.abortController = new AbortController();
+    if (videoModal) {
+        videoModal.style.display = 'none';
+        if (modalVideo) {
             modalVideo.pause();
-
-            const seekToTime = segmentTimes[currentSegment];
-
-            const onSeeked = () => {
-              if (!modalVideo) return;
-              modalVideo.removeEventListener("seeked", onSeeked);
-              modalVideo.style.opacity = "1";
-              modalVideo.play().catch(e => console.log("Auto-play prevented:", e));
-            };
-
-            modalVideo.addEventListener("seeked", onSeeked);
-            modalVideo.currentTime = seekToTime;
-          }
-        };
-
-        modalVideo.addEventListener("timeupdate", onTimeUpdate);
-      };
+            modalVideo.src = '';
+        }
     }
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      console.error("Hata oluştu:", error);
+
+    modalHoverState = true;
+    clearTimeout(modalHideTimeout);
+
+    const itemId = dot.dataset.itemId;
+    if (!itemId) return;
+
+    try {
+        if (!videoModal) {
+            const modalElements = createVideoModal();
+            videoModal = modalElements.modal;
+            modalVideo = modalElements.video;
+            modalTitle = modalElements.title;
+            modalMeta = modalElements.meta;
+            modalMatchInfo = modalElements.matchInfo;
+            modalGenres = modalElements.genres;
+            modalPlayButton = modalElements.playButton;
+            modalFavoriteButton = modalElements.favoriteButton;
+        }
+
+        videoModal.dataset.itemId = itemId;
+        positionModalRelativeToDot(videoModal, dot);
+        videoModal.style.display = 'block';
+        videoModal.style.opacity = '0';
+        videoModal.style.transform = 'translateY(20px)';
+
+        const signal = dot.abortController.signal;
+        const [item, videoUrl] = await Promise.all([
+            fetchItemDetails(itemId, { signal }),
+            getVideoStreamUrl(itemId, 360, 0, { signal })
+        ]);
+
+        updateModalContent(item, videoUrl);
+
+        setTimeout(() => {
+            videoModal.style.opacity = '1';
+            videoModal.style.transform = 'translateY(10px)';
+        }, 10);
+
+    } catch (error) {
+        if (error.name !== 'AbortError') {
+            console.error("Hata oluştu:", error);
+        }
     }
-  }
 });
 
-      dot.addEventListener("mouseleave", () => {
-  dot.style.transform = "";
-  dot.style.zIndex = "";
+  dot.addEventListener("mouseleave", () => {
+  modalHoverState = false;
 
   if (dot.abortController) {
     dot.abortController.abort();
     dot.abortController = null;
   }
 
-  if (videoModal) {
-    clearTimeout(videoModal.hideTimeout);
-    videoModal.hideTimeout = setTimeout(() => {
-      if (!modalHoverState) {
-        videoModal.style.opacity = '0';
-        videoModal.style.transform = 'translateY(20px)';
-
-        setTimeout(() => {
-          if (!modalHoverState) {
-            videoModal.style.display = 'none';
-            if (modalVideo) {
-              modalVideo.pause();
-              modalVideo.src = '';
-            }
-          }
-        }, 300);
-      }
-    }, 150);
-  }
+  dotHideTimeout = setTimeout(() => {
+    startModalHideTimer(videoModal);
+  }, 300);
 });
 
+    return dot;
+    }).filter(Boolean);
 
-      scrollWrapper.appendChild(dot);
-    });
+    dotElements.forEach(dot => scrollWrapper.appendChild(dot));
+    setTimeout(async () => {
+    const dotItemIds = dotElements.map(dot => dot.dataset.itemId).filter(Boolean);
+    await preloadGenreData(dotItemIds);
+    for (const dot of dotElements) {
+        try {
+            const itemId = dot.dataset.itemId;
+            const item = await fetchItemDetails(itemId);
+            const isFavorite = item.UserData?.IsFavorite || false;
+            const isPlayed = item.UserData?.Played || false;
+            const positionTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
+            const runtimeTicks = Number(item.RunTimeTicks || 0);
+            const hasPartialPlayback = positionTicks > 0 && positionTicks < runtimeTicks;
+
+            const playButton = dot.querySelector('.dot-play-button');
+            if (playButton) {
+                playButton.textContent = (isPlayed || hasPartialPlayback)
+                    ? config.languageLabels.devamet
+                    : config.languageLabels.izle;
+            }
+
+            const matchPercentage = await calculateMatchPercentage(item.UserData, item);
+            const matchBadge = dot.querySelector('.dot-match-div');
+            if (matchBadge) {
+                matchBadge.textContent = `${matchPercentage}% ${config.languageLabels.uygun}`;
+            }
+            dot.dataset.favorite = isFavorite.toString();
+            dot.dataset.played = isPlayed.toString();
+
+        } catch (error) {
+            console.error(`Dot verileri yüklenirken hata (${dot.dataset.itemId}):`, error);
+        }
+    }
+}, 0);
 
     const leftArrow = document.createElement("button");
     leftArrow.className = "dot-arrow dot-arrow-left";
     leftArrow.innerHTML = "&#10094;";
     leftArrow.addEventListener("click", () => {
-      scrollWrapper.scrollBy({ left: -scrollWrapper.clientWidth, behavior: "smooth" });
+        scrollWrapper.scrollBy({ left: -scrollWrapper.clientWidth, behavior: "smooth" });
     });
 
     const rightArrow = document.createElement("button");
     rightArrow.className = "dot-arrow dot-arrow-right";
     rightArrow.innerHTML = "&#10095;";
     rightArrow.addEventListener("click", () => {
-      scrollWrapper.scrollBy({ left: scrollWrapper.clientWidth, behavior: "smooth" });
+        scrollWrapper.scrollBy({ left: scrollWrapper.clientWidth, behavior: "smooth" });
     });
 
     dotContainer.append(leftArrow, scrollWrapper, rightArrow);
-
     const resizeObserver = new ResizeObserver(() => {
-      centerActiveDot();
+        centerActiveDot();
     });
     resizeObserver.observe(scrollWrapper);
 
@@ -696,7 +581,6 @@ export function showAndHideElementWithAnimation(el, config) {
 function createVideoModal() {
   destroyVideoModal();
 
-  const config = getConfig();
   const modal = document.createElement('div');
   modal.className = 'video-preview-modal';
   modal.style.cssText = `
@@ -724,7 +608,7 @@ function createVideoModal() {
     height: 225px;
     padding: 8px;
     box-sizing: border-box;
-    background: rgba(0,0,0,0.7);
+    background: rgba(30,30,40,0.7);
     border-radius: 6px;
     display: flex;
     align-items: center;
@@ -750,7 +634,7 @@ function createVideoModal() {
   infoContainer.className = 'preview-info';
   infoContainer.style.cssText = `
     padding: 10px;
-    background: linear-gradient(0deg, rgb(24, 24, 24) 30%, transparent);
+    background: linear-gradient(0deg, rgb(30, 30, 40) 30%, transparent);
     position: absolute;
     bottom: -5px;
     left: 0px;
@@ -976,6 +860,25 @@ function createVideoModal() {
   videoModal = modal;
   modalVideo = video;
 
+   videoModal.addEventListener("mouseenter", () => {
+    clearTimeout(dotHideTimeout);
+    modalHoverState = true;
+  });
+
+  videoModal.addEventListener('click', () => {
+  if (modalVideo) {
+    modalVideo.muted = false;
+    modalVideo.volume = 1.0;
+  }
+});
+
+  videoModal.addEventListener("mouseleave", () => {
+    modalHoverState = false;
+    dotHideTimeout = setTimeout(() => {
+      startModalHideTimer(videoModal);
+    }, 300);
+  });
+
   return {
     modal,
     video,
@@ -1043,89 +946,37 @@ function startModalHideTimer(modal) {
 }
 
 
-function showModalWithAnimation(modal) {
-  modalHoverState = false;
-  clearTimeout(modal.hideTimeout);
 
-  modal.style.display = 'block';
-  modal.style.opacity = '0';
-  modal.style.transform = 'translateY(20px)';
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      modal.style.opacity = '1';
-      modal.style.transform = 'translateY(10px)';
-    });
-  });
-}
-
-function calculateMatchPercentage(userData = {}, item = {}) {
+export async function calculateMatchPercentage(userData = {}, item = {}) {
   let score = 50;
-  const scoreLog = [`Başlangıç puanı: ${score}`];
 
   if (typeof userData.PlayedPercentage === 'number') {
-    if (userData.PlayedPercentage > 90) {
-      score += 10;
-    } else if (userData.PlayedPercentage > 50) {
-      score += 5;
-    } else if (userData.PlayedPercentage > 20) {
-      score += 2;
-    }
+    if (userData.PlayedPercentage > 90) score += 10;
+    else if (userData.PlayedPercentage > 50) score += 5;
+    else if (userData.PlayedPercentage > 20) score += 2;
   }
 
   if (typeof item.CommunityRating === 'number') {
-    if (item.CommunityRating >= 8.5) {
-      score += 10;
-    } else if (item.CommunityRating >= 7.5) {
-      score += 7;
-    } else if (item.CommunityRating >= 6.5) {
-      score += 4;
-    }
+    if (item.CommunityRating >= 8.5) score += 20;
+    else if (item.CommunityRating >= 7.5) score += 14;
+    else if (item.CommunityRating >= 6.5) score += 8;
+  }
+
+  const userTopGenres = await getCachedUserTopGenres(5);
+  const itemGenres = item.Genres || [];
+  const genreMatches = itemGenres.filter(itemGenre =>
+    userTopGenres.includes(itemGenre)
+  );
+
+  if (genreMatches.length > 0) {
+    if (genreMatches.length === 1) score += 2;
+    else if (genreMatches.length === 2) score += 4;
+    else if (genreMatches.length >= 3) score += 6;
   }
 
   const currentYear = new Date().getFullYear();
   if (item.ProductionYear && currentYear - item.ProductionYear <= 5) {
     score += 4;
-  }
-
-  const preferredGenres = [
-    "Action",
-    "Drama",
-    "Science Fiction",
-    "Comedy"
-  ].map(genre => config.languageLabels.turler[genre] || genre);
-
-  const itemGenres = item.Genres || [];
-
-  const genreMatches = itemGenres.filter(genre => {
-    if (preferredGenres.includes(genre)) {
-      return true;
-    }
-
-    const turkishGenre = Object.keys(config.languageLabels.turler).find(
-      key => config.languageLabels.turler[key] === genre
-    );
-
-    return turkishGenre && preferredGenres.includes(turkishGenre);
-  }).length;
-
-  if (genreMatches > 0) {
-    const matchedGenres = itemGenres.filter(genre =>
-      preferredGenres.includes(genre) ||
-      Object.keys(config.languageLabels.turler).some(
-        key => config.languageLabels.turler[key] === genre && preferredGenres.includes(key)
-      )
-    );
-
-    if (genreMatches === 1) {
-      score += 15;
-      scoreLog.push(`1 tür eşleşmesi (${matchedGenres.join(', ')}): +2 (Yeni toplam: ${score})`);
-    } else if (genreMatches === 2) {
-      score +=25;
-      scoreLog.push(`2 tür eşleşmesi (${matchedGenres.join(', ')}): +4 (Yeni toplam: ${score})`);
-    } else if (genreMatches >= 3) {
-      score += 35;
-    }
   }
 
   const familyFriendlyRatings = ["G", "PG", "TV-G", "TV-PG"];
@@ -1137,28 +988,9 @@ function calculateMatchPercentage(userData = {}, item = {}) {
     score -= 5;
   }
 
-  const finalScore = Math.max(0, Math.min(Math.round(score), 100));
-  return finalScore;
+  return Math.max(0, Math.min(Math.round(score), 100));
 }
 
-function hideVideoModalIfVisible() {
-  if (!videoModal || videoModal.style.display === "none") return;
-
-  modalHoverState = false;
-
-  videoModal.style.opacity = '0';
-  videoModal.style.transform = 'translateY(20px)';
-
-  setTimeout(() => {
-    if (!modalHoverState) {
-      videoModal.style.display = 'none';
-      if (modalVideo) {
-        modalVideo.pause();
-        modalVideo.src = '';
-      }
-    }
-  }, 300);
-}
 
 window.addEventListener("blur", closeVideoModal);
 document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -1166,4 +998,124 @@ document.addEventListener("visibilitychange", handleVisibilityChange);
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', destroyVideoModal);
   window.addEventListener('pagehide', destroyVideoModal);
+}
+async function preloadGenreData(itemIds) {
+  if (!itemIds || itemIds.length === 0) return;
+
+  const batchSize = 5;
+  for (let i = 0; i < itemIds.length; i += batchSize) {
+    const batch = itemIds.slice(i, i + batchSize);
+    await Promise.all(batch.map(itemId => getGenresForDot(itemId)));
+  }
+}
+async function updateModalContent(item, videoUrl) {
+    const config = getConfig();
+
+    const positionTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
+    const runtimeTicks = Number(item.RunTimeTicks || 0);
+    const hasPartialPlayback = positionTicks > 0 && positionTicks < runtimeTicks;
+    const isPlayed = item.UserData?.Played || false;
+    const isFavorite = item.UserData?.IsFavorite || false;
+
+    modalTitle.textContent = item.Name || '';
+
+    const year = item.ProductionYear ? ` ${item.ProductionYear}` : '';
+    const rating = item.CommunityRating ? ` • ${parseFloat(item.CommunityRating).toFixed(1)}` : '';
+    const runtime = runtimeTicks ? ` • ${Math.floor(runtimeTicks / 600000000)} ${config.languageLabels.dk}` : '';
+    modalMeta.textContent = `${year}${rating}${runtime}`;
+
+    const matchPercentage = await calculateMatchPercentage(item.UserData, item);
+    modalMatchInfo.textContent = `${matchPercentage}% ${config.languageLabels.uygun}`;
+
+    modalGenres.innerHTML = '';
+    if (item.Genres && item.Genres.length > 0) {
+        item.Genres.slice(0, 3).forEach(genre => {
+            const genreBadge = document.createElement('span');
+            genreBadge.className = 'genre-badge';
+            genreBadge.textContent = genre.trim();
+            modalGenres.appendChild(genreBadge);
+        });
+    }
+
+    modalPlayButton.innerHTML = `<i class="fa-solid fa-play"></i> ${(isPlayed || hasPartialPlayback) ? config.languageLabels.devamet : config.languageLabels.izle}`;
+    modalFavoriteButton.classList.toggle('favorited', isFavorite);
+    modalFavoriteButton.innerHTML = isFavorite
+        ? '<i class="fa-solid fa-check"></i>'
+        : '<i class="fa-solid fa-plus"></i>';
+
+    if (modalVideo && videoUrl) {
+        modalVideo.onloadedmetadata = null;
+        modalVideo.ontimeupdate = null;
+        modalVideo.onseeked = null;
+        modalVideo.pause();
+        modalVideo.src = '';
+        modalVideo.load();
+        modalVideo.src = videoUrl;
+        modalVideo.currentTime = 0;
+        modalVideo.muted = true;
+        modalVideo.loop = true;
+        modalVideo.style.transition = 'opacity 0.3s ease';
+        modalVideo.style.opacity = '0';
+
+        modalVideo.onloadedmetadata = () => {
+            if (!modalVideo) return;
+
+            const actualDuration = modalVideo.duration;
+            const segmentStartTime = 5 * 60;
+            const segmentDuration = 5;
+            const segmentInterval = 5 * 60;
+            const totalSegmentCount = Math.floor((actualDuration - segmentStartTime) / segmentInterval);
+
+            if (totalSegmentCount <= 0) return;
+
+            const segmentTimes = Array.from({ length: totalSegmentCount }, (_, i) =>
+                segmentStartTime + i * segmentInterval);
+
+            let currentSegment = 0;
+            modalVideo.currentTime = segmentTimes[currentSegment];
+            modalVideo.style.opacity = "1";
+
+            const onTimeUpdate = () => {
+                if (!modalVideo) return;
+
+                const segmentEnd = segmentTimes[currentSegment] + segmentDuration;
+
+                if (modalVideo.currentTime >= segmentEnd) {
+                    currentSegment++;
+
+                    if (currentSegment >= segmentTimes.length) {
+                        modalVideo.removeEventListener("timeupdate", onTimeUpdate);
+                        modalVideo.pause();
+                        modalVideo.currentTime = 0;
+                        currentSegment = 0;
+                        modalVideo.addEventListener("timeupdate", onTimeUpdate);
+                        modalVideo.play();
+                        return;
+                    }
+
+                    modalVideo.style.opacity = "0";
+                    modalVideo.pause();
+
+                    const seekToTime = segmentTimes[currentSegment];
+
+                    const onSeeked = () => {
+                        if (!modalVideo) return;
+                        modalVideo.removeEventListener("seeked", onSeeked);
+                        modalVideo.style.opacity = "1";
+                        modalVideo.play().catch(e => console.log("Auto-play prevented:", e));
+                    };
+
+                    modalVideo.addEventListener("seeked", onSeeked);
+                    modalVideo.currentTime = seekToTime;
+                }
+            };
+
+            modalVideo.addEventListener("timeupdate", onTimeUpdate);
+        };
+        modalVideo.play().catch(e => {
+            if (e.name !== "AbortError") {
+                console.error("Video oynatma hatası:", e);
+            }
+        });
+    }
 }
