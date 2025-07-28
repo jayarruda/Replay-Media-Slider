@@ -375,3 +375,213 @@ export async function getCachedVideoPreview(itemId) {
 export {
   makeApiRequest,
 };
+
+export async function getUserTopGenres(limit = 5, itemType = null) {
+  const cacheKey = "userTopGenres_v2";
+  const cacheTTL = 24 * 60 * 60 * 1000;
+  const currentUserId = getCachedUserId();
+
+  const cachedRaw = localStorage.getItem(cacheKey);
+  if (cachedRaw) {
+    try {
+      const cached = JSON.parse(cachedRaw);
+      if (cached.userId === currentUserId &&
+          Date.now() - cached.timestamp < cacheTTL) {
+        return cached.genres.slice(0, limit);
+      }
+    } catch (e) {
+      localStorage.removeItem(cacheKey);
+    }
+  }
+
+  try {
+    const { userId } = getSessionInfo();
+    const recentlyPlayed = await makeApiRequest(
+      `/Users/${userId}/Items/Resume?Limit=50&MediaTypes=Video`
+    );
+
+    const items = recentlyPlayed.Items || [];
+    if (items.length === 0) {
+      return ['Action', 'Drama', 'Comedy', 'Sci-Fi', 'Adventure'].slice(0, limit);
+    }
+
+    const dotItems = Array.from(document.querySelectorAll('.poster-dot'))
+      .map(dot => dot.dataset.itemId)
+      .filter(Boolean);
+
+    const prioritizedItems = items.sort((a, b) => {
+      const aInDots = dotItems.includes(a.Id) ? 1 : 0;
+      const bInDots = dotItems.includes(b.Id) ? 1 : 0;
+      return bInDots - aInDots;
+    }).slice(0, 30);
+
+    const genreCounts = {};
+    for (const item of prioritizedItems) {
+      const genres = await getGenresForDot(item.Id);
+      genres.forEach(genre => {
+        genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+      });
+    }
+
+    const sortedGenres = Object.entries(genreCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([genre]) => genre);
+
+    const result = sortedGenres.length > 0
+      ? sortedGenres.slice(0, limit)
+      : ['Action', 'Drama', 'Comedy', 'Sci-Fi', 'Adventure'].slice(0, limit);
+
+    localStorage.setItem(cacheKey, JSON.stringify({
+      timestamp: Date.now(),
+      genres: result,
+      userId: currentUserId
+    }));
+
+    return result;
+  } catch (error) {
+    console.error("❌ getUserTopGenres hatası:", error);
+    return ['Action', 'Drama', 'Comedy', 'Sci-Fi', 'Adventure'].slice(0, limit);
+  }
+}
+
+function extractGenresFromItems(items) {
+  const genreCounts = {};
+
+  items.forEach(item => {
+    let genres = [];
+    if (item.GenreItems && Array.isArray(item.GenreItems)) {
+      genres = item.GenreItems.map(g => g.Name);
+    }
+    else if (Array.isArray(item.Genres) && item.Genres.every(g => typeof g === 'string')) {
+      genres = item.Genres;
+    }
+    else if (Array.isArray(item.Genres) && item.Genres[0]?.Name) {
+      genres = item.Genres.map(g => g.Name);
+    }
+    else if (item.Tags && Array.isArray(item.Tags)) {
+      genres = item.Tags.filter(tag =>
+        ['action','drama','comedy','sci-fi','adventure']
+          .includes(tag.toLowerCase())
+      );
+    }
+
+    if (genres.length > 0) {
+      genres.forEach(genre => {
+        if (genre) {
+          genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+        }
+      });
+    } else {
+      console.warn(`ℹ️ Tür bilgisi okunamadı → ID: ${item.Id} | Ad: ${item.Name || 'İsimsiz'}`);
+    }
+  });
+
+  return Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([genre]) => genre);
+}
+
+
+
+function getCachedUserId() {
+  try {
+    return getSessionInfo().userId;
+  } catch {
+    return null;
+  }
+}
+
+function checkAndClearCacheOnUserChange(cacheKey, currentUserId) {
+  const cachedRaw = localStorage.getItem(cacheKey);
+  if (cachedRaw) {
+    try {
+      const cached = JSON.parse(cachedRaw);
+      if (cached.userId && cached.userId !== currentUserId) {
+        console.log("👤 Kullanıcı değişti, cache temizleniyor:", cacheKey);
+        localStorage.removeItem(cacheKey);
+      }
+    } catch {
+      localStorage.removeItem(cacheKey);
+    }
+  }
+}
+
+export async function getCachedUserTopGenres(limit = 50, itemType = null) {
+  const cacheKey = "userTopGenresCache";
+  const cacheTTL = 1000 * 60 * 60 * 24;
+  const currentUserId = getCachedUserId();
+
+  checkAndClearCacheOnUserChange(cacheKey, currentUserId);
+
+  try {
+    const cachedRaw = localStorage.getItem(cacheKey);
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw);
+      const now = Date.now();
+
+      if (cached.timestamp && now - cached.timestamp < cacheTTL) {
+        return cached.genres.slice(0, limit);
+      }
+    }
+
+    const genres = await getUserTopGenres(limit, itemType);
+    const cacheData = {
+      timestamp: Date.now(),
+      genres,
+      userId: currentUserId
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    return genres;
+
+  } catch (error) {
+    console.error("Tür bilgisi cache alınırken hata:", error);
+    return getUserTopGenres(limit, itemType);
+  }
+}
+
+const dotGenreCache = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+export async function getGenresForDot(itemId) {
+  const cached = dotGenreCache.get(itemId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.genres;
+  }
+
+  try {
+    const details = await fetchItemDetails(itemId);
+    const genres = extractGenresFromItem(details);
+
+    dotGenreCache.set(itemId, {
+      timestamp: Date.now(),
+      genres
+    });
+
+    return genres;
+  } catch (error) {
+    console.error(`Item ${itemId} tür bilgisi alınırken hata:`, error);
+    return [];
+  }
+}
+
+function extractGenresFromItem(item) {
+  if (!item) return [];
+
+  if (item.GenreItems && Array.isArray(item.GenreItems)) {
+    return item.GenreItems.map(g => g.Name);
+  }
+  else if (Array.isArray(item.Genres) && item.Genres.every(g => typeof g === 'string')) {
+    return item.Genres;
+  }
+  else if (Array.isArray(item.Genres) && item.Genres[0]?.Name) {
+    return item.Genres.map(g => g.Name);
+  }
+  else if (item.Tags && Array.isArray(item.Tags)) {
+    return item.Tags.filter(tag =>
+      ['action','drama','comedy','sci-fi','adventure']
+        .includes(tag.toLowerCase())
+    );
+  }
+
+  return [];
+}
