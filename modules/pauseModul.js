@@ -257,34 +257,35 @@ export function setupPauseScreen() {
     }
 
     function bindVideo(video) {
-        if (removeHandlers) removeHandlers();
-         if (video.closest('.intro-video-container')) {
+    if (removeHandlers) removeHandlers();
+    if (video.closest('.video-preview-modal, .intro-video-container')) {
         return;
     }
-        activeVideo = video;
-        const onPause = async () => {
-            if (video.ended) return;
-            const id = getCurrentMediaId(true);
-            if (!id) return;
-            currentMediaId = id;
-            const info = await fetchItemDetails(id);
-            if (info.Type === 'Episode' && info.SeriesId) {
-                currentMediaId = info.SeriesId;
-                const series = await fetchItemDetails(info.SeriesId);
-                await refreshData({ ...series, _episodeData: info });
-            } else {
-                await refreshData(info);
-            }
-            showOverlay();
-        };
-        const onPlay = () => hideOverlay();
-        video.addEventListener('pause', onPause);
-        video.addEventListener('play', onPlay);
-        removeHandlers = () => {
-            video.removeEventListener('pause', onPause);
-            video.removeEventListener('play', onPlay);
-        };
-    }
+
+    activeVideo = video;
+    const onPause = async () => {
+        if (video.ended) return;
+        const id = getCurrentMediaId(true);
+        if (!id) return;
+        currentMediaId = id;
+        const info = await fetchItemDetails(id);
+        if (info.Type === 'Episode' && info.SeriesId) {
+            currentMediaId = info.SeriesId;
+            const series = await fetchItemDetails(info.SeriesId);
+            await refreshData({ ...series, _episodeData: info });
+        } else {
+            await refreshData(info);
+        }
+        showOverlay();
+    };
+    const onPlay = () => hideOverlay();
+    video.addEventListener('pause', onPause);
+    video.addEventListener('play', onPlay);
+    removeHandlers = () => {
+        video.removeEventListener('pause', onPause);
+        video.removeEventListener('play', onPlay);
+    };
+}
 
     const mo = new MutationObserver(muts => {
         muts.forEach(m => m.addedNodes.forEach(n => {
