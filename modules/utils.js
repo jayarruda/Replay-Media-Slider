@@ -97,7 +97,8 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     const videoElement = document.createElement("video");
     videoElement.controls = true;
     videoElement.muted = false;
-    videoElement.playsinline = true;
+    videoElement.autoplay = true;
+    videoElement.playsInline = true;
     videoElement.style.width = "100%";
     videoElement.style.height = "100%";
     videoElement.style.transition = "opacity 0.4s ease-in-out";
@@ -112,10 +113,13 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     const segmentDuration = 4;
     const segmentInterval = 600;
     let totalSegments = 9;
+    const startTime = 600;
 
     const handleVideoMouseEnter = debounce(async () => {
       backdropImg.style.opacity = "0";
       videoContainer.style.display = "block";
+      videoElement.style.opacity = "0";
+      videoElement.pause();
       videoElement.src = "";
 
       slide.classList.add("video-active", "intro-active");
@@ -123,80 +127,40 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       currentSegment = 1;
 
       try {
-        const introUrl = await getVideoStreamUrl(itemId, 480);
-        if (!introUrl) throw new Error("Video URL alınamadı");
+    const introUrl = await getVideoStreamUrl(itemId, 1920, 0, null, ["h264"], ["aac"], false, false, true);
+    if (!introUrl) throw new Error("Video URL alınamadı");
 
-        videoElement.src = introUrl;
-
-        videoElement.onloadedmetadata = async () => {
-          const duration = videoElement.duration;
-          totalSegments = Math.floor(duration / segmentInterval);
-          if (totalSegments === 0) {
-            console.warn("Video çok kısa, segment yapılamıyor");
-            return;
-          }
-
-          const playNextSegment = async () => {
-            if (!videoPlaying) return;
-
-            const segmentStartTime = currentSegment * segmentInterval;
-            if (segmentStartTime >= videoElement.duration) {
-              currentSegment = 1;
-            }
-
-            videoElement.style.opacity = "0";
-
-            setTimeout(() => {
-              videoElement.pause();
-              videoElement.currentTime = segmentStartTime;
-
-              videoElement.onseeked = async () => {
-                if (!videoPlaying) return;
-
-                try {
-                  await videoElement.play();
-                  setTimeout(() => {
-                    videoElement.style.opacity = "1";
-                  }, 150);
-                  setTimeout(() => {
-                    if (videoPlaying) {
-                      currentSegment++;
-                      playNextSegment();
-                    }
-                  }, segmentDuration * 1000);
-                } catch (e) {
-                  if (e.name === 'AbortError') {
-                    console.warn("Segment oynatma AbortError ile kesildi.");
-                  } else {
-                    console.error("Segment oynatma hatası:", e);
-                  }
-                }
-              };
-            }, 300);
-          };
-
-          try {
-            videoElement.currentTime = currentSegment * segmentInterval;
-            await videoElement.play();
-            videoElement.style.opacity = "1";
-            playNextSegment();
-          } catch (e) {
-            if (e.name === 'AbortError') {
-            } else {
-              console.error("İlk oynatma hatası:", e);
-            }
-          }
-        };
-      } catch (e) {
-        console.error("Video yükleme hatası:", e);
-      }
-    }, 0);
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        startPosition: 600
+      });
+      hls.loadSource(introUrl);
+      hls.attachMedia(videoElement);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        videoElement.play().then(() => {
+          videoElement.style.opacity = "1";
+        });
+      });
+    } else if (videoElement.canPlayType("application/vnd.apple.mpegurl")) {
+      videoElement.src = introUrl;
+      videoElement.addEventListener('loadedmetadata', () => {
+        videoElement.currentTime = 600;
+        videoElement.play().then(() => {
+          videoElement.style.opacity = "1";
+        });
+      });
+    }
+  } catch (e) {
+    console.error("Video yükleme hatası:", e);
+  }
+}, 0);
 
     const handleVideoMouseLeave = () => {
       if (videoEnterTimeout) {
         clearTimeout(videoEnterTimeout);
         videoEnterTimeout = null;
       }
+
       if (videoPlaying) {
         videoElement.pause();
         videoElement.src = "";
@@ -273,6 +237,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     slide.addEventListener("slideChange", handleMouseLeave);
   }
 }
+
 
 export function prefetchImages(urls) {
   urls.forEach(url => {
