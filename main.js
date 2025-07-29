@@ -31,8 +31,6 @@ import { saveCredentials, saveApiKey, getAuthToken } from "./auth.js";
   }
 })();
 
-
-
 import { getConfig } from "./modules/config.js";
 import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
 import { startSlideTimer, stopSlideTimer } from "./modules/timer.js";
@@ -529,6 +527,7 @@ function initializeSliderOnHome() {
             indexPage.appendChild(slidesContainer);
         }
 
+        loadHls();
         ensureProgressBarExists();
         slidesInit();
     }
@@ -588,6 +587,17 @@ function extractItemTypesFromQuery(query) {
 
 function hasAllTypes(targetTypes, requiredTypes) {
     return requiredTypes.every(t => targetTypes.includes(t));
+}
+
+export async function loadHls() {
+  if (window.hls) return;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `/web/slider/modules/hlsjs/hls.min.js`;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("hls yüklenemedi"));
+    document.head.appendChild(script);
+  });
 }
 
 window.slidesInit = slidesInit;
