@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  previewModal: "Модальное окно предварительного просмотра в режиме постера",
+  enableHls: "Включить поддержку HLS",
   uygun: "Рекомендуется",
   enableVideoPlayback: "Воспроизводить фрагменты контента (экспериментально)",
   enableTrailerPlayback: "Воспроизводить встроенные трейлеры YouTube",

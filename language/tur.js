@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  previewModal: "Poster Modunda Önizleme Modalı",
+  enableHls: "HLS Desteğini ektinleştir",
   uygun: "Öneriliyor",
   enableVideoPlayback: "İçerikten Kesitler Oynat (Deneysel)",
   enableTrailerPlayback: "Yerleşik Youtube Fragmanları Oynat",
