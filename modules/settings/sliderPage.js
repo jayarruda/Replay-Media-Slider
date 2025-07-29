@@ -84,7 +84,8 @@ export function createSliderPanel(config, labels) {
 
     const playbackCheckboxesDiv = document.createElement('div');
     playbackCheckboxesDiv.style.display = 'flex';
-    playbackCheckboxesDiv.style.gap = '20px';
+    playbackCheckboxesDiv.style.gap = '10px';
+    playbackCheckboxesDiv.style.flexDirection = 'column';
 
     const trailerPlaybackCheckbox = createCheckbox(
     'enableTrailerPlayback',
@@ -98,8 +99,15 @@ export function createSliderPanel(config, labels) {
     config.enableVideoPlayback
 );
 
+    const enableHls = createCheckbox(
+    'enableHls',
+    labels.enableHls || 'HLS Desteğini ektinleştir',
+    config.enableHls
+);
+
     playbackCheckboxesDiv.appendChild(trailerPlaybackCheckbox);
     playbackCheckboxesDiv.appendChild(videoPlaybackCheckbox);
+    playbackCheckboxesDiv.appendChild(enableHls);
     playbackOptionsDiv.appendChild(playbackCheckboxesDiv);
 
     trailerPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
@@ -297,6 +305,13 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     );
     sliderDiv.appendChild(posterDotsCheckbox);
 
+    const previewModalCheckbox = createCheckbox(
+        'previewModal',
+        labels.previewModal || 'Netflix Tarzı Önizleme Modalı',
+        config.previewModal
+    );
+    sliderDiv.appendChild(previewModalCheckbox);
+
     const posterDotsDesc = document.createElement('div');
     posterDotsDesc.className = 'description-text';
     posterDotsDesc.textContent = labels.posterDotsDescription || 'Dot navigasyonu poster boyutuna getirir ( Slider Alanınıda konumlandırma gerektirir )';
@@ -389,6 +404,7 @@ function updateTrailerRelatedFields() {
 
     const trailerDelayContainer = document.querySelector('.trailer-delay-container');
     const gradientOverlayContainer = document.querySelector('.gradient-overlay-container');
+    const hlsCheckbox = document.querySelector('#enableHls')?.parentElement;
 
     if (trailerDelayContainer && gradientOverlayContainer) {
         trailerDelayContainer.style.opacity = isEnabled ? 1 : 0.6;
@@ -397,4 +413,11 @@ function updateTrailerRelatedFields() {
         trailerDelayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
         gradientOverlayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
     }
+
+    if (hlsCheckbox) {
+        hlsCheckbox.style.display = videoChecked ? 'block' : 'none';
+        hlsCheckbox.querySelector('input').disabled = !videoChecked;
+    }
 }
+
+document.addEventListener('DOMContentLoaded', updateTrailerRelatedFields);
