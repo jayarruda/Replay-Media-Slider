@@ -68,6 +68,8 @@ export function applySettings(reload = false) {
             avatarRefreshTime: parseInt(formData.get('avatarRefreshTime'), 10),
             randomDicebearAvatar: formData.get('randomDicebearAvatar') === 'on',
             dicebearParams: config.dicebearParams || {},
+            enableHls: formData.get('enableHls') === 'on',
+            previewModal: formData.get('previewModal') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
