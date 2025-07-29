@@ -1,6 +1,8 @@
 import { getConfig, getServerAddress } from "./config.js";
 import { clearCredentials } from "../auth.js";
 
+const config = getConfig();
+
 async function safeFetch(url, opts = {}) {
   const headers = {
     ...(opts.headers || {}),
@@ -225,15 +227,37 @@ async function getRandomEpisodeId(seriesId) {
 
 export async function getVideoStreamUrl(
   itemId,
-  maxHeight = 1080,
+  maxHeight = 360,
   startTimeTicks = 0,
   audioLanguage = null,
   preferredVideoCodecs = ["hevc", "h264", "av1"],
   preferredAudioCodecs = ["eac3", "ac3", "opus", "aac"],
   enableHdr = true,
-  forceDirectPlay = false
+  forceDirectPlay = false,
+  enableHls = config.enableHls && config.enableVideoPlayback
 ) {
   const { userId, deviceId, accessToken } = getSessionInfo();
+
+  const buildQueryParams = (params) =>
+    Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join("&");
+
+  const selectPreferredCodec = (streams, type, preferred, allowCopy) => {
+    if (allowCopy) return "copy";
+    const available = streams
+      .filter((s) => s.Type === type && s.Codec)
+      .map((s) => s.Codec.toLowerCase());
+
+    for (const codec of preferred) {
+      if (available.includes(codec.toLowerCase())) {
+        return codec;
+      }
+    }
+
+    return type === "Video" ? "h264" : "aac";
+  };
 
   try {
     const item = await fetchItemDetails(itemId);
@@ -241,101 +265,102 @@ export async function getVideoStreamUrl(
       itemId = await getRandomEpisodeId(itemId);
     }
 
-    const mediaSources = await makeApiRequest(`/Items/${itemId}/PlaybackInfo`, {
+    const playbackInfo = await makeApiRequest(`/Items/${itemId}/PlaybackInfo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         UserId: userId,
-        MaxStreamingBitrate: 150000000,
+        MaxStreamingBitrate: 100000000,
         StartTimeTicks: startTimeTicks,
         EnableDirectPlay: forceDirectPlay,
         EnableDirectStream: true,
-        EnableTranscoding: !forceDirectPlay,
+        EnableTranscoding: true
       })
     });
 
-    if (!mediaSources?.MediaSources?.length) {
+    const videoSource = playbackInfo?.MediaSources?.[0];
+    if (!videoSource) {
       console.error("Medya kaynağı bulunamadı");
       return null;
     }
 
-    const videoSource = mediaSources.MediaSources[0];
+    const streams = videoSource.MediaStreams || [];
+    const allowCopy = videoSource.SupportsDirectStream;
 
-    let videoCodec = "h264";
-    if (preferredVideoCodecs.length && !videoSource.SupportsDirectStream) {
-      const availableVideoCodecs = videoSource.MediaStreams
-        .filter(s => s.Type === "Video" && s.Codec)
-        .map(s => s.Codec.toLowerCase());
-
-      for (const codec of preferredVideoCodecs) {
-        if (availableVideoCodecs.includes(codec.toLowerCase())) {
-          videoCodec = codec;
-          break;
-        }
-      }
-    } else if (videoSource.SupportsDirectStream) {
-      videoCodec = "copy";
-    }
-
-    let audioCodec = "aac";
-    if (preferredAudioCodecs.length && !videoSource.SupportsDirectStream) {
-      const availableAudioCodecs = videoSource.MediaStreams
-        .filter(s => s.Type === "Audio" && s.Codec)
-        .map(s => s.Codec.toLowerCase());
-
-      for (const codec of preferredAudioCodecs) {
-        if (availableAudioCodecs.includes(codec.toLowerCase())) {
-          audioCodec = codec;
-          break;
-        }
-      }
-    } else if (videoSource.SupportsDirectStream) {
-      audioCodec = "copy";
-    }
+    const videoCodec = selectPreferredCodec(streams, "Video", preferredVideoCodecs, allowCopy);
+    const audioCodec = selectPreferredCodec(streams, "Audio", preferredAudioCodecs, allowCopy);
 
     let audioStreamIndex = 1;
     if (audioLanguage) {
-      const audioStream = videoSource.MediaStreams.find(
-        s => s.Type === "Audio" && s.Language === audioLanguage
+      const audioStream = streams.find(
+        (s) => s.Type === "Audio" && s.Language === audioLanguage
       );
       if (audioStream) {
         audioStreamIndex = audioStream.Index;
       }
     }
 
-    const hasHdr = videoSource.MediaStreams.some(
-      s => s.Type === "Video" && s.VideoRangeType === "HDR"
-    );
+    const hasHdr = streams.some((s) => s.Type === "Video" && s.VideoRangeType === "HDR");
+    const hasDovi = streams.some((s) => s.Type === "Video" && s.VideoRangeType === "DOVI");
 
-    let url = `/Videos/${itemId}/stream.${videoSource.Container || "mp4"}?`;
-    url += `Static=true&`;
-    url += `MediaSourceId=${videoSource.Id}&`;
-    url += `DeviceId=${deviceId}&`;
-    url += `api_key=${accessToken}&`;
-    url += `VideoCodec=${videoCodec}&`;
-    url += `AudioCodec=${audioCodec}&`;
-    url += `VideoBitrate=1000000&`;
-    url += `AudioBitrate=128000&`;
-    url += `MaxHeight=${maxHeight}&`;
-    url += `StartTimeTicks=${startTimeTicks}&`;
-    url += `AudioStreamIndex=${audioStreamIndex}`;
+    if (enableHls) {
+      const hlsParams = {
+        MediaSourceId: videoSource.Id,
+        DeviceId: deviceId,
+        api_key: accessToken,
+        VideoCodec: "h264",
+        AudioCodec: "aac",
+        VideoBitrate: 1000000,
+        AudioBitrate: 128000,
+        MaxHeight: maxHeight,
+        StartTimeTicks: startTimeTicks
+      };
 
-    if (enableHdr && hasHdr) {
-      url += `&EnableHdr=true`;
-      url += `&Hdr10=true`;
-      const hasDolbyVision = videoSource.MediaStreams.some(
-        s => s.Type === "Video" && s.VideoRangeType === "DOVI"
-      );
-      if (hasDolbyVision) {
-        url += `&DolbyVision=true`;
+      if (audioLanguage) {
+        const langStream = streams.find(
+          (s) => s.Type === "Audio" && s.Language === audioLanguage
+        );
+        if (langStream) {
+          hlsParams.AudioStreamIndex = langStream.Index;
+        }
       }
+
+      return `/Videos/${itemId}/master.m3u8?${buildQueryParams(hlsParams)}`;
     }
 
-    return url;
+    const streamParams = {
+      Static: true,
+      MediaSourceId: videoSource.Id,
+      DeviceId: deviceId,
+      api_key: accessToken,
+      VideoCodec: videoCodec,
+      AudioCodec: audioCodec,
+      VideoBitrate: 1000000,
+      AudioBitrate: 128000,
+      MaxHeight: maxHeight,
+      StartTimeTicks: startTimeTicks,
+      AudioStreamIndex: audioStreamIndex
+    };
+
+    if (enableHdr && hasHdr) {
+      streamParams.EnableHdr = true;
+      streamParams.Hdr10 = true;
+      if (hasDovi) streamParams.DolbyVision = true;
+    }
+
+    return `/Videos/${itemId}/stream.${videoSource.Container || "mp4"}?${buildQueryParams(streamParams)}`;
   } catch (error) {
     console.error("Stream URL oluşturma hatası:", error);
     return null;
   }
+}
+
+
+function getAudioStreamIndex(videoSource, audioLanguage) {
+  const audioStream = videoSource.MediaStreams.find(
+    s => s.Type === "Audio" && s.Language === audioLanguage
+  );
+  return audioStream ? audioStream.Index : 1;
 }
 
 export async function getIntroVideoUrl(itemId) {
@@ -346,7 +371,7 @@ export async function getIntroVideoUrl(itemId) {
     if (intros.length > 0) {
       const intro = intros[0];
       const startTimeTicks = 600 * 10_000_000;
-      const url = await getVideoStreamUrl(intro.Id, 480, startTimeTicks);
+      const url = await getVideoStreamUrl(intro.Id, 360, startTimeTicks);
       return url;
     }
     return null;
@@ -363,7 +388,7 @@ export async function getCachedVideoPreview(itemId) {
     return videoPreviewCache.get(itemId);
   }
 
-  const url = await getVideoStreamUrl(itemId, 480, 0);
+  const url = await getVideoStreamUrl(itemId, 360, 0);
   if (url) {
     videoPreviewCache.set(itemId, url);
     setTimeout(() => videoPreviewCache.delete(itemId), 300000);
