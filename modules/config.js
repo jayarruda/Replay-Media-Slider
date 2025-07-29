@@ -124,6 +124,8 @@ export function getConfig() {
     autoRefreshAvatar: localStorage.getItem('autoRefreshAvatar') !== 'false',
     avatarRefreshTime: parseInt(localStorage.getItem('avatarRefreshTime'), 10) || 10,
     randomDicebearAvatar: localStorage.getItem('randomDicebearAvatar') !== 'false',
+    enableHls: localStorage.getItem('enableHls') === 'true' ? true : false,
+    previewModal: localStorage.getItem('previewModal') === 'true' ? true : false,
     dicebearParams: (() => {
   try {
     const raw = localStorage.getItem('dicebearParams');
