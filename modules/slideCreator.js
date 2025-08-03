@@ -287,7 +287,14 @@ if (typeof RunTimeTicks === "number") {
   const actorSlider = await createActorSlider(People, config, item);
   const infoContainer = createInfoContainer({ config, Genres, ProductionYear, ProductionLocations });
   const directorContainer = await createDirectorContainer({ config, People, item });
-  const { container: ratingContainer, ratingExists } = createRatingContainer({ config, CommunityRating, CriticRating, OfficialRating });
+  const { container: ratingContainer, ratingExists } = await createRatingContainer({
+  config,
+  CommunityRating,
+  CriticRating,
+  OfficialRating,
+  UserData,
+  item
+});
   const providerContainer = createProviderContainer({ config, ProviderIds, RemoteTrailers, itemId, slide });
   const languageContainer = createLanguageContainer({ config, MediaStreams, itemType });
 

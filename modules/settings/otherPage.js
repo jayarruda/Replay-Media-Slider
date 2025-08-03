@@ -35,6 +35,7 @@ export function createStatusRatingPanel(config, labels) {
         ratingSubOptions.appendChild(createCheckbox('showCommunityRating', labels.showCommunityRating || 'Topluluk', config.showCommunityRating));
         ratingSubOptions.appendChild(createCheckbox('showCriticRating', labels.showCriticRating || 'Rotten Tomato', config.showCriticRating));
         ratingSubOptions.appendChild(createCheckbox('showOfficialRating', labels.showOfficialRating || 'Sertifikasyon', config.showOfficialRating));
+        ratingSubOptions.appendChild(createCheckbox('showMatchPercentage', labels.showMatchPercentage || 'Öneri', config.showMatchPercentage));
         ratingSection.appendChild(ratingSubOptions);
 
         bindCheckboxKontrol('#showRatingInfo', '.rating-sub-options');

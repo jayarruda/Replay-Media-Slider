@@ -15,6 +15,7 @@ export function getConfig() {
     showLanguageInfo: localStorage.getItem('showLanguageInfo') !== 'false',
     balanceItemTypes: localStorage.getItem('balanceItemTypes') !== 'false',
     showRatingInfo: localStorage.getItem('showRatingInfo') !== 'false',
+    showMatchPercentage: localStorage.getItem('showMatchPercentage') !== 'false',
     showProviderInfo: localStorage.getItem('showProviderInfo') !== 'false',
     showDotNavigation: localStorage.getItem('showDotNavigation') !== 'false',
     showSettingsLink: localStorage.getItem("showSettingsLink") !== "false",
@@ -125,7 +126,8 @@ export function getConfig() {
     avatarRefreshTime: parseInt(localStorage.getItem('avatarRefreshTime'), 10) || 10,
     randomDicebearAvatar: localStorage.getItem('randomDicebearAvatar') !== 'false',
     enableHls: localStorage.getItem('enableHls') === 'true' ? true : false,
-    previewModal: localStorage.getItem('previewModal') === 'true' ? true : false,
+    previewModal: localStorage.getItem('previewModal') !== 'false',
+    allPreviewModal: localStorage.getItem('allPreviewModal') !== 'false',
     dicebearParams: (() => {
   try {
     const raw = localStorage.getItem('dicebearParams');

@@ -19,6 +19,7 @@ export function forceHomeSectionsTop() {
         el.style.removeProperty('top');
       }
     });
+    waitForFavoritesTabAndApply(topValue);
   };
 
   if (document.readyState === 'loading') {
@@ -34,6 +35,24 @@ export function forceHomeSectionsTop() {
     attributes: false
   });
 }
+
+function waitForFavoritesTabAndApply(topValue) {
+  let tries = 0;
+  function attempt() {
+    const el = document.querySelector('#favoritesTab');
+    if (el) {
+      if (typeof topValue === 'number' && !isNaN(topValue) && topValue !== 0) {
+        el.style.setProperty('top', `${topValue}vh`, 'important');
+      } else {
+        el.style.removeProperty('top');
+      }
+      return;
+    }
+    if (++tries < 30) setTimeout(attempt, 100);
+  }
+  attempt();
+}
+
 
 export function forceSkinHeaderPointerEvents() {
   const apply = () => {

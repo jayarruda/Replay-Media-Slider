@@ -1,4 +1,5 @@
 import { saveCredentials, saveApiKey, getAuthToken } from "./auth.js";
+import { setupHoverForAllItems } from "./modules/navigation.js";
 
 (async function bootstrapCredentials() {
   try {
@@ -24,7 +25,6 @@ import { saveCredentials, saveApiKey, getAuthToken } from "./auth.js";
       Version: sess.Version || "1.0.0"
     };
 
-    console.log(">> bootstrapCredentials: kaydediliyor", creds);
     saveCredentials(creds);
   } catch (e) {
     console.warn("bootstrapCredentials hatası:", e);
@@ -44,6 +44,16 @@ import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
 
 let cleanupPauseOverlay = null;
+
+function setupGlobalModalInit() {
+  setupHoverForAllItems();
+  loadHls();
+  const observer = observeDOMChanges();
+  return () => observer.disconnect();
+}
+
+const cleanupModalObserver = setupGlobalModalInit();
+window.cleanupModalObserver = cleanupModalObserver;
 
 function setupPauseScreenIfNeeded() {
     if (cleanupPauseOverlay) {
@@ -102,7 +112,6 @@ function fullSliderReset() {
 
     window.mySlider = {};
     window.cachedListContent = "";
-    console.log("Slider tamamen resetlendi.");
 }
 
 function loadExternalCSS(path) {
@@ -180,7 +189,6 @@ export async function slidesInit() {
     const savedLimit = parseInt(localStorage.getItem("limit") || "20", 10);
     window.myUserId = userId;
     window.myListUrl = `/web/slider/list/list_${userId}.txt`;
-    console.log("Liste URL'si:", window.myListUrl);
 
     let items = [];
 
@@ -189,7 +197,6 @@ export async function slidesInit() {
 
         if (config.useManualList && config.manualListIds) {
             listItems = config.manualListIds.split(",").map(id => id.trim()).filter(Boolean);
-            console.log("Manuel liste kullanılıyor:", listItems);
         } else if (config.useListFile) {
             const res = await fetch(window.myListUrl);
             if (res.ok) {
@@ -298,8 +305,6 @@ export async function slidesInit() {
 
             if (remainingSlots > 0) {
                 if (shouldBalanceTypes) {
-                    console.log("Tür dengeleme aktif - Movie, Series ve BoxSet eşit dağıtılacak");
-
                     const itemsByType = {};
                     allItems.forEach(item => {
                         const type = item.Type;
@@ -478,7 +483,6 @@ function setupNavigationObserver() {
             isOnHomePage = nowOnHomePage;
 
             if (isOnHomePage) {
-                console.log("Ana sayfaya dönüldü, slider tamamen resetleniyor.");
                 fullSliderReset();
 
                 setTimeout(() => {
@@ -490,7 +494,6 @@ function setupNavigationObserver() {
                     slidesInit();
                 }, 100);
             } else {
-                console.log("Ana sayfadan ayrıldı, slider temizleniyor.");
                 fullSliderReset();
             }
         }
@@ -527,7 +530,6 @@ function initializeSliderOnHome() {
             indexPage.appendChild(slidesContainer);
         }
 
-        loadHls();
         ensureProgressBarExists();
         slidesInit();
     }
@@ -555,7 +557,6 @@ function cleanupSlider() {
             clearInterval(window.mySlider.intervalChangeSlide);
         }
         window.mySlider = {};
-        console.log("Global slider instance temizlendi.");
     }
 
     const indexPage = document.querySelector("#indexPage:not(.hide)");
@@ -563,7 +564,6 @@ function cleanupSlider() {
         const sliderContainer = indexPage.querySelector("#slides-container");
         if (sliderContainer) {
             sliderContainer.remove();
-            console.log("Eski slider container kaldırıldı.");
         }
     }
 }
@@ -597,6 +597,65 @@ export async function loadHls() {
     script.onload = resolve;
     script.onerror = () => reject(new Error("hls yüklenemedi"));
     document.head.appendChild(script);
+  });
+}
+
+function observeDOMChanges() {
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (!mutation.addedNodes.length) return;
+      const relevantContainers = [
+        'cardImageContainer',
+      ];
+
+      const isRelevant = Array.from(mutation.addedNodes).some(node => {
+        if (node.nodeType === 1 && relevantContainers.some(c =>
+          node.classList?.contains(c))) {
+          return true;
+        }
+        return relevantContainers.some(c => node.querySelector?.(`.${c}`));
+      });
+
+      if (isRelevant) {
+        setupHoverForAllItems();
+      }
+    });
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['data-id', 'class']
+  });
+
+  return observer;
+}
+
+
+function initializeModalForAllItems() {
+  const indexPage = document.querySelector('#indexPage:not(.hide)');
+  if (!indexPage) return;
+  if (document.querySelector('#slides-container')) return;
+  setupHoverForAllItems();
+  const observer = observeDOMChanges();
+  return () => observer.disconnect();
+}
+
+async function preloadForVisibleItems() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const itemId = entry.target.dataset.itemId;
+        if (itemId) {
+          preloadVideoForDot(itemId).catch(() => {});
+        }
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('[data-item-id]').forEach(item => {
+    observer.observe(item);
   });
 }
 

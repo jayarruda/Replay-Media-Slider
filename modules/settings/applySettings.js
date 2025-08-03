@@ -70,6 +70,7 @@ export function applySettings(reload = false) {
             dicebearParams: config.dicebearParams || {},
             enableHls: formData.get('enableHls') === 'on',
             previewModal: formData.get('previewModal') === 'on',
+            allPreviewModal: formData.get('allPreviewModal') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -78,6 +79,7 @@ export function applySettings(reload = false) {
             showQualityInfo: formData.get('showQualityInfo') === 'on',
             showQualityDetail: formData.get('showQualityDetail') === 'on',
             showRatingInfo: formData.get('showRatingInfo') === 'on',
+            showMatchPercentage: formData.get('showMatchPercentage') === 'on',
             showCommunityRating: formData.get('showCommunityRating') === 'on',
             showCriticRating: formData.get('showCriticRating') === 'on',
             showOfficialRating: formData.get('showOfficialRating') === 'on',

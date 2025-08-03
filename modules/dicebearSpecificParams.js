@@ -1276,7 +1276,7 @@ export function createDicebearParamsSection(style) {
       paramsSection.appendChild(createDicebearParamSelect('accessoriesProbability', labels.avatarAccessoriesProbability, [
         '0', '10', '20', '30', '40', '50', '60', '70', '80', '90', '100'
       ]));
-      paramsSection.appendChild(createDicebearParamSelect('clothingColor', labels.avatarClothingColor, [
+      paramsSection.appendChild(createDicebearParamSelect('clothingColor', labels.avatarClothesColor, [
         '8fa7df', '9ddadb', '78e185', 'e279c7', 'e78276', 'fdea6b', 'ffcf77'
       ]));
       paramsSection.appendChild(createDicebearParamSelect('face', labels.avatarFace, [
@@ -1308,7 +1308,7 @@ export function createDicebearParamsSection(style) {
       paramsSection.appendChild(createDicebearParamSelect('body', labels.avatarBody, [
         'checkered', 'rounded', 'small', 'squared'
       ]));
-      paramsSection.appendChild(createDicebearParamSelect('clothingColor', labels.avatarClothingColor, [
+      paramsSection.appendChild(createDicebearParamSelect('clothingColor', labels.avatarClothesColor, [
         '6dbb58', '54d7c7', '456dff', '7555ca', 'e24553', 'f3b63a', 'f55d81'
       ]));
       paramsSection.appendChild(createDicebearParamSelect('eyes', labels.avatarEyes, [
@@ -1359,7 +1359,7 @@ export function createDicebearParamsSection(style) {
       paramsSection.appendChild(createDicebearParamSelect('clothing', labels.avatarClothing, [
         'variant01', 'variant02', 'variant03', 'variant04', 'variant05', 'variant06', 'variant07', 'variant08', 'variant09', 'variant10', 'variant11', 'variant12', 'variant13', 'variant14', 'variant15', 'variant16', 'variant17', 'variant18', 'variant19', 'variant20', 'variant21', 'variant22', 'variant23'
       ]));
-      paramsSection.appendChild(createDicebearParamSelect('clothingColor', labels.avatarClothingColor, [
+      paramsSection.appendChild(createDicebearParamSelect('clothingColor', labels.avatarClothesColor, [
         '00b159', '5bc0de', '44c585', '88d8b0', '428bca', '03396c', 'ae0001', 'd11141', 'ff6f69', 'ffc425', 'ffd969', 'ffeead'
       ]));
       paramsSection.appendChild(createDicebearParamSelect('eyes', labels.avatarEyes, [

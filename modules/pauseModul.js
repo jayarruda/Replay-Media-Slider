@@ -22,23 +22,27 @@ export function setupPauseScreen() {
     let overlayVisible = false;
     let lastIdCheck = 0;
     let wasPaused = false;
+    let pauseTimeout = null;
 
     if (!document.getElementById('jms-pause-overlay')) {
         const overlay = document.createElement('div');
         overlay.id = 'jms-pause-overlay';
         overlay.innerHTML = `
-            <div class="pause-overlay-content">
-                <div class="pause-left">
-                    <div id="jms-overlay-title" class="pause-title"></div>
-                    <div id="jms-overlay-metadata" class="pause-metadata"></div>
-                    <div id="jms-overlay-plot" class="pause-plot"></div>
-                </div>
-                <div class="pause-right">
-                    <div class="pause-right-backdrop"></div>
-                    <div id="jms-overlay-logo" class="pause-logo-container"></div>
-                </div>
-            </div>
-        `;
+    <div class="pause-overlay-content">
+        <div class="pause-left">
+            <div id="jms-overlay-title" class="pause-title"></div>
+            <div id="jms-overlay-metadata" class="pause-metadata"></div>
+            <div id="jms-overlay-plot" class="pause-plot"></div>
+        </div>
+        <div class="pause-right">
+            <div class="pause-right-backdrop"></div>
+            <div id="jms-overlay-logo" class="pause-logo-container"></div>
+        </div>
+    </div>
+    <div class="pause-status-bottom-right" id="pause-status-bottom-right" style="display:none;">
+        <span>⏸️ ${labels.paused || 'Duraklatıldı'}</span>
+    </div>
+`;
         document.body.appendChild(overlay);
 
         if (!document.getElementById('jms-pause-css')) {
@@ -48,6 +52,42 @@ export function setupPauseScreen() {
             link.href = 'slider/src/pauseModul.css';
             document.head.appendChild(link);
         }
+        if (!document.getElementById('jms-pause-extra-css')) {
+            const style = document.createElement('style');
+            style.id = 'jms-pause-extra-css';
+            style.innerHTML = `
+                #jms-pause-overlay {
+                    opacity: 0;
+                    transition: opacity 0.45s cubic-bezier(0.3,0.5,0.3,1);
+                    pointer-events: none;
+                }
+                #jms-pause-overlay.visible {
+                    opacity: 1;
+                    pointer-events: auto;
+                }
+                .pause-status-bottom-right {
+                    position: fixed;
+                    right: 36px;
+                    bottom: 32px;
+                    z-index: 1000001;
+                    background: rgba(22,22,22,0.94);
+                    color: #fff;
+                    padding: 10px 22px;
+                    border-radius: 22px;
+                    font-size: 1.08rem;
+                    box-shadow: 0 3px 16px 0 rgba(0,0,0,0.12);
+                    font-weight: 500;
+                    letter-spacing: .02em;
+                    user-select: none;
+                    opacity: 0.92;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    transition: opacity 0.33s;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
 
     const overlayEl = document.getElementById('jms-pause-overlay');
@@ -56,38 +96,81 @@ export function setupPauseScreen() {
     const plotEl = document.getElementById('jms-overlay-plot');
     const backdropEl = document.querySelector('.pause-right-backdrop');
     const logoEl = document.getElementById('jms-overlay-logo');
+    const pausedLabel = document.getElementById('pause-status-bottom-right');
 
     overlayEl.addEventListener('click', e => {
-    if (overlayVisible && activeVideo && (e.target === overlayEl || overlayEl.contains(e.target))) {
-        activeVideo.play();
-        hideOverlay();
-    }
-});
+        if (overlayVisible && activeVideo && (e.target === overlayEl || overlayEl.contains(e.target))) {
+            activeVideo.play();
+            hideOverlay();
+        }
+    });
 
     function showOverlay() {
-        overlayEl.classList.add('visible');
-        overlayVisible = true;
+    overlayEl.classList.add('visible');
+    overlayVisible = true;
+    if(pausedLabel) {
+        pausedLabel.style.display = 'flex';
+        pausedLabel.style.opacity = '0';
+        setTimeout(() => {
+            pausedLabel.style.opacity = '0.92';
+        }, 10);
     }
 
-    function hideOverlay() {
+    const content = overlayEl.querySelector('.pause-overlay-content');
+    if (content) {
+        content.style.transform = 'translateY(10px)';
+        content.style.opacity = '0';
+        setTimeout(() => {
+            content.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.4s ease';
+            content.style.transform = 'translateY(0)';
+            content.style.opacity = '1';
+        }, 10);
+    }
+}
+
+function hideOverlay() {
+    const content = overlayEl.querySelector('.pause-overlay-content');
+    if (content) {
+        content.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease';
+        content.style.transform = 'translateY(10px)';
+        content.style.opacity = '0';
+    }
+
+    if(pausedLabel) {
+        pausedLabel.style.opacity = '0';
+        setTimeout(() => {
+            pausedLabel.style.display = 'none';
+        }, 300);
+    }
+
+    setTimeout(() => {
         overlayEl.classList.remove('visible');
         overlayVisible = false;
+        if (content) {
+            content.style.transition = '';
+            content.style.transform = '';
+            content.style.opacity = '';
+        }
+    }, 300);
+
+    if (pauseTimeout) {
+        clearTimeout(pauseTimeout);
+        pauseTimeout = null;
     }
+}
 
     function resetContent() {
-    if (config.pauseOverlay.showBackdrop) {
-        backdropEl.style.backgroundImage = 'none';
-        backdropEl.style.opacity = '0';
+        if (config.pauseOverlay.showBackdrop) {
+            backdropEl.style.backgroundImage = 'none';
+            backdropEl.style.opacity = '0';
+        }
+        if (config.pauseOverlay.showLogo) {
+            logoEl.innerHTML = '';
+        }
+        titleEl.innerHTML = '';
+        metaEl.innerHTML = '';
+        plotEl.textContent = '';
     }
-
-    if (config.pauseOverlay.showLogo) {
-        logoEl.innerHTML = '';
-    }
-
-    titleEl.innerHTML = '';
-    metaEl.innerHTML = '';
-    plotEl.textContent = '';
-}
 
     function convertTicks(ticks) {
         if (!ticks || isNaN(ticks)) return labels.sonucyok;
@@ -113,130 +196,116 @@ export function setupPauseScreen() {
     }
 
     async function refreshData(data) {
-    resetContent();
-    const ep = data._episodeData || null;
-
-    if (config.pauseOverlay.showBackdrop) {
-        await setBackdrop();
-    } else {
-        backdropEl.style.backgroundImage = 'none';
-        backdropEl.style.opacity = '0';
+        resetContent();
+        const ep = data._episodeData || null;
+        if (config.pauseOverlay.showBackdrop) {
+            await setBackdrop();
+        } else {
+            backdropEl.style.backgroundImage = 'none';
+            backdropEl.style.opacity = '0';
+        }
+        if (config.pauseOverlay.showLogo) {
+            await setLogo(data);
+        } else {
+            logoEl.innerHTML = '';
+        }
+        if (ep) {
+            titleEl.innerHTML = `
+                <h1 class="pause-series-title">${data.Name || data.OriginalTitle || ''}</h1>
+                <h2 class="pause-episode-title">${labels.sezon} ${ep.ParentIndexNumber} • ${labels.bolum} ${ep.IndexNumber} ${ep.Name ? '– ' + ep.Name : ''}</h2>
+            `;
+        } else {
+            titleEl.innerHTML = `<h1 class="pause-movie-title">${data.Name || data.OriginalTitle || ''}</h1>`;
+        }
+        if (config.pauseOverlay.showMetadata) {
+            const rows = [
+                genRow('📅 ' + labels.showYearInfo, data.ProductionYear),
+                genRow('⭐ ' + labels.showCommunityRating, data.CommunityRating ? Math.round(data.CommunityRating) + '/10' : ''),
+                genRow('👨‍⚖️ ' + labels.showCriticRating, data.CriticRating ? Math.round(data.CriticRating) + '%' : ''),
+                genRow('👥 ' + labels.voteCount, data.VoteCount),
+                genRow('🔞 ' + labels.showOfficialRating, data.OfficialRating || labels.derecelendirmeyok),
+                genRow('🎭 ' + labels.showGenresInfo, data.Genres?.slice(0,3).join(', ') || labels.noGenresFound),
+                genRow('⏱️ ' + labels.showRuntimeInfo, convertTicks(ep?.RunTimeTicks || data.RunTimeTicks)),
+                genRow('▶ ' + labels.currentTime, formatTime(activeVideo?.currentTime || 0)),
+                genRow('⏳ ' + labels.remainingTime, formatTime((activeVideo?.duration || 0) - (activeVideo?.currentTime || 0)))
+            ];
+            metaEl.innerHTML = rows.join('');
+        } else {
+            metaEl.innerHTML = '';
+        }
+        if (config.pauseOverlay.showPlot) {
+            plotEl.textContent = ep?.Overview || data.Overview || labels.konu + labels.noData;
+        } else {
+            plotEl.textContent = '';
+        }
     }
-
-    if (config.pauseOverlay.showLogo) {
-        await setLogo(data);
-    } else {
-        logoEl.innerHTML = '';
-    }
-
-    if (ep) {
-        titleEl.innerHTML = `
-            <h1 class="pause-series-title">${data.Name || data.OriginalTitle || ''}</h1>
-            <h2 class="pause-episode-title">${labels.sezon} ${ep.ParentIndexNumber} • ${labels.bolum} ${ep.IndexNumber} ${ep.Name ? '– ' + ep.Name : ''}</h2>
-        `;
-    } else {
-        titleEl.innerHTML = `<h1 class="pause-movie-title">${data.Name || data.OriginalTitle || ''}</h1>`;
-    }
-
-    if (config.pauseOverlay.showMetadata) {
-        const rows = [
-            genRow('📅 ' + labels.showYearInfo, data.ProductionYear),
-            genRow('⭐ ' + labels.showCommunityRating, data.CommunityRating ? Math.round(data.CommunityRating) + '/10' : ''),
-            genRow('👨‍⚖️ ' + labels.showCriticRating, data.CriticRating ? Math.round(data.CriticRating) + '%' : ''),
-            genRow('👥 ' + labels.voteCount, data.VoteCount),
-            genRow('🔞 ' + labels.showOfficialRating, data.OfficialRating || labels.derecelendirmeyok),
-            genRow('🎭 ' + labels.showGenresInfo, data.Genres?.slice(0,3).join(', ') || labels.noGenresFound),
-            genRow('⏱️ ' + labels.showRuntimeInfo, convertTicks(ep?.RunTimeTicks || data.RunTimeTicks)),
-            genRow('▶ ' + labels.currentTime, formatTime(activeVideo?.currentTime || 0)),
-            genRow('⏳ ' + labels.remainingTime, formatTime((activeVideo?.duration || 0) - (activeVideo?.currentTime || 0)))
-        ];
-        metaEl.innerHTML = rows.join('');
-    } else {
-        metaEl.innerHTML = '';
-    }
-
-    if (config.pauseOverlay.showPlot) {
-        plotEl.textContent = ep?.Overview || data.Overview || labels.konu + labels.noData;
-    } else {
-        plotEl.textContent = '';
-    }
-}
-
 
     async function setBackdrop() {
-    if (!currentMediaId) return;
-
-    const url = `/Items/${currentMediaId}/Images/Backdrop/0`;
-    try {
-        const ok = await checkExists(url);
-        backdropEl.style.backgroundImage = ok ? `url('${url}')` : 'none';
-        backdropEl.style.opacity = ok ? '0.7' : '0';
-    } catch (e) {
-        backdropEl.style.backgroundImage = 'none';
-        backdropEl.style.opacity = '0';
+        if (!currentMediaId) return;
+        const url = `/Items/${currentMediaId}/Images/Backdrop/0`;
+        try {
+            const ok = await checkExists(url);
+            backdropEl.style.backgroundImage = ok ? `url('${url}')` : 'none';
+            backdropEl.style.opacity = ok ? '0.7' : '0';
+        } catch (e) {
+            backdropEl.style.backgroundImage = 'none';
+            backdropEl.style.opacity = '0';
+        }
     }
-}
 
     async function setLogo(data) {
-    if (!currentMediaId || !data) return;
-
-    const imagePref = config.pauseOverlay?.imagePreference || 'auto';
-    const logoUrl = `/Items/${currentMediaId}/Images/Logo`;
-    const discUrl = `/Items/${currentMediaId}/Images/Disc`;
-
-    try {
-        const shouldCheckLogo = (imagePref === 'logo' || imagePref === 'auto');
-        const shouldCheckDisc = (imagePref === 'disc' || imagePref === 'auto');
-
-        const [logoExists, discExists] = await Promise.all([
-            shouldCheckLogo ? checkExists(logoUrl) : Promise.resolve(false),
-            shouldCheckDisc ? checkExists(discUrl) : Promise.resolve(false)
-        ]);
-
-        if (imagePref === 'logo' && logoExists) {
-            logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
-        } else if (imagePref === 'disc' && discExists) {
-            logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
-        } else if (imagePref === 'title') {
-            logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
-        } else if (imagePref === 'auto') {
-            if (logoExists) {
-                logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
-            } else if (discExists) {
-                logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"></div>`;
-            } else {
+        if (!currentMediaId || !data) return;
+        const imagePref = config.pauseOverlay?.imagePreference || 'auto';
+        const logoUrl = `/Items/${currentMediaId}/Images/Logo`;
+        const discUrl = `/Items/${currentMediaId}/Images/Disc`;
+        try {
+            const shouldCheckLogo = (imagePref === 'logo' || imagePref === 'auto');
+            const shouldCheckDisc = (imagePref === 'disc' || imagePref === 'auto');
+            const [logoExists, discExists] = await Promise.all([
+                shouldCheckLogo ? checkExists(logoUrl) : Promise.resolve(false),
+                shouldCheckDisc ? checkExists(discUrl) : Promise.resolve(false)
+            ]);
+            if (imagePref === 'logo' && logoExists) {
+                logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
+            } else if (imagePref === 'disc' && discExists) {
+                logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
+            } else if (imagePref === 'title') {
                 logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
+            } else if (imagePref === 'auto') {
+                if (logoExists) {
+                    logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
+                } else if (discExists) {
+                    logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
+                } else {
+                    logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
+                }
             }
+        } catch (e) {
+            logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
         }
-    } catch (e) {
-        logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
     }
-}
     async function checkExists(url) {
-    if (!url) return false;
-    if (window.__imageCache === undefined) {
-        window.__imageCache = {};
+        if (!url) return false;
+        if (window.__imageCache === undefined) {
+            window.__imageCache = {};
+        }
+        if (window.__imageCache[url] !== undefined) {
+            return window.__imageCache[url];
+        }
+        try {
+            const response = await fetch(url, {
+                method: 'HEAD',
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const exists = response.ok;
+            window.__imageCache[url] = exists;
+            return exists;
+        } catch (e) {
+            window.__imageCache[url] = false;
+            return false;
+        }
     }
-
-    if (window.__imageCache[url] !== undefined) {
-        return window.__imageCache[url];
-    }
-
-    try {
-        const response = await fetch(url, {
-            method: 'HEAD',
-            cache: 'no-store',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-
-        const exists = response.ok;
-        window.__imageCache[url] = exists;
-        return exists;
-    } catch (e) {
-        window.__imageCache[url] = false;
-        return false;
-    }
-}
 
     function getCurrentMediaId(force = false) {
         const now = Date.now();
@@ -257,35 +326,41 @@ export function setupPauseScreen() {
     }
 
     function bindVideo(video) {
-    if (removeHandlers) removeHandlers();
-    if (video.closest('.video-preview-modal, .intro-video-container')) {
-        return;
-    }
-
-    activeVideo = video;
-    const onPause = async () => {
-        if (video.ended) return;
-        const id = getCurrentMediaId(true);
-        if (!id) return;
-        currentMediaId = id;
-        const info = await fetchItemDetails(id);
-        if (info.Type === 'Episode' && info.SeriesId) {
-            currentMediaId = info.SeriesId;
-            const series = await fetchItemDetails(info.SeriesId);
-            await refreshData({ ...series, _episodeData: info });
-        } else {
-            await refreshData(info);
+        if (removeHandlers) removeHandlers();
+        if (video.closest('.video-preview-modal, .intro-video-container')) {
+            return;
         }
-        showOverlay();
-    };
-    const onPlay = () => hideOverlay();
-    video.addEventListener('pause', onPause);
-    video.addEventListener('play', onPlay);
-    removeHandlers = () => {
-        video.removeEventListener('pause', onPause);
-        video.removeEventListener('play', onPlay);
-    };
-}
+        activeVideo = video;
+        const onPause = async () => {
+            if (video.ended) return;
+            if (pauseTimeout) clearTimeout(pauseTimeout);
+            pauseTimeout = setTimeout(async () => {
+                if (!video.paused || video.ended) return;
+                const id = getCurrentMediaId(true);
+                if (!id) return;
+                currentMediaId = id;
+                const info = await fetchItemDetails(id);
+                if (info.Type === 'Episode' && info.SeriesId) {
+                    currentMediaId = info.SeriesId;
+                    const series = await fetchItemDetails(info.SeriesId);
+                    await refreshData({ ...series, _episodeData: info });
+                } else {
+                    await refreshData(info);
+                }
+                showOverlay();
+            }, 1000);
+        };
+        const onPlay = () => {
+            hideOverlay();
+            if (pauseTimeout) clearTimeout(pauseTimeout);
+        };
+        video.addEventListener('pause', onPause);
+        video.addEventListener('play', onPlay);
+        removeHandlers = () => {
+            video.removeEventListener('pause', onPause);
+            video.removeEventListener('play', onPlay);
+        };
+    }
 
     const mo = new MutationObserver(muts => {
         muts.forEach(m => m.addedNodes.forEach(n => {
@@ -302,60 +377,38 @@ export function setupPauseScreen() {
         }));
     });
     mo.observe(document.body, { childList: true, subtree: true });
-
     const initVid = document.querySelector('video');
     if (initVid) bindVideo(initVid);
-
     function startOverlayLogic() {
         async function loop() {
-    const onValidPage = isVideoVisible();
-
-    if (!onValidPage && overlayVisible) {
-        hideOverlay();
-    }
-
-    if (!activeVideo) {
-        const candidate = document.querySelector('video');
-        if (candidate) bindVideo(candidate);
-        else if (overlayVisible) hideOverlay();
-    }
-
-    if (activeVideo && onValidPage) {
+            const onValidPage = isVideoVisible();
+            if (!onValidPage && overlayVisible) {
+                hideOverlay();
+            }
+            if (!activeVideo) {
+                const candidate = document.querySelector('video');
+                if (candidate) bindVideo(candidate);
+                else if (overlayVisible) hideOverlay();
+            }
+            if (activeVideo && onValidPage) {
                 const isPaused = activeVideo.paused && !activeVideo.ended;
                 if (isPaused && !wasPaused) {
-                    const id = getCurrentMediaId(true);
-                    if (id) {
-                        currentMediaId = id;
-                        const info = await fetchItemDetails(id);
-                        if (info.Type === 'Episode' && info.SeriesId) {
-                            currentMediaId = info.SeriesId;
-                            const series = await fetchItemDetails(info.SeriesId);
-                            await refreshData({ ...series, _episodeData: info });
-                        } else {
-                            await refreshData(info);
-                        }
-                        showOverlay();
-                    }
                 }
                 if (!isPaused && wasPaused) hideOverlay();
                 wasPaused = isPaused;
             }
-
             requestAnimationFrame(loop);
         }
         requestAnimationFrame(loop);
     }
-
     window.addEventListener('popstate', hideOverlay);
     window.addEventListener('hashchange', hideOverlay);
     document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && !isVideoVisible()) {
-        hideOverlay();
-    }
-});
-
+        if (document.visibilityState === 'visible' && !isVideoVisible()) {
+            hideOverlay();
+        }
+    });
     startOverlayLogic();
-
     return () => {
         if (removeHandlers) removeHandlers();
         mo.disconnect();
@@ -363,13 +416,13 @@ export function setupPauseScreen() {
         activeVideo = null;
         currentMediaId = null;
         wasPaused = false;
+        if (pauseTimeout) clearTimeout(pauseTimeout);
+        pauseTimeout = null;
     };
 }
-
- function isVideoVisible() {
+function isVideoVisible() {
     const vid = document.querySelector('video');
     if (!vid) return false;
-
     return vid.offsetParent !== null &&
            !vid.hidden &&
            vid.style.display !== 'none' &&

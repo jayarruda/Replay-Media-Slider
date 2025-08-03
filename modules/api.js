@@ -234,7 +234,7 @@ export async function getVideoStreamUrl(
   preferredAudioCodecs = ["eac3", "ac3", "opus", "aac"],
   enableHdr = true,
   forceDirectPlay = false,
-  enableHls = config.enableHls && config.enableVideoPlayback
+  enableHls = config.enableHls
 ) {
   const { userId, deviceId, accessToken } = getSessionInfo();
 
@@ -245,7 +245,7 @@ export async function getVideoStreamUrl(
       .join("&");
 
   const selectPreferredCodec = (streams, type, preferred, allowCopy) => {
-    if (allowCopy) return "copy";
+    if (enableHls && allowCopy) return "copy";
     const available = streams
       .filter((s) => s.Type === type && s.Codec)
       .map((s) => s.Codec.toLowerCase());
@@ -255,14 +255,79 @@ export async function getVideoStreamUrl(
         return codec;
       }
     }
-
     return type === "Video" ? "h264" : "aac";
   };
 
-  try {
-    const item = await fetchItemDetails(itemId);
+   try {
+    let item = await fetchItemDetails(itemId);
     if (item.Type === "Series") {
       itemId = await getRandomEpisodeId(itemId);
+      item = await fetchItemDetails(itemId);
+    }
+
+    if (item.Type === "Season") {
+      const episodes = await makeApiRequest(`/Shows/${item.SeriesId}/Episodes?SeasonId=${itemId}&Fields=Id`);
+      if (!episodes?.Items?.length) throw new Error("Bu sezonda hiç bölüm yok!");
+      const episode = episodes.Items[Math.floor(Math.random() * episodes.Items.length)];
+      itemId = episode.Id;
+      item = await fetchItemDetails(itemId);
+    }
+
+    if (
+  item.Type === "Audio" ||
+  item.Type === "MusicVideo" ||
+  item.MediaType === "Audio"
+) {
+  const playbackInfo = await makeApiRequest(`/Items/${itemId}/stream.mp3?Static=true`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      UserId: userId
+    })
+  });
+
+      const source = playbackInfo?.MediaSources?.[0];
+      if (!source) {
+        console.error("Medya kaynağı bulunamadı (müzik)");
+        return null;
+      }
+
+      const audioStreams = (source.MediaStreams || []).filter(s => s.Type === "Audio");
+      let audioCodec = "aac";
+      if (audioStreams.length) {
+        const foundCodec = audioStreams[0].Codec || null;
+        if (foundCodec) audioCodec = foundCodec;
+      }
+
+      let audioStreamIndex = 1;
+      if (audioLanguage) {
+        const audioStream = audioStreams.find(s => s.Language === audioLanguage);
+        if (audioStream) audioStreamIndex = audioStream.Index;
+      }
+
+      let container = source.Container || "mp3";
+      if (enableHls && source.SupportsDirectStream && (source.Container === "ts" || source.SupportsHls)) {
+        const hlsParams = {
+          MediaSourceId: source.Id,
+          DeviceId: deviceId,
+          api_key: accessToken,
+          AudioCodec: audioCodec,
+          AudioStreamIndex: audioStreamIndex,
+          StartTimeTicks: startTimeTicks
+        };
+        return `/Videos/${itemId}/master.m3u8?${buildQueryParams(hlsParams)}`;
+      }
+
+      const streamParams = {
+        Static: true,
+        MediaSourceId: source.Id,
+        DeviceId: deviceId,
+        api_key: accessToken,
+        AudioCodec: audioCodec,
+        AudioStreamIndex: audioStreamIndex,
+        StartTimeTicks: startTimeTicks
+      };
+      return `/Videos/${itemId}/stream.${container}?${buildQueryParams(streamParams)}`;
     }
 
     const playbackInfo = await makeApiRequest(`/Items/${itemId}/PlaybackInfo`, {
@@ -287,8 +352,16 @@ export async function getVideoStreamUrl(
     const streams = videoSource.MediaStreams || [];
     const allowCopy = videoSource.SupportsDirectStream;
 
-    const videoCodec = selectPreferredCodec(streams, "Video", preferredVideoCodecs, allowCopy);
-    const audioCodec = selectPreferredCodec(streams, "Audio", preferredAudioCodecs, allowCopy);
+    let videoCodec, audioCodec, container;
+    if (enableHls) {
+      videoCodec = selectPreferredCodec(streams, "Video", preferredVideoCodecs, allowCopy);
+      audioCodec = selectPreferredCodec(streams, "Audio", preferredAudioCodecs, allowCopy);
+      container = videoSource.Container || "mp4";
+    } else {
+      videoCodec = "h264";
+      audioCodec = "aac";
+      container = "mp4";
+    }
 
     let audioStreamIndex = 1;
     if (audioLanguage) {
@@ -348,7 +421,8 @@ export async function getVideoStreamUrl(
       if (hasDovi) streamParams.DolbyVision = true;
     }
 
-    return `/Videos/${itemId}/stream.${videoSource.Container || "mp4"}?${buildQueryParams(streamParams)}`;
+    return `/Videos/${itemId}/stream.${container}?${buildQueryParams(streamParams)}`;
+
   } catch (error) {
     console.error("Stream URL oluşturma hatası:", error);
     return null;

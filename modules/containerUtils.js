@@ -1,6 +1,7 @@
 import { getConfig } from "./config.js";
 import { applyContainerStyles } from "./positionUtils.js";
 import { fetchItemDetails } from "./api.js";
+import { calculateMatchPercentage } from "./navigation.js";
 
 const config = getConfig();
 
@@ -355,7 +356,14 @@ export async function createDirectorContainer({ config, People, item }) {
 }
 
 
-export function createRatingContainer({ config, CommunityRating, CriticRating, OfficialRating }) {
+export async function createRatingContainer({
+  config,
+  CommunityRating,
+  CriticRating,
+  OfficialRating,
+  UserData,
+  item
+}) {
   const container = document.createElement("div");
   container.className = "rating-container";
   applyContainerStyles(container, 'rating');
@@ -363,6 +371,22 @@ export function createRatingContainer({ config, CommunityRating, CriticRating, O
   let ratingExists = false;
 
   if (config.showRatingInfo) {
+    if (config.showMatchPercentage && UserData && item) {
+      const matchPercentage = await calculateMatchPercentage(UserData, item);
+      const matchSpan = document.createElement("span");
+      matchSpan.className = "match-percentage";
+      matchSpan.innerHTML = `
+  <span class="match-rating">
+    <i class="fa-regular fa-heart fa-xl"></i>
+    <span class="heart-filled" style="clip-path: inset(${100 - matchPercentage}% 0 0 0);">
+      <i class="fa-solid fa-heart fa-xl"></i>
+    </span>
+  </span>
+  <span class="percentage-text">${matchPercentage}%</span>`;
+      container.appendChild(matchSpan);
+      ratingExists = true;
+    }
+
     if (config.showCommunityRating && CommunityRating) {
       let ratingValue = Array.isArray(CommunityRating)
         ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
@@ -377,7 +401,7 @@ export function createRatingContainer({ config, CommunityRating, CriticRating, O
           <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: auto; color: gold; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
             <i class="fa-solid fa-star" style="display: block;"></i>
           </span>
-        </span> ${ratingValue} <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
+        </span> ${ratingValue} `;
       container.appendChild(ratingSpan);
       ratingExists = true;
     }
@@ -387,7 +411,7 @@ export function createRatingContainer({ config, CommunityRating, CriticRating, O
       criticSpan.className = "t-rating";
       criticSpan.innerHTML = `<i class="fa-duotone fa-solid fa-tomato" style="--fa-primary-color: #01902e; --fa-secondary-color: #f93208; --fa-secondary-opacity: 1;"></i> ${
         Array.isArray(CriticRating) ? CriticRating.join(", ") : CriticRating
-      } <i class="fa-solid fa-sparkle fa-2xs" style="color: #ffffff;"></i>`;
+      } `;
       container.appendChild(criticSpan);
       ratingExists = true;
     }

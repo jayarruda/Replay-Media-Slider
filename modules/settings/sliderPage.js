@@ -99,15 +99,9 @@ export function createSliderPanel(config, labels) {
     config.enableVideoPlayback
 );
 
-    const enableHls = createCheckbox(
-    'enableHls',
-    labels.enableHls || 'HLS Desteğini ektinleştir',
-    config.enableHls
-);
 
     playbackCheckboxesDiv.appendChild(trailerPlaybackCheckbox);
     playbackCheckboxesDiv.appendChild(videoPlaybackCheckbox);
-    playbackCheckboxesDiv.appendChild(enableHls);
     playbackOptionsDiv.appendChild(playbackCheckboxesDiv);
 
     trailerPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
@@ -291,6 +285,9 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minPixelInput, minSizeInput, maxSizeInput, backdropMaxWidthInput]);
     bindCheckboxKontrol('#enableImageSizeFilter', '.min-quality-container', 0.6, [minSizeInput, maxSizeInput]);
 
+    const dotCheckboxs = document.createElement('div');
+    dotCheckboxs.className = 'fsetting-item min-quality-container';
+
     const dotNavCheckbox = createCheckbox(
         'showDotNavigation',
         labels.showDotNavigation || 'Dot Navigasyonu Göster',
@@ -311,6 +308,26 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
         config.previewModal
     );
     sliderDiv.appendChild(previewModalCheckbox);
+
+    const allPreviewModalCheckbox = createCheckbox(
+        'allPreviewModal',
+        labels.allPreviewModal || 'Modalı Jellyfin geneline uygula',
+        config.allPreviewModal
+    );
+    sliderDiv.appendChild(allPreviewModalCheckbox);
+
+    const enableHlsDesc = document.createElement('div');
+    enableHlsDesc.className = 'description-text';
+    enableHlsDesc.textContent = labels.enableHlsDescription || 'HLS aktifleştirildiğinde kod dönüştürme yapılmaktadır. Ffmpeg kullanımı yüksek cpu kullanımına sebep olabilir. Aktifleştirilmezse sadece tarayıcının desteklediği video ve ses kodecleri oynatılır.';
+
+    sliderDiv.appendChild(enableHlsDesc);
+
+    const enableHls = createCheckbox(
+        'enableHls',
+        labels.enableHls || 'HLS Desteğini ektinleştir',
+        config.enableHls
+    );
+     sliderDiv.appendChild(enableHls);
 
     const posterDotsDesc = document.createElement('div');
     posterDotsDesc.className = 'description-text';
@@ -412,11 +429,6 @@ function updateTrailerRelatedFields() {
 
         trailerDelayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
         gradientOverlayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
-    }
-
-    if (hlsCheckbox) {
-        hlsCheckbox.style.display = videoChecked ? 'block' : 'none';
-        hlsCheckbox.querySelector('input').disabled = !videoChecked;
     }
 }
 
