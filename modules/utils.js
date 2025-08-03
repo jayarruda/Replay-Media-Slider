@@ -151,7 +151,6 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
             signal: abortController.signal
           }
         );
-        console.log("enableHls:", enableHls, "introUrl:", introUrl);
 
         if (
           enableHls &&
@@ -160,7 +159,6 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
           introUrl &&
           introUrl && /\.m3u8(\?|$)/.test(introUrl)
         ) {
-          console.log("HLS.js ile oynatılıyor:", introUrl);
           const hls = new window.Hls();
           videoElement.hls = hls;
 
@@ -188,7 +186,6 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
             }
           });
         } else {
-          console.log("Native video ile oynatılıyor:", introUrl);
           videoElement.src = introUrl;
           videoElement.load();
 
