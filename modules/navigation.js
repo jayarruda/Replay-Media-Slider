@@ -880,12 +880,12 @@ function createVideoModal({ showButtons = true } = {}) {
         gap: 14px;
         position: absolute;
         top: 62%;
-        right: 5px;
+        left: 50%;
         z-index: 4;
         opacity: 1;
-        transform: scale(0.9);
         pointer-events: auto;
         padding: 5px 0;
+        transform: translateX(-50%) scale(1);
       }
       .video-preview-modal button {
         outline: none;
