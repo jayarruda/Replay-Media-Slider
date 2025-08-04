@@ -1263,8 +1263,10 @@ export function setupHoverForAllItems() {
           if (signal.aborted) return;
 
           const videoTypes = ['Movie', 'Episode', 'Series', 'Season'];
-          if (!videoTypes.includes(itemDetails.Type)) return;
-
+          if (!videoTypes.includes(itemDetails.Type)) {
+          closeVideoModal();
+          return;
+        }
           if (!videoModal || !document.body.contains(videoModal)) {
             const modalElements = createVideoModal({ showButtons: true });
             videoModal = modalElements.modal;
