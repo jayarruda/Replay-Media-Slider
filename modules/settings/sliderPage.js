@@ -295,6 +295,11 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     );
         sliderDiv.appendChild(dotNavCheckbox);
 
+        const posterDotsDesc = document.createElement('div');
+        posterDotsDesc.className = 'description-text';
+        posterDotsDesc.textContent = labels.posterDotsDescription || 'Dot navigasyonu poster boyutuna getirir ( Slider Alanınıda konumlandırma gerektirir )';
+        sliderDiv.appendChild(posterDotsDesc);
+
         const posterDotsCheckbox = createCheckbox(
         'dotPosterMode',
         labels.dotPosterMode || 'Poster Boyutlu Dot Navigasyonu',
@@ -329,10 +334,6 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     );
      sliderDiv.appendChild(enableHls);
 
-    const posterDotsDesc = document.createElement('div');
-    posterDotsDesc.className = 'description-text';
-    posterDotsDesc.textContent = labels.posterDotsDescription || 'Dot navigasyonu poster boyutuna getirir ( Slider Alanınıda konumlandırma gerektirir )';
-    sliderDiv.appendChild(posterDotsDesc);
 
     const dotBgDiv = document.createElement('div');
     dotBgDiv.className = 'fsetting-item dot-bg-container';
