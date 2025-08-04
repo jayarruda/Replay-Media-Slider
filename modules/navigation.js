@@ -16,10 +16,10 @@ let isMouseInItem = false;
 let isMouseInModal = false;
 let modalHideTimeout = null;
 
-export async function preloadVideoPreview(itemId, maxHeight = 360) {
+export async function preloadVideoPreview(itemId) {
   if (previewPreloadCache.has(itemId)) return previewPreloadCache.get(itemId);
   try {
-    const url = await getVideoStreamUrl(itemId, maxHeight);
+    const url = await getVideoStreamUrl(itemId);
     previewPreloadCache.set(itemId, url);
     return url;
   } catch (e) {
@@ -275,7 +275,7 @@ export function createDotNavigation() {
     videoModal.style.transform = 'translateY(20px)';
 
     const signal = dot.abortController.signal;
-    let videoUrl = await preloadVideoPreview(itemId, 360);
+    let videoUrl = await preloadVideoPreview(itemId);
 
     const [item] = await Promise.all([
       fetchItemDetails(itemId, { signal }),
@@ -331,7 +331,7 @@ export function createDotNavigation() {
     dot.abortController.abort();
     dot.abortController = null;
   }
-
+  startModalHideTimer();
 });
 
     return dot;
@@ -341,7 +341,7 @@ export function createDotNavigation() {
   const createdDots = Array.from(scrollWrapper.querySelectorAll('.poster-dot'));
   createdDots.forEach(dot => {
     const itemId = dot.dataset.itemId;
-    if (itemId) preloadVideoPreview(itemId, 360);
+    if (itemId) preloadVideoPreview(itemId);
   });
 }, 0);
 
@@ -1286,7 +1286,7 @@ export function setupHoverForAllItems() {
           videoModal.style.display = 'block';
           videoModal.style.opacity = '0';
 
-          let videoUrl = await preloadVideoPreview(itemId, 360);
+          let videoUrl = await preloadVideoPreview(itemId);
           updateModalContent(itemDetails, videoUrl);
 
           setTimeout(() => {
