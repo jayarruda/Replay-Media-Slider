@@ -78,6 +78,7 @@ export function isValidUrl(url) {
   }
 }
 
+
 export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId }) {
   if (!config.enableTrailerPlayback && !config.enableVideoPlayback) return;
 
@@ -110,26 +111,20 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     let videoPlaying = false;
     let videoEnterTimeout = null;
     let currentSegment = 1;
-    const segmentDuration = 4;
-    const segmentInterval = 600;
-    let totalSegments = 9;
-    const startTime = 600;
     let abortController = new AbortController();
-
     let isMouseOver = false;
     let latestHoverId = 0;
-    let isPageLoaded = false;
-    if (document.readyState === 'complete') {
-      isPageLoaded = true;
-    } else {
+    let isPageLoaded = document.readyState === 'complete';
+
+    if (!isPageLoaded) {
       window.addEventListener('load', () => {
         isPageLoaded = true;
       });
     }
 
-    const handleVideoMouseEnter = debounce(async () => {
-      if (!isPageLoaded) return;
-      if (!isMouseOver) return;
+    const handleVideoMouseEnter = debounce(async (hoverId) => {
+      if (!isPageLoaded || !isMouseOver || hoverId !== latestHoverId) return;
+
       backdropImg.style.opacity = "0";
       videoContainer.style.display = "block";
       videoElement.style.opacity = "0";
@@ -152,13 +147,11 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
           }
         );
 
-        if (
-          enableHls &&
-          typeof window.Hls !== "undefined" &&
-          window.Hls.isSupported() &&
-          introUrl &&
-          introUrl && /\.m3u8(\?|$)/.test(introUrl)
-        ) {
+        if (!isMouseOver || hoverId !== latestHoverId) {
+          throw new Error('Mouse left before playback started');
+        }
+
+        if (enableHls && typeof window.Hls !== "undefined" && window.Hls.isSupported() && introUrl && /\.m3u8(\?|$)/.test(introUrl)) {
           const hls = new window.Hls();
           videoElement.hls = hls;
 
@@ -166,6 +159,10 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
           hls.attachMedia(videoElement);
 
           hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            if (!isMouseOver || hoverId !== latestHoverId) {
+              hls.destroy();
+              return;
+            }
             videoElement.currentTime = 600;
             videoElement.play().then(() => {
               videoElement.style.opacity = "1";
@@ -175,14 +172,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
           hls.on(window.Hls.Events.ERROR, (event, data) => {
             console.error('HLS ERROR', data);
             if (data.fatal) {
-              videoElement.hls.destroy();
-              delete videoElement.hls;
-              videoElement.src = "";
-              videoContainer.style.display = "none";
-              backdropImg.style.opacity = "1";
-              slide.classList.remove("video-active", "intro-active");
-              videoElement.style.opacity = "0";
-              alert("Video oynatılırken bir hata oluştu. Lütfen tekrar deneyin.");
+              cleanupVideo();
             }
           });
         } else {
@@ -190,6 +180,10 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
           videoElement.load();
 
           videoElement.addEventListener('loadedmetadata', () => {
+            if (!isMouseOver || hoverId !== latestHoverId) {
+              cleanupVideo();
+              return;
+            }
             videoElement.currentTime = 600;
             videoElement.play().then(() => {
               videoElement.style.opacity = "1";
@@ -199,26 +193,43 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       } catch (e) {
         if (e.name !== 'AbortError') {
           console.error("Video yükleme hatası:", e);
-          alert("Video yüklenemedi: " + e.message);
+          cleanupVideo();
         }
       }
     }, 0);
+
+    const cleanupVideo = () => {
+      videoElement.pause();
+      videoElement.src = "";
+      if (videoElement.hls) {
+        videoElement.hls.destroy();
+        delete videoElement.hls;
+      }
+      videoContainer.style.display = "none";
+      backdropImg.style.opacity = "1";
+      slide.classList.remove("video-active", "intro-active");
+      videoElement.style.opacity = "0";
+      videoPlaying = false;
+    };
 
     const mouseEnterHandler = () => {
       latestHoverId++;
       const thisHoverId = latestHoverId;
       isMouseOver = true;
+      abortController.abort();
+      abortController = new AbortController();
 
       videoEnterTimeout = setTimeout(() => {
         if (thisHoverId !== latestHoverId || !document.body.contains(slide)) return;
         if (!isMouseOver) return;
         if (!isPageLoaded) return;
-        handleVideoMouseEnter();
+        handleVideoMouseEnter(thisHoverId);
       }, config.gecikmeSure || 500);
     };
 
     const handleVideoMouseLeave = () => {
       isMouseOver = false;
+      latestHoverId++;
       abortController.abort();
       abortController = new AbortController();
 
@@ -228,20 +239,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       }
 
       if (videoPlaying) {
-        videoElement.pause();
-        videoElement.src = "";
-
-        if (videoElement.hls) {
-          videoElement.hls.destroy();
-          delete videoElement.hls;
-        }
-
-        videoContainer.style.display = "none";
-        backdropImg.style.opacity = "1";
-        slide.classList.remove("video-active", "intro-active");
-        videoElement.style.opacity = "0";
-        videoPlaying = false;
-        currentSegment = 1;
+        cleanupVideo();
       }
     };
 
