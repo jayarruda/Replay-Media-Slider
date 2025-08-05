@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  "pauseImage_logo-title": "Логотип > Заголовок",
+  "pauseImage_disc-logo-title": "Диск > Логотип > Заголовок",
+  "pauseImage_disc-title": "Диск > Заголовок",
+  enabledGmmp: "Включить GMMP",
   paused: "Пауза",
   enableVideoPlayback: "Воспроизводить контент вместо трейлера",
   previewModal: "Включить модальное окно предпросмотра",

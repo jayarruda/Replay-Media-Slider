@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Langue par défaut",
+  "pauseImage_logo-title": "Logo > Titre",
+  "pauseImage_disc-logo-title": "Disque > Logo > Titre",
+  "pauseImage_disc-title": "Disque > Titre",
+  enabledGmmp: "Activer GMMP",
   paused: "En pause",
   enableVideoPlayback: "Lire le contenu au lieu de la bande-annonce",
   previewModal: "Activer la fenêtre de prévisualisation",

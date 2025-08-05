@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+ "pauseImage_logo-title": "Logo > Başlık",
+  "pauseImage_disc-logo-title": "Disk > Logo > Başlık",
+  "pauseImage_disc-title": "Disk > Başlık",
+  enabledGmmp: "GMMP'yi Aktifleştir",
   paused: "Duraklatıldı",
   enableVideoPlayback: "Fragman Yerine İçeriği Oynat",
   previewModal: "Önizleme Modalını Etkinleştir",
@@ -340,7 +344,7 @@ export const languageLabels = {
   etiketler: "Etiket(ler)",
   ses: "Ses Bilgisi",
   altyazi: "Altyazı Bilgisi",
-  devamet: "Devam Et",
+  devamet: "Sürdür",
   duraklat: "Duraklat",
   icerikhata: "İçerik hatası",
   islemhatasi: "İşlem hatası",
