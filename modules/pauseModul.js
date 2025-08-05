@@ -40,7 +40,7 @@ export function setupPauseScreen() {
         </div>
     </div>
     <div class="pause-status-bottom-right" id="pause-status-bottom-right" style="display:none;">
-        <span>⏸️ ${labels.paused || 'Duraklatıldı'}</span>
+        <span><i class="fa-jelly fa-regular fa-pause"></i> ${labels.paused || 'Duraklatıldı'}</span>
     </div>
 `;
         document.body.appendChild(overlay);
@@ -64,26 +64,6 @@ export function setupPauseScreen() {
                 #jms-pause-overlay.visible {
                     opacity: 1;
                     pointer-events: auto;
-                }
-                .pause-status-bottom-right {
-                    position: fixed;
-                    right: 36px;
-                    bottom: 32px;
-                    z-index: 1000001;
-                    background: rgba(22,22,22,0.94);
-                    color: #fff;
-                    padding: 10px 22px;
-                    border-radius: 22px;
-                    font-size: 1.08rem;
-                    box-shadow: 0 3px 16px 0 rgba(0,0,0,0.12);
-                    font-weight: 500;
-                    letter-spacing: .02em;
-                    user-select: none;
-                    opacity: 0.92;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    transition: opacity 0.33s;
                 }
             `;
             document.head.appendChild(style);
@@ -258,32 +238,41 @@ function hideOverlay() {
         const imagePref = config.pauseOverlay?.imagePreference || 'auto';
         const logoUrl = `/Items/${currentMediaId}/Images/Logo`;
         const discUrl = `/Items/${currentMediaId}/Images/Disc`;
-        try {
-            const shouldCheckLogo = (imagePref === 'logo' || imagePref === 'auto');
-            const shouldCheckDisc = (imagePref === 'disc' || imagePref === 'auto');
-            const [logoExists, discExists] = await Promise.all([
-                shouldCheckLogo ? checkExists(logoUrl) : Promise.resolve(false),
-                shouldCheckDisc ? checkExists(discUrl) : Promise.resolve(false)
-            ]);
-            if (imagePref === 'logo' && logoExists) {
-                logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
-            } else if (imagePref === 'disc' && discExists) {
-                logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
-            } else if (imagePref === 'title') {
-                logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
-            } else if (imagePref === 'auto') {
-                if (logoExists) {
-                    logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
-                } else if (discExists) {
-                    logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
-                } else {
-                    logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
-                }
-            }
-        } catch (e) {
-            logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
+
+        async function tryImage(url) {
+            try {
+                return await checkExists(url);
+            } catch { return false; }
         }
+
+        let sequence = [];
+        switch (imagePref) {
+            case 'logo': sequence = ['logo']; break;
+            case 'disc': sequence = ['disc']; break;
+            case 'title': sequence = ['title']; break;
+            case 'logo-title': sequence = ['logo', 'title']; break;
+            case 'disc-logo-title': sequence = ['disc', 'logo', 'title']; break;
+            case 'disc-title': sequence = ['disc', 'title']; break;
+            case 'auto': sequence = ['logo', 'disc', 'title']; break;
+            default: sequence = ['logo', 'disc', 'title']; break;
+        }
+        for (const pref of sequence) {
+            if (pref === 'logo' && await tryImage(logoUrl)) {
+                logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
+                return;
+            }
+            if (pref === 'disc' && await tryImage(discUrl)) {
+                logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
+                return;
+            }
+            if (pref === 'title') {
+                logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
+                return;
+            }
+        }
+        logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
     }
+
     async function checkExists(url) {
         if (!url) return false;
         if (window.__imageCache === undefined) {

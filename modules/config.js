@@ -128,6 +128,7 @@ export function getConfig() {
     enableHls: localStorage.getItem('enableHls') === 'true' ? true : false,
     previewModal: localStorage.getItem('previewModal') !== 'false',
     allPreviewModal: localStorage.getItem('allPreviewModal') !== 'false',
+    enabledGmmp: localStorage.getItem('enabledGmmp') !== 'false',
     dicebearParams: (() => {
   try {
     const raw = localStorage.getItem('dicebearParams');

@@ -31,7 +31,7 @@ export function createPausePanel(config, labels) {
     imagePrefSelect.id = 'pauseOverlayImagePreference';
     imagePrefSelect.className = 'settings-select';
 
-    ['auto', 'logo', 'disc', 'title'].forEach(value => {
+    ['auto', 'logo', 'disc', 'title', 'logo-title', 'disc-logo-title', 'disc-title'].forEach(value => {
     const option = document.createElement('option');
     option.value = value;
     option.textContent = labels['pauseImage_' + value] || value;

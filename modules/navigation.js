@@ -564,32 +564,39 @@ export function initSwipeEvents() {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchEndX = 0;
+  let touchEndY = 0;
+  let isHorizontalSwipe = false;
 
   const handleTouchStart = (e) => {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
+    isHorizontalSwipe = false;
     e.stopImmediatePropagation?.();
   };
 
   const handleTouchMove = (e) => {
-    const deltaX = Math.abs(e.changedTouches[0].screenX - touchStartX);
-    const deltaY = Math.abs(e.changedTouches[0].screenY - touchStartY);
-
-    if (deltaX > deltaY) {
+    const moveX = e.changedTouches[0].screenX - touchStartX;
+    const moveY = e.changedTouches[0].screenY - touchStartY;
+    if (Math.abs(moveX) > Math.abs(moveY) && Math.abs(moveX) > 10) {
+      isHorizontalSwipe = true;
       e.preventDefault();
+    } else {
+      isHorizontalSwipe = false;
     }
-
     e.stopImmediatePropagation?.();
   };
 
   const handleTouchEnd = (e) => {
     touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
     const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
 
-    if (Math.abs(deltaX) > 50) {
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
       changeSlide(deltaX > 0 ? -1 : 1);
     }
 
+    isHorizontalSwipe = false;
     e.stopImmediatePropagation?.();
   };
 
@@ -597,6 +604,7 @@ export function initSwipeEvents() {
   slidesContainer.addEventListener("touchmove", handleTouchMove, { passive: false });
   slidesContainer.addEventListener("touchend", handleTouchEnd, { passive: true });
 }
+
 
 export function showAndHideElementWithAnimation(el, config) {
   const {

@@ -1,4 +1,5 @@
 import { getConfig } from "../config.js";
+import { loadCSS } from "../player/main.js";
 import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol, updateConfig } from "../settings.js";
 import { updateHeaderUserAvatar, updateAvatarStyles, clearAvatarCache } from "../userAvatar.js";
@@ -71,6 +72,7 @@ export function applySettings(reload = false) {
             enableHls: formData.get('enableHls') === 'on',
             previewModal: formData.get('previewModal') === 'on',
             allPreviewModal: formData.get('allPreviewModal') === 'on',
+            enabledGmmp: formData.get('enabledGmmp') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',

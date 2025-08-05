@@ -1,6 +1,8 @@
 import { getConfig } from "./config.js";
 import { applySettings, applyRawConfig } from "./settings/applySettings.js";
 
+const config = getConfig();
+
 export function downloadConfigBackup() {
   const config = getConfig();
   const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });

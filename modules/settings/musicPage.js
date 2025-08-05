@@ -12,6 +12,16 @@ export function createMusicPanel(config, labels) {
     const notificationToggleDiv = document.createElement('div');
     notificationToggleDiv.className = 'setting-item';
 
+    const enabledGmmpInput = document.createElement('input');
+    enabledGmmpInput.type = 'checkbox';
+    enabledGmmpInput.checked = config.enabledGmmp !== false;
+    enabledGmmpInput.name = 'enabledGmmp';
+    enabledGmmpInput.id = 'enabledGmmp';
+
+    const enabledGmmpLabel = document.createElement('label');
+    enabledGmmpLabel.textContent = labels.enabledGmmp || 'Müzik Çaları Aktif Et';
+    enabledGmmpLabel.htmlFor = 'enabledGmmp';
+
     const notificationToggleInput = document.createElement('input');
     notificationToggleInput.type = 'checkbox';
     notificationToggleInput.checked = config.notificationsEnabled !== false;
@@ -22,7 +32,7 @@ export function createMusicPanel(config, labels) {
     notificationToggleLabel.textContent = labels.notificationsEnabled || 'Bildirimleri Göster:';
     notificationToggleLabel.htmlFor = 'notificationsEnabled';
 
-    notificationToggleDiv.append(notificationToggleInput, notificationToggleLabel);
+    notificationToggleDiv.append(enabledGmmpInput, enabledGmmpLabel, notificationToggleInput, notificationToggleLabel);
     section.appendChild(notificationToggleDiv);
 
     const albumArtBgDiv = document.createElement('div');

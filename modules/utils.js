@@ -142,7 +142,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       try {
         const enableHls = config.enableHls === true;
         const introUrl = await getVideoStreamUrl(
-          itemId, 720, 0, null, ["h264"], ["aac"], false, false, enableHls, {
+          itemId, 1920, 0, null, ["h264"], ["aac"], false, false, enableHls, {
             signal: abortController.signal
           }
         );
