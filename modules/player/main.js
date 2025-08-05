@@ -89,6 +89,8 @@ export function isMobileDevice() {
 }
 
 function createPlayerButton() {
+  const config = getConfig();
+  if (typeof config !== 'undefined' && config.enabledGmmp !== false) {
   const btn = document.createElement("button");
   btn.id = "jellyfinPlayerToggle";
   btn.setAttribute("aria-label", "GMMP Aç/Kapa");
@@ -104,8 +106,8 @@ function createPlayerButton() {
     fontSize: "1.2em",
   });
   return btn;
+  }
 }
-
 async function onToggleClick() {
   try {
     forceSkinHeaderPointerEvents();
@@ -143,7 +145,6 @@ export async function addPlayerButton() {
     header.insertBefore(btn, header.firstChild);
     btn.addEventListener("click", onToggleClick);
   } catch (err) {
-    console.error("GMMP butonu eklenemedi:", err);
   }
 }
 
