@@ -6,22 +6,79 @@ import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderStat
 import { applyContainerStyles } from "./positionUtils.js"
 import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, getCachedUserTopGenres, getGenresForDot } from "./api.js";
 import { applySlideAnimation, applyDotPosterAnimation} from "./animations.js";
+import { getVideoQualityText } from "./containerUtils.js";
 
 const config = getConfig();
-
 const previewPreloadCache = new Map();
+const DEVICE_MEM_GB = typeof navigator !== 'undefined' && navigator.deviceMemory ? navigator.deviceMemory : 4;
+const PREVIEW_MAX_ENTRIES = Math.max(50, Math.min(200, Math.floor(DEVICE_MEM_GB * 60)));
+const PREVIEW_TTL_MS = 5 * 60 * 1000;
+const PREVIEW_EVICT_BATCH = Math.max(10, Math.floor(PREVIEW_MAX_ENTRIES * 0.15));
+
 let videoModal, modalVideo, modalTitle, modalMeta, modalMatchInfo, modalGenres, modalPlayButton, modalFavoriteButton;
 let modalHoverState = false;
 let isMouseInItem = false;
 let isMouseInModal = false;
 let modalHideTimeout = null;
+let itemHoverAbortController = null;
+let _cacheMaintenanceStarted = false;
+
+function now() { return Date.now(); }
+
+function cacheGet(id) {
+  const entry = previewPreloadCache.get(id);
+  if (!entry) return null;
+
+  if (entry.expiresAt < now()) {
+    previewPreloadCache.delete(id);
+    return null;
+  }
+
+  previewPreloadCache.delete(id);
+  previewPreloadCache.set(id, { ...entry, lastAccess: now() });
+  return entry.url;
+}
+
+function cacheSet(id, url) {
+  const entry = {
+    url,
+    createdAt: now(),
+    lastAccess: now(),
+    expiresAt: now() + PREVIEW_TTL_MS
+  };
+
+  if (previewPreloadCache.has(id)) previewPreloadCache.delete(id);
+  previewPreloadCache.set(id, entry);
+  pruneOverLimit();
+  return url;
+}
+
+function pruneExpired() {
+  const t = now();
+  for (const [id, entry] of previewPreloadCache) {
+    if (entry.expiresAt < t) previewPreloadCache.delete(id);
+  }
+}
+
+function pruneOverLimit() {
+  const overflow = previewPreloadCache.size - PREVIEW_MAX_ENTRIES;
+  if (overflow <= 0) return;
+  let toEvict = Math.max(overflow, PREVIEW_EVICT_BATCH);
+
+  for (const [id] of previewPreloadCache) {
+    previewPreloadCache.delete(id);
+    if (--toEvict <= 0) break;
+  }
+}
+
 
 export async function preloadVideoPreview(itemId) {
-  if (previewPreloadCache.has(itemId)) return previewPreloadCache.get(itemId);
+  const hit = cacheGet(itemId);
+  if (hit) return hit;
+
   try {
     const url = await getVideoStreamUrl(itemId);
-    previewPreloadCache.set(itemId, url);
-    return url;
+    return cacheSet(itemId, url);
   } catch (e) {
     console.warn("Preload fail:", itemId, e);
     return null;
@@ -165,29 +222,46 @@ export function createDotNavigation() {
     const slidesArray = Array.from(slides);
 
     const dotElements = slidesArray.map((slide, index) => {
-        const itemId = slide.dataset.itemId;
-        if (!itemId) {
-            console.warn(`Dot oluşturulamadı: slide ${index} için itemId eksik`);
-            return null;
+    const itemId = slide.dataset.itemId;
+    if (!itemId) {
+        console.warn(`Dot oluşturulamadı: slide ${index} için itemId eksik`);
+        return null;
+    }
+
+    const dot = document.createElement("div");
+    dot.className = "dot poster-dot";
+    dot.dataset.index = index;
+    dot.dataset.itemId = itemId;
+
+    const imageUrl = dotType === "useSlideBackground"
+        ? slide.dataset.background
+        : slide.dataset[dotType];
+
+    if (imageUrl) {
+        const image = document.createElement("img");
+        image.src = imageUrl;
+        image.className = "dot-poster-image";
+        image.style.opacity = config.dotBackgroundOpacity || 0.3;
+        image.style.filter = `blur(${config.dotBackgroundBlur ?? 10}px)`;
+        dot.appendChild(image);
+    }
+
+    try {
+        const mediaStreams = slide.dataset.mediaStreams ? JSON.parse(slide.dataset.mediaStreams) : [];
+        const videoStream = mediaStreams.find(s => s.Type === "Video");
+        if (videoStream) {
+            const qualityText = getVideoQualityText(videoStream);
+            if (qualityText) {
+                const qualityBadge = document.createElement("div");
+                qualityBadge.className = "dot-quality-badge";
+                qualityBadge.innerHTML = `${qualityText}`;
+                dot.appendChild(qualityBadge);
+                const style = document.createElement("style");
+            }
         }
-
-        const dot = document.createElement("div");
-        dot.className = "dot poster-dot";
-        dot.dataset.index = index;
-        dot.dataset.itemId = itemId;
-
-        const imageUrl = dotType === "useSlideBackground"
-            ? slide.dataset.background
-            : slide.dataset[dotType];
-
-        if (imageUrl) {
-            const image = document.createElement("img");
-            image.src = imageUrl;
-            image.className = "dot-poster-image";
-            image.style.opacity = config.dotBackgroundOpacity || 0.3;
-            image.style.filter = `blur(${config.dotBackgroundBlur ?? 10}px)`;
-            dot.appendChild(image);
-        }
+    } catch (e) {
+        console.warn("Video kalite bilgisi yüklenirken hata:", e);
+    }
 
         const positionTicks = Number(slide.dataset.playbackpositionticks);
         const runtimeTicks = Number(slide.dataset.runtimeticks);
@@ -215,20 +289,71 @@ export function createDotNavigation() {
             dot.appendChild(progressContainer);
         }
 
+        const playButtonContainer = document.createElement("div");
+        playButtonContainer.className = "dot-play-container";
+
         const playButton = document.createElement("button");
         playButton.className = "dot-play-button";
         playButton.textContent = config.languageLabels.izle;
+
+        playButton.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const itemId = slide.dataset.itemId;
+        if (!itemId) {
+        alert("Oynatma başarısız: itemId bulunamadı");
+        return;
+      }
+      try {
+      await playNow(itemId);
+    } catch (error) {
+      console.error("Oynatma hatası:", error);
+      alert("Oynatma başarısız: " + error.message);
+    }
+  });
 
         const matchBadge = document.createElement("div");
         matchBadge.className = "dot-match-div";
         matchBadge.textContent = `...% ${config.languageLabels.uygun}`;
 
-        dot.append(playButton, matchBadge);
+        playButtonContainer.appendChild(playButton);
+        playButtonContainer.appendChild(matchBadge);
+        dot.appendChild(playButtonContainer);
+
         dot.classList.toggle("active", index === currentIndex);
 
         if (config.dotPosterMode && config.enableDotPosterAnimations) {
             applyDotPosterAnimation(dot, index === currentIndex);
         }
+
+        const style = document.createElement("style");
+        style.textContent = `
+            .dot-quality-badge {
+              position: absolute;
+              bottom: 24px;
+              left: 2px;
+              color: white;
+              display: flex;
+              gap: 2px;
+              flex-direction: column;
+          }
+
+            .dot-quality-badge img.range-icon,.dot-quality-badge  img.codec-icon,.dot-quality-badge  img.quality-icon {
+              width: 20px;
+              height: 14px;
+              background: rgba(30,30,40,.7);
+              border-radius: 4px;
+              padding: 1px;
+          }
+
+          .quality-badge .codec-icon {
+                display: none;
+            }
+            .dot-quality-badge img {
+              transition: all 0.3s ease;
+              object-fit: contain;
+    }
+        `;
+        dot.appendChild(style);
 
         dot.addEventListener("click", () => {
             if (index !== getCurrentIndex()) {
@@ -343,6 +468,10 @@ export function createDotNavigation() {
     const itemId = dot.dataset.itemId;
     if (itemId) preloadVideoPreview(itemId);
   });
+
+  if (previewPreloadCache.size > PREVIEW_MAX_ENTRIES) {
+    clearVideoPreloadCache({ mode: 'overLimit' });
+  }
 }, 0);
 
     dotElements.forEach(dot => scrollWrapper.appendChild(dot));
@@ -709,7 +838,7 @@ function createVideoModal({ showButtons = true } = {}) {
         right: 5px;
       }
       .video-preview-modal .preview-title {
-        grid-column: 1/3;
+        grid-column: 1 / 2;
         color: #fff;
         font-weight: 700;
         font-size: 1.24rem;
@@ -719,9 +848,9 @@ function createVideoModal({ showButtons = true } = {}) {
         max-width: 100%;
         margin: 0 0 2px 0;
         padding: 0;
-        text-shadow: 0 2px 8px rgba(0,0,0,.42);
+        text-shadow: 0 2px 8px rgba(0, 0, 0, .42);
         line-height: 1.13;
-      }
+}
       .video-preview-modal .preview-meta {
         grid-column: 1/3;
         color: #b9badb;
@@ -731,16 +860,34 @@ function createVideoModal({ showButtons = true } = {}) {
         gap: 14px 10px;
         width: 100%;
         opacity: 0.95;
-      }
+        align-items: center;
+        margin: 0 0 -6px 0;
+}
+    .video-preview-modal img.range-icon, img.codec-icon, img.quality-icon {
+              width: 24px;
+              height: 18px;
+              background: rgba(30,30,40,.7);
+              border-radius: 4px;
+              padding: 1px;
+}
+
       .video-preview-modal .preview-genres {
         grid-column: 1/3;
         display: flex;
         gap: 8px;
-        flex-wrap: wrap;
         margin-top: 2px;
         font-size: 12.7px;
         color: #a8aac7;
-      }
+        width: 70%;
+        overflow: hidden;
+}
+
+      .video-preview-modal .preview-genres span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+}
       .video-preview-modal .preview-buttons {
         display: flex;
         gap: 14px;
@@ -762,10 +909,9 @@ function createVideoModal({ showButtons = true } = {}) {
       }
       .video-preview-modal .preview-play-button {
         background: linear-gradient(94deg, #fff 78%, #eee 100%);
-        color: #181828;
-        border-radius: 9px;
+        color: #E91E63;
+        border-radius: 4px;
         padding: 8px 18px 8px 16px;
-        font-weight: 600;
         font-size: 15px;
         display: flex;
         align-items: center;
@@ -776,7 +922,11 @@ function createVideoModal({ showButtons = true } = {}) {
         box-shadow: 0 2px 8px 0 rgba(23, 22, 31, 0.05);
         transition: box-shadow .18s, transform .15s;
         text-wrap-mode: nowrap;
-      }
+        font-weight: 700;
+        text-overflow: ellipsis;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, .42);
+        line-height: 1.13;
+}
       .video-preview-modal .preview-play-button:hover {
         background: linear-gradient(92deg, #f5f4f9 64%, #fff 100%);
         box-shadow: 0 4px 16px 0 rgba(21,12,50,.11);
@@ -1195,14 +1345,18 @@ async function updateModalContent(item, videoUrl) {
     delete modalVideo._hls;
   }
 
+  if (modalTitle) modalTitle.textContent = item.Name || item.Title || '';
+
   const positionTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
   const runtimeTicks = Number(item.RunTimeTicks || 0);
   const hasPartialPlayback = positionTicks > 0 && positionTicks < runtimeTicks;
   const isPlayed = item.UserData?.Played || false;
   const isFavorite = item.UserData?.IsFavorite || false;
+  const videoStream = item.MediaStreams ? item.MediaStreams.find(s => s.Type === "Video") : null;
+  const qualityText = videoStream ? getVideoQualityText(videoStream) : '';
 
-  modalTitle.textContent = item.Name || '';
-  modalMeta.textContent = [
+  modalMeta.innerHTML = [
+    qualityText,
     item.ProductionYear,
     item.CommunityRating ? parseFloat(item.CommunityRating).toFixed(1) : null,
     runtimeTicks ? `${Math.floor(runtimeTicks / 600000000)} ${config.languageLabels.dk}` : null
@@ -1222,10 +1376,10 @@ async function updateModalContent(item, videoUrl) {
   }
 
   modalPlayButton.innerHTML = `<i class="fa-solid fa-play"></i> ${getPlayButtonText({
-  isPlayed,
-  hasPartialPlayback,
-  labels: config.languageLabels
-})}`;
+    isPlayed,
+    hasPartialPlayback,
+    labels: config.languageLabels
+  })}`;
   modalFavoriteButton.classList.toggle('favorited', isFavorite);
   modalFavoriteButton.innerHTML = isFavorite
     ? '<i class="fa-solid fa-check"></i>'
@@ -1236,18 +1390,49 @@ async function updateModalContent(item, videoUrl) {
   }
 }
 
-window.addEventListener("beforeunload", () => {
-  clearVideoPreloadCache();
-  destroyVideoModal();
-});
+function clearVideoPreloadCache(opts = {}) {
+  const { mode = 'all', itemId, test } = opts;
 
-let itemHoverAbortController = null;
+  try {
+    switch (mode) {
+      case 'expired':
+        pruneExpired();
+        break;
+
+      case 'overLimit':
+        pruneOverLimit();
+        break;
+
+      case 'item':
+        if (itemId) previewPreloadCache.delete(itemId);
+        break;
+
+      case 'predicate':
+        if (typeof test === 'function') {
+          for (const [id, entry] of previewPreloadCache) {
+            if (test(id, entry)) previewPreloadCache.delete(id);
+          }
+        }
+        break;
+
+      case 'all':
+      default:
+        previewPreloadCache.clear();
+        break;
+    }
+  } catch {}
+}
+
 
 export function setupHoverForAllItems() {
+  if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) {
+    return;
+  }
+
   if (typeof config !== 'undefined' && config.allPreviewModal !== false) {
-  const items = document.querySelectorAll('.cardImageContainer');
-  items.forEach(item => {
-    let hoverTimeout;
+    const items = document.querySelectorAll('.cardImageContainer');
+    items.forEach(item => {
+      let hoverTimeout;
 
     item.addEventListener('mouseenter', async () => {
       isMouseInItem = true;
@@ -1414,3 +1599,21 @@ function getPlayButtonText({ isPlayed, hasPartialPlayback, labels }) {
   if (hasPartialPlayback) return labels.devamet;
   return labels.izle;
 }
+
+function startCacheMaintenance() {
+  if (_cacheMaintenanceStarted) return;
+  _cacheMaintenanceStarted = true;
+
+  setInterval(() => clearVideoPreloadCache({ mode: 'expired' }), 60_000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) clearVideoPreloadCache({ mode: 'expired' });
+  });
+}
+
+startCacheMaintenance();
+
+window.addEventListener("beforeunload", () => {
+  destroyVideoModal();
+  clearVideoPreloadCache({ mode: 'all' });
+});

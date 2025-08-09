@@ -117,6 +117,7 @@ async function createSlide(item) {
   slide.dataset.detailUrl = `/web/#/details?id=${itemId}`;
   slide.dataset.itemId = itemId;
   slide.dataset.played = (UserData?.PlaybackPositionTicks > 0) ? "true" : "false";
+  slide.setAttribute('data-media-streams', JSON.stringify(MediaStreams || []));
   slide.dataset.played =
   (typeof UserData?.PlaybackPositionTicks === "number" && UserData.PlaybackPositionTicks > 0)
     ? "true"

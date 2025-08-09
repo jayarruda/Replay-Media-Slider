@@ -23,6 +23,8 @@ export function createStatusRatingPanel(config, labels) {
         statusSubOptions.appendChild(qualityDetailSubOptions);
         statusSection.appendChild(statusSubOptions);
 
+        statusSubOptions.appendChild(createCheckbox('enableQualityBadges', labels.enableQualityBadges || 'Posterlerin üzerinde kalite etiketi göster', config.enableQualityBadges));
+
         bindCheckboxKontrol('#showStatusInfo', '.status-sub-options');
         bindCheckboxKontrol('#showQualityInfo', '.quality-detail-options');
 
@@ -91,6 +93,8 @@ export function createActorPanel(config, labels) {
         artistLimitInput.min = 1;
         artistLimitInput.step = 1;
         artistLimitInput.setAttribute('data-group', 'actor');
+        artistLimitLabel.htmlFor = 'artistLimitInput';
+        artistLimitInput.id = 'artistLimitInput';
         artistLimitDiv.append(artistLimitLabel, artistLimitInput);
         section.appendChild(artistLimitDiv);
 
@@ -149,6 +153,8 @@ export function createActorPanel(config, labels) {
         writersInput.rows = 4;
         writersInput.placeholder = labels.writersListPlaceholder || 'Örnek: Quentin TARANTINO, Nuri Bilge CEYLAN';
         writersInput.value = config.allowedWriters ? config.allowedWriters.join(', ') : '';
+        writersLabel.htmlFor = 'writersInput';
+        writersInput.id = 'writersInput';
         writersDiv.append(writersLabel, writersInput);
         section.appendChild(writersDiv);
 
@@ -163,6 +169,8 @@ export function createActorPanel(config, labels) {
         girisSureInput.min = 50;
         girisSureInput.step = 50;
 
+        girisSureLabel.htmlFor = 'girisSureInput';
+        girisSureInput.id = 'girisSureInput';
         girisSureDiv.append(girisSureLabel, girisSureInput);
         section.appendChild(girisSureDiv);
 
@@ -176,6 +184,8 @@ export function createActorPanel(config, labels) {
         aktifSureInput.name = 'aktifSure';
         aktifSureInput.min = 50;
         aktifSureInput.step = 50;
+        aktifSureLabel.htmlFor = 'aktifSureInput';
+        aktifSureInput.id = 'aktifSureInput';
         aktifSureDiv.append(aktifSureLabel, aktifSureInput);
         section.appendChild(aktifSureDiv);
 

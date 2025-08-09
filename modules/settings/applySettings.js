@@ -73,6 +73,15 @@ export function applySettings(reload = false) {
             previewModal: formData.get('previewModal') === 'on',
             allPreviewModal: formData.get('allPreviewModal') === 'on',
             enabledGmmp: formData.get('enabledGmmp') === 'on',
+            enableQualityBadges: formData.get('enableQualityBadges') === 'on',
+
+            enableNotifications: formData.get('enableNotifications') === 'on',
+            enableToastNew: formData.get('enableToastNew') === 'on',
+            enableToastSystem: formData.get('enableToastSystem') === 'on',
+            maxNotifications: parseInt(formData.get('maxNotifications'), 10),
+            toastDuration: parseInt(formData.get('toastDuration'), 10),
+            renderResume: parseInt(formData.get('renderResume'), 10),
+            enableRenderResume: formData.get('enableRenderResume') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -319,7 +328,7 @@ export function applySettings(reload = false) {
             progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
             progressBarHeight: parseInt(formData.get('progressBarHeight'), 10) || 0,
 
-            pauseOverlay: formData.get('pauseOverlay') === 'on' ? 'true' : 'false',
+            pauseOverlay: formData.get('pauseOverlay') === 'on',
             pauseOverlayImagePreference: formData.get('pauseOverlayImagePreference') || 'auto',
             pauseOverlayShowPlot: formData.get('pauseOverlayShowPlot') === 'on',
             pauseOverlayShowMetadata: formData.get('pauseOverlayShowMetadata') === 'on',

@@ -3,6 +3,25 @@ import { clearCredentials } from "../auth.js";
 
 const config = getConfig();
 
+const itemCache = new Map();
+const dotGenreCache = new Map();
+const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+export async function getCachedItemDetails(itemId) {
+  const now = Date.now();
+
+  if (itemCache.has(itemId)) {
+    const { data, timestamp } = itemCache.get(itemId);
+    if (now - timestamp < CACHE_TTL) {
+      return data;
+    }
+  }
+
+  const data = await fetchItemDetails(itemId);
+  itemCache.set(itemId, { data, timestamp: now });
+  return data;
+}
+
 async function safeFetch(url, opts = {}) {
   const headers = {
     ...(opts.headers || {}),
@@ -11,7 +30,6 @@ async function safeFetch(url, opts = {}) {
   const res = await fetch(url, { ...opts, headers });
   if (res.status === 401) {
     clearCredentials();
-    window.location.href = "/login.html";
     throw new Error("Oturum geçersiz, yeniden giriş yapın.");
   }
   if (!res.ok) {
@@ -86,8 +104,11 @@ async function makeApiRequest(url, options = {}) {
                       `${errorData.Title}: ${errorData.Description}` :
                       `API isteği başarısız oldu (durum: ${response.status})`);
 
-      throw new Error(errorMsg);
+      const err = new Error(errorMsg);
+      err.status = response.status;
+      throw err;
     }
+
     const contentType = response.headers.get("content-type") || "";
     if (response.status === 204 || !contentType.includes("application/json")) {
       return {};
@@ -95,7 +116,9 @@ async function makeApiRequest(url, options = {}) {
     return await response.json();
 
   } catch (error) {
-    console.error(`${url} için API isteği hatası:`, error);
+    if (error?.status !== 403 && !String(error.message).includes("403")) {
+      console.error(`${url} için API isteği hatası:`, error);
+    }
     throw error;
   }
 }
@@ -638,8 +661,6 @@ export async function getCachedUserTopGenres(limit = 50, itemType = null) {
   }
 }
 
-const dotGenreCache = new Map();
-const CACHE_TTL = 24 * 60 * 60 * 1000;
 
 export async function getGenresForDot(itemId) {
   const cached = dotGenreCache.get(itemId);

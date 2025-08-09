@@ -1,5 +1,6 @@
 import { getConfig } from "../config.js";
 import { createCheckbox, createSection, createImageTypeSelect, bindCheckboxKontrol } from "../settings.js";
+import { applySettings } from "./applySettings.js";
 
 export function createButtonsPanel(config, labels) {
     const panel = document.createElement('div');
@@ -17,6 +18,8 @@ export function createButtonsPanel(config, labels) {
     const trailerBgLabel = document.createElement('label');
     trailerBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
     const trailerBgSelect = createImageTypeSelect('trailerBackgroundImageType', config.trailerBackgroundImageType || 'backdropUrl', true);
+    trailerBgLabel.htmlFor = 'trailerBgSelect';
+    trailerBgSelect.id = 'trailerBgSelect';
     trailerBgDiv.append(trailerBgLabel, trailerBgSelect);
     section.appendChild(trailerBgDiv);
 
@@ -31,6 +34,8 @@ export function createButtonsPanel(config, labels) {
     const watchBgLabel = document.createElement('label');
     watchBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
     const watchBgSelect = createImageTypeSelect('watchBackgroundImageType', config.watchBackgroundImageType || 'backdropUrl', true);
+    watchBgLabel.htmlFor = 'watchBgSelect';
+    watchBgSelect.id = 'watchBgSelect';
     watchBgDiv.append(watchBgLabel, watchBgSelect);
     section.appendChild(watchBgDiv);
 
@@ -45,6 +50,8 @@ export function createButtonsPanel(config, labels) {
     const favoriBgLabel = document.createElement('label');
     favoriBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
     const favoriBgSelect = createImageTypeSelect('favoriteBackgroundImageType', config.favoriteBackgroundImageType || 'backdropUrl', true);
+    favoriBgLabel.htmlFor = 'favoriBgSelect';
+    favoriBgSelect.id = 'favoriBgSelect';
     favoriBgDiv.append(favoriBgLabel, favoriBgSelect);
     section.appendChild(favoriBgDiv);
 
@@ -59,6 +66,8 @@ export function createButtonsPanel(config, labels) {
     const playedBgLabel = document.createElement('label');
     playedBgLabel.textContent = labels.buttonBackgroundImageType || 'Buton Arka Plan Görsel Türü:';
     const playedBgSelect = createImageTypeSelect('playedBackgroundImageType', config.playedBackgroundImageType || 'backdropUrl', true);
+    playedBgLabel.htmlFor = 'playedBgSelect';
+    playedBgSelect.id = 'playedBgSelect';
     playedBgDiv.append(playedBgLabel, playedBgSelect);
     section.appendChild(playedBgDiv);
 
@@ -83,6 +92,8 @@ export function createButtonsPanel(config, labels) {
     buttonOpacityInput.addEventListener('input', () => {
         buttonOpacityValue.textContent = buttonOpacityInput.value;
     });
+    buttonOpacityLabel.htmlFor = 'buttonOpacityInput';
+    buttonOpacityInput.id = 'buttonOpacityInput';
     buttonOpacityDiv.append(buttonOpacityLabel, buttonOpacityInput, buttonOpacityValue);
     section.appendChild(buttonOpacityDiv);
 

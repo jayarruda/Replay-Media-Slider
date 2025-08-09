@@ -1550,11 +1550,15 @@ function createDicebearParamSelect(name, label, options, selectedValue) {
   const container = document.createElement('div');
   container.className = 'param-control';
 
+  const selectId = `dicebearParams_${name}`;
+
   const labelEl = document.createElement('label');
   labelEl.textContent = label;
+  labelEl.htmlFor = selectId;
 
   const select = document.createElement('select');
   select.name = `dicebearParams.${name}`;
+  select.id = selectId;
 
   options.forEach(opt => {
     const option = document.createElement('option');

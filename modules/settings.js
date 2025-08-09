@@ -14,6 +14,7 @@ import { createQueryPanel } from './settings/apiPage.js';
 import { createPausePanel } from './settings/pausePage.js';
 import { createButtonsPanel } from './settings/buttonsPage.js';
 import { createAvatarPanel } from './settings/avatarPage.js';
+import { createNotificationsPanel } from './settings/notificationsPage.js';
 
 let settingsModal = null;
 
@@ -70,6 +71,7 @@ export function createSettingsModal() {
     const positionTab = createTab('position', labels.positionSettings || 'Konumlardıma Ayarları', true);
     const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi', true);
     const avatarTab = createTab('avatar', labels.avatarCreateInput || 'Avatar Ayarları', true);
+    const notificationsTab = createTab('notifications', labels.notificationsSettings || 'Bildirim Ayarları', true);
     const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık', true);
     const statusRatingTab = createTab('status-rating', labels.statusRatingInfo || 'Durum ve Puan Bilgileri', true);
     const actorTab = createTab('actor', labels.actorInfo || 'Artist Bilgileri', true);
@@ -84,7 +86,7 @@ export function createSettingsModal() {
 
     tabContainer.append(
         sliderTab, animationTab, musicTab, pauseTab, positionTab,
-        queryTab, avatarTab, statusRatingTab, actorTab, directorTab,
+        queryTab, avatarTab, notificationsTab, statusRatingTab, actorTab, directorTab,
         languageTab, logoTitleTab, descriptionTab, providerTab,
         buttonsTab, infoTab, exporterTab, aboutTab
     );
@@ -107,10 +109,11 @@ export function createSettingsModal() {
     const infoPanel = createInfoPanel(config, labels);
     const exporterPanel = createExporterPanel(config, labels);
     const aboutPanel = createAboutPanel(labels);
+    const notificationsPanel = createNotificationsPanel(config, labels);
 
     [
         sliderPanel, animationPanel, musicPanel, positionPanel, queryPanel,
-        avatarPanel, statusRatingPanel,
+        avatarPanel, notificationsPanel, statusRatingPanel,
         actorPanel, directorPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, exporterPanel, aboutPanel
@@ -123,19 +126,19 @@ export function createSettingsModal() {
         sliderPanel, animationPanel, musicPanel, statusRatingPanel, actorPanel,
         directorPanel, queryPanel, avatarPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
-        pausePanel, positionPanel, aboutPanel, exporterPanel
+        pausePanel, positionPanel, aboutPanel, exporterPanel, notificationsPanel
     );
 
     [
         sliderTab, animationTab, musicTab, queryTab,
-        avatarTab, statusRatingTab,
+        avatarTab, notificationsTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
         descriptionTab, providerTab, buttonsTab, infoTab,
         positionTab, pauseTab, aboutTab, exporterTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
-                sliderTab, animationTab, musicTab, queryTab, avatarTab, statusRatingTab,
+                sliderTab, animationTab, musicTab, queryTab, avatarTab, notificationsTab, statusRatingTab,
                 actorTab, directorTab, languageTab, logoTitleTab,
                 descriptionTab, providerTab, buttonsTab, infoTab,
                 positionTab, pauseTab, aboutTab, exporterTab,
@@ -146,7 +149,7 @@ export function createSettingsModal() {
                 sliderPanel, animationPanel, statusRatingPanel, actorPanel, directorPanel,
                 musicPanel, queryPanel, avatarPanel, languagePanel, logoTitlePanel,
                 descriptionPanel, providerPanel, buttonsPanel, infoPanel,
-                positionPanel, aboutPanel, exporterPanel, pausePanel
+                positionPanel, aboutPanel, exporterPanel, pausePanel, notificationsPanel
             ].forEach(panel => {
                 panel.style.display = 'none';
             });
@@ -339,6 +342,19 @@ function createMusicPage(config, labels) {
   const section = createSection();
   const musicPage = createMusicPanel(config, labels);
   musicPage.render();
+
+  panel.appendChild(section);
+  return panel;
+}
+
+function createNotificationsPage(config, labels) {
+  const panel = document.createElement('div');
+  panel.id = 'notifications-panel';
+  panel.className = 'notifications-panel';
+
+  const section = createSection();
+  const musicPage = createNotificationsPanel(config, labels);
+  notificationsPage.render();
 
   panel.appendChild(section);
   return panel;

@@ -129,6 +129,7 @@ export function getConfig() {
     previewModal: localStorage.getItem('previewModal') !== 'false',
     allPreviewModal: localStorage.getItem('allPreviewModal') !== 'false',
     enabledGmmp: localStorage.getItem('enabledGmmp') !== 'false',
+    enableQualityBadges: localStorage.getItem('enableQualityBadges') !== 'false',
     dicebearParams: (() => {
   try {
     const raw = localStorage.getItem('dicebearParams');
@@ -142,6 +143,14 @@ export function getConfig() {
     return {};
   }
 })(),
+
+    enableNotifications: localStorage.getItem('enableNotifications') !== 'false',
+    enableToastNew: localStorage.getItem('enableToastNew') !== 'false',
+    enableToastSystem: localStorage.getItem('enableToastSystem') !== 'false',
+    maxNotifications: parseInt(localStorage.getItem("maxNotifications"), 10) || 15,
+    toastDuration: parseInt(localStorage.getItem("toastDuration"), 10) || 4000,
+    renderResume: parseInt(localStorage.getItem("renderResume"), 10) || 10,
+    enableRenderResume: localStorage.getItem('enableRenderResume') !== 'false',
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,

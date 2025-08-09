@@ -434,7 +434,7 @@ export function createColorInput(name, label, value) {
 
   const labelElement = document.createElement('label');
   labelElement.textContent = label;
-  labelElement.htmlFor = name;
+  labelElement.htmlFor = name + '-color';
 
   const colorContainer = document.createElement('div');
   colorContainer.style.display = 'flex';
@@ -443,7 +443,7 @@ export function createColorInput(name, label, value) {
 
   const input = document.createElement('input');
   input.type = 'color';
-  input.id = name;
+  input.id = name + '-color';
   input.name = name;
   input.value = value || '#FF4081';
 
@@ -452,6 +452,9 @@ export function createColorInput(name, label, value) {
   textInput.value = value || '#FF4081';
   textInput.className = 'color-text-input';
   textInput.style.flex = '1';
+  textInput.id = name + '-text';
+  textInput.name = name + '-text';
+  textInput.setAttribute('aria-label', label + ' (hex kodu)');
 
   const debouncedApply = debounce(() => {
     applySettings(false);

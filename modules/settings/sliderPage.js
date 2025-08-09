@@ -11,6 +11,8 @@ export function createSliderPanel(config, labels) {
     languageDiv.className = 'setting-item';
     const languageLabel = document.createElement('label');
     languageLabel.textContent = labels.defaultLanguage || 'Dil:';
+    languageLabel.htmlFor = 'languageDiv';
+    languageLabel.id = 'languageDiv';
     const languageSelect = document.createElement('select');
     languageSelect.name = 'defaultLanguage';
 
@@ -41,6 +43,7 @@ export function createSliderPanel(config, labels) {
     const cssSelect = document.createElement('select');
     cssSelect.name = 'cssVariant';
 
+
     const variants = [
         { value: 'kompak', label: labels.kompaktslider || 'Kompakt' },
         { value: 'fullslider', label: labels.tamslider || 'Tam Ekran' },
@@ -57,6 +60,8 @@ export function createSliderPanel(config, labels) {
         cssSelect.appendChild(option);
     });
 
+    cssLabel.htmlFor = 'cssVariantSelect';
+    cssSelect.id = 'cssVariantSelect';
     cssDiv.append(cssLabel, cssSelect);
 
     const sliderDiv = document.createElement('div');
@@ -69,6 +74,8 @@ export function createSliderPanel(config, labels) {
     sliderInput.name = 'sliderDuration';
     sliderInput.min = 1000;
     sliderInput.step = 250;
+    sliderLabel.htmlFor = 'sliderDurationInput';
+    sliderInput.id = 'sliderDurationInput';
     sliderDiv.append(sliderLabel, sliderInput);
 
     const sliderDesc = document.createElement('div');
@@ -131,6 +138,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     delayInput.min = 0;
     delayInput.max = 10000;
     delayInput.step = 50;
+    delayLabel.htmlFor = 'delayInput';
+    delayInput.id = 'delayInput';
     delayDiv.append(delayLabel, delayInput);
     sliderDiv.appendChild(delayDiv);
 
@@ -139,6 +148,7 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     const gradientLabel = document.createElement('label');
     gradientLabel.textContent = labels.gradientOverlayImageType || 'Yerleşik Fragman Oynatıldığında Gösterilecek Görsel Türü:';
     const gradientSelect = createImageTypeSelect('gradientOverlayImageType', config.gradientOverlayImageType || 'backdropUrl', true);
+    gradientLabel.htmlFor = 'gradientInput';
     gradientDiv.append(gradientLabel, gradientSelect);
     sliderDiv.appendChild(gradientDiv);
 
@@ -166,6 +176,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     const backdropLabel = document.createElement('label');
     backdropLabel.textContent = labels.slideBackgroundImageType || 'Slider Arka Plan Görsel Türü:';
     const backdropSelect = createImageTypeSelect('backdropImageType', config.backdropImageType || 'backdropUrl', true);
+    backdropLabel.htmlFor = 'backdropSelect';
+    backdropSelect.id = 'backdropSelect';
     backdropDiv.append(backdropLabel, backdropSelect);
     sliderDiv.appendChild(backdropDiv);
 
@@ -185,6 +197,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     minQualityDesc.textContent = labels.minHighQualitydescriptiontext ||
         'Bu ayar, arkaplan olarak atanacak görselin minimum genişliğini belirler.("Slide Arkaplanı Değiştir" aktif ise çalışmaz. Eğer belirlenen genişlikte görsel yok ise en kalitelisi seçilecektir.)';
 
+    minQualityLabel.htmlFor = 'minHighQualityWidthInput';
+    minQualityInput.id = 'minHighQualityWidthInput';
     minQualityDiv.append(minQualityLabel, minQualityInput, minQualityDesc);
     sliderDiv.appendChild(minQualityDiv);
 
@@ -207,6 +221,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     backdropMaxWidthDesc.textContent = labels.backdropMaxWidthLabel ||
         'Arkaplan olarak atanacak görsel girilen değer boyutunda ölçeklenir.("Slide Arkaplanı Değiştir" aktif ise çalışmaz. Görsel, belirlenen değerden küçük ise ölçeklendirmez)';
 
+    backdropMaxWidthLabel.htmlFor = 'backdropMaxWidthInput';
+    backdropMaxWidthInput.id = 'backdropMaxWidthInput';
     backdropMaxWidthDiv.append(backdropMaxWidthLabel, backdropMaxWidthInput, backdropMaxWidthDesc);
     sliderDiv.appendChild(backdropMaxWidthDiv);
 
@@ -226,6 +242,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     minPixelDesc.textContent = labels.minPixelCountDescription ||
     'Genişlik × yükseklik sonucudur. Bu değerden küçük görseller düşük kaliteli sayılır. Örn: 1920×1080 = 2073600';
 
+    minPixelLabel.htmlFor = 'minPixelInput';
+    minPixelInput.id = 'minPixelInput';
     minPixelDiv.append(minPixelLabel, minPixelInput, minPixelDesc);
     sliderDiv.appendChild(minPixelDiv);
 
@@ -261,6 +279,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     minSizeDesc.className = 'description-text';
     minSizeDesc.textContent = labels.minImageSizeDescription || 'Seçilecek görselin minimum dosya boyutunu KB cinsinden belirtir.';
 
+    minSizeLabel.htmlFor = 'minSizeInput';
+    minSizeInput.id = 'minSizeInput';
     minSizeDiv.append(minSizeLabel, minSizeInput, minSizeDesc);
     sliderDiv.appendChild(minSizeDiv);
 
@@ -279,6 +299,8 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     maxSizeDesc.className = 'description-text';
     maxSizeDesc.textContent = labels.maxImageSizeDescription || 'Seçilecek görselin maksimum dosya boyutunu KB cinsinden belirtir.';
 
+    maxSizeLabel.htmlFor = 'maxSizeInput';
+    maxSizeInput.id = 'maxSizeInput';
     maxSizeDiv.append(maxSizeLabel, maxSizeInput, maxSizeDesc);
     sliderDiv.appendChild(maxSizeDiv);
 
@@ -345,6 +367,9 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
         true,
         true
     );
+
+        dotBgLabel.htmlFor = 'dotBgSelect';
+        dotBgSelect.id = 'dotBgSelect';
         dotBgDiv.append(dotBgLabel, dotBgSelect);
         sliderDiv.appendChild(dotBgDiv);
 

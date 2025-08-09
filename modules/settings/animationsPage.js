@@ -57,6 +57,8 @@ export function createAnimationPanel(config, labels) {
         slideTypeSelect.appendChild(option);
     });
 
+    slideTypeLabel.htmlFor = 'slideTypeSelect';
+    slideTypeSelect.id = 'slideTypeSelect';
     slideTypeDiv.append(slideTypeLabel, slideTypeSelect);
 
     const slideDurationDiv = document.createElement('div');
@@ -70,6 +72,8 @@ export function createAnimationPanel(config, labels) {
     slideDurationInput.min = 100;
     slideDurationInput.max = 3000;
     slideDurationInput.step = 50;
+    slideDurationLabel.htmlFor = 'slideDurationInput';
+    slideDurationInput.id = 'slideDurationInput';
     slideDurationDiv.append(slideDurationLabel, slideDurationInput);
 
     const dotAnimDiv = document.createElement('div');
@@ -119,6 +123,8 @@ export function createAnimationPanel(config, labels) {
         dotTypeSelect.appendChild(option);
     });
 
+    dotTypeLabel.htmlFor = 'dotTypeSelect';
+    dotTypeSelect.id = 'dotTypeSelect';
     dotTypeDiv.append(dotTypeLabel, dotTypeSelect);
 
     const dotDurationDiv = document.createElement('div');
@@ -132,6 +138,8 @@ export function createAnimationPanel(config, labels) {
     dotDurationInput.min = 100;
     dotDurationInput.max = 3000;
     dotDurationInput.step = 50;
+    dotDurationLabel.htmlFor = 'dotDurationInput';
+    dotDurationInput.id = 'dotDurationInput';
     dotDurationDiv.append(dotDurationLabel, dotDurationInput);
 
     panel.append(

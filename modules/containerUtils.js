@@ -74,15 +74,12 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
   if (UserData && config.showWatchedInfo) {
     const watchedSpan = document.createElement("span");
     watchedSpan.className = "watched-status";
-
     let watchedText = UserData.Played
       ? `<i class="fa-light fa-circle-check"></i> ${config.languageLabels.izlendi}`
       : `<i class="fa-light fa-circle-xmark"></i> ${config.languageLabels.izlenmedi}`;
-
     if (UserData.Played && UserData.PlayCount > 0) {
       watchedText += ` (${UserData.PlayCount})`;
     }
-
     watchedSpan.innerHTML = watchedText;
     statusContainer.appendChild(watchedSpan);
   }
@@ -110,31 +107,47 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
   if (videoStream && config.showQualityInfo) {
     const qualitySpan = document.createElement("span");
     qualitySpan.className = "video-quality";
-    let baseQuality = "SD";
-    if (videoStream.Width >= 3840) {
-      baseQuality = "4K";
-    } else if (videoStream.Width >= 2560) {
-      baseQuality = "2K";
-    } else if (videoStream.Width >= 1920) {
-      baseQuality = "FullHD";
-    } else if (videoStream.Width >= 1280) {
-      baseQuality = "HD";
+
+    let qualitySvg = `/web/slider/src/images/quality/sd.svg`;
+    if (videoStream.Width >= 3800) {
+      qualitySvg = `/web/slider/src/images/quality/4k.svg`;
+    } else if (videoStream.Width >= 1900) {
+      qualitySvg = `/web/slider/src/images/quality/fhd.svg`;
+    } else if (videoStream.Width >= 1200) {
+      qualitySvg = `/web/slider/src/images/quality/hd.svg`;
     }
-    let qualityText = baseQuality;
-    if (config.showQualityDetail) {
-      if (videoStream.Codec) qualityText += ` ${videoStream.Codec}`;
-      if (videoStream.VideoRangeType) qualityText += ` ${videoStream.VideoRangeType}`;
+
+    let rangeSvg = `/web/slider/src/images/quality/sdr.svg`;
+    if (videoStream.VideoRangeType && videoStream.VideoRangeType.toUpperCase().includes("HDR")) {
+      rangeSvg = `/web/slider/src/images/quality/hdr.svg`;
     }
-    const qualityIcon =
-      videoStream.Width < 1280
-        ? `<i class="fa-regular fa-standard-definition"></i>`
-        : `<i class="fa-regular fa-high-definition"></i>`;
-    qualitySpan.innerHTML = `${qualityIcon} ${qualityText}`;
+
+    let codecSvg = "";
+    if (videoStream.Codec) {
+      const codec = videoStream.Codec.toLowerCase();
+      if (codec.includes("h264")) {
+        codecSvg = `<img src="/web/slider/src/images/quality/h264.svg" alt="H.264" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">`;
+      } else if (codec.includes("h265") || codec.includes("hevc")) {
+        codecSvg = `<img src="/web/slider/src/images/quality/h265.svg" alt="H.265" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">`;
+      } else if (codec.includes("vp9")) {
+        codecSvg = `<img src="/web/slider/src/images/quality/vp9.svg" alt="VP9" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">`;
+      } else if (codec.startsWith("mpeg") || codec.includes("mpeg4")) {
+        codecSvg = `<img src="/web/slider/src/images/quality/mpeg.svg" alt="MPEG" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">`;
+      }
+    }
+
+    qualitySpan.innerHTML = `
+      <img src="${rangeSvg}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">
+      <img src="${qualitySvg}" alt="" style="width:32px;height:24px;vertical-align:middle;margin-right:2px;">
+      ${codecSvg}
+    `.trim();
+
     statusContainer.appendChild(qualitySpan);
   }
 
   return statusContainer;
 }
+
 
 export async function createActorSlider(People, config, item) {
   if (config.showActorAll) {
@@ -622,5 +635,53 @@ export function createTitleContainer({ config, Taglines, title, OriginalTitle, T
   }
 
   return container;
+}
+
+export function getVideoQualityText(videoStream) {
+  if (!videoStream) return "";
+
+  let baseQuality = "sd";
+  let qualitySvg = `/web/slider/src/images/quality/sd.svg`;
+
+  if (videoStream.Width >= 3800) {
+    baseQuality = "4k";
+    qualitySvg = `/web/slider/src/images/quality/4k.svg`;
+  } else if (videoStream.Width >= 2500) {
+    baseQuality = "fhd";
+    qualitySvg = `/web/slider/src/images/quality/fhd.svg`;
+  } else if (videoStream.Width >= 1900) {
+    baseQuality = "fhd";
+    qualitySvg = `/web/slider/src/images/quality/fhd.svg`;
+  } else if (videoStream.Width >= 1200) {
+    baseQuality = "hd";
+    qualitySvg = `/web/slider/src/images/quality/hd.svg`;
+  }
+
+  let iconSvg;
+  if (videoStream.VideoRangeType && videoStream.VideoRangeType.toUpperCase().includes("HDR")) {
+    iconSvg = `/web/slider/src/images/quality/hdr.svg`;
+  } else {
+    iconSvg = `/web/slider/src/images/quality/sdr.svg`;
+  }
+
+  let codecSvg = "";
+  if (videoStream.Codec) {
+    const codec = videoStream.Codec.toLowerCase();
+    if (codec.includes("h264")) {
+      codecSvg = `/web/slider/src/images/quality/h264.svg`;
+    } else if (codec.includes("h265") || codec.includes("hevc")) {
+      codecSvg = `/web/slider/src/images/quality/h265.svg`;
+    } else if (codec.includes("vp9")) {
+      codecSvg = `/web/slider/src/images/quality/vp9.svg`;
+    } else if (codec.startsWith("mpeg") || codec.includes("mpeg4")) {
+      codecSvg = `/web/slider/src/images/quality/mpeg.svg`;
+    }
+  }
+
+  return `
+    <img src="${qualitySvg}" alt="${baseQuality.toUpperCase()}" class="quality-icon">
+    <img src="${iconSvg}" alt="" class="range-icon">
+    ${codecSvg ? `<img src="${codecSvg}" alt="" class="codec-icon">` : ""}
+  `.trim();
 }
 

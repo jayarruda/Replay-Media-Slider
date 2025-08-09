@@ -164,9 +164,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
               return;
             }
             videoElement.currentTime = 600;
-            videoElement.play().then(() => {
-              videoElement.style.opacity = "1";
-            });
+            videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
           });
 
           hls.on(window.Hls.Events.ERROR, (event, data) => {
@@ -191,10 +189,10 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
           }, { once: true });
         }
       } catch (e) {
-        if (e.name !== 'AbortError') {
-          console.error("Video yükleme hatası:", e);
-          cleanupVideo();
-        }
+  if (e.name === 'AbortError' || e.name === 'HoverAbortError') return;
+
+  console.error("Video yükleme hatası:", e);
+  cleanupVideo();
       }
     }, 0);
 
@@ -202,9 +200,9 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       videoElement.pause();
       videoElement.src = "";
       if (videoElement.hls) {
-        videoElement.hls.destroy();
-        delete videoElement.hls;
-      }
+      try { videoElement.hls.destroy(); } catch(_) {}
+      delete videoElement.hls;
+    }
       videoContainer.style.display = "none";
       backdropImg.style.opacity = "1";
       slide.classList.remove("video-active", "intro-active");

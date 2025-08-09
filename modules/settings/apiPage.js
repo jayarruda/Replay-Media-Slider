@@ -46,6 +46,8 @@ export function createQueryPanel(config, labels) {
     manualListIdsInput.name = 'manualListIds';
     manualListIdsInput.value = config.manualListIds || '';
 
+    manualListIdsLabel.htmlFor = 'manualListIdsInput';
+    manualListIdsInput.id = 'manualListIdsInput';
     manualListIdsDiv.append(manualListIdsLabel, manualListIdsInput);
 
     section.appendChild(manualListDiv);
@@ -64,6 +66,8 @@ export function createQueryPanel(config, labels) {
     limitInput.min = 1;
     limitInput.max = 100;
 
+    limitLabel.htmlFor = 'limitInput';
+    limitInput.id = 'limitInput';
     limitDiv.append(limitLabel, limitInput);
 
     const limitDesc = document.createElement('div');
@@ -87,6 +91,8 @@ export function createQueryPanel(config, labels) {
     maxShufflingLimitInput.min = 1;
     maxShufflingLimitInput.max = 1000000;
 
+    maxShufflingLimitLabel.htmlFor = 'maxShufflingLimitInput';
+    maxShufflingLimitInput.id = 'maxShufflingLimitInput';
     maxShufflingLimitDiv.append(maxShufflingLimitLabel, maxShufflingLimitInput);
 
     const maxShufflingLimitDesc = document.createElement('div');
@@ -110,6 +116,8 @@ export function createQueryPanel(config, labels) {
     shuffleSeedLimitInput.min = 1;
     shuffleSeedLimitInput.max = 100000;
 
+    shuffleSeedLimitLabel.htmlFor = 'shuffleSeedLimitInput';
+    shuffleSeedLimitInput.id = 'shuffleSeedLimitInput';
     shuffleSeedLimitDiv.append(shuffleSeedLimitLabel, shuffleSeedLimitInput);
 
     const shuffleSeedLimitDesc = document.createElement('div');
@@ -134,6 +142,8 @@ export function createQueryPanel(config, labels) {
     playingLimitInput.min = 0;
     playingLimitInput.max = 100;
 
+    playingLimitLabel.htmlFor = 'playingLimitInput';
+    playingLimitInput.id = 'playingLimitInput';
     playingLimitDiv.append(playingLimitLabel, playingLimitInput);
 
     const playingLimitDesc = document.createElement('div');
@@ -167,6 +177,7 @@ export function createQueryPanel(config, labels) {
     const queryStringLabel = document.createElement('label');
     queryStringLabel.className = 'customQueryStringInput query-string-label';
     queryStringLabel.textContent = labels.customQueryString || 'Api Sorgu Dizesi:';
+    queryStringLabel.htmlFor = 'queryStringLabel';
     section.appendChild(queryStringLabel);
 
     const queryStringDesc = document.createElement('div');
@@ -205,6 +216,7 @@ export function createQueryPanel(config, labels) {
 
     const sortingLabel = document.createElement('label');
     sortingLabel.textContent = labels.sortingKeywords || 'Anahtar Kelimeler (virgül ile ayırınız)';
+    sortingLabel.htmlFor = 'sortingLabel';
     section.appendChild(sortingLabel);
 
     const sortingTextarea = document.createElement('textarea');

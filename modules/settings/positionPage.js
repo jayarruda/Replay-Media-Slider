@@ -9,12 +9,16 @@ export function createPositionEditor(config, labels, section) {
     const container = document.createElement('div');
     container.className = 'position-item';
 
+    const inputId = `input-${configKey}`;
+
     const label = document.createElement('label');
     label.textContent = labelText;
+    label.htmlFor = inputId;
 
     const input = document.createElement('input');
     input.type = 'number';
     input.name = configKey;
+    input.id = inputId;
     input.value = config[configKey] || '';
     input.placeholder = placeholder || config.languageLabels.placeholderText || 'Değer giriniz';
 
@@ -62,7 +66,7 @@ export function createPositionEditor(config, labels, section) {
 
     container.append(label, input, resetBtn);
     return container;
-  }
+}
 
   function createGlobalResetButton() {
     const container = document.createElement('div');
@@ -228,11 +232,15 @@ export function createPositionEditor(config, labels, section) {
     const container = document.createElement('div');
     container.className = 'flex-item';
 
+    const selectId = `select-${configKey}`;
+
     const label = document.createElement('label');
     label.textContent = labelText;
+    label.htmlFor = selectId;
 
     const select = document.createElement('select');
     select.name = configKey;
+    select.id = selectId;
 
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
@@ -272,7 +280,7 @@ export function createPositionEditor(config, labels, section) {
 
     container.append(label, select, resetBtn);
     return container;
-  }
+}
 
   function openSelectModal(selectElement, configKey, options, containerType) {
   const mainModal = document.getElementById('settings-modal');

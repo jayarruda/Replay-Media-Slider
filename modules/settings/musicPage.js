@@ -47,6 +47,8 @@ export function createMusicPanel(config, labels) {
     albumArtBgInput.name = 'useAlbumArtAsBackground';
     albumArtBgInput.id = 'useAlbumArtAsBackground';
 
+    albumArtBgLabel.htmlFor = 'albumArtBgInput';
+    albumArtBgInput.id = 'albumArtBgInput';
     albumArtBgDiv.append(albumArtBgLabel, albumArtBgInput);
     section.appendChild(albumArtBgDiv);
 
@@ -126,6 +128,8 @@ export function createMusicPanel(config, labels) {
         styleSelect.appendChild(option);
     });
 
+    styleLabel.htmlFor = 'styleSelect';
+    styleSelect.id = 'styleSelect';
     styleDiv.append(styleLabel, styleSelect);
     section.appendChild(styleDiv);
 
@@ -151,6 +155,8 @@ export function createMusicPanel(config, labels) {
         themeSelect.appendChild(option);
     });
 
+    themeLabel.htmlFor = 'themeSelect';
+    themeSelect.id = 'themeSelect';
     themeDiv.append(themeLabel, themeSelect);
     section.appendChild(themeDiv);
 
@@ -194,6 +200,8 @@ export function createMusicPanel(config, labels) {
         dateLocaleSelect.appendChild(option);
     });
 
+    dateLocaleLabel.htmlFor = 'dateLocaleSelect';
+    dateLocaleSelect.id = 'dateLocaleSelect';
     dateLocaleDiv.append(dateLocaleLabel, dateLocaleSelect);
     section.appendChild(dateLocaleDiv);
 
@@ -206,6 +214,8 @@ export function createMusicPanel(config, labels) {
     musicLimitInput.value = config.muziklimit || 30;
     musicLimitInput.name = 'muziklimit';
     musicLimitInput.min = 1;
+    musicLimitLabel.htmlFor = 'musicLimitInput';
+    musicLimitInput.id = 'musicLimitInput';
     musicLimitDiv.append(musicLimitLabel, musicLimitInput);
     section.appendChild(musicLimitDiv);
 
@@ -218,6 +228,8 @@ export function createMusicPanel(config, labels) {
     nextTrackInput.value = config.nextTrack || 30;
     nextTrackInput.name = 'nextTrack';
     nextTrackInput.min = 0;
+    nextTrackLabel.htmlFor = 'nextTrackInput';
+    nextTrackInput.id = 'nextTrackInput';
     nextTrackDiv.append(nextTrackLabel, nextTrackInput);
     section.appendChild(nextTrackDiv);
 
@@ -230,6 +242,8 @@ export function createMusicPanel(config, labels) {
     songLimitInput.value = config.sarkilimit || 200;
     songLimitInput.name = 'sarkilimit';
     songLimitInput.min = 1;
+    songLimitLabel.htmlFor = 'songLimitInput';
+    songLimitInput.id = 'songLimitInput';
     songLimitDiv.append(songLimitLabel, songLimitInput);
     section.appendChild(songLimitDiv);
 
@@ -242,6 +256,8 @@ export function createMusicPanel(config, labels) {
     albumLimitInput.value = config.albumlimit || 20;
     albumLimitInput.name = 'albumlimit';
     albumLimitInput.min = 1;
+    albumLimitLabel.htmlFor = 'albumLimitInput';
+    albumLimitInput.id = 'albumLimitInput';
     albumLimitDiv.append(albumLimitLabel, albumLimitInput);
     section.appendChild(albumLimitDiv);
 
@@ -257,6 +273,8 @@ export function createMusicPanel(config, labels) {
     id3LimitInput.min = 1;
     id3LimitInput.max = 200;
     id3LimitInput.title = labels.id3limitTitle || 'Id3 etiket sorgulamanın eş zamanlı olarak kaç tane yapılacağı belirleyen değer';
+    id3LimitLabel.htmlFor = 'id3LimitInput';
+    id3LimitInput.id = 'id3LimitInput';
     id3LimitDiv.append(id3LimitLabel, id3LimitInput);
     section.appendChild(id3LimitDiv);
 
@@ -271,6 +289,8 @@ export function createMusicPanel(config, labels) {
     maxExcludeIdsForUriInput.title = labels.maxExcludeIdsForTitle || 'Bu değer, Liste yenilemek için API isteğinde aynı anda gönderilebilecek "Hariç Tutulacak Geçmiş Liste Sayısı" listesinin maksimum uzunluğunu belirler. Büyük değerler sunucu isteklerinin boyutunu aşarak hatalara neden olabilir. İsteklerin hatasız çalışması için genellikle 50-200 arası bir değer önerilir.';
     maxExcludeIdsForUriInput.name = 'maxExcludeIdsForUri';
     maxExcludeIdsForUriInput.min = 1;
+    maxExcludeIdsForUriLabel.htmlFor = 'maxExcludeIdsForUriInput';
+    maxExcludeIdsForUriInput.id = 'maxExcludeIdsForUriInput';
     maxExcludeIdsForUriDiv.append(maxExcludeIdsForUriLabel, maxExcludeIdsForUriInput);
     section.appendChild(maxExcludeIdsForUriDiv);
 
@@ -285,6 +305,8 @@ export function createMusicPanel(config, labels) {
     historyLimitInput.name = 'historylimit';
     historyLimitInput.title = labels.historylimitTitle || 'Yeni listelere, geçmiş listeler içerisindeki şarkıları dahil etmemek için limit belirleyin';
     historyLimitInput.min = 1;
+    historyLimitLabel.htmlFor = 'historyLimitInput';
+    historyLimitInput.id = 'historyLimitInput';
     historyLimitDiv.append(historyLimitLabel, historyLimitInput);
     section.appendChild(historyLimitDiv);
 
@@ -300,6 +322,8 @@ export function createMusicPanel(config, labels) {
     groupLimitInput.min = 1;
     groupLimitInput.max = 400;
     groupLimitInput.title = labels.gruplimitTitle || 'Mevcut oynatma listesine ekleme yapılırken gruplama limiti';
+    groupLimitLabel.htmlFor = 'groupLimitInput';
+    groupLimitInput.id = 'groupLimitInput';
     groupLimitDiv.append(groupLimitLabel, groupLimitInput);
     section.appendChild(groupLimitDiv);
 
@@ -328,6 +352,8 @@ export function createMusicPanel(config, labels) {
     nextTracksSourceSelect.appendChild(option);
 });
 
+    nextTracksSourceLabel.htmlFor = 'nextTracksSourceSelect';
+    nextTracksSourceSelect.id = 'nextTracksSourceSelect';
     nextTracksSourceDiv.append(nextTracksSourceLabel, nextTracksSourceSelect);
     section.appendChild(nextTracksSourceDiv);
 
@@ -340,6 +366,8 @@ export function createMusicPanel(config, labels) {
     topTrackInput.value = config.topTrack || 30;
     topTrackInput.name = 'topTrack';
     topTrackInput.min = 0;
+    topTrackLabel.htmlFor = 'topTrackInput';
+    topTrackInput.id = 'topTrackInput';
     topTrackDiv.append(topTrackLabel, topTrackInput);
     section.appendChild(topTrackDiv);
 
