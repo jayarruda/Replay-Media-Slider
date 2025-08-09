@@ -1,5 +1,4 @@
 import { saveCredentials, saveApiKey, getAuthToken } from "./auth.js";
-import { setupHoverForAllItems } from "./modules/navigation.js";
 
 (async function bootstrapCredentials() {
   try {
@@ -42,14 +41,22 @@ import { fetchItemDetails } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from './modules/positionOverrides.js';
 import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
+import { initializeQualityBadges } from './modules/qualityBadges.js';
+import { setupHoverForAllItems } from "./modules/navigation.js";
+import { initNotifications } from "./modules/notifications.js";
+
+const config = getConfig();
 
 let cleanupPauseOverlay = null;
 
 function setupGlobalModalInit() {
-  setupHoverForAllItems();
-  loadHls();
-  const observer = observeDOMChanges();
-  return () => observer.disconnect();
+    setupHoverForAllItems();
+    loadHls();
+    if (config.enableQualityBadges) {
+        initializeQualityBadges();
+    }
+    const observer = observeDOMChanges();
+    return () => observer.disconnect();
 }
 
 const cleanupModalObserver = setupGlobalModalInit();
@@ -62,7 +69,6 @@ function setupPauseScreenIfNeeded() {
     cleanupPauseOverlay = setupPauseScreen();
 }
 
-const config = getConfig();
 
 const shuffleArray = array => {
     for (let i = array.length - 1; i > 0; i--) {
@@ -75,11 +81,13 @@ const shuffleArray = array => {
 forceSkinHeaderPointerEvents();
 forceHomeSectionsTop();
 updateHeaderUserAvatar();
+initNotifications();
 
 document.addEventListener('DOMContentLoaded', () => {
-  const cleanupAvatarSystem = initAvatarSystem();
-
-  window.addEventListener('beforeunload', cleanupAvatarSystem);
+    if (config.enableQualityBadges) {
+        const cleanupQualityBadges = initializeQualityBadges();
+        window.cleanupQualityBadges = cleanupQualityBadges;
+    }
 });
 
 function fullSliderReset() {
@@ -378,13 +386,6 @@ export async function slidesInit() {
                 }
             }
 
-            console.log("Selected Items:", selectedItems.map((item, index) => ({
-                id: item.Id,
-                name: item.Name,
-                type: item.Type,
-                isPlayingItem: index < playingItems.length
-            })));
-
             const detailed = await Promise.all(selectedItems.map(i => fetchItemDetails(i.Id)));
             items = detailed.filter(x => x);
         }
@@ -414,6 +415,19 @@ export async function slidesInit() {
 
     initializeSlider();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const cleanupQualityBadges = initializeQualityBadges();
+    window.cleanupQualityBadges = cleanupQualityBadges;
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason.message.includes('quality badge')) {
+        console.warn('Kalite badge hatası:', event.reason);
+        event.preventDefault();
+    }
+});
+
 
 function initializeSlider() {
     const indexPage = document.querySelector("#indexPage:not(.hide)");
