@@ -283,9 +283,9 @@ function ensureUI() {
   btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
   btn.setAttribute("is", "paper-icon-button-light");
   btn.innerHTML = `
-    <i class="fa-solid fa-bell" aria-hidden="true"></i>
-   <span class="jf-notif-badge" hidden></span>
-  `;
+  <i class="material-icons notif" aria-hidden="true">notifications</i>
+  <span class="jf-notif-badge" hidden></span>
+`;
 
   btn.setAttribute("aria-label", config.languageLabels.recentNotifications);
   btn.title = config.languageLabels.recentNotifications;
@@ -392,9 +392,6 @@ export function forcejfNotifBtnPointerEvents() {
       jfNotifBtnToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
       jfNotifBtnToggle.style.setProperty('cursor', 'pointer', 'important');
       jfNotifBtnToggle.style.setProperty('border', 'none', 'important');
-      jfNotifBtnToggle.style.setProperty('font-size', '1.4em', 'important');
-      jfNotifBtnToggle.style.setProperty('padding', '4px', 'important');
-      jfNotifBtnToggle.style.setProperty('margin-left', '15px', 'important');
     }
   };
 
