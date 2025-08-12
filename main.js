@@ -43,11 +43,25 @@ import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
 import { initializeQualityBadges } from './modules/qualityBadges.js';
 import { setupHoverForAllItems } from "./modules/navigation.js";
-import { initNotifications } from "./modules/notifications.js";
+import { initNotifications, forcejfNotifBtnPointerEvents } from "./modules/notifications.js";
 
 const config = getConfig();
 
 let cleanupPauseOverlay = null;
+
+(function preloadNotifCSS() {
+  if (document.getElementById("jfNotifCss")) return;
+
+  const link = document.createElement("link");
+  link.id = "jfNotifCss";
+  link.rel = "stylesheet";
+  link.type = "text/css";
+  link.href = "slider/src/notifications.css";
+  const head = document.head || document.getElementsByTagName("head")[0];
+  const firstChild = head.firstElementChild;
+  if (firstChild) head.insertBefore(link, firstChild);
+  else head.appendChild(link);
+})();
 
 function setupGlobalModalInit() {
     setupHoverForAllItems();
@@ -80,6 +94,7 @@ const shuffleArray = array => {
 
 forceSkinHeaderPointerEvents();
 forceHomeSectionsTop();
+forcejfNotifBtnPointerEvents();
 updateHeaderUserAvatar();
 initNotifications();
 

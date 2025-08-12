@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Langue par défaut",
+  enableCounterSystem: "Inclure les notifications système dans le compteur",
+  unread: "Nouveau",
+  noNewContent: "Pas de nouveau contenu pour le moment.",
+  moreItems: "plus d’éléments",
   addedLabel: "Ajouté",
   systemNotificationAdded: "Nouvelle notification système",
   removedLabel: "Supprimé",

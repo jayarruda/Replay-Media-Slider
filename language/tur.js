@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  enableCounterSystem: "Sistem bildirimleri sayaca dahil et",
+  unread: "Yeni",
+  noNewContent: "Şimdilik yeni eklenen içerik yok.",
+  moreItems: "içerik daha",
   addedLabel: "Eklendi",
   systemNotificationAdded: "Yeni Sistem Bildirimi",
   removedLabel: "Kaldırıldı",

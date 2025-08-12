@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  enableCounterSystem: "Включить системные уведомления в счётчик",
+  unread: "Новое",
+  noNewContent: "Пока нет нового контента.",
+  moreItems: "ещё элементов",
   addedLabel: "Добавлено",
   systemNotificationAdded: "Новое системное уведомление",
   removedLabel: "Удалено",
