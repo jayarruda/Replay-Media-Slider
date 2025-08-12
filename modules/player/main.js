@@ -17,12 +17,11 @@ function forceSkinHeaderPointerEvents() {
       playerToggle.style.setProperty('opacity', '1', 'important');
       playerToggle.style.setProperty('pointer-events', 'all', 'important');
       playerToggle.style.setProperty('background', 'none', 'important');
-      playerToggle.style.setProperty('margin-left', '12px', 'important');
       playerToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
-      playerToggle.style.setProperty('color', 'inherit', 'important');
       playerToggle.style.setProperty('cursor', 'pointer', 'important');
       playerToggle.style.setProperty('border', 'none', 'important');
-      playerToggle.style.setProperty('font-size', '1.2em', 'important');
+      playerToggle.style.setProperty('font-size', 'inherit', 'important');
+      playerToggle.style.setProperty('padding', '4px', 'important');
     }
   };
 
@@ -91,23 +90,18 @@ export function isMobileDevice() {
 function createPlayerButton() {
   const config = getConfig();
   if (typeof config !== 'undefined' && config.enabledGmmp !== false) {
-  const btn = document.createElement("button");
-  btn.id = "jellyfinPlayerToggle";
-  btn.setAttribute("aria-label", "GMMP Aç/Kapa");
-  btn.title = "GMMP";
-  btn.innerHTML = `<i class="fas fa-play-pause fa-lg" aria-hidden="true"></i>`;
-  Object.assign(btn.style, {
-    marginLeft: "12px",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    color: "inherit",
-    textShadow: '0px 0px 3px #ffffff',
-    fontSize: "1.2em",
-  });
-  return btn;
+    const btn = document.createElement("button");
+    btn.id = "jellyfinPlayerToggle";
+    btn.type = "button";
+    btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
+    btn.setAttribute("is", "paper-icon-button-light");
+    btn.setAttribute("aria-label", "GMMP Aç/Kapa");
+    btn.title = "GMMP";
+    btn.innerHTML = `<i class="fas fa-play fa-lg" aria-hidden="true"></i>`;
+    return btn;
   }
 }
+
 async function onToggleClick() {
   try {
     forceSkinHeaderPointerEvents();
@@ -144,8 +138,7 @@ export async function addPlayerButton() {
     const btn = createPlayerButton();
     header.insertBefore(btn, header.firstChild);
     btn.addEventListener("click", onToggleClick);
-  } catch (err) {
-  }
+  } catch (err) { }
 }
 
 if (document.readyState === "loading") {
