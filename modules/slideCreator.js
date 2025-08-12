@@ -8,6 +8,35 @@ import { createButtons, createProviderContainer } from './buttons.js';
 const config = getConfig();
 const settingsBackgroundSlides = [];
 
+function warmImageOnce(url, { timeout = 2500 } = {}) {
+  if (!url) return Promise.resolve();
+  warmImageOnce._warmed ??= new Set();
+  if (warmImageOnce._warmed.has(url)) return Promise.resolve();
+
+  warmImageOnce._warmed.add(url);
+  return new Promise((res) => {
+    const img = new Image();
+    let done = false;
+    const finish = () => { if (!done) { done = true; res(); } };
+    const t = setTimeout(finish, timeout);
+    img.onload = () => { clearTimeout(t); finish(); };
+    img.onerror = () => { clearTimeout(t); finish(); };
+    img.src = url;
+  });
+}
+
+function shortPreload(url, ms = 1200) {
+  if (!url) return;
+  const sel = `link[rel="preload"][as="image"][href="${url}"]`;
+  if (document.querySelector(sel)) return;
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.as = 'image';
+  link.href = url;
+  document.head.appendChild(link);
+  setTimeout(() => link.remove(), ms);
+}
+
 async function createSlide(item) {
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
@@ -154,15 +183,7 @@ if (typeof RunTimeTicks === "number") {
   ...item,
   Id: parentId
 }, highestQualityBackdropIndex);
-  if (slidesContainer.children.length === 0) {
-    const preloadLink = document.createElement('link');
-    preloadLink.rel = 'preload';
-    preloadLink.as = 'image';
-    preloadLink.href = backdropUrl;
-    document.head.appendChild(preloadLink);
-  } else {
-    prefetchImages([backdropUrl]);
-  }
+
 
   const backdropImg = document.createElement('img');
   backdropImg.className = 'backdrop';
@@ -172,26 +193,76 @@ if (typeof RunTimeTicks === "number") {
   backdropImg.style.opacity = '0';
   backdropImg.src = placeholderUrl;
 
-  const io = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
-        backdropImg.src = finalBackdrop;
-        backdropImg.onload = () => {
-          backdropImg.style.transition = 'opacity 0.5s ease';
-          backdropImg.style.opacity = '1';
-        };
-        observer.unobserve(backdropImg);
+  const isFirstSlide = slidesContainer.children.length === 0;
+
+if (isFirstSlide) {
+  const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+  backdropImg.setAttribute('fetchpriority', 'high');
+  backdropImg.loading = 'eager';
+  backdropImg.src = finalBackdrop;
+  backdropImg.onload = () => {
+    backdropImg.style.transition = 'opacity 0.5s ease';
+    backdropImg.style.opacity = '1';
+  };
+} else {
+  prefetchImages([backdropUrl]);
+}
+
+let isBackdropLoaded = false;
+backdropImg.addEventListener('load', () => { isBackdropLoaded = true; }, { once: true });
+
+const finalBackdropForWarm = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+const warmObserver = new IntersectionObserver((entries, obs) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      if (!isBackdropLoaded) {
+        shortPreload(finalBackdropForWarm, 1500);
+        warmImageOnce(finalBackdropForWarm).catch(() => {});
       }
-    });
+      obs.unobserve(entry.target);
+    }
   });
-  io.observe(backdropImg);
+}, {
+  root: null,
+  rootMargin: '800px 0px',
+});
+warmObserver.observe(backdropImg);
+
+const warmOnHover = () => {
+  if (!isBackdropLoaded) {
+    shortPreload(finalBackdropForWarm, 1200);
+    warmImageOnce(finalBackdropForWarm).catch(() => {});
+  }
+};
+  backdropImg.addEventListener('mouseenter', warmOnHover, { passive: true });
+  backdropImg.addEventListener('pointerover', warmOnHover, { passive: true });
+
+  const io = new IntersectionObserver((entries, observer) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+
+    const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+    const preload = document.createElement('link');
+    preload.rel = 'preload';
+    preload.as = 'image';
+    preload.href = finalBackdrop;
+    document.head.appendChild(preload);
+
+    backdropImg.src = finalBackdrop;
+    backdropImg.onload = () => {
+      backdropImg.style.transition = 'opacity 0.5s ease';
+      backdropImg.style.opacity = '1';
+      setTimeout(() => preload.remove(), 1500);
+    };
+
+    observer.unobserve(backdropImg);
+  });
+});
+io.observe(backdropImg);
 
   backdropImg.addEventListener('click', () => {
     window.location.href = slide.dataset.detailUrl;
   });
-
-  slide.appendChild(backdropImg);
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
@@ -271,8 +342,6 @@ if (typeof RunTimeTicks === "number") {
   tryDisplayElement(0);
 
   const buttonContainer = createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal, item);
-  document.body.appendChild(buttonContainer);
-
   const plotContainer = createPlotContainer(config, Overview, UserData, RunTimeTicks);
   const titleContainer = createTitleContainer({
   config,
@@ -316,7 +385,6 @@ if (typeof RunTimeTicks === "number") {
   }
 }
 
-
 function addSlideToSettingsBackground(itemId, backdropUrl) {
   const settingsSlider = document.getElementById("settingsBackgroundSlider");
   if (!settingsSlider) return;
@@ -341,6 +409,7 @@ function addSlideToSettingsBackground(itemId, backdropUrl) {
 
 function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '', isFavorite = false, itemId = null, updateFavoriteCallback = null, CommunityRating = null, CriticRating = null, OfficialRating = null) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
+  const sep = embedUrl.includes('?') ? '&' : '?';
   const overlay = document.createElement("div");
   overlay.className = "trailer-modal-overlay";
   overlay.style.opacity = "0";
@@ -374,11 +443,9 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   videoContainer.appendChild(loadingSpinner);
 
   const iframe = document.createElement("iframe");
-  iframe.src = embedUrl + "?autoplay=1&rel=0&fs=1&playsinline=1&modestbranding=1";
+  iframe.src = embedUrl + sep + 'fs=1&playsinline=1&modestbranding=1';
   iframe.title = trailerName;
   iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen";
-  iframe.allowFullscreen = true;
-  iframe.setAttribute("allowfullscreen", "");
   iframe.style.position = "absolute";
   iframe.style.top = "0";
   iframe.style.left = "0";

@@ -23,19 +23,23 @@ export async function getCachedItemDetails(itemId) {
 }
 
 async function safeFetch(url, opts = {}) {
-  const headers = {
-    ...(opts.headers || {}),
-    Authorization: getAuthHeader()
-  };
+  const headers = { ...(opts.headers || {}), Authorization: getAuthHeader() };
   const res = await fetch(url, { ...opts, headers });
+
   if (res.status === 401) {
     clearCredentials();
     throw new Error("Oturum geçersiz, yeniden giriş yapın.");
   }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `API hatası: ${res.status}`);
+  if (res.status === 404) {
+    return null;
   }
+  if (!res.ok) {
+    const errJson = await res.json().catch(() => ({}));
+    const err = new Error(errJson.message || `API hatası: ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+
   const ct = res.headers.get("content-type") || "";
   if (res.status === 204 || !ct.includes("application/json")) return {};
   return res.json();
@@ -91,18 +95,19 @@ export function getSessionInfo() {
 
 async function makeApiRequest(url, options = {}) {
   try {
-    options.headers = {
-      ...(options.headers || {}),
-      "Authorization": getAuthHeader(),
-    };
+    options.headers = { ...(options.headers || {}), Authorization: getAuthHeader() };
 
     const response = await fetch(url, options);
+    if (response.status === 404) {
+      return null;
+    }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMsg = errorData.message ||
-                     (errorData.Title && errorData.Description ?
-                      `${errorData.Title}: ${errorData.Description}` :
-                      `API isteği başarısız oldu (durum: ${response.status})`);
+      const errorMsg =
+        errorData.message ||
+        (errorData.Title && errorData.Description
+          ? `${errorData.Title}: ${errorData.Description}`
+          : `API isteği başarısız oldu (durum: ${response.status})`);
 
       const err = new Error(errorMsg);
       err.status = response.status;
@@ -114,10 +119,12 @@ async function makeApiRequest(url, options = {}) {
       return {};
     }
     return await response.json();
-
   } catch (error) {
-    if (error?.status !== 403 && !String(error.message).includes("403")) {
-      console.error(`${url} için API isteği hatası:`, error);
+    const msg = String(error?.message || "");
+    const is403 = error?.status === 403 || msg.includes("403");
+    const is404 = error?.status === 404 || msg.includes("404");
+    if (!is403 && !is404) {
+      console.error(`${options?.method || "GET"} ${url} için API isteği hatası:`, error);
     }
     throw error;
   }
@@ -125,9 +132,9 @@ async function makeApiRequest(url, options = {}) {
 
 export async function fetchItemDetails(itemId) {
   const { userId } = getSessionInfo();
-  return safeFetch(`/Users/${userId}/Items/${itemId}`);
+  const data = await safeFetch(`/Users/${userId}/Items/${itemId}`);
+  return data || null;
 }
-
 export async function updateFavoriteStatus(itemId, isFavorite) {
   const { userId } = getSessionInfo();
   return makeApiRequest(`/Users/${userId}/Items/${itemId}/UserData`, {
@@ -151,35 +158,40 @@ export async function updatePlayedStatus(itemId, played) {
 }
 
 export async function getImageDimensions(url) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
     xhr.responseType = "blob";
     xhr.setRequestHeader("Authorization", getAuthHeader());
 
-    xhr.onload = function() {
+    xhr.onload = function () {
       if (this.status === 200) {
-        const blob = this.response;
-        const blobUrl = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(this.response);
         const img = new Image();
         img.onload = () => {
+          URL.revokeObjectURL(blobUrl);
           resolve({
             width: img.naturalWidth,
             height: img.naturalHeight,
-            area: img.naturalWidth * img.naturalHeight
+            area: img.naturalWidth * img.naturalHeight,
           });
         };
-        img.onerror = () => reject(new Error("Görsel yüklenemedi"));
+        img.onerror = () => {
+          URL.revokeObjectURL(blobUrl);
+          resolve(null);
+        };
         img.src = blobUrl;
+      } else if (this.status === 404) {
+        resolve(null);
       } else {
-        reject(new Error(`HTTP ${this.status}`));
+        resolve(null);
       }
     };
-
-    xhr.onerror = () => reject(new Error("Ağ hatası"));
+    xhr.onerror = () => resolve(null);
     xhr.send();
   });
 }
+
 
 export async function playNow(itemId) {
   try {
@@ -283,10 +295,15 @@ export async function getVideoStreamUrl(
 
    try {
     let item = await fetchItemDetails(itemId);
-    if (item.Type === "Series") {
-      itemId = await getRandomEpisodeId(itemId);
-      item = await fetchItemDetails(itemId);
-    }
+if (!item) {
+  return null;
+}
+if (item.Type === "Series") {
+  itemId = await getRandomEpisodeId(itemId).catch(() => null);
+  if (!itemId) return null;
+  item = await fetchItemDetails(itemId);
+  if (!item) return null;
+}
 
     if (item.Type === "Season") {
       const episodes = await makeApiRequest(`/Shows/${item.SeriesId}/Episodes?SeasonId=${itemId}&Fields=Id`);
@@ -664,22 +681,14 @@ export async function getCachedUserTopGenres(limit = 50, itemType = null) {
 
 export async function getGenresForDot(itemId) {
   const cached = dotGenreCache.get(itemId);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.genres;
-  }
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.genres;
 
   try {
     const details = await fetchItemDetails(itemId);
-    const genres = extractGenresFromItem(details);
-
-    dotGenreCache.set(itemId, {
-      timestamp: Date.now(),
-      genres
-    });
-
+    const genres = details ? extractGenresFromItem(details) : [];
+    dotGenreCache.set(itemId, { timestamp: Date.now(), genres });
     return genres;
-  } catch (error) {
-    console.error(`Item ${itemId} tür bilgisi alınırken hata:`, error);
+  } catch {
     return [];
   }
 }

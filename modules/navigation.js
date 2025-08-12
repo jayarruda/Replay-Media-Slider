@@ -71,7 +71,6 @@ function pruneOverLimit() {
   }
 }
 
-
 export async function preloadVideoPreview(itemId) {
   const hit = cacheGet(itemId);
   if (hit) return hit;
@@ -118,7 +117,6 @@ function handleVisibilityChange() {
     closeVideoModal();
   }
 }
-
 
 function destroyVideoModal() {
   if (videoModal) {

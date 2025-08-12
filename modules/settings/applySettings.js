@@ -82,6 +82,8 @@ export function applySettings(reload = false) {
             toastDuration: parseInt(formData.get('toastDuration'), 10),
             renderResume: parseInt(formData.get('renderResume'), 10),
             enableRenderResume: formData.get('enableRenderResume') === 'on',
+            toastGroupThreshold: parseInt(formData.get('toastGroupThreshold'), 10),
+            enableCounterSystem: formData.get('enableCounterSystem') === 'on',
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
@@ -328,14 +330,14 @@ export function applySettings(reload = false) {
             progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
             progressBarHeight: parseInt(formData.get('progressBarHeight'), 10) || 0,
 
-            pauseOverlay: formData.get('pauseOverlay') === 'on',
-            pauseOverlayImagePreference: formData.get('pauseOverlayImagePreference') || 'auto',
-            pauseOverlayShowPlot: formData.get('pauseOverlayShowPlot') === 'on',
-            pauseOverlayShowMetadata: formData.get('pauseOverlayShowMetadata') === 'on',
-            pauseOverlayShowLogo: formData.get('pauseOverlayShowLogo') === 'on',
-            pauseOverlayShowBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
-
-
+            pauseOverlay: {
+            enabled: formData.get('pauseOverlay') === 'on',
+            imagePreference: formData.get('pauseOverlayImagePreference') || 'auto',
+            showPlot: formData.get('pauseOverlayShowPlot') === 'on',
+            showMetadata: formData.get('pauseOverlayShowMetadata') === 'on',
+            showLogo: formData.get('pauseOverlayShowLogo') === 'on',
+            showBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
+      },
             slideTransitionType: formData.get('slideTransitionType'),
             dotPosterTransitionType: formData.get('dotPosterTransitionType'),
             enableSlideAnimations: formData.get('enableSlideAnimations') === 'on',

@@ -1,6 +1,42 @@
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 
 export function getConfig() {
+
+  function readPauseOverlay() {
+  const raw = localStorage.getItem('pauseOverlay');
+
+  if (raw && raw.trim().startsWith('{') && raw !== '[object Object]') {
+    try {
+      const j = JSON.parse(raw);
+      return {
+        enabled: j.enabled !== false,
+        imagePreference: j.imagePreference || 'auto',
+        showPlot: j.showPlot !== false,
+        showMetadata: j.showMetadata !== false,
+        showLogo: j.showLogo !== false,
+        showBackdrop: j.showBackdrop !== false,
+      };
+    } catch {}
+  }
+
+  const rawImagePref   = localStorage.getItem('pauseOverlayImagePreference');
+  const rawShowPlot    = localStorage.getItem('pauseOverlayShowPlot');
+  const rawShowMeta    = localStorage.getItem('pauseOverlayShowMetadata');
+  const rawShowLogo    = localStorage.getItem('pauseOverlayShowLogo');
+  const rawShowBackdrop= localStorage.getItem('pauseOverlayShowBackdrop');
+
+  const legacy = {
+    enabled: raw !== 'false',
+    imagePreference: rawImagePref || 'auto',
+    showPlot: rawShowPlot !== 'false',
+    showMetadata: rawShowMeta !== 'false',
+    showLogo: rawShowLogo !== 'false',
+    showBackdrop: rawShowBackdrop !== 'false',
+  };
+
+  try { localStorage.setItem('pauseOverlay', JSON.stringify(legacy)); } catch {}
+  return legacy;
+}
   const defaultLanguage = getDefaultLanguage();
   return {
     customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
@@ -151,6 +187,8 @@ export function getConfig() {
     toastDuration: parseInt(localStorage.getItem("toastDuration"), 10) || 4000,
     renderResume: parseInt(localStorage.getItem("renderResume"), 10) || 10,
     enableRenderResume: localStorage.getItem('enableRenderResume') !== 'false',
+    toastGroupThreshold: parseInt(localStorage.getItem("toastGroupThreshold"), 10) || 3,
+    enableCounterSystem: localStorage.getItem('enableCounterSystem') !== 'false',
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,
@@ -302,14 +340,7 @@ export function getConfig() {
     ratingContainerAlignItems: localStorage.getItem('ratingContainerAlignItems') || '',
     ratingContainerFlexWrap: localStorage.getItem('ratingContainerFlexWrap') || '',
 
-    pauseOverlay: {
-    enabled: localStorage.getItem('pauseOverlay') !== 'false',
-    imagePreference: localStorage.getItem('pauseOverlayImagePreference') || 'auto',
-    showPlot: localStorage.getItem('pauseOverlayShowPlot') !== 'false',
-    showMetadata: localStorage.getItem('pauseOverlayShowMetadata') !== 'false',
-    showLogo: localStorage.getItem('pauseOverlayShowLogo') !== 'false',
-    showBackdrop: localStorage.getItem('pauseOverlayShowBackdrop') !== 'false',
-},
+    pauseOverlay: readPauseOverlay(),
 
     slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
     dotPosterTransitionType: localStorage.getItem('dotPosterTransitionType') || 'scale',

@@ -318,15 +318,22 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   }
 }
 
-
 export function prefetchImages(urls) {
-  urls.forEach(url => {
-    const link = document.createElement('link');
-    link.rel = 'prefetch';
-    link.href = url;
-    document.head.appendChild(link);
-  });
+  if (!Array.isArray(urls) || urls.length === 0) return;
+
+  window.addEventListener('load', () => {
+    urls.forEach(url => {
+      if (!url) return;
+      if (document.querySelector(`link[rel="prefetch"][href="${url}"]`)) return;
+
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.href = url;
+      document.head.appendChild(link);
+    });
+  }, { once: true });
 }
+
 
 export async function getHighResImageUrls(item, backdropIndex) {
   const itemId = item.Id;

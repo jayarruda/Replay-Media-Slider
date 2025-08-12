@@ -552,28 +552,39 @@ export function createSection(title) {
 }
 
 export function createCheckbox(name, label, isChecked) {
-    const container = document.createElement('div');
-    container.className = 'setting-item';
+  const container = document.createElement('div');
+  container.className = 'setting-item';
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.name = name;
-    checkbox.id = name;
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.name = name;
+  checkbox.id = name;
 
-    const storedValue = localStorage.getItem(name);
-    if (storedValue !== null) {
+  const storedValue = localStorage.getItem(name);
+
+  if (storedValue !== null) {
+    if (storedValue.trim().startsWith('{') && storedValue !== '[object Object]') {
+      try {
+        const obj = JSON.parse(storedValue);
+        checkbox.checked = obj.enabled !== false;
+      } catch {
         checkbox.checked = storedValue === 'true';
+      }
     } else {
-        checkbox.checked = isChecked !== false;
+      checkbox.checked = storedValue === 'true';
     }
+  } else {
+    checkbox.checked = isChecked === true || isChecked === undefined;
+  }
 
-    const checkboxLabel = document.createElement('label');
-    checkboxLabel.htmlFor = name;
-    checkboxLabel.textContent = label;
+  const checkboxLabel = document.createElement('label');
+  checkboxLabel.htmlFor = name;
+  checkboxLabel.textContent = label;
 
-    container.append(checkbox, checkboxLabel);
-    return container;
+  container.append(checkbox, checkboxLabel);
+  return container;
 }
+
 
 export function createImageTypeSelect(name, selectedValue, includeExtended = false, includeUseSlide = false) {
     const select = document.createElement('select');
@@ -754,54 +765,68 @@ export function isLocalStorageAvailable() {
 }
 
 export function updateConfig(updatedConfig) {
-     const existingDicebearParams = localStorage.getItem('dicebearParams');
+  const existingDicebearParams = localStorage.getItem('dicebearParams');
 
-    Object.entries(updatedConfig).forEach(([key, value]) => {
-        if (key === 'dicebearParams') return;
+  const isPlainObject = (v) =>
+    v !== null && typeof v === 'object' && !Array.isArray(v);
 
-        if (typeof value === 'boolean') {
-            localStorage.setItem(key, value ? 'true' : 'false');
-        } else if (Array.isArray(value)) {
-            localStorage.setItem(key, JSON.stringify(value));
-        } else if (value !== undefined && value !== null) {
-            localStorage.setItem(key, value.toString());
-        }
-    });
+  Object.entries(updatedConfig).forEach(([key, value]) => {
+    if (key === 'dicebearParams') return;
 
-    if (existingDicebearParams) {
-        localStorage.setItem('dicebearParams', existingDicebearParams);
+    try {
+      if (typeof value === 'boolean') {
+        localStorage.setItem(key, value ? 'true' : 'false');
+      } else if (typeof value === 'number') {
+        localStorage.setItem(key, String(value));
+      } else if (Array.isArray(value)) {
+        localStorage.setItem(key, JSON.stringify(value));
+      } else if (isPlainObject(value)) {
+        localStorage.setItem(key, JSON.stringify(value));
+      } else if (value !== undefined && value !== null) {
+        localStorage.setItem(key, String(value));
+      } else {
+        localStorage.removeItem(key);
+      }
+    } catch (e) {
+      console.warn('Config yazılamadı:', key, e);
     }
+  });
 
-    if (updatedConfig.defaultLanguage !== undefined) {
-        localStorage.setItem('defaultLanguage', updatedConfig.defaultLanguage);
+  if (existingDicebearParams) {
+    localStorage.setItem('dicebearParams', existingDicebearParams);
+  }
+
+  if (updatedConfig.defaultLanguage !== undefined) {
+    localStorage.setItem('defaultLanguage', updatedConfig.defaultLanguage);
+  }
+
+  if (updatedConfig.dateLocale !== undefined) {
+    localStorage.setItem('dateLocale', updatedConfig.dateLocale);
+  }
+
+  if (!isLocalStorageAvailable()) return;
+
+  const keysToSave = [
+    'playerTheme',
+    'playerStyle',
+    'useAlbumArtAsBackground',
+    'albumArtBackgroundBlur',
+    'albumArtBackgroundOpacity',
+    'buttonBackgroundBlur',
+    'buttonBackgroundOpacity',
+    'dotBackgroundBlur',
+    'dotBackgroundOpacity',
+    'nextTracksSource'
+  ];
+
+  keysToSave.forEach(key => {
+    const value = updatedConfig[key];
+    if (value !== undefined && value !== null) {
+      localStorage.setItem(key, String(value));
     }
-
-    if (updatedConfig.dateLocale !== undefined) {
-        localStorage.setItem('dateLocale', updatedConfig.dateLocale);
-    }
-
-    if (!isLocalStorageAvailable()) return;
-
-    const keysToSave = [
-        'playerTheme',
-        'playerStyle',
-        'useAlbumArtAsBackground',
-        'albumArtBackgroundBlur',
-        'albumArtBackgroundOpacity',
-        'buttonBackgroundBlur',
-        'buttonBackgroundOpacity',
-        'dotBackgroundBlur',
-        'dotBackgroundOpacity',
-        'nextTracksSource'
-    ];
-
-    keysToSave.forEach(key => {
-        const value = updatedConfig[key];
-        if (value !== undefined && value !== null) {
-            localStorage.setItem(key, value.toString());
-        }
-    });
+  });
 }
+
 
 function setupMobileTextareaBehavior() {
   const modal = document.getElementById('settings-modal');

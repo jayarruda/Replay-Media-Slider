@@ -5,6 +5,7 @@
 
 import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
+import { getVideoQualityText } from "./containerUtils.js";
 
 const config = getConfig();
 const POLL_INTERVAL_MS = 15_000;
@@ -13,11 +14,9 @@ const MAX_NOTIFS = config.maxNotifications;
 const TOAST_DEDUP_MS = 5 * 60 * 1000;
 const TOAST_GAP_MS = 250;
 const MAX_STORE = 200;
+
 let notifRenderGen = 0;
-
 let recentToastMap = new Map();
-
-
 let notifState = {
   list: [],
   lastSeenCreatedAt: 0,
@@ -26,7 +25,43 @@ let notifState = {
   seenIds: new Set(),
   activitySeenIds: new Set(),
   activityLastSeen: 0,
+  activities: [],
+  isModalOpen: false,
 };
+
+function hasPrimaryImage(it) {
+  return Boolean(
+    it?.HasPrimaryImage ||
+    it?.ImageTags?.Primary ||
+    it?.Series?.ImageTags?.Primary
+  );
+}
+
+function safePosterImageSrc(it, maxWidth = 80, quality = 80) {
+  if (!hasPrimaryImage(it)) return "";
+  const id = (it?.Type === "Episode" && (it?.SeriesId || it?.Series?.Id))
+    ? (it.SeriesId || it.Series.Id)
+    : (it?.Id || it?.ItemId || it?.id);
+  const tag = it?.ImageTags?.Primary || it?.Series?.ImageTags?.Primary || "";
+  const tagParam = tag ? `&tag=${encodeURIComponent(tag)}` : "";
+
+  return id ? `/Items/${id}/Images/Primary?maxWidth=${maxWidth}&quality=${quality}${tagParam}` : "";
+}
+
+
+function posterImageSrc(it, maxWidth = 80, quality = 80) {
+  const id =
+    (it?.Type === "Episode" && (it?.SeriesId || it?.Series?.Id))
+      ? (it.SeriesId || it.Series.Id)
+      : (it?.Id || it?.ItemId || it?.id);
+
+  return id ? `/Items/${id}/Images/Primary?maxWidth=${maxWidth}&quality=${quality}` : "";
+}
+
+function moreItemsLabel(n) {
+  const tail = (config.languageLabels.moreItems || "içerik daha");
+  return `${n} ${tail}`;
+}
 
 function toastShouldEnqueue(key) {
   const now = Date.now();
@@ -52,14 +87,19 @@ function setTheme(themeNumber) {
   const link = document.getElementById("jfNotifCss");
   if (!link) return;
 
-  link.href = `slider/src/notifications${themeNumber === '2' ? '2' : ''}.css`;
+  const href =
+    themeNumber === '1' ? 'slider/src/notifications.css' :
+    themeNumber === '2' ? 'slider/src/notifications2.css' :
+                          'slider/src/notifications3.css';
+
+  link.href = href;
   localStorage.setItem(getThemePreferenceKey(), themeNumber);
 }
 
 function toggleTheme() {
-  const currentTheme = localStorage.getItem(getThemePreferenceKey()) || '1';
-  const newTheme = currentTheme === '1' ? '2' : '1';
-  setTheme(newTheme);
+  const current = localStorage.getItem(getThemePreferenceKey()) || '1';
+  const next = current === '1' ? '2' : current === '2' ? '3' : '1';
+  setTheme(next);
 }
 
 async function fetchLatestAll() {
@@ -78,21 +118,22 @@ async function fetchLatestAll() {
   }
 
   const processedVideo = await Promise.all(latestVideo.map(async (item) => {
-    if (item.Type === 'Episode' && item.SeriesId) {
-      try {
-        const seriesInfo = await makeApiRequest(`/Items/${item.SeriesId}`);
-        return {
-          ...item,
-          ImageTags: seriesInfo.ImageTags,
-          ParentBackdropItemId: seriesInfo.Id,
-          ParentBackdropImageTags: seriesInfo.BackdropImageTags
-        };
-      } catch (e) {
-        return item;
-      }
+  if (item.Type === 'Episode' && item.SeriesId) {
+    try {
+      const seriesInfo = await makeApiRequest(`/Items/${item.SeriesId}`);
+      return {
+        ...item,
+        _seriesDateAdded: seriesInfo?.DateAdded || null,
+        ImageTags: seriesInfo.ImageTags,
+        ParentBackdropItemId: seriesInfo.Id,
+        ParentBackdropImageTags: seriesInfo.BackdropImageTags
+      };
+    } catch (e) {
+      return item;
     }
-    return item;
-  }));
+  }
+  return item;
+}));
 
   let latestAudioResp;
   try {
@@ -218,7 +259,10 @@ async function getCreatedTs(item) {
     }
   }
 
+  const seriesTs = Date.parse(item?._seriesDateAdded || "") || 0;
+
   return (
+    seriesTs ||
     Date.parse(item?.DateCreated || "") ||
     Date.parse(item?.DateAdded || "") ||
     Date.parse(item?.AddedAt || "") ||
@@ -232,17 +276,23 @@ function ensureUI() {
   if (!config.enableNotifications) return;
   let header = document.querySelector(".headerRight");
   if (!header) return;
-  if (header.querySelector("#jfNotifBtn")) return;
-
-  const btn = document.createElement("div");
+  if (!header.querySelector("#jfNotifBtn")) {
+  const btn = document.createElement("button");
   btn.id = "jfNotifBtn";
-  btn.className = "jf-notif-btn";
+  btn.type = "button";
+  btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
+  btn.setAttribute("is", "paper-icon-button-light");
   btn.innerHTML = `
-    <span class="jf-notif-icon"><i class="fa-solid fa-bell"></i></span>
-    <span class="jf-notif-badge" hidden></span>
+    <i class="fa-solid fa-bell" aria-hidden="true"></i>
+   <span class="jf-notif-badge" hidden></span>
   `;
+
+  btn.setAttribute("aria-label", config.languageLabels.recentNotifications);
+  btn.title = config.languageLabels.recentNotifications;
   btn.addEventListener("click", openModal);
+
   header.prepend(btn);
+}
 
   if (!document.querySelector("#jfNotifModal")) {
     const modal = document.createElement("div");
@@ -297,7 +347,7 @@ function ensureUI() {
     ?.addEventListener("click", toggleTheme);
 
   document.getElementById("jfNotifClearAll")
-  ?.addEventListener("click", (e) => { e.stopPropagation(); clearAllNotifications(); });
+  ?.addEventListener("click", (e) => { e.stopPropagation(); clearAllNotifications(); closeModal(); });
 
   if (!document.querySelector("#jfToastContainer")) {
     const c = document.createElement("div");
@@ -328,10 +378,45 @@ function ensureUI() {
   });
 }
 
+export function forcejfNotifBtnPointerEvents() {
+  const apply = () => {
+    document.querySelectorAll('html .skinHeader').forEach(el => {
+      el.style.setProperty('pointer-events', 'all', 'important');
+    });
+
+    const jfNotifBtnToggle = document.querySelector('#jfNotifBtn');
+    if (jfNotifBtnToggle) {
+      jfNotifBtnToggle.style.setProperty('display', 'inline-flex', 'important');
+      jfNotifBtnToggle.style.setProperty('opacity', '1', 'important');
+      jfNotifBtnToggle.style.setProperty('pointer-events', 'all', 'important');
+      jfNotifBtnToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
+      jfNotifBtnToggle.style.setProperty('cursor', 'pointer', 'important');
+      jfNotifBtnToggle.style.setProperty('border', 'none', 'important');
+      jfNotifBtnToggle.style.setProperty('font-size', '1.4em', 'important');
+      jfNotifBtnToggle.style.setProperty('padding', '4px', 'important');
+      jfNotifBtnToggle.style.setProperty('margin-left', '15px', 'important');
+    }
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    apply();
+  }
+
+  const obs = new MutationObserver(apply);
+  obs.observe(document.documentElement, {
+    subtree: true,
+    childList: true,
+    attributes: true
+  });
+}
+
 function openModal() {
   const m = document.querySelector("#jfNotifModal");
   if (!m) return;
   m.classList.add("open");
+  notifState.isModalOpen = true;
 
   renderNotifications();
 
@@ -342,17 +427,38 @@ function openModal() {
   pollActivities();
 }
 
-function closeModal() {
-  const m = document.querySelector("#jfNotifModal");
+ function closeModal() {
+   const m = document.querySelector("#jfNotifModal");
   if (m) m.classList.remove("open");
-}
+  notifState.isModalOpen = false;
+  if (config.enableCounterSystem && Array.isArray(notifState.activities)) {
+    const newest = notifState.activities.reduce((acc, a) => {
+      const ts = Date.parse(a?.Date || "") || 0;
+      return Math.max(acc, ts);
+    }, 0);
+    if (newest && newest > (notifState.activityLastSeen || 0)) {
+      notifState.activityLastSeen = newest;
+      saveState();
+      updateBadge();
+    }
+  }
+ }
 
 function updateBadge() {
   const badges = document.querySelectorAll(".jf-notif-badge");
   const btns = document.querySelectorAll("#jfNotifBtn");
   if (!badges.length && !btns.length) return;
 
-  const count = Math.min(notifState.list.length, 99);
+  const contentCount = notifState.list.length;
+  const lastSeenAct = Number(notifState.activityLastSeen || 0);
+  const systemCount = (config.enableCounterSystem && Array.isArray(notifState.activities))
+    ? notifState.activities.reduce((acc, a) => {
+        const ts = Date.parse(a?.Date || "") || 0;
+        return acc + (ts > lastSeenAct ? 1 : 0);
+      }, 0)
+    : 0;
+  const total = contentCount + systemCount;
+  const count = Math.min(total, 99);
   const show = count > 0;
   const label = String(count);
 
@@ -389,6 +495,15 @@ async function renderNotifications() {
     .sort((a,b)=> (b.timestamp||0)-(a.timestamp||0))
     .slice(0, MAX_NOTIFS);
 
+  if (items.length === 0) {
+    ul.innerHTML = `
+      <li class="jf-notif-empty">
+        <i class="fa-solid fa-box-open" aria-hidden="true"></i>
+        <span>${config.languageLabels.noNewContent || "Yeni içerik yok."}</span>
+      </li>`;
+    return;
+  }
+
   const details = await Promise.all(items.map(async (n) => {
     try {
       if (n.itemId) {
@@ -398,6 +513,10 @@ async function renderNotifications() {
     } catch {}
     return { ok: false, data: null };
   }));
+
+  function pickVideoStream(ms) {
+  return Array.isArray(ms) ? ms.find(s => s.Type === "Video") : null;
+}
 
   if (gen !== notifRenderGen) return;
 
@@ -419,20 +538,26 @@ async function renderNotifications() {
       title = `${d.data.SeriesName} - ${title}`;
     }
 
+    const imgSrc = (d.ok && hasPrimaryImage(d.data)) ? safePosterImageSrc(d.data, 80, 80) : "";
+    const vStream = d.ok ? pickVideoStream(d.data?.MediaStreams) : null;
+    const qualityHtml = vStream ? getVideoQualityText(vStream) : "";
+
     li.innerHTML = `
-      <img class="thumb" src="/Items/${n.itemId}/Images/Primary?maxWidth=80&quality=80" alt="" onerror="this.style.display='none'">
+      ${imgSrc ? `<img class="thumb" src="${imgSrc}" alt="">` : ""}
       <div class="meta">
         <div class="title">
           <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
           ${escapeHtml(title)}
         </div>
         <div class="time">${formatTime(n.timestamp)}</div>
+        ${qualityHtml ? `<div class="quality">${qualityHtml}</div>` : ""}
       </div>
       <button class="del" title="${config.languageLabels.removeTooltip}">×</button>
     `;
 
     if (status !== "removed" && n.itemId) {
-  li.addEventListener("click", () => {
+    li.addEventListener("click", () => {
+    closeModal();
     window.location.href = `/web/#/details?id=${n.itemId}`;
   });
 }
@@ -448,6 +573,27 @@ async function renderNotifications() {
   ul.appendChild(frag);
 }
 
+function scrollToLastItem() {
+    const list = document.querySelector('.jf-notif-list');
+    if (list && list.lastElementChild) {
+        list.lastElementChild.scrollIntoView({
+            behavior: 'smooth',
+            block: 'end'
+        });
+    }
+}
+
+function formatTimeLeft(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const parts = [];
+  if (h > 0) parts.push(`${h}${config.languageLabels.sa}`);
+  if (m > 0) parts.push(`${m}${config.languageLabels.dk}`);
+  if (s > 0) parts.push(`${s}${config.languageLabels.sn}`);
+  return parts.join(" ");
+}
+
 async function renderResume() {
   if (!config.enableRenderResume) return;
 
@@ -458,26 +604,44 @@ async function renderResume() {
     const { userId } = getSessionInfo();
     const data = await makeApiRequest(`/Users/${userId}/Items/Resume?Limit=${config.renderResume || 10}&MediaTypes=Video`);
     const items = Array.isArray(data?.Items) ? data.Items : [];
-    if (!items.length) {
-      container.innerHTML = `<div class="jf-empty">${config.languageLabels.noUnfinishedContent}</div>`;
-      return;
-    }
-    container.innerHTML = "";
-    items.forEach(it => {
-      const card = document.createElement("div");
-      card.className = "jf-resume-card";
-      const pct = Math.round(((it?.UserData?.PlaybackPositionTicks || 0) / (it?.RunTimeTicks || 1)) * 100);
-      card.innerHTML = `
-        <img class="poster" src="/Items/${it.Id}/Images/Primary?maxWidth=160&quality=80" alt="">
-        <div class="resume-meta">
-          <div class="name">${escapeHtml(it.Name || config.languageLabels.newContentDefault)}</div>
-          <div class="progress"><div class="bar" style="width:${Math.min(pct,100)}%"></div></div>
-          <button class="resume-btn">${config.languageLabels.devamet}</button>
-        </div>
-      `;
-      card.querySelector(".resume-btn").addEventListener("click", () => playNow(it.Id));
-      container.appendChild(card);
-    });
+if (!items.length) {
+  container.innerHTML = `<div class="jf-empty">${config.languageLabels.noUnfinishedContent}</div>`;
+  return;
+}
+
+const details = await Promise.all(
+  items.map(it => fetchItemDetails(it.Id).catch(() => null))
+);
+
+container.innerHTML = "";
+items.forEach((it, idx) => {
+  const card = document.createElement("div");
+  card.className = "jf-resume-card";
+
+  const pct = Math.round(((it?.UserData?.PlaybackPositionTicks || 0) / (it?.RunTimeTicks || 1)) * 100);
+  const totalSec = (it.RunTimeTicks || 0) / 10_000_000;
+  const playedSec = (it?.UserData?.PlaybackPositionTicks || 0) / 10_000_000;
+  const remainingSec = Math.max(totalSec - playedSec, 0);
+  const d = details[idx];
+  const vStream = d && Array.isArray(d.MediaStreams) ? d.MediaStreams.find(s => s.Type === "Video") : null;
+  const qualityHtml = vStream ? getVideoQualityText(vStream) : "";
+
+  card.innerHTML = `
+    ${hasPrimaryImage(it) ? `<img class="poster" src="${safePosterImageSrc(it, 160, 80)}" alt="">` : ""}
+    <div class="resume-meta">
+      <div class="name">${escapeHtml(it.Name || config.languageLabels.newContentDefault)}</div>
+      ${qualityHtml ? `<div class="quality">${qualityHtml}</div>` : ""}
+      <div class="progress"><div class="bar" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="time-left">${formatTimeLeft(remainingSec)} ${config.languageLabels.kaldi}</div>
+      <button class="resume-btn">${config.languageLabels.devamet}</button>
+    </div>
+  `;
+  card.querySelector(".resume-btn").addEventListener("click", () => {
+  playNow(it.Id);
+  closeModal();
+});
+  container.appendChild(card);
+});
   } catch (e) {
     console.error("Resume listesi alınamadı:", e);
     container.innerHTML = `<div class="jf-error">${config.languageLabels.listError}</div>`;
@@ -507,15 +671,22 @@ async function pollLatest({ seedIfFirstRun = false } = {}) {
      )
       .sort((a, b) => getCreatedTs(a) - getCreatedTs(b));
 
+    const nowTs = Date.now();
     for (const it of fresh) {
       pushNotification({
-      itemId: it.Id,
-      title: it.Name || config.languageLabels.newContentDefault,
-      timestamp: Date.now(),
-      status: "added",
-});
+        itemId: it.Id,
+        title: it.Name || config.languageLabels.newContentDefault,
+        timestamp: nowTs,
+        status: "added",
+      });
       notifState.seenIds.add(it.Id);
-      queueToast(it);
+    }
+
+    const TOAST_GROUP_THRESHOLD = config.toastGroupThreshold || 5;
+    if (fresh.length >= TOAST_GROUP_THRESHOLD) {
+      enqueueToastGroup(fresh);
+    } else {
+      for (const it of fresh) queueToast(it);
     }
 
     if (newestTs) {
@@ -637,6 +808,29 @@ function enqueueToastBurst(items, { type = "content" } = {}) {
   runToastQueue();
 }
 
+function enqueueToastGroup(items, { type = "content" } = {}) {
+  if (type === "content" && !config.enableToastNew) return;
+  if (!Array.isArray(items) || items.length === 0) return;
+
+  const seen = new Set();
+  const uniq = [];
+  for (const it of items) {
+    const id = it?.Id || it?.ItemId || it?.id || it?.Name;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    uniq.push(it);
+  }
+  if (!uniq.length) return;
+
+  const head = uniq.slice(0, 4);
+  notifState.toastQueue.push({
+    type: "content-group",
+    items: head,
+    total: uniq.length
+  });
+  runToastQueue();
+}
+
 function runToastQueue() {
   if (notifState.toastShowing) return;
 
@@ -651,20 +845,48 @@ function runToastQueue() {
 
   notifState.toastShowing = true;
 
-  const { type, it, status = "added" } = next;
+  const { type, it, status = "added", items, total } = next;
   const c = document.querySelector("#jfToastContainer");
   if (!c) return;
 
   const toast = document.createElement("div");
   toast.className = "jf-toast" + (type === "activity" ? " jf-toast-activity" : "");
 
-  if (type === "content") {
+  if (type === "content-group") {
+    const arr = Array.isArray(items) ? items : [];
+    const first = arr[0] || {};
+    const firstPoster = hasPrimaryImage(first) ? safePosterImageSrc(first, 80, 80) : "";
+    const next3 = arr.slice(1, 4);
+    const restCount = Math.max((total || arr.length) - arr.length, 0);
+
+    const statusLabel = (config.languageLabels.addedLabel || "Eklendi");
+    const firstName = escapeHtml(first?.Name || config.languageLabels.newContentDefault);
+    const namesList = next3.map(x => `<li>${escapeHtml(x?.Name || "")}</li>`).join("");
+    const moreHtml = restCount > 0 ? `<div class="more">${escapeHtml(moreItemsLabel(restCount))}</div>` : "";
+
+    toast.innerHTML = `
+     ${firstPoster ? `<img class="thumb" src="${firstPoster}" alt="" onerror="this.style.display='none'">` : ""}
+      <div class="text">
+        <b>
+          <span class="jf-badge jf-badge-added">${escapeHtml(statusLabel)}</span>
+          ${escapeHtml(config.languageLabels.newContentAdded)}
+        </b><br>
+        ${firstName}
+        ${namesList ? `<ul class="names">${namesList}</ul>` : ""}
+        ${moreHtml}
+      </div>
+    `;
+    toast.addEventListener("click", () => {
+      if (typeof openModal === "function") openModal();
+    });
+
+  } else if (type === "content") {
   const statusLabel = status === "removed"
     ? (config.languageLabels.removedLabel || "Kaldırıldı")
     : (config.languageLabels.addedLabel || "Eklendi");
 
   toast.innerHTML = `
-    ${status !== "removed" ? `<img class="thumb" src="/Items/${it.Id}/Images/Primary?maxWidth=80&quality=80" alt="" onerror="this.style.display='none'">` : ""}
+    ${status !== "removed" && hasPrimaryImage(it) ? `<img class="thumb" src="${safePosterImageSrc(it, 80, 80)}" alt="">` : ""}
     <div class="text">
       <b>
         <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
@@ -802,6 +1024,8 @@ function renderActivities(activities = []) {
     return;
   }
 
+  const lastSeenAct = Number(notifState.activityLastSeen || 0);
+
   activities.forEach(a => {
     const ts = Date.parse(a?.Date || "") || 0;
     const title = a?.Name || a?.Type || "Etkinlik";
@@ -810,10 +1034,14 @@ function renderActivities(activities = []) {
 
     const li = document.createElement("li");
     li.className = "jf-activity-item";
+    if (ts > lastSeenAct) li.classList.add("unread");
     li.innerHTML = `
       <div class="icon"><i class="fa-solid fa-circle-info"></i></div>
       <div class="meta">
-        <div class="title">${escapeHtml(title)}</div>
+        <div class="title">
+          ${escapeHtml(title)}
+          ${ts > lastSeenAct ? `<span class="jf-pill-unread">${escapeHtml(config.languageLabels?.unread || "Yeni")}</span>` : ""}
+        </div>
         ${desc ? `<div class="desc">${escapeHtml(desc)}</div>` : ""}
         <div class="time">${formatTime(ts)}</div>
       </div>
@@ -843,6 +1071,8 @@ async function pollActivities({ seedIfFirstRun = false } = {}) {
 
   const acts = await fetchActivityLog(30);
   if (!acts.length) {
+    notifState.activities = [];
+    updateBadge();
     renderActivities([]);
     return;
   }
@@ -852,12 +1082,14 @@ async function pollActivities({ seedIfFirstRun = false } = {}) {
   );
 
   if (seedIfFirstRun && (!notifState.activityLastSeen || notifState.activitySeenIds.size === 0)) {
-    acts.forEach(a => notifState.activitySeenIds.add(a.Id || `${a.Type}:${a.Date}`));
-    notifState.activityLastSeen = newestTs || Date.now();
+     acts.forEach(a => notifState.activitySeenIds.add(a.Id || `${a.Type}:${a.Date}`));
+     notifState.activityLastSeen = newestTs || Date.now();
+    notifState.activities = acts;
     saveState();
+    updateBadge();
     renderActivities(acts);
-    return;
-  }
+     return;
+   }
 
   const fresh = acts
     .filter(a => {
@@ -890,11 +1122,9 @@ async function pollActivities({ seedIfFirstRun = false } = {}) {
 
   enqueueActivityToastBurst(nonRemoval);
 
-  if (newestTs) {
-    notifState.activityLastSeen = Math.max(clampToNow(notifState.activityLastSeen), newestTs);
-  }
-
+  notifState.activities = acts;
   saveState();
+  updateBadge();
   renderActivities(acts);
 
   if (document.querySelector("#jfNotifModal.open")) {

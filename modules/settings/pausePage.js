@@ -1,18 +1,19 @@
 import { getConfig } from "../config.js";
 import { createCheckbox, createSection } from "../settings.js";
 
-export function createPausePanel(config, labels) {
-    const panel = document.createElement('div');
-    panel.id = 'pause-panel';
-    panel.className = 'settings-panel';
+export function createPausePanel(_config, labels) {
+  const config = getConfig();
+  const panel = document.createElement('div');
+  panel.id = 'pause-panel';
+  panel.className = 'settings-panel';
 
-    const section = createSection(labels.pauseSettings || 'Durdurma Ekranı Ayarları');
+  const section = createSection(labels.pauseSettings || 'Durdurma Ekranı Ayarları');
 
-    const enableCheckbox = createCheckbox(
+  const enableCheckbox = createCheckbox(
     'pauseOverlay',
     labels.enablePauseOverlay || 'Durdurma Ekranını Etkinleştir',
     config.pauseOverlay.enabled
-);
+  );
     section.appendChild(enableCheckbox);
 
     const description = document.createElement('div');

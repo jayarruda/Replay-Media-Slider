@@ -33,6 +33,13 @@ export function createNotificationsPanel(config, labels) {
 );
     section.appendChild(enableToastSystemCheckbox);
 
+    const enableCounterSystemCheckbox = createCheckbox(
+    'enableCounterSystem',
+    labels.enableCounterSystem || 'Sistem Bildirimlerini Sayaca Ekle.',
+    config.enableCounterSystem
+);
+    section.appendChild(enableCounterSystemCheckbox);
+
     const maxNotificationsDiv = document.createElement('div');
     maxNotificationsDiv.className = 'setting-item limit-container';
 
