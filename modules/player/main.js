@@ -20,8 +20,7 @@ function forceSkinHeaderPointerEvents() {
       playerToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
       playerToggle.style.setProperty('cursor', 'pointer', 'important');
       playerToggle.style.setProperty('border', 'none', 'important');
-      playerToggle.style.setProperty('font-size', 'inherit', 'important');
-      playerToggle.style.setProperty('padding', '4px', 'important');
+      playerToggle.style.setProperty('transform', 'scale(1.2)', 'important');
     }
   };
 
@@ -97,7 +96,7 @@ function createPlayerButton() {
     btn.setAttribute("is", "paper-icon-button-light");
     btn.setAttribute("aria-label", "GMMP Aç/Kapa");
     btn.title = "GMMP";
-    btn.innerHTML = `<i class="fas fa-play fa-lg" aria-hidden="true"></i>`;
+    btn.innerHTML = `<i class="material-icons gmmp " aria-hidden="true">play_arrow</i>`;
     return btn;
   }
 }
