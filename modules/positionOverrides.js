@@ -69,7 +69,6 @@ export function forceSkinHeaderPointerEvents() {
       playerToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
       playerToggle.style.setProperty('cursor', 'pointer', 'important');
       playerToggle.style.setProperty('border', 'none', 'important');
-      playerToggle.style.setProperty('font-size', '1.4em', 'important');
     }
   };
 
