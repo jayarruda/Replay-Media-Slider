@@ -9,6 +9,13 @@
 
 ![diceBear](https://github.com/user-attachments/assets/713fc481-7e60-43ab-bdf8-463bbb47ff78)
 
+## Bildirim Modalı / Notification Modal
+
+![bildirim](https://github.com/user-attachments/assets/b6533b70-743f-454d-adab-083d1d8a40ca)
+
+![bildirim1](https://github.com/user-attachments/assets/041f9727-6ee9-4583-bebf-5ac7e7bd0a86)
+
+
 ## Duraklatma Ekranı / Pause Screen
 
 ![pause](https://github.com/user-attachments/assets/8e3ec49b-b7f2-406a-818d-064f6f64eac7)
