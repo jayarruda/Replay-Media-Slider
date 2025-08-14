@@ -2,7 +2,6 @@
  * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
  * and without obtaining permission is considered unethical and is not permitted.
  */
-
 import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
@@ -299,18 +298,23 @@ function ensureUI() {
     modal.id = "jfNotifModal";
     modal.className = "jf-notif-modal";
     modal.innerHTML = `
-      <div class="jf-notif-backdrop" data-close></div>
-      <div class="jf-notif-panel">
-        <div class="jf-notif-head">
-          <div class="jf-notif-title">${config.languageLabels.recentNotifications}</div>
-          <div class="jf-notif-actions">
-            <button id="jfNotifThemeToggle" class="jf-notif-theme-toggle" title="${config.languageLabels.themeToggleTooltip}">
-              <i class="fa-solid fa-paintbrush"></i>
-            </button>
-            <button id="jfNotifClearAll" class="jf-notif-clearall">${config.languageLabels.clearAll}</button>
-            <button class="jf-notif-close" data-close>×</button>
-          </div>
-        </div>
+  <div class="jf-notif-backdrop" data-close></div>
+  <div class="jf-notif-panel">
+    <div class="jf-notif-head">
+      <div class="jf-notif-title">${config.languageLabels.recentNotifications}</div>
+      <div class="jf-notif-actions">
+        <!-- YENİ: Light/Dark toggle -->
+        <button id="jfNotifModeToggle" class="jf-notif-theme-toggle" title="${(config.languageLabels?.switchToDark)||'Koyu temaya geç'}">
+          <i class="material-icons" aria-hidden="true">dark_mode</i>
+        </button>
+        <!-- Mevcut tema dosyası (1/2/3) değiştirici -->
+        <button id="jfNotifThemeToggle" class="jf-notif-theme-toggle" title="${config.languageLabels.themeToggleTooltip}">
+          <i class="fa-solid fa-paintbrush"></i>
+        </button>
+        <button id="jfNotifClearAll" class="jf-notif-clearall">${config.languageLabels.clearAll}</button>
+        <button class="jf-notif-close" data-close>×</button>
+      </div>
+    </div>
 
         <div class="jf-notif-tabs">
           <button class="jf-notif-tab active" data-tab="new">${config.languageLabels.newAddedTab || "Yeni Eklenenler"}</button>
@@ -324,7 +328,7 @@ function ensureUI() {
               <ul class="jf-notif-list" id="jfNotifList"></ul>
             </div>
             ${config.enableRenderResume ? `
-              <div class="jf-notif-section">
+              <div class="jf-notif-section watching">
                 <div class="jf-notif-subtitle">${config.languageLabels.unfinishedWatching}</div>
                 <div class="jf-resume-list" id="jfResumeList"></div>
               </div>
@@ -364,8 +368,15 @@ function ensureUI() {
     link.href = "slider/src/notifications.css";
     document.head.appendChild(link);
   }
-  loadThemePreference();
-  updateBadge();
+  document.getElementById("jfNotifModeToggle")
+  ?.addEventListener("click", (e) => { e.stopPropagation(); toggleThemeMode(); });
+
+document.getElementById("jfNotifThemeToggle")
+  ?.addEventListener("click", toggleTheme);
+
+loadThemePreference();
+loadThemeModePreference();
+updateBadge();
 
   document.querySelectorAll(".jf-notif-tab").forEach(tabBtn => {
     tabBtn.addEventListener("click", () => {
@@ -1175,3 +1186,42 @@ function enqueueActivityToastBurst(activities = []) {
   }
   runToastQueue();
 }
+
+function getThemeModeKey() {
+  const userId = getSafeUserId();
+  return `jf:notifThemeMode:${userId || "nouser"}`;
+}
+
+function setThemeMode(mode) {
+  const m = (mode === "dark") ? "dark" : "light";
+  document.documentElement.setAttribute("data-notif-theme", m);
+  try { localStorage.setItem(getThemeModeKey(), m); } catch {}
+  const btn = document.getElementById("jfNotifModeToggle");
+  if (btn) {
+    const icon = btn.querySelector(".material-icons");
+    if (icon) icon.textContent = (m === "dark") ? "light_mode" : "dark_mode";
+    btn.title = (m === "dark")
+      ? (config.languageLabels?.switchToLight || "Açık temaya geç")
+      : (config.languageLabels?.switchToDark  || "Koyu temaya geç");
+  }
+}
+
+function loadThemeModePreference() {
+  let m = null;
+  try { m = localStorage.getItem(getThemeModeKey()); } catch {}
+  if (!m) {
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    m = prefersDark ? "dark" : "light";
+  }
+  setThemeMode(m);
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener?.("change", (ev) => {
+    setThemeMode(ev.matches ? "dark" : "light");
+  });
+}
+
+function toggleThemeMode() {
+  const current = document.documentElement.getAttribute("data-notif-theme") || "light";
+  setThemeMode(current === "dark" ? "light" : "dark");
+}
+
