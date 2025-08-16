@@ -1,5 +1,8 @@
 import { getConfig } from "../config.js";
+import { compareSemver, fetchLatestGitHubVersion } from "../update.js";
 import { createCheckbox, createSection, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol } from "../settings.js";
+import { clearQualityBadgesCacheAndRefresh } from "../qualityBadges.js";
+
 
 export function createStatusRatingPanel(config, labels) {
         const panel = document.createElement('div');
@@ -24,6 +27,29 @@ export function createStatusRatingPanel(config, labels) {
         statusSection.appendChild(statusSubOptions);
 
         statusSubOptions.appendChild(createCheckbox('enableQualityBadges', labels.enableQualityBadges || 'Posterlerin üzerinde kalite etiketi göster', config.enableQualityBadges));
+
+        const badgeCacheControls = document.createElement('div');
+        badgeCacheControls.className = 'inline-actions quality-badge-actions';
+
+        const btnClear = document.createElement('button');
+        btnClear.type = 'button';
+        btnClear.className = 'btn btn-warning';
+        btnClear.title = (labels.clearQualityCacheTitle || 'Kalite rozet önbelleğini temizle');
+        btnClear.textContent = (labels.clearQualityCache || 'Kalite rozet önbelleğini temizle');
+        btnClear.addEventListener('click', () => {
+            try {
+                clearQualityBadgesCacheAndRefresh();
+                (window.showToast?.(labels.qualityCacheCleared || 'Kalite rozet önbelleği temizlendi ve yeniden oluşturuldu.'))
+                ?? alert(labels.qualityCacheCleared || 'Kalite rozet önbelleği temizlendi ve yeniden oluşturuldu.');
+            } catch (e) {
+                (window.showToast?.(labels.qualityCacheClearError || 'Önbellek temizlenirken bir hata oluştu.'))
+                ?? alert(labels.qualityCacheClearError || 'Önbellek temizlenirken bir hata oluştu.');
+                console.warn('clearQualityBadgesCacheAndRefresh error:', e);
+            }
+        });
+
+        badgeCacheControls.append(btnClear);
+        statusSubOptions.appendChild(badgeCacheControls);
 
         bindCheckboxKontrol('#showStatusInfo', '.status-sub-options');
         bindCheckboxKontrol('#showQualityInfo', '.quality-detail-options');
@@ -372,46 +398,138 @@ export  function createProviderPanel(config, labels) {
 }
 
 export function createAboutPanel(labels) {
-    const panel = document.createElement('div');
-    panel.id = 'about-panel';
-    panel.className = 'settings-panel';
+  const panel = document.createElement('div');
+  panel.id = 'about-panel';
+  panel.className = 'settings-panel';
 
-    const section = createSection('JELLYFIN MEDIA SLIDER');
+  const section = createSection('JELLYFIN MEDIA SLIDER');
 
-    const info = document.createElement('div');
-    info.className = 'ggrbz-info';
-    info.textContent = labels.aboutHeader || 'Hakkında';
-    section.appendChild(info);
+  const info = document.createElement('div');
+  info.className = 'ggrbz-info';
+  info.textContent = labels.aboutHeader || 'Hakkında';
+  section.appendChild(info);
 
-    const aboutContent = document.createElement('div');
-    aboutContent.className = 'about-content';
+  const aboutContent = document.createElement('div');
+  aboutContent.className = 'about-content';
 
-    const creatorInfo = document.createElement('p');
-    creatorInfo.textContent = ` G-GRBZ ${labels.aboutCreator || 'Tarafından Hazarlanmıştır'}`;
-    creatorInfo.style.fontWeight = 'bold';
-    creatorInfo.style.marginBottom = '20px';
+  const creatorInfo = document.createElement('p');
+  creatorInfo.textContent = ` G-GRBZ ${labels.aboutCreator || 'Tarafından Hazarlanmıştır'}`;
+  creatorInfo.style.fontWeight = 'bold';
+  creatorInfo.style.marginBottom = '20px';
 
-    const supportInfo = document.createElement('p');
-    supportInfo.textContent = labels.aboutSupport || 'Öneri, istek veya sorunlar için:';
-    supportInfo.style.marginBottom = '10px';
+  const supportInfo = document.createElement('p');
+  supportInfo.textContent = labels.aboutSupport || 'Öneri, istek veya sorunlar için:';
+  supportInfo.style.marginBottom = '10px';
 
-    const githubLink = document.createElement('a');
-    githubLink.href = 'https://github.com/G-grbz/';
-    githubLink.target = '_blank';
-    githubLink.textContent = labels.aboutGithub || 'GitHub: https://github.com/G-grbz/';
-    githubLink.style.display = 'block';
-    githubLink.style.marginBottom = '10px';
-    githubLink.style.color = '#00a8ff';
+  const githubLink = document.createElement('a');
+  githubLink.href = 'https://github.com/G-grbz/';
+  githubLink.target = '_blank';
+  githubLink.textContent = labels.aboutGithub || 'GitHub: https://github.com/G-grbz/';
+  githubLink.style.display = 'block';
+  githubLink.style.marginBottom = '10px';
+  githubLink.style.color = '#00a8ff';
 
-    const emailLink = document.createElement('a');
-    emailLink.href = 'mailto:gkhn.gurbuz@hotmail.com';
-    emailLink.innerHTML = `${labels.aboutEmail || 'E Posta:'} gkhn.gurbuz@hotmail.com`;
-    emailLink.style.display = 'block';
-    emailLink.style.color = '#00a8ff';
+  const emailLink = document.createElement('a');
+  emailLink.href = 'mailto:gkhn.gurbuz@hotmail.com';
+  emailLink.innerHTML = `${labels.aboutEmail || 'E Posta:'} gkhn.gurbuz@hotmail.com`;
+  emailLink.style.display = 'block';
+  emailLink.style.color = '#00a8ff';
 
-    aboutContent.append(creatorInfo, supportInfo, githubLink, emailLink);
-    section.appendChild(aboutContent);
+  const updateWrap = document.createElement('div');
+  updateWrap.className = 'update-check-wrapper';
+  updateWrap.style.marginTop = '16px';
 
-    panel.appendChild(section);
-    return panel;
+  const cfg = getConfig?.() || {};
+  const currentVersion =
+    cfg.extensionVersion || cfg.version || (typeof window !== "undefined" && window.JMS_VERSION) || "0.0.0";
+
+  const currentP = document.createElement('p');
+  currentP.className = 'current-version';
+  currentP.style.margin = '8px 0';
+  currentP.textContent = (labels.currentVersionText || 'Yüklü sürüm') + `: ${currentVersion}`;
+  updateWrap.appendChild(currentP);
+
+  const statusP = document.createElement('p');
+  statusP.className = 'update-status';
+  statusP.style.margin = '6px 0';
+  statusP.style.minHeight = '20px';
+  updateWrap.appendChild(statusP);
+
+  const checkBtn = document.createElement('button');
+  checkBtn.type = 'button';
+  checkBtn.className = 'btn check-update-btn';
+  checkBtn.title = labels.checkUpdateTitle || 'GitHub’da en son sürümü denetle';
+  checkBtn.textContent = labels.checkUpdateText || 'Güncellemeyi Denetle';
+  checkBtn.style.padding = '8px 12px';
+  checkBtn.style.borderRadius = '8px';
+  checkBtn.style.border = '1px solid var(--theme-accent, #00a8ff)';
+  checkBtn.style.cursor = 'pointer';
+  checkBtn.style.background = 'transparent';
+  checkBtn.style.color = 'var(--theme-accent, #00a8ff)';
+  checkBtn.style.fontWeight = '600';
+
+  const resultSpan = document.createElement('span');
+  resultSpan.className = 'update-result-link';
+  resultSpan.style.marginLeft = '12px';
+
+  const btnRow = document.createElement('div');
+  btnRow.style.display = 'flex';
+  btnRow.style.alignItems = 'center';
+  btnRow.append(checkBtn, resultSpan);
+
+  updateWrap.appendChild(btnRow);
+
+  let checking = false;
+  checkBtn.addEventListener('click', async () => {
+    if (checking) return;
+    checking = true;
+    const prev = checkBtn.textContent;
+    checkBtn.textContent = (labels.checkingText || 'Denetleniyor…');
+    checkBtn.disabled = true;
+    statusP.textContent = '';
+    resultSpan.textContent = '';
+
+    try {
+      const { version: latest, html_url } = await fetchLatestGitHubVersion("G-grbz", "Jellyfin-Media-Slider");
+      if (!latest) {
+        statusP.textContent = labels.updateUnknown || 'Son sürüm bilgisi alınamadı.';
+      } else {
+        const cmp = compareSemver(latest, currentVersion);
+        if (cmp > 0) {
+          statusP.textContent = (labels.updateAvailable || 'Yeni sürüm mevcut') + `: ${latest}`;
+          const a = document.createElement('a');
+          a.href = html_url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = labels.viewOnGithub || 'GitHub’da Gör / İndir';
+          a.style.marginLeft = '8px';
+          resultSpan.replaceChildren(a);
+        } else if (cmp === 0) {
+          statusP.textContent = labels.upToDate || 'Güncelsiniz.';
+        } else {
+          statusP.textContent = (labels.localNewer || 'Yerel sürüm daha yeni görünüyor') + ` (${currentVersion} > ${latest})`;
+          const a = document.createElement('a');
+          a.href = html_url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = labels.viewOnGithub || 'GitHub’da Gör';
+          a.style.marginLeft = '8px';
+          resultSpan.replaceChildren(a);
+        }
+      }
+    } catch (err) {
+      statusP.textContent = (labels.updateError || 'Denetim sırasında bir hata oluştu.');
+      if (window?.console) console.warn('Update check error:', err);
+    } finally {
+      checkBtn.textContent = prev;
+      checkBtn.disabled = false;
+      checking = false;
+    }
+  });
+
+  aboutContent.append(creatorInfo, supportInfo, githubLink, emailLink, updateWrap);
+  section.appendChild(aboutContent);
+
+  panel.appendChild(section);
+  return panel;
 }

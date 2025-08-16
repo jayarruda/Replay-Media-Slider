@@ -210,9 +210,57 @@ export function createSettingsModal() {
         );
     };
 
-
     btnDiv.append(saveBtn, applyBtn, resetBtn, );
     form.appendChild(btnDiv);
+
+    const themeToggleBtn = document.createElement('button');
+    themeToggleBtn.type = 'button';
+    themeToggleBtn.className = 'theme-toggle-btn';
+    themeToggleBtn.style.marginLeft = '10px';
+
+function setSettingsThemeToggleVisuals() {
+  const cfg = getConfig();
+  const currentLang = cfg.defaultLanguage || getDefaultLanguage?.();
+  const labels = (typeof getLanguageLabels === 'function' ? getLanguageLabels(currentLang) : {}) || cfg.languageLabels || {};
+
+  themeToggleBtn.innerHTML = `<i class="fas fa-${cfg.playerTheme === 'light' ? 'moon' : 'sun'}"></i>`;
+  themeToggleBtn.title = cfg.playerTheme === 'light'
+    ? (labels.darkTheme || 'Karanlık Tema')
+    : (labels.lightTheme || 'Aydınlık Tema');
+}
+
+themeToggleBtn.onclick = () => {
+  const cfg = getConfig();
+  const newTheme = cfg.playerTheme === 'light' ? 'dark' : 'light';
+
+  updateConfig({ ...cfg, playerTheme: newTheme });
+  loadCSS();
+
+  const playerThemeBtn = document.querySelector('#modern-music-player .theme-toggle-btn');
+  if (playerThemeBtn) {
+    playerThemeBtn.innerHTML = `<i class="fas fa-${newTheme === 'light' ? 'moon' : 'sun'}"></i>`;
+    const labels = cfg.languageLabels || {};
+    playerThemeBtn.title = newTheme === 'light'
+      ? (labels.darkTheme || 'Karanlık Tema')
+      : (labels.lightTheme || 'Aydınlık Tema');
+  }
+
+  setSettingsThemeToggleVisuals();
+
+  const labels = cfg.languageLabels || {};
+  showNotification(
+    `<i class="fas fa-${newTheme === 'light' ? 'sun' : 'moon'}"></i> ${
+      newTheme === 'light'
+        ? (labels.lightThemeEnabled || 'Aydınlık tema etkin')
+        : (labels.darkThemeEnabled || 'Karanlık tema etkin')
+    }`,
+    2000,
+    'info'
+  );
+};
+
+    setSettingsThemeToggleVisuals();
+    btnDiv.append(themeToggleBtn);
 
     modalContent.append(closeBtn, title, form);
     modal.appendChild(modalContent);
@@ -232,7 +280,6 @@ export function createSettingsModal() {
 
     return modal;
 }
-
 
 function createConfirmationModal(message, callback, labels) {
         const modal = document.createElement('div');

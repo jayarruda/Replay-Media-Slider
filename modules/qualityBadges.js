@@ -3,7 +3,7 @@
  * and without obtaining permission is considered unethical and is not permitted.
  */
 
-import { getCachedQuality, setCachedQuality } from './cacheManager.js';
+import { getCachedQuality, setCachedQuality, clearQualityCache } from './cacheManager.js';
 import { fetchItemDetails } from './api.js';
 import { getVideoQualityText } from "./containerUtils.js";
 import { getConfig } from "./config.js";
@@ -187,6 +187,8 @@ export function initializeQualityBadges() {
     if (!document.getElementById('quality-badges-style')) {
         const style = document.createElement('style');
         style.id = 'quality-badges-style';
+        style.textContent = '';
+        document.head.appendChild(style);
     }
     initObservers();
     window.qualityBadgesInitialized = true;
@@ -199,6 +201,24 @@ export function cleanupQualityBadges() {
     processingQueue = [];
     isProcessing = false;
     window.qualityBadgesInitialized = false;
+}
+
+export function removeAllQualityBadgesFromDOM() {
+    document.querySelectorAll('.quality-badge').forEach(el => el.remove());
+}
+
+export function rebuildQualityBadges() {
+    cleanupQualityBadges();
+    removeAllQualityBadgesFromDOM();
+    initializeQualityBadges();
+}
+
+export function clearQualityBadgesCacheAndRefresh() {
+    try {
+        clearQualityCache();
+    } finally {
+        rebuildQualityBadges();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

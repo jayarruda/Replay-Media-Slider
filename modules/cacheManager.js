@@ -1,3 +1,5 @@
+const QUALITY_CACHE_STORAGE_KEY = 'videoQualityCache';
+
 const videoQualityCache = {
     data: new Map(),
     maxSize: 1000,
@@ -61,4 +63,13 @@ export function setCachedQuality(itemId, quality, type) {
         type,
         timestamp: Date.now()
     });
+}
+
+export function clearQualityCache() {
+    try {
+        videoQualityCache.data.clear();
+        localStorage.removeItem(QUALITY_CACHE_STORAGE_KEY);
+    } catch (e) {
+        videoQualityCache.data = new Map();
+    }
 }

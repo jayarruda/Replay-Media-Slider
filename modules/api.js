@@ -262,7 +262,6 @@ async function getRandomEpisodeId(seriesId) {
 
 export async function getVideoStreamUrl(
   itemId,
-  maxHeight = 360,
   startTimeTicks = 0,
   audioLanguage = null,
   preferredVideoCodecs = ["hevc", "h264", "av1"],
@@ -423,9 +422,7 @@ if (item.Type === "Series") {
         api_key: accessToken,
         VideoCodec: "h264",
         AudioCodec: "aac",
-        VideoBitrate: 1000000,
         AudioBitrate: 128000,
-        MaxHeight: maxHeight,
         StartTimeTicks: startTimeTicks
       };
 
@@ -448,9 +445,6 @@ if (item.Type === "Series") {
       api_key: accessToken,
       VideoCodec: videoCodec,
       AudioCodec: audioCodec,
-      VideoBitrate: 1000000,
-      AudioBitrate: 128000,
-      MaxHeight: maxHeight,
       StartTimeTicks: startTimeTicks,
       AudioStreamIndex: audioStreamIndex
     };
@@ -485,7 +479,7 @@ export async function getIntroVideoUrl(itemId) {
     if (intros.length > 0) {
       const intro = intros[0];
       const startTimeTicks = 600 * 10_000_000;
-      const url = await getVideoStreamUrl(intro.Id, 360, startTimeTicks);
+      const url = await getVideoStreamUrl(intro.Id, startTimeTicks);
       return url;
     }
     return null;
@@ -502,7 +496,7 @@ export async function getCachedVideoPreview(itemId) {
     return videoPreviewCache.get(itemId);
   }
 
-  const url = await getVideoStreamUrl(itemId, 360, 0);
+  const url = await getVideoStreamUrl(itemId, 0);
   if (url) {
     videoPreviewCache.set(itemId, url);
     setTimeout(() => videoPreviewCache.delete(itemId), 300000);

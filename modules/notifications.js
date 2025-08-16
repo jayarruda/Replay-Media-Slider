@@ -2,9 +2,12 @@
  * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
  * and without obtaining permission is considered unethical and is not permitted.
  */
+
 import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
+import { getCurrentVersionFromEnv, compareSemver } from "./update.js";
+
 
 const config = getConfig();
 const POLL_INTERVAL_MS = 15_000;
@@ -13,6 +16,10 @@ const MAX_NOTIFS = config.maxNotifications;
 const TOAST_DEDUP_MS = 5 * 60 * 1000;
 const TOAST_GAP_MS = 250;
 const MAX_STORE = 200;
+const UPDATE_BANNER_KEY      = () => storageKey("updateBanner");
+const UPDATE_TOAST_SHOWN_KEY = () => storageKey("updateToastShown");
+const UPDATE_TOAST_INFO_KEY = () => storageKey("updateToastInfo");
+const UPDATE_LIST_ID = (latest) => `update:${latest}`;
 
 let notifRenderGen = 0;
 let recentToastMap = new Map();
@@ -47,6 +54,23 @@ function safePosterImageSrc(it, maxWidth = 80, quality = 80) {
   return id ? `/Items/${id}/Images/Primary?maxWidth=${maxWidth}&quality=${quality}${tagParam}` : "";
 }
 
+function upsertUpdateNotification({ latest, url }) {
+  const id = UPDATE_LIST_ID(latest);
+  notifState.list = notifState.list.filter(n => n.id !== id);
+  notifState.list.unshift({
+    id,
+    itemId: null,
+    title: `${config.languageLabels?.updateAvailable || "Yeni sürüm mevcut"}: ${latest}`,
+    timestamp: Date.now(),
+    status: "update",
+    url,
+    read: false
+  });
+  notifState.list = notifState.list.filter(n => n.status !== "update" || n.id === id);
+  saveState();
+  updateBadge();
+  if (document.querySelector("#jfNotifModal.open")) renderNotifications();
+}
 
 function posterImageSrc(it, maxWidth = 80, quality = 80) {
   const id =
@@ -209,11 +233,12 @@ function loadState() {
   try {
     const raw = localStorage.getItem(storageKey("notifications"));
     if (raw) {
-      notifState.list = JSON.parse(raw).map(x => ({
-        ...x,
-        status: x.status || "added"
-      }));
-    }
+  notifState.list = JSON.parse(raw).map(x => ({
+    ...x,
+    status: x.status || "added",
+    read: typeof x.read === "boolean" ? x.read : false
+  }));
+}
   } catch {}
 
   const tsRaw = localStorage.getItem(storageKey("lastSeenCreatedAt"));
@@ -298,33 +323,32 @@ function ensureUI() {
     modal.id = "jfNotifModal";
     modal.className = "jf-notif-modal";
     modal.innerHTML = `
-  <div class="jf-notif-backdrop" data-close></div>
-  <div class="jf-notif-panel">
-    <div class="jf-notif-head">
-      <div class="jf-notif-title">${config.languageLabels.recentNotifications}</div>
-      <div class="jf-notif-actions">
-        <!-- YENİ: Light/Dark toggle -->
-        <button id="jfNotifModeToggle" class="jf-notif-theme-toggle" title="${(config.languageLabels?.switchToDark)||'Koyu temaya geç'}">
-          <i class="material-icons" aria-hidden="true">dark_mode</i>
-        </button>
-        <!-- Mevcut tema dosyası (1/2/3) değiştirici -->
-        <button id="jfNotifThemeToggle" class="jf-notif-theme-toggle" title="${config.languageLabels.themeToggleTooltip}">
-          <i class="fa-solid fa-paintbrush"></i>
-        </button>
-        <button id="jfNotifClearAll" class="jf-notif-clearall">${config.languageLabels.clearAll}</button>
-        <button class="jf-notif-close" data-close>×</button>
-      </div>
-    </div>
-
+      <div class="jf-notif-backdrop" data-close></div>
+      <div class="jf-notif-panel">
+        <div class="jf-notif-head">
+          <div class="jf-notif-title">${config.languageLabels.recentNotifications}</div>
+          <div class="jf-notif-actions">
+            <button id="jfNotifModeToggle" class="jf-notif-theme-toggle" title="${(config.languageLabels?.switchToDark)||'Koyu temaya geç'}">
+              <i class="material-icons" aria-hidden="true">dark_mode</i>
+            </button>
+            <button id="jfNotifMarkAllRead" class="jf-notif-markallread" title="${config.languageLabels.markAllRead || 'Tümünü okundu say'}">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+            <button id="jfNotifThemeToggle" class="jf-notif-theme-toggle" title="${config.languageLabels.themeToggleTooltip}">
+              <i class="fa-solid fa-paintbrush"></i>
+            </button>
+            <button id="jfNotifClearAll" class="jf-notif-clearall">${config.languageLabels.clearAll}</button>
+            <button class="jf-notif-close" data-close>×</button>
+          </div>
+        </div>
         <div class="jf-notif-tabs">
           <button class="jf-notif-tab active" data-tab="new">${config.languageLabels.newAddedTab || "Yeni Eklenenler"}</button>
           <button class="jf-notif-tab" data-tab="system">${config.languageLabels.systemNotifications || "Sistem Bildirimleri"}</button>
         </div>
-
         <div class="jf-notif-content">
           <div class="jf-notif-tab-content" data-tab="new">
             <div class="jf-notif-section">
-              <div class="jf-notif-subtitle">${config.languageLabels.latestTracks}</div>
+              <div class="jf-notif-subtitle">${config.languageLabels.latestNotifications}</div>
               <ul class="jf-notif-list" id="jfNotifList"></ul>
             </div>
             ${config.enableRenderResume ? `
@@ -334,7 +358,6 @@ function ensureUI() {
               </div>
             ` : ''}
           </div>
-
           <div class="jf-notif-tab-content" data-tab="system" style="display:none;">
             <ul class="jf-activity-list" id="jfActivityList"></ul>
           </div>
@@ -374,9 +397,13 @@ function ensureUI() {
 document.getElementById("jfNotifThemeToggle")
   ?.addEventListener("click", toggleTheme);
 
+  document.getElementById("jfNotifMarkAllRead")
+  ?.addEventListener("click", (e) => { e.stopPropagation(); markAllNotificationsRead(); });
+
 loadThemePreference();
 loadThemeModePreference();
 updateBadge();
+renderUpdateBanner();
 
   document.querySelectorAll(".jf-notif-tab").forEach(tabBtn => {
     tabBtn.addEventListener("click", () => {
@@ -457,15 +484,16 @@ function updateBadge() {
   const btns = document.querySelectorAll("#jfNotifBtn");
   if (!badges.length && !btns.length) return;
 
-  const contentCount = notifState.list.length;
-  const lastSeenAct = Number(notifState.activityLastSeen || 0);
-  const systemCount = (config.enableCounterSystem && Array.isArray(notifState.activities))
-    ? notifState.activities.reduce((acc, a) => {
-        const ts = Date.parse(a?.Date || "") || 0;
-        return acc + (ts > lastSeenAct ? 1 : 0);
-      }, 0)
-    : 0;
-  const total = contentCount + systemCount;
+  const contentUnread = notifState.list.reduce((acc, n) => acc + (n.read ? 0 : 1), 0);
+const lastSeenAct = Number(notifState.activityLastSeen || 0);
+const systemUnread = (config.enableCounterSystem && Array.isArray(notifState.activities))
+  ? notifState.activities.reduce((acc, a) => {
+      const ts = Date.parse(a?.Date || "") || 0;
+      return acc + (ts > lastSeenAct ? 1 : 0);
+    }, 0)
+  : 0;
+
+const total = contentUnread + systemUnread;
   const count = Math.min(total, 99);
   const show = count > 0;
   const label = String(count);
@@ -499,9 +527,11 @@ async function renderNotifications() {
     if (!prev || (n.timestamp || 0) > (prev.timestamp || 0)) map.set(key, n);
   }
   const compact = Array.from(map.values());
-  const items = compact
-    .sort((a,b)=> (b.timestamp||0)-(a.timestamp||0))
-    .slice(0, MAX_NOTIFS);
+  let items = compact.sort((a,b)=> (b.timestamp||0)-(a.timestamp||0)).slice(0, MAX_NOTIFS);
+
+const updates = items.filter(n => n.status === "update");
+const normals = items.filter(n => n.status !== "update");
+items = [...updates, ...normals];
 
   if (items.length === 0) {
     ul.innerHTML = `
@@ -533,6 +563,47 @@ async function renderNotifications() {
 
   items.forEach((n, i) => {
     const li = document.createElement("li");
+    const isUpdate = (n.status === "update");
+if (isUpdate) {
+  li.className = "jf-notif-item jf-notif-update";
+  li.innerHTML = `
+    <div class="meta">
+      <div class="title">
+        <span class="jf-badge jf-badge-update" title="${config.languageLabels?.updateAvailable || 'Yeni sürüm mevcut'}">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </span>
+        ${escapeHtml(n.title || `${config.languageLabels?.updateAvailable || "Yeni sürüm mevcut"}`)}
+        ${!n.read ? `<span class="jf-pill-unread">${escapeHtml(config.languageLabels?.unread || "Yeni")}</span>` : ""}
+      </div>
+      <div class="time">${formatTime(n.timestamp)}</div>
+    </div>
+    <div class="actions">
+      <a class="lnk" target="_blank" rel="noopener" href="${escapeHtml(n.url || "https://github.com/G-grbz/Jellyfin-Media-Slider/releases")}">
+        ${escapeHtml(config.languageLabels?.viewOnGithub || "GitHub’da Gör / İndir")}
+      </a>
+      ${!n.read ? `
+        <button class="mark-read" title="${config.languageLabels?.markRead || 'Okundu say'}">
+          <i class="fa-solid fa-envelope-open"></i>
+        </button>` : ""}
+      <button class="del" title="${escapeHtml(config.languageLabels?.removeTooltip || 'Kaldır')}">
+        <i class="fa-solid fa-circle-xmark"></i>
+      </button>
+    </div>
+  `;
+
+  li.querySelector(".mark-read")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    markNotificationRead(n.id);
+  });
+  li.querySelector(".del")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    removeNotification(n.id);
+  });
+
+  frag.appendChild(li);
+  return;
+}
+
     li.className = "jf-notif-item";
 
     const d = details[i];
@@ -542,7 +613,21 @@ async function renderNotifications() {
       : (config.languageLabels.addedLabel || "Eklendi");
 
     let title = n.title || config.languageLabels.newContentDefault;
-    if (d.ok && d.data?.Type === "Episode" && d.data?.SeriesName) {
+    if (d.ok && d.data?.Type === "Episode") {
+  const seriesName  = d.data.SeriesName || "";
+  const seasonNum   = d.data.ParentIndexNumber || 0;
+  const episodeNum  = d.data.IndexNumber || 0;
+  const episodeName = d.data.Name || "";
+
+  title = formatEpisodeHeading({
+    seriesName,
+    seasonNum,
+    episodeNum,
+    episodeTitle: episodeName,
+    locale: (config.defaultLanguage || "tur"),
+    labels: config.languageLabels || {}
+  });
+} else if (d.ok && d.data?.Type === "Episode" && d.data?.SeriesName) {
       title = `${d.data.SeriesName} - ${title}`;
     }
 
@@ -550,29 +635,51 @@ async function renderNotifications() {
     const vStream = d.ok ? pickVideoStream(d.data?.MediaStreams) : null;
     const qualityHtml = vStream ? getVideoQualityText(vStream) : "";
 
-    li.innerHTML = `
-      ${imgSrc ? `<img class="thumb" src="${imgSrc}" alt="">` : ""}
-      <div class="meta">
-        <div class="title">
-          <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
-          ${escapeHtml(title)}
-        </div>
-        <div class="time">${formatTime(n.timestamp)}</div>
-        ${qualityHtml ? `<div class="quality">${qualityHtml}</div>` : ""}
-      </div>
-      <button class="del" title="${config.languageLabels.removeTooltip}">×</button>
-    `;
+    const isUnread = !n.read;
+if (isUnread) li.classList.add("unread");
 
-    if (status !== "removed" && n.itemId) {
-    li.addEventListener("click", () => {
+li.innerHTML = `
+  ${imgSrc ? `<img class="thumb" src="${imgSrc}" alt="">` : ""}
+  <div class="meta">
+    <div class="title">
+      <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
+      ${escapeHtml(title)}
+      ${isUnread ? `<span class="jf-pill-unread">${escapeHtml(config.languageLabels?.unread || "Yeni")}</span>` : ""}
+    </div>
+    <div class="time">${formatTime(n.timestamp)}</div>
+    ${qualityHtml ? `<div class="quality">${qualityHtml}</div>` : ""}
+  </div>
+  <div class="actions">
+  ${isUnread ? `
+    <button class="mark-read"
+            title="${config.languageLabels?.markRead || 'Okundu say'}">
+      <i class="fa-solid fa-envelope-open"></i>
+    </button>` : ""}
+  <button class="del"
+          title="${config.languageLabels.removeTooltip}">
+    <i class="fa-solid fa-circle-xmark"></i></i>
+  </button>
+</div>
+`;
+
+li.querySelector(".mark-read")?.addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  markNotificationRead(n.id);
+});
+
+if (status !== "removed" && n.itemId) {
+  li.addEventListener("click", () => {
+    markNotificationRead(n.id, { silent: true });
     closeModal();
     window.location.href = `/web/#/details?id=${n.itemId}`;
   });
 }
-    li.querySelector(".del").addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      removeNotification(n.id);
-    });
+
+li.querySelector(".del").addEventListener("click", (ev) => {
+  ev.stopPropagation();
+  removeNotification(n.id);
+});
+
 
     frag.appendChild(li);
   });
@@ -731,6 +838,7 @@ function pushNotification(n) {
     title: n.title,
     timestamp: ts,
     status: n.status || "added",
+    read: false,
   });
 
   if (notifState.list.length > MAX_STORE) {
@@ -842,20 +950,25 @@ function enqueueToastGroup(items, { type = "content" } = {}) {
 function runToastQueue() {
   if (notifState.toastShowing) return;
 
-  while (notifState.toastQueue.length &&
+    while (notifState.toastQueue.length &&
          notifState.toastQueue[0].type === "activity" &&
          !config.enableToastSystem) {
-    notifState.toastQueue.shift();
-  }
+     notifState.toastQueue.shift();
+   }
 
   const next = notifState.toastQueue.shift();
   if (!next) return;
 
-  notifState.toastShowing = true;
 
   const { type, it, status = "added", items, total } = next;
   const c = document.querySelector("#jfToastContainer");
-  if (!c) return;
+  if (!c) {
+    notifState.toastQueue.unshift(next);
+    setTimeout(runToastQueue, 500);
+    return;
+  }
+
+  notifState.toastShowing = true;
 
   const toast = document.createElement("div");
   toast.className = "jf-toast" + (type === "activity" ? " jf-toast-activity" : "");
@@ -888,7 +1001,32 @@ function runToastQueue() {
       if (typeof openModal === "function") openModal();
     });
 
+  } else if (type === "update") {
+    const title = it?.Name || (config.languageLabels.updateAvailable || "Yeni sürüm mevcut");
+    const desc  = it?.Overview ? ` – ${escapeHtml(it.Overview)}` : "";
+    toast.innerHTML = `
+      <div class="text">
+        <b>${escapeHtml(title)}</b><br>
+        ${desc}
+      </div>
+    `;
+    if (it?.Url) {
+      toast.style.cursor = "pointer";
+      toast.addEventListener("click", () => window.open(it.Url, "_blank", "noopener"));
+    }
+
   } else if (type === "content") {
+    let displayName = it.Name || "";
+    if (it.Type === "Episode") {
+  displayName = formatEpisodeHeading({
+    seriesName: it.SeriesName || "",
+    seasonNum: it.ParentIndexNumber || 0,
+    episodeNum: it.IndexNumber || 0,
+    episodeTitle: it.Name || "",
+    locale: (config.defaultLanguage || "tur"),
+    labels: config.languageLabels || {}
+  });
+}
   const statusLabel = status === "removed"
     ? (config.languageLabels.removedLabel || "Kaldırıldı")
     : (config.languageLabels.addedLabel || "Eklendi");
@@ -900,22 +1038,26 @@ function runToastQueue() {
         <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
         ${status === "removed" ? (config.languageLabels.contentChanged || "İçerik değişti") : config.languageLabels.newContentAdded}
       </b><br>
-      ${escapeHtml(it.Name || "")}
+      ${escapeHtml(displayName)}
     </div>
   `;
   if (status !== "removed") {
     toast.addEventListener("click", () => it.Id && playNow(it.Id));
   }
 } else {
-    const title = it?.Name || it?.Type || (config.languageLabels.systemNotifications || "Sistem Bildirimi");
-    const desc = it?.Overview ? ` – ${escapeHtml(it.Overview)}` : "";
-    toast.innerHTML = `
-      <div class="text">
-        <b>${config.languageLabels.systemNotificationAdded || "Sistem bildirimi"}</b><br>
-        ${escapeHtml(title)}${desc}
-      </div>
-    `;
+  const title = it?.Name || it?.Type || (config.languageLabels.systemNotifications || "Sistem Bildirimi");
+  const desc = it?.Overview ? ` – ${escapeHtml(it.Overview)}` : "";
+  toast.innerHTML = `
+    <div class="text">
+      <b>${config.languageLabels.systemNotificationAdded || "Sistem bildirimi"}</b><br>
+      ${escapeHtml(title)}${desc}
+    </div>
+  `;
+  if (it?.Url) {
+    toast.style.cursor = "pointer";
+    toast.addEventListener("click", () => window.open(it.Url, "_blank", "noopener"));
   }
+}
 
   c.appendChild(toast);
   requestAnimationFrame(() => toast.classList.add("show"));
@@ -937,6 +1079,16 @@ function formatTime(ts) {
     const d = new Date(ts);
     return d.toLocaleString();
   } catch { return ""; }
+}
+
+function markActivityRead(a, { silent = false } = {}) {
+  const ts = Date.parse(a?.Date || "") || 0;
+  if (ts > (notifState.activityLastSeen || 0)) {
+    notifState.activityLastSeen = ts;
+    saveState();
+    updateBadge();
+    if (!silent) renderNotifications();
+  }
 }
 
 function escapeHtml(s) {
@@ -1074,95 +1226,76 @@ function isRemovalActivity(a) {
   );
 }
 
-async function pollActivities({ seedIfFirstRun = false } = {}) {
-  if (!notifState.activitySeenIds) notifState.activitySeenIds = new Set();
+ async function pollActivities({ seedIfFirstRun = false } = {}) {
+   if (!notifState.activitySeenIds) notifState.activitySeenIds = new Set();
 
-  const acts = await fetchActivityLog(30);
-  if (!acts.length) {
-    notifState.activities = [];
-    updateBadge();
-    renderActivities([]);
-    return;
-  }
-
-  const newestTs = clampToNow(
-    acts.reduce((acc, a) => Math.max(acc, Date.parse(a?.Date || "") || 0), 0)
-  );
-
-  if (seedIfFirstRun && (!notifState.activityLastSeen || notifState.activitySeenIds.size === 0)) {
-     acts.forEach(a => notifState.activitySeenIds.add(a.Id || `${a.Type}:${a.Date}`));
-     notifState.activityLastSeen = newestTs || Date.now();
-    notifState.activities = acts;
-    saveState();
-    updateBadge();
-    renderActivities(acts);
+   const acts = await fetchActivityLog(30);
+   if (!acts.length) {
+     notifState.activities = [];
+     updateBadge();
+     renderActivities([]);
      return;
    }
+
+   const newestTs = clampToNow(
+     acts.reduce((acc, a) => Math.max(acc, Date.parse(a?.Date || "") || 0), 0)
+   );
+
+   if (seedIfFirstRun && (!notifState.activityLastSeen || notifState.activitySeenIds.size === 0)) {
+      acts.forEach(a => notifState.activitySeenIds.add(a.Id || `${a.Type}:${a.Date}`));
+      notifState.activityLastSeen = newestTs || Date.now();
+      notifState.activities = acts;
+      saveState();
+      updateBadge();
+      renderActivities(acts);
+      return;
+    }
 
   const fresh = acts
     .filter(a => {
       const id = a.Id || `${a.Type}:${a.Date}`;
-      const ts = Date.parse(a?.Date || "") || 0;
-      return !notifState.activitySeenIds.has(id) || ts > (notifState.activityLastSeen || 0);
+      return !notifState.activitySeenIds.has(id);
     })
     .sort((a, b) => (Date.parse(a?.Date || "") || 0) - (Date.parse(b?.Date || "") || 0));
 
-  const nonRemoval = [];
+   const nonRemoval = [];
+  let newestFreshTs = 0;
 
-  for (const a of fresh) {
-    const id = a.Id || `${a.Type}:${a.Date}`;
-    notifState.activitySeenIds.add(id);
+   for (const a of fresh) {
+     const id = a.Id || `${a.Type}:${a.Date}`;
+     notifState.activitySeenIds.add(id);
 
-    if (isRemovalActivity(a)) {
-      const itemId = a.ItemId || a.Item?.Id;
-      const title = a.Item?.Name || a.Name || a.Type || "İçerik";
-      pushNotification({
-        itemId,
-        title,
-        timestamp: Date.parse(a?.Date || "") || Date.now(),
-        status: "removed",
-      });
-      queueToast({ Id: itemId, Name: title }, { type: "content", status: "removed" });
-    } else {
-      nonRemoval.push(a);
-    }
-  }
+    const ts = Date.parse(a?.Date || "") || 0;
+    if (ts > newestFreshTs) newestFreshTs = ts;
 
-  enqueueActivityToastBurst(nonRemoval);
+     if (isRemovalActivity(a)) {
+       const itemId = a.ItemId || a.Item?.Id;
+       const title = a.Item?.Name || a.Name || a.Type || "İçerik";
+       pushNotification({
+         itemId,
+         title,
+         timestamp: Date.parse(a?.Date || "") || Date.now(),
+         status: "removed",
+       });
+       queueToast({ Id: itemId, Name: title }, { type: "content", status: "removed" });
+     } else {
+       nonRemoval.push(a);
+     }
+   }
 
-  notifState.activities = acts;
-  saveState();
-  updateBadge();
-  renderActivities(acts);
+   enqueueActivityToastBurst(nonRemoval);
 
-  if (document.querySelector("#jfNotifModal.open")) {
-    renderNotifications();
-    updateBadge();
-  }
-}
+   notifState.activities = acts;
+   saveState();
+   updateBadge();
+   renderActivities(acts);
 
-function queueActivityToast(a) {
-  const c = document.querySelector("#jfToastContainer");
-  if (!c) return;
+   if (document.querySelector("#jfNotifModal.open")) {
+     renderNotifications();
+     updateBadge();
+   }
+ }
 
-  const toast = document.createElement("div");
-  toast.className = "jf-toast jf-toast-activity";
-  const title = a?.Name || a?.Type || (config.languageLabels.newContentDefault);
-  const desc = a?.Overview || "";
-  toast.innerHTML = `
-    <div class="text">
-      <b>${config.languageLabels.systemNotificationAdded || "Sistem bildirimi"}</b><br>
-      ${escapeHtml(title)}${desc ? ` – ${escapeHtml(desc)}` : ""}
-    </div>
-  `;
-  c.appendChild(toast);
-
-  requestAnimationFrame(() => toast.classList.add("show"));
-  setTimeout(() => {
-    toast.classList.remove("show");
-    setTimeout(() => { c.removeChild(toast); }, 250);
-  }, TOAST_DURATION_MS);
-}
 
 function enqueueActivityToastBurst(activities = []) {
   if (!config.enableToastSystem) return;
@@ -1225,3 +1358,181 @@ function toggleThemeMode() {
   setThemeMode(current === "dark" ? "light" : "dark");
 }
 
+function markNotificationRead(id, { silent = false } = {}) {
+  let changed = false;
+  notifState.list = notifState.list.map(n => {
+    if (n.id === id && !n.read) {
+      changed = true;
+      return { ...n, read: true };
+    }
+    return n;
+  });
+  if (changed) {
+    saveState();
+    updateBadge();
+    if (!silent) renderNotifications();
+  }
+}
+
+function markAllNotificationsRead() {
+  let changed = false;
+  notifState.list = notifState.list.map(n => {
+    if (!n.read) { changed = true; return { ...n, read: true }; }
+    return n;
+  });
+  if (changed) {
+    saveState();
+    updateBadge();
+    renderNotifications();
+    requestAnimationFrame(updateBadge);
+  }
+}
+
+function getStoredUpdateBanner() {
+  try { return JSON.parse(localStorage.getItem(UPDATE_BANNER_KEY()) || "null"); } catch { return null; }
+}
+function setStoredUpdateBanner(data) {
+  if (!data) localStorage.removeItem(UPDATE_BANNER_KEY());
+  else localStorage.setItem(UPDATE_BANNER_KEY(), JSON.stringify(data));
+}
+function getUpdateToastShown() {
+  return localStorage.getItem(UPDATE_TOAST_SHOWN_KEY()) || "";
+}
+function setUpdateToastShown(v) {
+  localStorage.setItem(UPDATE_TOAST_SHOWN_KEY(), v || "");
+}
+
+export function renderUpdateBanner() {
+  const el = document.getElementById("jfUpdateBanner");
+  if (!el) return;
+
+  const data = getStoredUpdateBanner();
+  if (!data || !data.latest) {
+    el.style.display = "none";
+    return;
+  }
+
+  const current = getCurrentVersionFromEnv();
+  if (compareSemver(current, data.latest) >= 0) {
+    setStoredUpdateBanner(null);
+    el.style.display = "none";
+    return;
+  }
+
+  el.style.display = "flex";
+
+  const txt = el.querySelector(".txt");
+  const lnk = el.querySelector(".lnk");
+  const dis = el.querySelector(".dismiss");
+
+  txt.textContent = `${config.languageLabels?.updateAvailable || "Yeni sürüm mevcut"}: ${data.latest}`;
+  lnk.textContent = config.languageLabels?.viewOnGithub || "GitHub'da Gör / İndir";
+  lnk.href = data.url || "https://github.com/G-grbz/Jellyfin-Media-Slider/releases";
+
+  dis.onclick = () => {
+    el.style.display = "none";
+    setStoredUpdateBanner(null);
+  };
+}
+
+window.jfNotifyUpdateAvailable = ({ latest, url, remindMs }) => {
+  try {
+    setStoredUpdateBanner({ latest, url });
+    renderUpdateBanner();
+    upsertUpdateNotification({ latest, url });
+
+    const DEFAULT_REMIND = 12 * 60 * 60 * 1000;
+    const remindEvery = (typeof remindMs === "number" && remindMs >= 0) ? remindMs : DEFAULT_REMIND;
+
+    const info = getUpdateToastInfo();
+    const now = Date.now();
+    let shouldShow = !info || info.latest !== latest || (now - Number(info.shownAt || 0)) >= remindEvery;
+
+    if (shouldShow) {
+      notifState.toastQueue.push({
+        type: "update",
+        it: {
+          Name: config.languageLabels?.updateAvailable || "Yeni sürüm mevcut",
+          Overview: `${latest}`,
+          Url: url
+        }
+      });
+      runToastQueue();
+      setUpdateToastInfo({ latest, shownAt: now });
+    }
+  } catch (e) {
+    console.warn("jfNotifyUpdateAvailable error:", e);
+  }
+};
+
+ function getUpdateToastInfo() {
+  const old = localStorage.getItem(UPDATE_TOAST_SHOWN_KEY());
+  if (old) {
+    try {
+      localStorage.removeItem(UPDATE_TOAST_SHOWN_KEY());
+      const info = { latest: old, shownAt: 0 };
+      localStorage.setItem(UPDATE_TOAST_INFO_KEY(), JSON.stringify(info));
+      return info;
+    } catch {}
+  }
+  try {
+    return JSON.parse(localStorage.getItem(UPDATE_TOAST_INFO_KEY()) || "null");
+  } catch { return null; }
+}
+function setUpdateToastInfo(info) {
+  if (!info) localStorage.removeItem(UPDATE_TOAST_INFO_KEY());
+  else localStorage.setItem(UPDATE_TOAST_INFO_KEY(), JSON.stringify(info));
+}
+
+function formatEpisodeHeading({
+  seriesName,
+  seasonNum,
+  episodeNum,
+  episodeTitle,
+  locale = (getConfig()?.defaultLanguage || "tur"),
+  labels = (getConfig()?.languageLabels || {})
+}) {
+  const lx = {
+    season: labels.season || { tur:"Sezon", eng:"Season", fre:"Saison", deu:"Staffel", rus:"Сезон" }[locale] || "Season",
+    episode: labels.episode || { tur:"Bölüm", eng:"Episode", fre:"Épisode", deu:"Folge",  rus:"Серия" }[locale] || "Episode",
+  };
+
+  const patterns = {
+    tur: "{series} - {seasonNum}. {season} {episodeNum}. {episode}{titlePart}",
+    eng: "{series} — {season} {seasonNum}, {episode} {episodeNum}{titlePart}",
+    fre: "{series} — {season} {seasonNum}, {episode} {episodeNum}{titlePart}",
+    deu: "{series} — {season} {seasonNum}, {episode} {episodeNum}{titlePart}",
+    rus: "{series} — {seasonNum} {season}, {episodeNum} {episode}{titlePart}",
+    default: "{series} — {season} {seasonNum}, {episode} {episodeNum}{titlePart}",
+  };
+  const pat = patterns[locale] || patterns.default;
+
+  const genericTitleTemplates = {
+    tur: "{episodeNum}. {episode}",
+    eng: "{episode} {episodeNum}",
+    fre: "{episode} {episodeNum}",
+    deu: "{episode} {episodeNum}",
+    rus: "{episode} {episodeNum}",
+    default: "{episode} {episodeNum}",
+  };
+  const genTitlePat = genericTitleTemplates[locale] || genericTitleTemplates.default;
+
+  const normalizedTitle = String(episodeTitle || "").trim().toLowerCase();
+  const localizedGenericTitle = genTitlePat
+    .replace("{episode}", lx.episode)
+    .replace("{episodeNum}", String(episodeNum))
+    .trim()
+    .toLowerCase();
+
+  const titlePart = normalizedTitle && normalizedTitle !== localizedGenericTitle
+    ? `: ${episodeTitle.trim()}`
+    : "";
+
+  return pat
+    .replace("{series}", seriesName)
+    .replace("{season}", lx.season)
+    .replace("{episode}", lx.episode)
+    .replace("{seasonNum}", String(seasonNum))
+    .replace("{episodeNum}", String(episodeNum))
+    .replace("{titlePart}", titlePart);
+}
