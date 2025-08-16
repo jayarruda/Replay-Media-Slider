@@ -36,11 +36,9 @@ let notifState = {
 };
 
 function hasPrimaryImage(it) {
-  return Boolean(
-    it?.HasPrimaryImage ||
-    it?.ImageTags?.Primary ||
-    it?.Series?.ImageTags?.Primary
-  );
+  if (it?.HasPrimaryImage || it?.ImageTags?.Primary || it?.Series?.ImageTags?.Primary) return true;
+  if (it?.Type === "Episode" && (it?.SeriesId || it?.Series?.Id)) return true;
+  return false;
 }
 
 function safePosterImageSrc(it, maxWidth = 80, quality = 80) {
@@ -270,21 +268,8 @@ function saveState() {
   } catch {}
 }
 
-async function getCreatedTs(item) {
-  if (item.Type === "Episode" && item.SeriesId) {
-    try {
-      const seriesInfo = await makeApiRequest(`/Items/${item.SeriesId}`);
-
-      if (seriesInfo && seriesInfo.DateAdded) {
-        return Date.parse(seriesInfo.DateAdded);
-      }
-    } catch (e) {
-      console.error("Dizi bilgisi alınamadı:", e);
-    }
-  }
-
+function getCreatedTs(item) {
   const seriesTs = Date.parse(item?._seriesDateAdded || "") || 0;
-
   return (
     seriesTs ||
     Date.parse(item?.DateCreated || "") ||
@@ -877,13 +862,10 @@ function queueToast(it, { type = "content", status = "added" } = {}) {
 
   const useId = it.Id || it.ItemId;
   const safeStatus = status === "removed" ? "removed" : "added";
-
   const push = (resolved) => {
-    const titled = resolved?.Type === 'Episode' && resolved?.SeriesName
-      ? { ...it, Name: `${resolved.SeriesName} - ${it.Name || resolved.Name || ""}` }
-      : { ...it, Name: it.Name || resolved?.Name };
-
-    notifState.toastQueue.push({ type, it: titled, status: safeStatus });
+   const merged = resolved ? { ...it, ...resolved } : { ...it };
+   if (!merged.Name && resolved?.Name) merged.Name = resolved.Name;
+   notifState.toastQueue.push({ type, it: merged, status: safeStatus });
     runToastQueue();
   };
 
@@ -1015,32 +997,31 @@ function runToastQueue() {
       toast.addEventListener("click", () => window.open(it.Url, "_blank", "noopener"));
     }
 
-  } else if (type === "content") {
+    } else if (type === "content") {
     let displayName = it.Name || "";
     if (it.Type === "Episode") {
-  displayName = formatEpisodeHeading({
-    seriesName: it.SeriesName || "",
-    seasonNum: it.ParentIndexNumber || 0,
-    episodeNum: it.IndexNumber || 0,
-    episodeTitle: it.Name || "",
-    locale: (config.defaultLanguage || "tur"),
-    labels: config.languageLabels || {}
-  });
-}
-  const statusLabel = status === "removed"
-    ? (config.languageLabels.removedLabel || "Kaldırıldı")
-    : (config.languageLabels.addedLabel || "Eklendi");
-
-  toast.innerHTML = `
-    ${status !== "removed" && hasPrimaryImage(it) ? `<img class="thumb" src="${safePosterImageSrc(it, 80, 80)}" alt="">` : ""}
-    <div class="text">
-      <b>
-        <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
-        ${status === "removed" ? (config.languageLabels.contentChanged || "İçerik değişti") : config.languageLabels.newContentAdded}
-      </b><br>
-      ${escapeHtml(displayName)}
-    </div>
-  `;
+      displayName = formatEpisodeHeading({
+        seriesName: it.SeriesName || "",
+        seasonNum: it.ParentIndexNumber || 0,
+        episodeNum: it.IndexNumber || 0,
+        episodeTitle: it.Name || "",
+        locale: (config.defaultLanguage || "tur"),
+        labels: config.languageLabels || {}
+      });
+    }
+    const statusLabel = status === "removed"
+      ? (config.languageLabels.removedLabel || "Kaldırıldı")
+      : (config.languageLabels.addedLabel || "Eklendi");
+   toast.innerHTML = `
+    ${status !== "removed" ? `<img class="thumb" src="${safePosterImageSrc(it, 80, 80)}" alt="" onerror="this.style.display='none'">` : ""}
+     <div class="text">
+       <b>
+         <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
+         ${status === "removed" ? (config.languageLabels.contentChanged || "İçerik değişti") : config.languageLabels.newContentAdded}
+       </b><br>
+       ${escapeHtml(displayName)}
+     </div>
+   `;
   if (status !== "removed") {
     toast.addEventListener("click", () => it.Id && playNow(it.Id));
   }
