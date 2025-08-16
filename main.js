@@ -44,6 +44,7 @@ import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.j
 import { initializeQualityBadges } from './modules/qualityBadges.js';
 import { setupHoverForAllItems } from "./modules/navigation.js";
 import { initNotifications, forcejfNotifBtnPointerEvents } from "./modules/notifications.js";
+import { startUpdatePolling } from "./modules/update.js";
 
 const config = getConfig();
 
@@ -66,6 +67,12 @@ let cleanupPauseOverlay = null;
 function setupGlobalModalInit() {
     setupHoverForAllItems();
     loadHls();
+    startUpdatePolling({
+    intervalMs: 60 * 60 * 1000,
+    minGapMs:   60 * 60 * 1000,
+    dedupScope: "forever",
+    remindEveryMs: 12 * 60 * 60 * 1000
+});
     if (config.enableQualityBadges) {
         initializeQualityBadges();
     }
