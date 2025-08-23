@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+# ==============================================================================
+#  The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
+ # and without obtaining permission is considered unethical and is not permitted.
+# ==============================================================================
+# Copyright (c) 2025 G-grbz. All rights reserved.
+# ==============================================================================
+set -euo pipefail
+export LC_ALL=C
+
+VERSION="trailers.sh v2.3 (URL parity, original download, summary)"
+echo "[INFO] $VERSION" >&2
+[[ "${BASH:-}" ]] || { echo "[HATA] Bu script bash gerektirir. 'bash trailers.sh' ile çalıştır." >&2; exit 2; }
+
+JF_BASE="${JF_BASE:-http://localhost:8096}"
+JF_API_KEY="${JF_API_KEY:-CHANGE_ME}"
+TMDB_API_KEY="${TMDB_API_KEY:-CHANGE_ME}"
+PREFERRED_LANG="${PREFERRED_LANG:-tr-TR}"
+FALLBACK_LANG="${FALLBACK_LANG:-en-US}"
+INCLUDE_TYPES="${INCLUDE_TYPES:-Movie,Series,Season,Episode}"
+PAGE_SIZE="${PAGE_SIZE:-200}"
+SLEEP_SECS="${SLEEP_SECS:-1}"
+JF_USER_ID="${JF_USER_ID:-}"
+
+COOKIES_BROWSER="${COOKIES_BROWSER:-}"
+WORK_DIR="${WORK_DIR:-/tmp/trailers-dl}"
+CLEANUP_EXTRA_PATHS="${CLEANUP_EXTRA_PATHS:-}"
+MIN_FREE_MB="${MIN_FREE_MB:-1024}"
+INCLUDE_LANGS_WIDE="${INCLUDE_LANGS_WIDE:-tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,nl,pl,sv,cs,uk,el,null}"
+PREFERRED_ISO639="${PREFERRED_LANG%%-*}"
+FALLBACK_ISO639="${FALLBACK_LANG%%-*}"
+
+need() { command -v "$1" >/dev/null || { echo "Hata: $1 kurulu değil." >&2; exit 1; }; }
+need curl; need jq; need yt-dlp
+command -v ffprobe >/dev/null || echo "Uyarı: ffprobe yok; süre/boyut kontrolleri sınırlı olur." >&2
+
+[[ "$JF_API_KEY" != "CHANGE_ME" && "$TMDB_API_KEY" != "CHANGE_ME" ]] \
+  || { echo "Hata: JF_API_KEY ve TMDB_API_KEY ayarla." >&2; exit 1; }
+
+api() { curl -sS --fail "$@"; }
+get_free_mb() { df -Pm "$1" | awk 'NR==2{print $4}'; }
+
+mkdir -p "$WORK_DIR" 2>/dev/null || {
+  echo "[HATA] WORK_DIR oluşturulamadı: $WORK_DIR" >&2; exit 1;
+}
+
+
+declare -i DL_OK=0 DL_FAIL=0 DL_SKIP=0
+
+resolve_user_id() {
+  [[ -n "${JF_USER_ID:-}" ]] && { echo "$JF_USER_ID"; return 0; }
+  local users; users=$(api -H "X-Emby-Token: $JF_API_KEY" "$JF_BASE/Users") || return 1
+  local uid; uid=$(echo "$users" | jq -r '[.[] | select(.Policy.IsAdministrator==true)][0].Id // .[0].Id // empty')
+  [[ -n "$uid" ]] || { echo "[HATA] Kullanıcı bulunamadı." >&2; return 2; }
+  echo "$uid"
+}
+
+imdb_to_tmdb() {
+  local imdb_id="$1" kind_hint="${2:-Unknown}"
+  local r; r=$(api "https://api.themoviedb.org/3/find/${imdb_id}?api_key=${TMDB_API_KEY}&external_source=imdb_id") || return 1
+  local mid tv
+  mid=$(echo "$r" | jq -r '.movie_results[0].id // empty')
+  tv=$(echo "$r" | jq -r '.tv_results[0].id // empty')
+  if [[ -n "$mid" && ( "$kind_hint" == "Movie" || "$kind_hint" == "Unknown" ) ]]; then echo "Movie:$mid"; return 0; fi
+  if [[ -n "$tv" && ( "$kind_hint" == "Series" || "$kind_hint" == "Unknown" ) ]]; then echo "Series:$tv"; return 0; fi
+  [[ -n "$mid" ]] && { echo "Movie:$mid"; return 0; }
+  [[ -n "$tv" ]] && { echo "Series:$tv"; return 0; }
+  return 2
+}
+
+jq_trailer_defs='
+  def ytid:
+    tostring
+    | if test("^[A-Za-z0-9_-]{11}$") then .
+      elif test("[\\?&]v=([A-Za-z0-9_-]{11})") then capture("[\\?&]v=(?<id>[A-Za-z0-9_-]{11})").id
+      elif test("youtu\\.be/([A-Za-z0-9_-]{11})") then capture("youtu\\.be/(?<id>[A-Za-z0-9_-]{11})").id
+      else empty end;
+  def vimeoid:
+    tostring
+    | if test("^[0-9]+$") then .
+      elif (match("([0-9]{6,})")? != null) then (match("([0-9]{6,})").captures[0].string)
+      else empty end;
+  def filt:
+    (.results // [])
+    | map(select((.site|ascii_downcase)=="youtube" or (.site|ascii_downcase)=="vimeo"))
+    | ( ( map(select((.type|ascii_downcase)=="trailer"))
+          + map(select((.type|ascii_downcase)=="teaser")) ) )
+    | map({ site:(.site|ascii_downcase), key_raw:(.key|tostring // "") })
+    | map(if .site=="youtube" then . + {key:(.key_raw|ytid)}
+          elif .site=="vimeo" then . + {key:(.key_raw|vimeoid)}
+          else . + {key:""} end)
+    | map(select(.key != null and (.key|type)=="string" and (.key|length)>0))
+    | map("\(.site)|\(.key)")
+    | reduce .[] as $x ([]; if (index($x)) then . else . + [$x] end)
+    | .[] ;
+'
+
+find_trailer_keys_movie() {
+  local tmdb_id="$1"
+  local base="api_key=${TMDB_API_KEY}&language=${PREFERRED_LANG}&include_video_language=${PREFERRED_ISO639},${FALLBACK_ISO639},en,null"
+  local r; r=$(api "https://api.themoviedb.org/3/movie/${tmdb_id}/videos?${base}" 2>/dev/null || echo '{"results":[]}')
+  local lines; lines=$(printf '%s' "$r" | jq -r "$jq_trailer_defs filt")
+  [[ -n "$lines" ]] && { printf '%s\n' "$lines"; return 0; }
+  r=$(api "https://api.themoviedb.org/3/movie/${tmdb_id}/videos?api_key=${TMDB_API_KEY}&language=${PREFERRED_LANG}&include_video_language=${INCLUDE_LANGS_WIDE}" 2>/dev/null || echo '{"results":[]}')
+  printf '%s' "$r" | jq -r "$jq_trailer_defs filt" || true
+}
+
+find_trailer_keys_tv() {
+  local tv_id="$1" season_no="${2:-}" episode_no="${3:-}"
+  local base_params="api_key=${TMDB_API_KEY}&language=${PREFERRED_LANG}&include_video_language=${PREFERRED_ISO639},${FALLBACK_ISO639},en,null"
+  if [[ -n "$episode_no" && -n "$season_no" ]]; then
+    local url="https://api.themoviedb.org/3/tv/${tv_id}/season/${season_no}/episode/${episode_no}/videos?${base_params}"
+    local r; r=$(api "$url" 2>/dev/null || echo '{"results":[]}')
+    local lines; lines=$(printf '%s' "$r" | jq -r "$jq_trailer_defs filt")
+    [[ -n "$lines" ]] && { printf '%s\n' "$lines"; return 0; }
+  fi
+
+  if [[ -n "$season_no" ]]; then
+    local url="https://api.themoviedb.org/3/tv/${tv_id}/season/${season_no}/videos?${base_params}"
+    local r; r=$(api "$url" 2>/dev/null || echo '{"results":[]}')
+    local lines; lines=$(printf '%s' "$r" | jq -r "$jq_trailer_defs filt")
+    [[ -n "$lines" ]] && { printf '%s\n' "$lines"; return 0; }
+  fi
+
+  local url="https://api.themoviedb.org/3/tv/${tv_id}/videos?${base_params}"
+  local r; r=$(api "$url" 2>/dev/null || echo '{"results":[]}')
+  local lines; lines=$(printf '%s' "$r" | jq -r "$jq_trailer_defs filt")
+  [[ -n "$lines" ]] && { printf '%s\n' "$lines"; return 0; }
+  local wide_params="api_key=${TMDB_API_KEY}&language=${PREFERRED_LANG}&include_video_language=${INCLUDE_LANGS_WIDE}"
+  if [[ -n "$episode_no" && -n "$season_no" ]]; then
+    r=$(api "https://api.themoviedb.org/3/tv/${tv_id}/season/${season_no}/episode/${episode_no}/videos?${wide_params}" 2>/dev/null || echo '{"results":[]}')
+    lines=$(printf '%s' "$r" | jq -r "$jq_trailer_defs filt")
+    [[ -n "$lines" ]] && { printf '%s\n' "$lines"; return 0; }
+  fi
+
+  if [[ -n "$season_no" ]]; then
+    r=$(api "https://api.themoviedb.org/3/tv/${tv_id}/season/${season_no}/videos?${wide_params}" 2>/dev/null || echo '{"results":[]}')
+    lines=$(printf '%s' "$r" | jq -r "$jq_trailer_defs filt")
+    [[ -n "$lines" ]] && { printf '%s\n' "$lines"; return 0; }
+  fi
+
+  r=$(api "https://api.themoviedb.org/3/tv/${tv_id}/videos?${wide_params}" 2>/dev/null || echo '{"results":[]}')
+  printf '%s' "$r" | jq -r "$jq_trailer_defs filt" || true
+}
+
+declare -A SEEN_DIRS
+
+process_item() {
+  local id="$1" type="$2" name="$3" year="$4" path="$5" tmdb="$6" imdb="$7" user_id="$8"
+  local dir out; dir="$(dirname "$path")"; out="${dir}/trailer.mp4"
+  SEEN_DIRS["$dir"]=1
+
+  if [[ -e "$out" ]]; then
+    echo "[ATLA] Zaten var: $out  ->  $name ($year)"
+    DL_SKIP+=1
+    return 0
+  fi
+
+  echo "[DEBUG] İşleniyor: $name (IMDb: ${imdb:-}, TMDb: ${tmdb:-}, Tür: $type)" >&2
+  local tmdb_id="${tmdb:-}" season_no="" episode_no=""
+  if [[ "$type" == "Movie" ]]; then
+    if [[ -z "$tmdb_id" && -n "${imdb:-}" ]]; then
+      local map; map=$(imdb_to_tmdb "$imdb" "Movie" || true)
+      [[ -n "${map:-}" ]] && tmdb_id="${map##*:}"
+    fi
+  elif [[ "$type" == "Series" || "$type" == "Season" || "$type" == "Episode" ]]; then
+    local item; item=$(curl -sS -H "X-Emby-Token: $JF_API_KEY" \
+      "$JF_BASE/Users/$user_id/Items/$id?Fields=SeriesId,SeasonId,IndexNumber,ParentIndexNumber,ProviderIds,Type" || true)
+    local series_id; series_id=$(echo "$item" | jq -r '.SeriesId // empty')
+    local idx;        idx=$(echo "$item" | jq -r '.IndexNumber // empty')
+    local parent_idx; parent_idx=$(echo "$item" | jq -r '.ParentIndexNumber // empty')
+
+    local series_tmdb=""
+    if [[ -n "$series_id" ]]; then
+      local s; s=$(curl -sS -H "X-Emby-Token: $JF_API_KEY" "$JF_BASE/Users/$user_id/Items/$series_id?Fields=ProviderIds" || true)
+      series_tmdb=$(echo "$s" | jq -r '.ProviderIds.Tmdb // .ProviderIds.MovieDb // empty')
+    fi
+    if [[ -z "$series_tmdb" && -n "$tmdb_id" && "$type" == "Series" ]]; then
+      series_tmdb="$tmdb_id"
+    fi
+
+    tmdb_id="$series_tmdb"
+    [[ "$type" == "Episode" ]] && { episode_no="$idx"; season_no="$parent_idx"; }
+    [[ "$type" == "Season"  ]] && season_no="$idx"
+  fi
+
+  local key_stream success=0
+  if [[ "$type" == "Movie" ]]; then
+    [[ -z "${tmdb_id:-}" ]] && { echo "[ATLA] TMDb ID yok: $name"; DL_FAIL+=1; return 0; }
+    key_stream="$(find_trailer_keys_movie "$tmdb_id" || true)"
+  elif [[ "$type" == "Series" || "$type" == "Season" || "$type" == "Episode" ]]; then
+    [[ -z "${tmdb_id:-}" ]] && { echo "[ATLA] Series TMDb yok: $name"; DL_FAIL+=1; return 0; }
+    key_stream="$(find_trailer_keys_tv "$tmdb_id" "${season_no:-}" "${episode_no:-}" || true)"
+  else
+    echo "[ATLA] Tür desteklenmiyor: $type - $name"
+    DL_FAIL+=1
+    return 0
+  fi
+
+  local tried=0
+  while IFS= read -r raw; do
+    [[ -n "${raw// }" ]] || continue
+    raw=$(printf '%s' "$raw" | tr -d '\r')
+
+    local site="${raw%%|*}" key="${raw#*|}"
+    local url=""
+    if [[ "$site" == "youtube" ]]; then
+      key="$(printf '%s' "$key" | tr -d '\r' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+      url="https://www.youtube.com/watch?v=${key}"
+    elif [[ "$site" == "vimeo" ]]; then
+      [[ -n "$key" ]] || continue
+      url="https://vimeo.com/${key}"
+    else
+      continue
+    fi
+
+    tried=$((tried+1))
+    echo "[DEBUG] Denenen #$tried: ${site}:${key}" >&2
+
+    local free_mb_dest; free_mb_dest=$(get_free_mb "$dir"); [[ -z "$free_mb_dest" ]] && free_mb_dest=0
+    local free_mb_work; free_mb_work=$(get_free_mb "$WORK_DIR"); [[ -z "$free_mb_work" ]] && free_mb_work=0
+    if (( free_mb_dest < MIN_FREE_MB )); then
+      echo "[WARN] Hedefte yetersiz boş alan: ${free_mb_dest} MiB (< ${MIN_FREE_MB} MiB). Atlanıyor: $name ($year)" >&2
+      continue
+    fi
+    if (( free_mb_work < MIN_FREE_MB )); then
+      echo "[WARN] Çalışma klasöründe yetersiz boş alan: ${free_mb_work} MiB (< ${MIN_FREE_MB} MiB). Atlanıyor: $name ($year)" >&2
+      continue
+    fi
+
+    # Geçici dosya artık WORK_DIR altında tutulur
+    local tmp="$WORK_DIR/${id}.tmp.mp4"
+    cleanup_tmp() { rm -f "$tmp" >/dev/null 2>&1 || true; }
+    trap 'cleanup_tmp' EXIT INT TERM
+
+    echo "[INDIR] $name ($year) -> $out  [${site}:${key}] (source quality)"
+    local yd_base=( -f 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+                    --merge-output-format mp4
+                    --no-part
+                    --no-progress
+                    --retry-sleep 2
+                    -o "$tmp" "$url" )
+
+    if [[ -n "$COOKIES_BROWSER" ]]; then
+      yd_base=( --cookies-from-browser "$COOKIES_BROWSER" "${yd_base[@]}" )
+    fi
+    local tries=0 ok=0
+    while (( tries < 3 )); do
+      tries=$((tries+1))
+      if yt-dlp "${yd_base[@]}"; then
+        ok=1; break
+      else
+        echo "[WARN] yt-dlp deneme #$tries başarısız (${site}:${key})." >&2
+        cleanup_tmp
+        if df -Pm "$dir" | awk 'NR==2{exit !($4<1)}'; then
+          echo "[ERROR] Diskte yer kalmamış. Film atlanıyor: $name ($year)" >&2
+          break
+        fi
+        sleep 1
+      fi
+    done
+    (( ok == 0 )) && { trap - EXIT INT TERM; cleanup_tmp; continue; }
+
+    local size_bytes; size_bytes=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+    if [[ "${size_bytes:-0}" -lt $((2*1024*1024)) ]]; then
+      echo "[WARN] Dosya çok küçük (${size_bytes}B). Siliniyor ve sonraki aday denenecek..." >&2
+      cleanup_tmp; continue
+    fi
+    if command -v ffprobe >/dev/null; then
+      local dur; dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$tmp" 2>/dev/null || echo 0)
+      awk "BEGIN { exit !($dur < 20 && $dur > 0) }" && short=1 || short=0
+      if (( short == 1 )); then
+        echo "[WARN] Süre kısa (${dur}s). Siliniyor ve sonraki aday denenecek..." >&2
+        cleanup_tmp; continue
+      fi
+    fi
+
+    mv -f "$tmp" "$out"
+    trap - EXIT INT TERM
+    curl -sS -X POST -H "X-Emby-Token: $JF_API_KEY" \
+      "$JF_BASE/Items/$id/Refresh?Recursive=true&ImageRefreshMode=Default&MetadataRefreshMode=Default&ReplaceAllImages=false&RegenerateTrickplay=false&ReplaceAllMetadata=false" >/dev/null || true
+
+    echo "[OK] Eklendi ve yenilendi: $out"
+    DL_OK+=1
+    sleep "$SLEEP_SECS"
+    success=1
+    return 0
+  done <<< "$key_stream"
+
+  if (( success == 0 )); then
+    echo "[ATLA] Uygun indirilebilir trailer bulunamadı: $name ($year)"
+    DL_FAIL+=1
+  fi
+  return 0
+}
+
+user_id="$(resolve_user_id || true)"
+start=0; processed=0
+while :; do
+  url="${JF_BASE}/Items?IncludeItemTypes=${INCLUDE_TYPES}&Recursive=true&Fields=Path,ProviderIds,ProductionYear&StartIndex=${start}&Limit=${PAGE_SIZE}"
+  page=$(api -H "X-Emby-Token: $JF_API_KEY" "$url")
+  total=$(echo "$page" | jq -r '.TotalRecordCount // 0')
+  items=$(echo "$page" | jq -c '.Items[]?')
+
+  while IFS= read -r it; do
+    id=$(echo "$it"   | jq -r '.Id')
+    type=$(echo "$it" | jq -r '.Type')
+    name=$(echo "$it" | jq -r '.Name')
+    year=$(echo "$it" | jq -r '.ProductionYear // empty')
+    path=$(echo "$it" | jq -r '.Path // empty')
+    tmdb=$(echo "$it" | jq -r '.ProviderIds.Tmdb // .ProviderIds.MovieDb // empty')
+    imdb=$(echo "$it" | jq -r '.ProviderIds.Imdb // empty')
+    [[ -z "$path" ]] && { echo "[ATLA] Yol yok: $name"; continue; }
+    process_item "$id" "$type" "$name" "$year" "$path" "$tmdb" "$imdb" "$user_id" || true
+    processed=$((processed+1))
+  done <<< "$items"
+
+  start=$((start + PAGE_SIZE))
+  [[ $start -lt $total ]] || break
+done
+echo "[INFO] Geçici dosyalar temizleniyor..."
+for d in "${!SEEN_DIRS[@]}"; do
+  find "$d" -maxdepth 1 -type f \
+    \( -name '*.part' -o -name '*.tmp' -o -name '*.tmp.mp4' -o -name '*.ytdl' \) \
+    -print -delete 2>/dev/null || true
+done
+
+IFS=':' read -r -a EXTRA <<< "$CLEANUP_EXTRA_PATHS"
+for root in "${EXTRA[@]}"; do
+  [[ -d "$root" ]] || continue
+  find "$root" -type f \
+    \( -name '*.part' -o -name '*.tmp' -o -name '*.tmp.mp4' -o -name '*.ytdl' \) \
+    -print -delete 2>/dev/null || true
+done
+
+find "$WORK_DIR" -type f \
+  \( -name '*.part' -o -name '*.tmp' -o -name '*.tmp.mp4' -o -name '*.ytdl' \) \
+  -print -delete 2>/dev/null || true
+
+echo
+echo "BİTTİ: işlenen=$processed"
+echo "ÖZET -> indirilen=${DL_OK}, başarısız=${DL_FAIL}, atlanan(zaten vardı)=${DL_SKIP}"

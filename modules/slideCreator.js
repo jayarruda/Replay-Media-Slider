@@ -49,22 +49,40 @@ async function createSlide(item) {
       const parentItem = await fetchItemDetails(item.SeriesId);
       parentId = parentItem.Id;
 
-      item = {
-  ...parentItem,
-  Id: item.Id,
-  Type: item.Type,
-  SeriesId: item.SeriesId,
-  MediaStreams: item.MediaStreams,
-  People: item.People || parentItem.People,
-  UserData: item.UserData,
-  RunTimeTicks: item.RunTimeTicks,
-  RemoteTrailers: item.RemoteTrailers,
-  ProviderIds: item.ProviderIds,
-  ParentIndexNumber: item.ParentIndexNumber,
-  IndexNumber: item.IndexNumber,
-  Name: item.Name
-};
-    } catch (err) {
+      const mergeTrailers = (a = [], b = []) => {
+      const all = [...a, ...b];
+      const seen = new Set();
+      return all.filter(t => {
+        const key = (t?.Url || '').trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+
+    let effectiveRemoteTrailers = [];
+    if (Array.isArray(item.RemoteTrailers) && item.RemoteTrailers.length) {
+      effectiveRemoteTrailers = mergeTrailers(item.RemoteTrailers, parentItem.RemoteTrailers);
+    } else {
+      effectiveRemoteTrailers = parentItem.RemoteTrailers || [];
+    }
+
+    item = {
+      ...parentItem,
+      Id: item.Id,
+      Type: item.Type,
+      SeriesId: item.SeriesId,
+      MediaStreams: item.MediaStreams,
+      People: item.People || parentItem.People,
+      UserData: item.UserData,
+      RunTimeTicks: item.RunTimeTicks,
+      RemoteTrailers: effectiveRemoteTrailers,
+      ProviderIds: item.ProviderIds || parentItem.ProviderIds,
+      ParentIndexNumber: item.ParentIndexNumber,
+      IndexNumber: item.IndexNumber,
+      Name: item.Name
+    };
+        } catch (err) {
       console.error("Dizi bilgileri alınamadı:", err);
     }
   }

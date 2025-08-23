@@ -1,13 +1,7 @@
-/**
- * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
- * and without obtaining permission is considered unethical and is not permitted.
- */
-
 import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { getCurrentVersionFromEnv, compareSemver } from "./update.js";
-
 
 const config = getConfig();
 const POLL_INTERVAL_MS = 15_000;
@@ -479,7 +473,7 @@ const systemUnread = (config.enableCounterSystem && Array.isArray(notifState.act
   : 0;
 
 const total = contentUnread + systemUnread;
-  const count = Math.min(total, 99);
+  const count = total > 99 ? "99+" : String(total);
   const show = count > 0;
   const label = String(count);
 
@@ -1232,12 +1226,20 @@ function isRemovalActivity(a) {
       return;
     }
 
-  const fresh = acts
-    .filter(a => {
+  function safeParseTs(s) {
+  const t = Date.parse(s || "");
+  return Number.isFinite(t) ? t : 0;
+}
+
+const fresh =
+  acts
+    .map((a, idx) => {
       const id = a.Id || `${a.Type}:${a.Date}`;
-      return !notifState.activitySeenIds.has(id);
+      return { a, id, idx, ts: clampToNow(safeParseTs(a?.Date)) };
     })
-    .sort((a, b) => (Date.parse(a?.Date || "") || 0) - (Date.parse(b?.Date || "") || 0));
+    .filter(({ id }) => !notifState.activitySeenIds.has(id))
+    .sort((x, y) => (x.ts - y.ts) || (x.idx - y.idx))
+    .map(x => x.a);
 
    const nonRemoval = [];
   let newestFreshTs = 0;
@@ -1278,14 +1280,18 @@ function isRemovalActivity(a) {
  }
 
 
+function activityKey(a) {
+  if (a?.Id) return `activity:${a.Id}`;
+  return `activity:${a.Type || "act"}|${a.Date || ""}|${a.Overview || ""}|${a.Name || ""}`;
+}
+
 function enqueueActivityToastBurst(activities = []) {
   if (!config.enableToastSystem) return;
-  const keyOf = a => (a?.Id || `${a.Type || "act"}:${a.Date || ""}:${a.Name || ""}`);
 
   const seen = new Set();
   const uniq = [];
   for (const a of activities) {
-    const k = `activity:${keyOf(a)}`;
+    const k = activityKey(a);
     if (seen.has(k)) continue;
     if (!toastShouldEnqueue(k)) continue;
     seen.add(k);
@@ -1294,12 +1300,14 @@ function enqueueActivityToastBurst(activities = []) {
 
   if (!uniq.length) return;
 
-  const picks = uniq.length <= 2 ? uniq : [uniq[0], uniq[uniq.length - 1]];
+  const LIMIT = 6;
+  const picks = uniq.length <= LIMIT ? uniq : [uniq[0], uniq[uniq.length - 1]];
   for (const a of picks) {
     notifState.toastQueue.push({ type: "activity", it: a });
   }
   runToastQueue();
 }
+
 
 function getThemeModeKey() {
   const userId = getSafeUserId();

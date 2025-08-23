@@ -6,16 +6,58 @@ export function saveCredentials(credentials) {
     const raw = JSON.stringify(credentials);
     sessionStorage.setItem("json-credentials", raw);
     localStorage.setItem("json-credentials", raw);
+
+    if (credentials?.AccessToken) {
+      sessionStorage.setItem("accessToken", credentials.AccessToken);
+      localStorage.setItem("accessToken", credentials.AccessToken);
+    }
+
     console.log("Kimlik bilgileri kaydedildi.");
   } catch (err) {
     console.error("Kimlik bilgileri kaydedilirken hata:", err);
   }
 }
 
+export function getWebClientHints() {
+  const hints = {};
+  try {
+    const ac = window.ApiClient || window.apiClient || null;
+    if (ac) {
+      hints.sessionId =
+        ac._sessionId || ac.sessionId || ac?.connectionManager?._session?.Id || null;
+      hints.deviceId =
+        ac._deviceId || (typeof ac.deviceId === "function" ? ac.deviceId() : ac.deviceId) || null;
+      hints.accessToken =
+        ac._authToken || ac.accessToken || ac?._serverInfo?.AccessToken || null;
+      hints.clientName = ac._appName || ac.name || "Jellyfin Web";
+      hints.clientVersion = ac._appVersion || ac.appVersion || "1.0.0";
+    }
+  } catch {}
+
+  try {
+    const lsDeviceId =
+      localStorage.getItem("deviceId") ||
+      localStorage.getItem("emby.device.id") ||
+      null;
+    if (!hints.deviceId && lsDeviceId) hints.deviceId = lsDeviceId;
+
+    const lsSessionId =
+      localStorage.getItem("sessionId") ||
+      localStorage.getItem("emby.session.id") ||
+      null;
+    if (!hints.sessionId && lsSessionId) hints.sessionId = lsSessionId;
+  } catch {}
+
+  return hints;
+}
+
 export function saveApiKey(apiKey) {
   try {
     sessionStorage.setItem("api-key", apiKey);
     localStorage.setItem("api-key", apiKey);
+    sessionStorage.setItem("accessToken", apiKey);
+    localStorage.setItem("accessToken", apiKey);
+
     console.log("API anahtarı kaydedildi.");
   } catch (err) {
     console.error("API anahtarı kaydedilirken hata:", err);

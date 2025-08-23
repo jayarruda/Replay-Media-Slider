@@ -76,12 +76,10 @@ export function createSliderPanel(config, labels) {
     sliderInput.step = 250;
     sliderLabel.htmlFor = 'sliderDurationInput';
     sliderInput.id = 'sliderDurationInput';
-    sliderDiv.append(sliderLabel, sliderInput);
-
     const sliderDesc = document.createElement('div');
     sliderDesc.className = 'description-text';
     sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
-    sliderDiv.appendChild(sliderDesc);
+    sliderDiv.append(sliderLabel, sliderDesc, sliderInput);
 
     const showProgressCheckbox = createCheckbox('showProgressBar', labels.progressBar || 'ProgressBar\'ı Göster', config.showProgressBar);
     sliderDiv.appendChild(showProgressCheckbox);
@@ -98,17 +96,90 @@ export function createSliderPanel(config, labels) {
     'enableTrailerPlayback',
     labels.enableTrailerPlayback || 'Yerleşik Fragman Oynatımına İzin Ver',
     config.enableTrailerPlayback
-);
+    );
 
     const videoPlaybackCheckbox = createCheckbox(
     'enableVideoPlayback',
     labels.enableVideoPlayback || 'Yerleşik Video Oynatımına İzin Ver',
     config.enableVideoPlayback
+    );
+
+    const trailerThenVideoCheckbox = createCheckbox(
+    'enableTrailerThenVideo',
+    labels.enableTrailerThenVideo || 'Önce Fragman, Yoksa Video',
+    false
+    );
+
+    const disableAllPlaybackCheckbox = createCheckbox(
+    'disableAllPlayback',
+    labels.selectNone || 'hiçbiri',
+    config.disableAllPlayback || false
 );
 
+    function disableAllPlaybackOptions() {
+    const trailerCheckbox = document.querySelector('#enableTrailerPlayback');
+    const videoCheckbox = document.querySelector('#enableVideoPlayback');
+    const trailerThenVideoCheckbox = document.querySelector('#enableTrailerThenVideo');
+
+    if (trailerCheckbox) trailerCheckbox.checked = false;
+    if (videoCheckbox) videoCheckbox.checked = false;
+    if (trailerThenVideoCheckbox) trailerThenVideoCheckbox.checked = false;
+
+    localStorage.setItem('previewPlaybackMode', 'none');
+    updateTrailerRelatedFields();
+}
+
+    disableAllPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+        if (e.target.checked) {
+           disableAllPlaybackOptions();
+        }
+    });
+
+    [trailerPlaybackCheckbox, videoPlaybackCheckbox, trailerThenVideoCheckbox].forEach(checkbox => {
+        checkbox.querySelector('input').addEventListener('change', () => {
+            disableAllPlaybackCheckbox.querySelector('input').checked = false;
+        });
+    });
+
+    playbackCheckboxesDiv.prepend(disableAllPlaybackCheckbox);
+
+    function setPlaybackMode(mode) {
+    const t = trailerPlaybackCheckbox.querySelector('input');
+    const v = videoPlaybackCheckbox.querySelector('input');
+    const tv = trailerThenVideoCheckbox.querySelector('input');
+
+    if (mode === 'trailer') { t.checked = true; v.checked = false; tv.checked = false; }
+    else if (mode === 'video') { t.checked = false; v.checked = true; tv.checked = false; }
+    else { t.checked = false; v.checked = false; tv.checked = true; }
+
+    localStorage.setItem('previewPlaybackMode', mode);
+    localStorage.setItem('previewTrailerEnabled', String(mode === 'trailer'));
+    updateTrailerRelatedFields();
+  }
+
+    trailerPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) setPlaybackMode('trailer');
+    });
+    videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) setPlaybackMode('video');
+    });
+    trailerThenVideoCheckbox.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) setPlaybackMode('trailerThenVideo');
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('previewPlaybackMode');
+      if (saved === 'trailer' || saved === 'video' || saved === 'trailerThenVideo') {
+        setPlaybackMode(saved);
+      } else {
+        const legacy = localStorage.getItem('previewTrailerEnabled') === 'true' ? 'trailer' : 'video';
+        setPlaybackMode(legacy);
+      }
+    });
 
     playbackCheckboxesDiv.appendChild(trailerPlaybackCheckbox);
     playbackCheckboxesDiv.appendChild(videoPlaybackCheckbox);
+    playbackCheckboxesDiv.appendChild(trailerThenVideoCheckbox);
     playbackOptionsDiv.appendChild(playbackCheckboxesDiv);
 
     trailerPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
@@ -152,17 +223,17 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
     gradientDiv.append(gradientLabel, gradientSelect);
     sliderDiv.appendChild(gradientDiv);
 
+    const indexZeroDesc = document.createElement('div');
+    indexZeroDesc.className = 'description-text';
+    indexZeroDesc.textContent = labels.indexZeroDescription || 'Aktif olduğunda her zaman 0 indeksli görsel seçilir (diğer kalite filtrelerini devre dışı bırakır).';
+    sliderDiv.appendChild(indexZeroDesc);
+
     const indexZeroCheckbox = createCheckbox(
     'indexZeroSelection',
     labels.indexZeroSelection || 'Her zaman 0 indeksli görseli seç',
     config.indexZeroSelection
     );
     sliderDiv.appendChild(indexZeroCheckbox);
-
-    const indexZeroDesc = document.createElement('div');
-    indexZeroDesc.className = 'description-text';
-    indexZeroDesc.textContent = labels.indexZeroDescription || 'Aktif olduğunda her zaman 0 indeksli görsel seçilir (diğer kalite filtrelerini devre dışı bırakır).';
-    sliderDiv.appendChild(indexZeroDesc);
 
     const manualBackdropCheckbox = createCheckbox(
         'manualBackdropSelection',
@@ -199,7 +270,7 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
 
     minQualityLabel.htmlFor = 'minHighQualityWidthInput';
     minQualityInput.id = 'minHighQualityWidthInput';
-    minQualityDiv.append(minQualityLabel, minQualityInput, minQualityDesc);
+    minQualityDiv.append(minQualityLabel, minQualityDesc, minQualityInput);
     sliderDiv.appendChild(minQualityDiv);
 
     bindCheckboxKontrol('#manualBackdropSelection', '.backdrop-container', 0.6, [backdropSelect]);
@@ -223,7 +294,7 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
 
     backdropMaxWidthLabel.htmlFor = 'backdropMaxWidthInput';
     backdropMaxWidthInput.id = 'backdropMaxWidthInput';
-    backdropMaxWidthDiv.append(backdropMaxWidthLabel, backdropMaxWidthInput, backdropMaxWidthDesc);
+    backdropMaxWidthDiv.append(backdropMaxWidthLabel, backdropMaxWidthDesc, backdropMaxWidthInput);
     sliderDiv.appendChild(backdropMaxWidthDiv);
 
     const minPixelDiv = document.createElement('div');
@@ -244,7 +315,7 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
 
     minPixelLabel.htmlFor = 'minPixelInput';
     minPixelInput.id = 'minPixelInput';
-    minPixelDiv.append(minPixelLabel, minPixelInput, minPixelDesc);
+    minPixelDiv.append(minPixelLabel, minPixelDesc, minPixelInput);
     sliderDiv.appendChild(minPixelDiv);
 
     const sizeFilterToggleDiv = document.createElement('div');
@@ -281,7 +352,7 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
 
     minSizeLabel.htmlFor = 'minSizeInput';
     minSizeInput.id = 'minSizeInput';
-    minSizeDiv.append(minSizeLabel, minSizeInput, minSizeDesc);
+    minSizeDiv.append(minSizeLabel, minSizeDesc, minSizeInput);
     sliderDiv.appendChild(minSizeDiv);
 
     const maxSizeDiv = document.createElement('div');
@@ -301,7 +372,7 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
 
     maxSizeLabel.htmlFor = 'maxSizeInput';
     maxSizeInput.id = 'maxSizeInput';
-    maxSizeDiv.append(maxSizeLabel, maxSizeInput, maxSizeDesc);
+    maxSizeDiv.append(maxSizeLabel, maxSizeDesc, maxSizeInput);
     sliderDiv.appendChild(maxSizeDiv);
 
     bindTersCheckboxKontrol('#manualBackdropSelection', '.min-quality-container', 0.6, [minPixelInput, minSizeInput, maxSizeInput, backdropMaxWidthInput]);
@@ -327,21 +398,89 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
         labels.dotPosterMode || 'Poster Boyutlu Dot Navigasyonu',
         config.dotPosterMode
     );
-    sliderDiv.appendChild(posterDotsCheckbox);
+      sliderDiv.appendChild(posterDotsCheckbox);
 
-    const previewModalCheckbox = createCheckbox(
-        'previewModal',
-        labels.previewModal || 'Netflix Tarzı Önizleme Modalı',
-        config.previewModal
+      const previewModalCheckbox = createCheckbox(
+      'previewModal',
+      labels.previewModal || 'Netflix Tarzı Önizleme Modalı',
+      config.previewModal
     );
-    sliderDiv.appendChild(previewModalCheckbox);
+      sliderDiv.appendChild(previewModalCheckbox);
 
-    const allPreviewModalCheckbox = createCheckbox(
-        'allPreviewModal',
-        labels.allPreviewModal || 'Modalı Jellyfin geneline uygula',
-        config.allPreviewModal
-    );
+      const allPreviewModalCheckbox = createCheckbox(
+      'allPreviewModal',
+      labels.allPreviewModal || 'Modalı Jellyfin geneline uygula',
+      config.allPreviewModal
+  );
     sliderDiv.appendChild(allPreviewModalCheckbox);
+
+    const preferTrailerCheckbox = createCheckbox(
+    'preferTrailersInPreviewModal',
+    labels.preferTrailersInPreviewModal || 'Modalda Fragman > Video',
+    config.preferTrailersInPreviewModal
+  );
+    sliderDiv.appendChild(preferTrailerCheckbox);
+
+    const onlyTrailerCheckbox = createCheckbox(
+    'onlyTrailerInPreviewModal',
+    labels.onlyTrailerInPreviewModal || 'Modalda Sadece Fragman',
+    config.onlyTrailerInPreviewModal
+  );
+    sliderDiv.appendChild(onlyTrailerCheckbox);
+
+    const preferTrailerInput = preferTrailerCheckbox.querySelector('input');
+    const onlyTrailerInput = onlyTrailerCheckbox.querySelector('input');
+    const allPreviewModalInput = allPreviewModalCheckbox.querySelector('input');
+    const previewModalInput = previewModalCheckbox.querySelector('input');
+
+    preferTrailerInput.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        onlyTrailerInput.checked = false;
+    }
+});
+
+    onlyTrailerInput.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        preferTrailerInput.checked = false;
+    }
+});
+
+function updateModalRelatedFields() {
+    const previewModalEnabled = previewModalInput.checked;
+    const allPreviewModalEnabled = allPreviewModalInput.checked;
+    if (!previewModalEnabled) {
+        allPreviewModalInput.checked = false;
+        preferTrailerInput.checked = false;
+        onlyTrailerInput.checked = false;
+
+        allPreviewModalInput.disabled = true;
+        preferTrailerInput.disabled = true;
+        onlyTrailerInput.disabled = true;
+    } else {
+        allPreviewModalInput.disabled = false;
+        if (!allPreviewModalEnabled) {
+            preferTrailerInput.checked = false;
+            onlyTrailerInput.checked = false;
+            preferTrailerInput.disabled = true;
+            onlyTrailerInput.disabled = true;
+        } else {
+            preferTrailerInput.disabled = false;
+            onlyTrailerInput.disabled = false;
+        }
+    }
+}
+
+    previewModalInput.addEventListener('change', updateModalRelatedFields);
+    allPreviewModalInput.addEventListener('change', updateModalRelatedFields);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (preferTrailerInput.checked && onlyTrailerInput.checked) {
+    onlyTrailerInput.checked = false;
+  }
+    updateModalRelatedFields();
+  });
+
+    requestAnimationFrame(updateModalRelatedFields);
 
     const enableHlsDesc = document.createElement('div');
     enableHlsDesc.className = 'description-text';
@@ -441,21 +580,20 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
 }
 
 function updateTrailerRelatedFields() {
-    const trailerChecked = document.querySelector('#enableTrailerPlayback')?.checked;
-    const videoChecked = document.querySelector('#enableVideoPlayback')?.checked;
-    const isEnabled = trailerChecked || videoChecked;
+  const t = document.querySelector('#enableTrailerPlayback')?.checked;
+  const v = document.querySelector('#enableVideoPlayback')?.checked;
+  const tv = document.querySelector('#enableTrailerThenVideo')?.checked;
+  const isEnabled = !!(t || v || tv);
 
-    const trailerDelayContainer = document.querySelector('.trailer-delay-container');
-    const gradientOverlayContainer = document.querySelector('.gradient-overlay-container');
-    const hlsCheckbox = document.querySelector('#enableHls')?.parentElement;
+  const trailerDelayContainer = document.querySelector('.trailer-delay-container');
+  const gradientOverlayContainer = document.querySelector('.gradient-overlay-container');
 
-    if (trailerDelayContainer && gradientOverlayContainer) {
-        trailerDelayContainer.style.opacity = isEnabled ? 1 : 0.6;
-        gradientOverlayContainer.style.opacity = isEnabled ? 1 : 0.6;
+  if (trailerDelayContainer && gradientOverlayContainer) {
+    trailerDelayContainer.style.opacity = isEnabled ? 1 : 0.6;
+    gradientOverlayContainer.style.opacity = isEnabled ? 1 : 0.6;
 
-        trailerDelayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
-        gradientOverlayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
-    }
+    trailerDelayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
+    gradientOverlayContainer.querySelectorAll('input, select').forEach(el => el.disabled = !isEnabled);
+  }
 }
-
 document.addEventListener('DOMContentLoaded', updateTrailerRelatedFields);

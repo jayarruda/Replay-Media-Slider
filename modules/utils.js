@@ -1,31 +1,65 @@
 import { getConfig } from "./config.js";
-import { fetchItemDetails, getImageDimensions, getIntroVideoUrl, getVideoStreamUrl } from "./api.js";
+import { fetchItemDetails, getImageDimensions, getIntroVideoUrl, getVideoStreamUrl, fetchLocalTrailers, pickBestLocalTrailer } from "./api.js";
 
 const config = getConfig();
 
 export function getYoutubeEmbedUrl(url) {
   if (!url || typeof url !== 'string') return url;
 
+  const parseYouTubeTime = (t) => {
+    if (!t) return 0;
+    if (/^\d+$/.test(t)) return parseInt(t, 10);
+    const m = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+    if (!m) return 0;
+    const h = parseInt(m[1] || '0', 10);
+    const min = parseInt(m[2] || '0', 10);
+    const s = parseInt(m[3] || '0', 10);
+    return h * 3600 + min * 60 + s;
+  };
+
   try {
     const parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
-
-    if (parsedUrl.hostname.replace('www.', '').includes('youtube.com')) {
-      const videoId = parsedUrl.searchParams.get('v');
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&enablejsapi=1`;
+    const host = parsedUrl.hostname.replace(/^www\./, '').toLowerCase();
+    let videoId = '';
+    if (host === 'youtu.be') {
+      videoId = parsedUrl.pathname.split('/').filter(Boolean)[0] || '';
+    } else if (host.endsWith('youtube.com')) {
+      if (parsedUrl.pathname.startsWith('/embed/')) {
+        videoId = parsedUrl.pathname.split('/').filter(Boolean)[1] || '';
+      } else if (parsedUrl.pathname.startsWith('/shorts/')) {
+        videoId = parsedUrl.pathname.split('/').filter(Boolean)[1] || '';
+      } else {
+        videoId = parsedUrl.searchParams.get('v') || '';
       }
     }
 
-    if (parsedUrl.hostname === 'youtu.be') {
-      const videoId = parsedUrl.pathname.split('/').filter(Boolean)[0] || '';
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&enablejsapi=1`;
-      }
+    if (!videoId) return url;
+
+    const startParam = parsedUrl.searchParams.get('start');
+    const tParam = parsedUrl.searchParams.get('t');
+    const start = startParam ? parseInt(startParam, 10) : parseYouTubeTime(tParam);
+
+    const params = new URLSearchParams({
+      autoplay: '1',
+      rel: '0',
+      modestbranding: '1',
+      iv_load_policy: '3',
+      enablejsapi: '1',
+      playsinline: '1',
+      mute: '0',
+      controls: '0',
+      origin: window.location.origin || ''
+    });
+
+    if (start && Number.isFinite(start) && start > 0) {
+      params.set('start', String(start));
     }
+
+    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
   } catch (e) {
     console.error('YouTube URL dönüştürme hatası:', e);
+    return url;
   }
-  return url;
 }
 
 export function getProviderUrl(provider, id, slug = '') {
@@ -78,248 +112,299 @@ export function isValidUrl(url) {
   }
 }
 
-
 export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId }) {
-  if (!config.enableTrailerPlayback && !config.enableVideoPlayback) return;
-
-  if (config.enableVideoPlayback && itemId) {
-    const videoContainer = document.createElement("div");
-    videoContainer.className = "intro-video-container";
-    Object.assign(videoContainer.style, {
-      width: "70%",
-      height: "90%",
-      border: "none",
-      display: "none",
-      position: "absolute",
-      top: "0%",
-      right: "0%"
-    });
-
-    const videoElement = document.createElement("video");
-    videoElement.controls = true;
-    videoElement.muted = false;
-    videoElement.autoplay = true;
-    videoElement.playsInline = true;
-    videoElement.style.width = "100%";
-    videoElement.style.height = "100%";
-    videoElement.style.transition = "opacity 0.4s ease-in-out";
-    videoElement.style.opacity = "0";
-
-    videoContainer.appendChild(videoElement);
-    slide.appendChild(videoContainer);
-
-    let videoPlaying = false;
-    let videoEnterTimeout = null;
-    let currentSegment = 1;
-    let abortController = new AbortController();
-    let isMouseOver = false;
-    let latestHoverId = 0;
-    let isPageLoaded = document.readyState === 'complete';
-
-    if (!isPageLoaded) {
-      window.addEventListener('load', () => {
-        isPageLoaded = true;
-      });
-    }
-
-    const handleVideoMouseEnter = debounce(async (hoverId) => {
-    if (!isPageLoaded || !isMouseOver || hoverId !== latestHoverId) {
-    throw new Error('HoverAbortError');
+  if (config?.disableAllPlayback === true) {
+    try {
+      slide?.classList.remove("video-active", "intro-active", "trailer-active");
+      if (backdropImg) backdropImg.style.opacity = "1";
+    } catch (_) {}
+    return;
   }
+  const savedMode = localStorage.getItem('previewPlaybackMode');
+  const mode = (savedMode === 'trailer' || savedMode === 'video' || savedMode === 'trailerThenVideo')
+    ? savedMode
+    : (config.enableTrailerPlayback ? 'trailer' : 'video');
 
-  backdropImg.style.opacity = "0";
-  videoContainer.style.display = "block";
+  if (!itemId) return;
+  const videoContainer = document.createElement("div");
+  videoContainer.className = "intro-video-container";
+  Object.assign(videoContainer.style, {
+    width: "70%", height: "90%", border: "none", display: "none",
+    position: "absolute", top: "0%", right: "0%"
+  });
+
+  const videoElement = document.createElement("video");
+  videoElement.controls = true;
+  videoElement.muted = false;
+  videoElement.autoplay = true;
+  videoElement.playsInline = true;
+  videoElement.style.width = "100%";
+  videoElement.style.height = "100%";
+  videoElement.style.transition = "opacity 0.4s ease-in-out";
   videoElement.style.opacity = "0";
-  videoElement.pause();
-  videoElement.src = "";
-  if (videoElement.hls) {
-    videoElement.hls.destroy();
-    delete videoElement.hls;
-  }
 
-  slide.classList.add("video-active", "intro-active");
-  videoPlaying = true;
-  currentSegment = 1;
+  videoContainer.appendChild(videoElement);
+  slide.appendChild(videoContainer);
 
-  try {
-    const enableHls = config.enableHls === true;
-    const introUrl = await getVideoStreamUrl(
-      itemId, 1920, 0, null, ["h264"], ["aac"], false, false, enableHls, {
-        signal: abortController.signal
-      }
-    );
+  let ytIframe = null;
+  let playingKind = null;
+  let enterTimeout = null;
+  let isMouseOver = false;
+  let latestHoverId = 0;
+  let abortController = new AbortController();
+  const delay = config.gecikmeSure || 500;
+  const enableHls = config.enableHls === true;
 
-    if (!isMouseOver || hoverId !== latestHoverId) {
-      throw new Error('HoverAbortError');
-    }
-
-    if (enableHls && typeof window.Hls !== "undefined" && window.Hls.isSupported() && introUrl && /\.m3u8(\?|$)/.test(introUrl)) {
-      const hls = new window.Hls();
-      videoElement.hls = hls;
-
-      hls.loadSource(introUrl);
-      hls.attachMedia(videoElement);
-
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        if (!isMouseOver || hoverId !== latestHoverId) {
-          hls.destroy();
-          return;
-        }
-        videoElement.currentTime = 600;
-        videoElement.play().then(() => {
-          videoElement.style.opacity = "1";
-        }).catch(() => {});
-      });
-
-      hls.on(window.Hls.Events.ERROR, (event, data) => {
-        console.error('HLS ERROR', data);
-        if (data.fatal) {
-          cleanupVideo();
-        }
-      });
-    } else {
-      videoElement.src = introUrl;
-      videoElement.load();
-
-      videoElement.addEventListener('loadedmetadata', () => {
-        if (!isMouseOver || hoverId !== latestHoverId) {
-          cleanupVideo();
-          return;
-        }
-        videoElement.currentTime = 600;
-        videoElement.play().then(() => {
-          videoElement.style.opacity = "1";
-        });
-      }, { once: true });
-    }
-  } catch (e) {
-    if (e.name === 'AbortError' || e.message === 'HoverAbortError' || e.message === 'Mouse left before playback started') {
-      return;
-    }
-    console.error("Video yükleme hatası:", e);
-    cleanupVideo();
-  }
-}, 0);
-    const cleanupVideo = () => {
-      videoElement.pause();
-      videoElement.src = "";
-      if (videoElement.hls) {
-      try { videoElement.hls.destroy(); } catch(_) {}
+  const cleanupHls = () => {
+    if (videoElement.hls) {
+      try { videoElement.hls.destroy(); } catch (_) {}
       delete videoElement.hls;
     }
-      videoContainer.style.display = "none";
-      backdropImg.style.opacity = "1";
-      slide.classList.remove("video-active", "intro-active");
-      videoElement.style.opacity = "0";
-      videoPlaying = false;
-    };
+  };
+  const cleanupVideo = () => {
+    videoElement.pause();
+    videoElement.src = "";
+    cleanupHls();
+    videoContainer.style.display = "none";
+    videoElement.style.opacity = "0";
+    slide.classList.remove("video-active", "intro-active");
+  };
+  const cleanupIframe = () => {
+    if (ytIframe) {
+      ytIframe.src = "";
+      ytIframe.style.display = "none";
+      slide.classList.remove("trailer-active");
+    }
+  };
+  const fullCleanup = () => {
+    cleanupVideo();
+    cleanupIframe();
+    backdropImg.style.opacity = "1";
+    playingKind = null;
+  };
 
-    const mouseEnterHandler = () => {
-      latestHoverId++;
-      const thisHoverId = latestHoverId;
-      isMouseOver = true;
-      abortController.abort();
-      abortController = new AbortController();
+async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
+  const introUrl = await getVideoStreamUrl(
+    itemIdToPlay, 1920, 0, null, ["h264"], ["aac"], false, false, enableHls, { signal: abortController.signal }
+  );
+  if (!isMouseOver || hoverId !== latestHoverId) throw new Error('HoverAbortError');
 
-      videoEnterTimeout = setTimeout(() => {
-        if (thisHoverId !== latestHoverId || !document.body.contains(slide)) return;
-        if (!isMouseOver) return;
-        if (!isPageLoaded) return;
-        handleVideoMouseEnter(thisHoverId);
-      }, config.gecikmeSure || 500);
-    };
-
-    const handleVideoMouseLeave = () => {
-      isMouseOver = false;
-      latestHoverId++;
-      abortController.abort();
-      abortController = new AbortController();
-
-      if (videoEnterTimeout) {
-        clearTimeout(videoEnterTimeout);
-        videoEnterTimeout = null;
-      }
-
-      if (videoPlaying) {
-        cleanupVideo();
-      }
-    };
-
-    backdropImg.addEventListener("mouseenter", mouseEnterHandler);
-    backdropImg.addEventListener("mouseleave", handleVideoMouseLeave);
-
-    backdropImg.addEventListener("click", () => {
-      latestHoverId++;
-      if (videoEnterTimeout) {
-        clearTimeout(videoEnterTimeout);
-        videoEnterTimeout = null;
-      }
+  if (enableHls && typeof window.Hls !== "undefined" && window.Hls.isSupported() && introUrl && /\.m3u8(\?|$)/.test(introUrl)) {
+    const hls = new window.Hls();
+    videoElement.hls = hls;
+    hls.loadSource(introUrl);
+    hls.attachMedia(videoElement);
+    hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+      if (!isMouseOver || hoverId !== latestHoverId) { cleanupHls(); return; }
+      videoElement.currentTime = startSeconds;
+      videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
     });
-
-    slide.addEventListener("slideChange", () => {
-      latestHoverId++;
-      if (videoEnterTimeout) {
-        clearTimeout(videoEnterTimeout);
-        videoEnterTimeout = null;
-      }
-      handleVideoMouseLeave();
+    hls.on(window.Hls.Events.ERROR, (_e, data) => {
+      console.error('HLS ERROR', data);
+      if (data.fatal) fullCleanup();
     });
+  } else {
+    videoElement.src = introUrl;
+    videoElement.load();
+    videoElement.addEventListener('loadedmetadata', () => {
+      if (!isMouseOver || hoverId !== latestHoverId) { fullCleanup(); return; }
+      videoElement.currentTime = startSeconds;
+      videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
+    }, { once: true });
   }
-  else if (config.enableTrailerPlayback && RemoteTrailers?.length) {
-    const trailer = RemoteTrailers[0];
-    const trailerUrl = getYoutubeEmbedUrl(trailer.Url);
-    if (!isValidUrl(trailerUrl)) return;
+}
 
-    const trailerIframe = document.createElement("iframe");
-    trailerIframe.title = trailer.Name;
-    trailerIframe.allow =
-      "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-    trailerIframe.allowFullscreen = true;
+  async function tryPlayLocalTrailer(hoverId) {
+    const locals = await fetchLocalTrailers(itemId, { signal: abortController.signal });
+    if (!isMouseOver || hoverId !== latestHoverId) throw new Error('HoverAbortError');
+    const best = pickBestLocalTrailer(locals);
+    if (!best || !best.Id) return false;
 
-    Object.assign(trailerIframe.style, {
-      width: "70%",
-      height: "90%",
-      border: "none",
-      display: "none",
-      position: "absolute",
-      top: "0%",
-      right: "0%"
-    });
-
-    slide.appendChild(trailerIframe);
-
-    let trailerPlaying = false;
-    let enterTimeout = null;
-
-    const handleMouseEnter = debounce(() => {
-      backdropImg.style.opacity = "0";
-      trailerIframe.style.display = "block";
-      trailerIframe.src = trailerUrl;
-      slide.classList.add("trailer-active");
-      trailerPlaying = true;
-    }, 0);
-
-    const handleMouseLeave = () => {
-      if (enterTimeout) {
-        clearTimeout(enterTimeout);
-        enterTimeout = null;
-      }
-      if (trailerPlaying) {
-        trailerIframe.style.display = "none";
-        trailerIframe.src = "";
-        backdropImg.style.opacity = "1";
-        slide.classList.remove("trailer-active");
-        trailerPlaying = false;
-      }
-    };
-
-    backdropImg.addEventListener("mouseenter", () => {
-      enterTimeout = setTimeout(handleMouseEnter, config.gecikmeSure || 500);
-    });
-
-    backdropImg.addEventListener("mouseleave", handleMouseLeave);
-    slide.addEventListener("slideChange", handleMouseLeave);
+    backdropImg.style.opacity = "0";
+    cleanupIframe();
+    videoContainer.style.display = "block";
+    slide.classList.add("video-active", "intro-active");
+    playingKind = 'localTrailer';
+    await loadStreamFor(best.Id, hoverId, 0);
+    return true;
   }
+
+  async function tryPlayRemoteTrailer(hoverId) {
+    const trailer = Array.isArray(RemoteTrailers) && RemoteTrailers.length ? RemoteTrailers[0] : null;
+    if (!trailer?.Url) return false;
+    const url = getYoutubeEmbedUrl(trailer.Url);
+    if (!isValidUrl(url)) return false;
+
+    backdropImg.style.opacity = "0";
+    cleanupVideo();
+    if (!ytIframe) {
+      ytIframe = document.createElement("iframe");
+      ytIframe.title = trailer.Name || 'Trailer';
+      ytIframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      ytIframe.allowFullscreen = true;
+      Object.assign(ytIframe.style, {
+        width: "70%", height: "90%", border: "none", display: "none",
+        position: "absolute", top: "0%", right: "0%"
+      });
+      slide.appendChild(ytIframe);
+    }
+    ytIframe.style.display = "block";
+    ytIframe.src = url;
+    slide.classList.add("trailer-active");
+    playingKind = 'remoteTrailer';
+    return true;
+  }
+
+  async function playMainVideo(hoverId) {
+    backdropImg.style.opacity = "0";
+    cleanupIframe();
+    videoContainer.style.display = "block";
+    slide.classList.add("video-active", "intro-active");
+    playingKind = 'video';
+    await loadStreamFor(itemId, hoverId, 600);
+    return true;
+  }
+
+  const handleEnter = debounce(async () => {
+    isMouseOver = true;
+    latestHoverId++;
+    const thisHoverId = latestHoverId;
+    abortController.abort(); abortController = new AbortController();
+
+    enterTimeout = setTimeout(async () => {
+      if (!isMouseOver || thisHoverId !== latestHoverId) return;
+
+      try {
+        if (mode === 'video') {
+          await playMainVideo(thisHoverId);
+          return;
+        }
+        const localOk = await tryPlayLocalTrailer(thisHoverId);
+        if (localOk) return;
+
+        const remoteOk = await tryPlayRemoteTrailer(thisHoverId);
+        if (remoteOk) return;
+
+        if (mode === 'trailerThenVideo') {
+          await playMainVideo(thisHoverId);
+        } else {
+          fullCleanup();
+        }
+      } catch (e) {
+        if (e.name === 'AbortError' || e.message === 'HoverAbortError') return;
+        console.error('Hover/play error:', e);
+        fullCleanup();
+      }
+    }, delay);
+  }, 0);
+
+  const handleLeave = () => {
+    isMouseOver = false;
+    latestHoverId++;
+    abortController.abort(); abortController = new AbortController();
+    if (enterTimeout) { clearTimeout(enterTimeout); enterTimeout = null; }
+    if (playingKind) fullCleanup();
+  };
+
+  function attachAutoCleanupGuards(slideEl, backdropEl) {
+    const cleanups = [];
+    const viewport =
+      slideEl.closest('.swiper') ||
+      slideEl.closest('.splide__track') ||
+      slideEl.closest('.embla__viewport') ||
+      slideEl.closest('.flickity-viewport') ||
+      slideEl.closest('[data-slider-viewport]') ||
+      null;
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.target === slideEl) {
+            const visible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+            if (!visible) {
+              handleLeave();
+            }
+          }
+        }
+      }, {
+        root: viewport || null,
+        threshold: [0, 0.5, 1]
+      });
+      io.observe(slideEl);
+      cleanups.push(() => io.disconnect());
+    }
+    const mo = new MutationObserver(() => {
+      if (!document.body.contains(slideEl)) {
+        try { handleLeave(); } catch (_) {}
+        try { fullCleanup(); } catch (_) {}
+        cleanups.forEach(fn => { try { fn(); } catch(_){} });
+        mo.disconnect();
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+    cleanups.push(() => mo.disconnect());
+
+    const onVis = () => {
+      if (document.hidden) handleLeave();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    cleanups.push(() => document.removeEventListener('visibilitychange', onVis));
+    const swiperHost = slideEl.closest('.swiper');
+    const swiperInst = swiperHost && swiperHost.swiper;
+    if (swiperInst && swiperInst.on && swiperInst.off) {
+      const onSwiperChange = () => handleLeave();
+      swiperInst.on('slideChangeTransitionStart', onSwiperChange);
+      swiperInst.on('slideChange', onSwiperChange);
+      swiperInst.on('transitionStart', onSwiperChange);
+      cleanups.push(() => {
+        try { swiperInst.off('slideChangeTransitionStart', onSwiperChange); } catch(_) {}
+        try { swiperInst.off('slideChange', onSwiperChange); } catch(_) {}
+        try { swiperInst.off('transitionStart', onSwiperChange); } catch(_) {}
+      });
+    }
+    const splideRoot = slideEl.closest('.splide');
+    const splideInst = splideRoot && (splideRoot.__splide || window.splide);
+    if (splideInst && splideInst.on && splideInst.off) {
+      const onMove = () => handleLeave();
+      splideInst.on('move', onMove);
+      splideInst.on('moved', onMove);
+      cleanups.push(() => {
+        try { splideInst.off('move', onMove); } catch(_) {}
+        try { splideInst.off('moved', onMove); } catch(_) {}
+      });
+    }
+
+    const flktyRoot = slideEl.closest('.flickity-enabled');
+    const flktyInst = flktyRoot && flktyRoot.flickity;
+    if (flktyInst && flktyInst.on && flktyInst.off) {
+      const onChange = () => handleLeave();
+      flktyInst.on('change', onChange);
+      flktyInst.on('select', onChange);
+      cleanups.push(() => {
+        try { flktyInst.off('change', onChange); } catch(_) {}
+        try { flktyInst.off('select', onChange); } catch(_) {}
+      });
+    }
+
+    const emblaViewport = slideEl.closest('.embla__viewport');
+    const emblaInst = emblaViewport && emblaViewport.__embla;
+    if (emblaInst && emblaInst.on) {
+      const onSelect = () => handleLeave();
+      const onReInit = () => handleLeave();
+      emblaInst.on('select', onSelect);
+      emblaInst.on('reInit', onReInit);
+      cleanups.push(() => {
+        try { emblaInst.off('select', onSelect); } catch(_) {}
+        try { emblaInst.off('reInit', onReInit); } catch(_) {}
+      });
+    }
+
+    return () => {
+      cleanups.forEach(fn => { try { fn(); } catch(_){} });
+    };
+  }
+  const detachGuards = attachAutoCleanupGuards(slide, backdropImg);
+  backdropImg.addEventListener("mouseenter", handleEnter);
+  backdropImg.addEventListener("mouseleave", handleLeave);
 }
 
 export function prefetchImages(urls) {

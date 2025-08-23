@@ -165,8 +165,12 @@ export function getConfig() {
     enableHls: localStorage.getItem('enableHls') === 'true' ? true : false,
     previewModal: localStorage.getItem('previewModal') !== 'false',
     allPreviewModal: localStorage.getItem('allPreviewModal') !== 'false',
+    preferTrailersInPreviewModal: localStorage.getItem('preferTrailersInPreviewModal') === 'true',
+    onlyTrailerInPreviewModal: localStorage.getItem('onlyTrailerInPreviewModal') === 'true',
     enabledGmmp: localStorage.getItem('enabledGmmp') !== 'false',
     enableQualityBadges: localStorage.getItem('enableQualityBadges') !== 'false',
+    enableTrailerThenVideo: localStorage.getItem('enableTrailerThenVideo') !== 'false',
+    disableAllPlayback: localStorage.getItem('disableAllPlayback') === 'true' ? true : false,
     dicebearParams: (() => {
   try {
     const raw = localStorage.getItem('dicebearParams');
@@ -188,7 +192,7 @@ export function getConfig() {
     toastDuration: parseInt(localStorage.getItem("toastDuration"), 10) || 4000,
     renderResume: parseInt(localStorage.getItem("renderResume"), 10) || 10,
     enableRenderResume: localStorage.getItem('enableRenderResume') !== 'false',
-    toastGroupThreshold: parseInt(localStorage.getItem("toastGroupThreshold"), 10) || 3,
+    toastGroupThreshold: parseInt(localStorage.getItem("toastGroupThreshold"), 10) || 5,
     enableCounterSystem: localStorage.getItem('enableCounterSystem') !== 'false',
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,

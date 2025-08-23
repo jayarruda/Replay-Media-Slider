@@ -176,6 +176,7 @@ function hideOverlay() {
     }
 
     async function refreshData(data) {
+        console.log('pause overlay data:', { data, ep: data._episodeData });
         resetContent();
         const ep = data._episodeData || null;
         if (config.pauseOverlay.showBackdrop) {
@@ -190,13 +191,16 @@ function hideOverlay() {
             logoEl.innerHTML = '';
         }
         if (ep) {
-            titleEl.innerHTML = `
-                <h1 class="pause-series-title">${data.Name || data.OriginalTitle || ''}</h1>
-                <h2 class="pause-episode-title">${labels.sezon} ${ep.ParentIndexNumber} • ${labels.bolum} ${ep.IndexNumber} ${ep.Name ? '– ' + ep.Name : ''}</h2>
-            `;
-        } else {
-            titleEl.innerHTML = `<h1 class="pause-movie-title">${data.Name || data.OriginalTitle || ''}</h1>`;
-        }
+    const seriesTitle = data.Name || data.OriginalTitle || '';
+    const line = formatSeasonEpisodeLine(ep);
+
+    titleEl.innerHTML = `
+        <h1 class="pause-series-title">${seriesTitle}</h1>
+        <h2 class="pause-episode-title">${line}</h2>
+    `;
+} else {
+    titleEl.innerHTML = `<h1 class="pause-movie-title">${data.Name || data.OriginalTitle || ''}</h1>`;
+}
         if (config.pauseOverlay.showMetadata) {
             const rows = [
                 genRow('📅 ' + labels.showYearInfo, data.ProductionYear),
@@ -296,23 +300,89 @@ function hideOverlay() {
         }
     }
 
-    function getCurrentMediaId(force = false) {
-        const now = Date.now();
-        if (!force && now - lastIdCheck < 500) return currentMediaId;
-        lastIdCheck = now;
-        const selectors = [
-            '[data-id].btnUserRating',
-            '[data-id].itemRatingButton',
-            'button[data-id][data-isfavorite]',
-            '.nowPlayingInfo[data-id]',
-            '.detailPagePrimaryContainer[data-id]'
-        ];
-        for (const sel of selectors) {
-            const el = document.querySelector(sel);
-            if (el?.dataset.id) return el.dataset.id;
+    function getPlayingItemIdFromVideo(video) {
+  if (!video) return null;
+  const src =
+    video.currentSrc ||
+    (video.querySelector && video.querySelector('source')?.src) ||
+    video.src ||
+    '';
+
+  if (!src) return null;
+  const m =
+    src.match(/\/Videos\/([^/]+)\//) ||
+    src.match(/[?&]ItemId=([^&]+)/) ||
+    src.match(/\/Items\/([^/]+)\//);
+
+  return m ? m[1] : null;
+}
+
+
+    async function resolveNowPlayingEpisode() {
+    try {
+        const session = await getSessionInfo();
+        const np = session?.NowPlayingItem;
+        if (!np) return null;
+        if (np.Type === 'Episode') {
+            const ep = await fetchItemDetails(np.Id);
+            return ep;
         }
         return null;
+    } catch {
+        return null;
     }
+}
+
+    async function resolveNowPlaying() {
+    try {
+        const session = await getSessionInfo();
+        const np = session?.NowPlayingItem;
+        if (!np) return null;
+        if (np.Type === 'Episode') {
+            const ep = await fetchItemDetails(np.Id);
+            const seriesId = np.SeriesId || ep.SeriesId;
+            return { seriesId, episode: ep };
+        }
+        return {
+            seriesId: np.SeriesId || np.Id,
+            episode: null
+        };
+    } catch {
+        return null;
+    }
+}
+
+
+    function getCurrentMediaId(force = false) {
+    const now = Date.now();
+    if (!force && now - lastIdCheck < 500) return currentMediaId;
+    lastIdCheck = now;
+
+    const selectors = [
+        '[data-id].btnUserRating',
+        '[data-id].itemRatingButton',
+        'button[data-id][data-isfavorite]',
+        '.nowPlayingInfo[data-id]',
+        '.detailPagePrimaryContainer[data-id]',
+        '[data-itemid]',
+        '.libraryPage[data-id]',
+        '.itemBackdrop[data-id]'
+    ];
+
+    for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el?.dataset.id) return el.dataset.id;
+        if (el?.dataset.itemid) return el.dataset.itemid;
+    }
+    try {
+        const u = new URL(location.href);
+        const qid = u.searchParams.get('id');
+        if (qid) return qid;
+    } catch {}
+
+    return null;
+}
+
 
     function bindVideo(video) {
         if (removeHandlers) removeHandlers();
@@ -321,24 +391,73 @@ function hideOverlay() {
         }
         activeVideo = video;
         const onPause = async () => {
-            if (video.ended) return;
-            if (pauseTimeout) clearTimeout(pauseTimeout);
-            pauseTimeout = setTimeout(async () => {
-                if (!video.paused || video.ended) return;
-                const id = getCurrentMediaId(true);
-                if (!id) return;
-                currentMediaId = id;
-                const info = await fetchItemDetails(id);
-                if (info.Type === 'Episode' && info.SeriesId) {
-                    currentMediaId = info.SeriesId;
-                    const series = await fetchItemDetails(info.SeriesId);
-                    await refreshData({ ...series, _episodeData: info });
-                } else {
-                    await refreshData(info);
-                }
-                showOverlay();
-            }, 1000);
-        };
+  if (video.ended) return;
+  if (pauseTimeout) clearTimeout(pauseTimeout);
+
+  pauseTimeout = setTimeout(async () => {
+    if (!video.paused || video.ended) return;
+    let ep = await resolveNowPlayingEpisode();
+    if (!ep) {
+      const nowId = document.querySelector('.nowPlayingInfo[data-id]')?.dataset?.id;
+      if (nowId) {
+        try {
+          const maybeEp = await fetchItemDetails(nowId);
+          if (maybeEp?.Type === 'Episode') ep = maybeEp;
+        } catch {}
+      }
+    }
+
+    if (!ep) {
+      const vidItemId = getPlayingItemIdFromVideo(activeVideo);
+      if (vidItemId) {
+        try {
+          const info = await fetchItemDetails(vidItemId);
+          if (info?.Type === 'Episode') ep = info;
+        } catch {}
+      }
+    }
+
+    let seriesId = null;
+    if (ep?.SeriesId) {
+      seriesId = ep.SeriesId;
+    } else {
+      const rawId =
+        document.querySelector('.nowPlayingInfo[data-id]')?.dataset?.id ||
+        getCurrentMediaId(true);
+
+      if (rawId) {
+        const info = await fetchItemDetails(rawId);
+        if (info.Type === 'Episode' && info.SeriesId) {
+          seriesId = info.SeriesId;
+          ep = ep || info;
+        } else if (info.Type === 'Season' && info.SeriesId) {
+          seriesId = info.SeriesId;
+        } else {
+          seriesId = info.SeriesId || info.Id;
+        }
+      }
+    }
+
+    if (!seriesId) return;
+
+    currentMediaId = seriesId;
+    const series = await fetchItemDetails(seriesId);
+    await refreshData({ ...series, _episodeData: ep || null });
+    showOverlay();
+    if (!ep) {
+      let tries = 3;
+      while (tries-- > 0) {
+        await new Promise(r => setTimeout(r, 200));
+        const lateEp = await resolveNowPlayingEpisode();
+        if (lateEp?.SeriesId === seriesId) {
+          await refreshData({ ...series, _episodeData: lateEp });
+          break;
+        }
+      }
+    }
+  }, 1000);
+};
+
         const onPlay = () => {
             hideOverlay();
             if (pauseTimeout) clearTimeout(pauseTimeout);
@@ -397,6 +516,12 @@ function hideOverlay() {
             hideOverlay();
         }
     });
+    document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && overlayVisible) {
+        e.preventDefault();
+        hideOverlay();
+    }
+});
     startOverlayLogic();
     return () => {
         if (removeHandlers) removeHandlers();
@@ -423,4 +548,25 @@ function convertDurationFromSeconds(sec) {
     const t = Math.floor(sec || 0);
     const m = Math.floor(t / 60), h = Math.floor(m / 60), rm = m % 60, rs = t % 60;
     return h > 0 ? `${h}${labels.sa} ${rm}${labels.dk} ${rs}${labels.sn}` : `${rm}${labels.dk} ${rs}${labels.sn}`;
+}
+
+function formatSeasonEpisodeLine(ep) {
+    const sWord = labels.season || 'Season';
+    const eWord = labels.episode || 'Episode';
+    const sNum = ep?.ParentIndexNumber;
+    const eNum = ep?.IndexNumber;
+    const eTitle = ep?.Name ? ` – ${ep.Name}` : '';
+    const numberFirst = new Set(['tur']);
+
+    let left = '', right = '';
+    if (numberFirst.has(currentLang)) {
+        if (sNum != null) left = `${sNum}. ${sWord}`;
+        if (eNum != null) right = `${eNum}. ${eWord}`;
+    } else {
+        if (sNum != null) left = `${sWord} ${sNum}`;
+        if (eNum != null) right = `${eWord} ${eNum}`;
+    }
+
+    const mid = left && right ? ' • ' : '';
+    return `${left}${mid}${right}${eTitle}`.trim();
 }

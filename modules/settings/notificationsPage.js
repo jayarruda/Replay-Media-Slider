@@ -76,6 +76,24 @@ export function createNotificationsPanel(config, labels) {
     toastDurationDiv.append(toastDurationLabel, toastDurationInput);
     section.appendChild(toastDurationDiv);
 
+    const toastGroupThresholdDiv = document.createElement('div');
+    toastGroupThresholdDiv.className = 'setting-item limit-container';
+
+    const toastGroupThresholdLabel = document.createElement('label');
+    toastGroupThresholdLabel.textContent = labels.toastGroupThreshold || 'Toast Grup Limiti:';
+
+    const toastGroupThresholdInput = document.createElement('input');
+    toastGroupThresholdInput.type = 'number';
+    toastGroupThresholdInput.value = typeof config.toastGroupThreshold !== 'undefined' ? config.toastGroupThreshold : 15;
+    toastGroupThresholdInput.name = 'toastGroupThreshold';
+    toastGroupThresholdInput.min = 1;
+    toastGroupThresholdInput.max = 10;
+
+    toastGroupThresholdLabel.htmlFor = 'toastGroupThresholdInput';
+    toastGroupThresholdInput.id = 'toastGroupThresholdInput';
+    toastGroupThresholdDiv.append(toastGroupThresholdLabel, toastGroupThresholdInput);
+    section.appendChild(toastGroupThresholdDiv);
+
     const enableRenderResumeCheckbox = createCheckbox(
     'enableRenderResume',
     labels.enableRenderResume || 'İzlenmesi Yarım Kalanları Görüntüle',

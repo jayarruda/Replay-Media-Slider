@@ -72,8 +72,12 @@ export function applySettings(reload = false) {
             enableHls: formData.get('enableHls') === 'on',
             previewModal: formData.get('previewModal') === 'on',
             allPreviewModal: formData.get('allPreviewModal') === 'on',
+            preferTrailersInPreviewModal: formData.get('preferTrailersInPreviewModal') === 'on',
+            onlyTrailerInPreviewModal: formData.get('onlyTrailerInPreviewModal') === 'on',
             enabledGmmp: formData.get('enabledGmmp') === 'on',
             enableQualityBadges: formData.get('enableQualityBadges') === 'on',
+            enableTrailerThenVideo: formData.get('enableTrailerThenVideo') === 'on',
+            disableAllPlayback: formData.get('disableAllPlayback') === 'on',
 
             enableNotifications: formData.get('enableNotifications') === 'on',
             enableToastNew: formData.get('enableToastNew') === 'on',

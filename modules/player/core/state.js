@@ -7,6 +7,8 @@ export const musicPlayerState = {
   playlist: [],
   originalPlaylist: [],
   currentIndex: 0,
+  isPlayingReported: false,
+  lastReportedItemId: null,
   isPlayerVisible: false,
   modernPlayer: null,
   albumArtEl: document.querySelector('#player-album-art'),

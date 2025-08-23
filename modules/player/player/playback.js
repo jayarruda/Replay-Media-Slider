@@ -33,6 +33,11 @@ const updatePlaybackUI = (isPlaying) => {
 
 const handlePlaybackError = (error, action = 'play') => {
   console.error(`Oynatma sırasında hata oluştu ${action}:`, error);
+  const t = musicPlayerState.playlist[musicPlayerState.currentIndex];
+  if (t && musicPlayerState.isPlayingReported) {
+    reportPlaybackStopped(t, convertSecondsToTicks(musicPlayerState.audio?.currentTime || 0));
+    musicPlayerState.isPlayingReported = false;
+  }
   showNotification(
   `<i class="fas fa-exclamation-circle"></i> ${config.languageLabels.playbackError || "Oynatma Hatası"}`,
   3000,
@@ -41,14 +46,30 @@ const handlePlaybackError = (error, action = 'play') => {
   setTimeout(playNext, SEEK_RETRY_DELAY);
 };
 
-function handleCanPlay() {
+ function handleCanPlay() {
   musicPlayerState.audio.play()
-    .then(() => updatePlaybackUI(true))
-    .catch(err => handlePlaybackError(err, 'canplay'));
-}
+    .then(() => {
+      updatePlaybackUI(true);
+      const track = musicPlayerState.isUserModified
+        ? musicPlayerState.combinedPlaylist[musicPlayerState.currentIndex]
+        : musicPlayerState.playlist[musicPlayerState.currentIndex];
+      if (track && !musicPlayerState.isPlayingReported) {
+        reportPlaybackStart(track);
+        musicPlayerState.isPlayingReported = true;
+        musicPlayerState.lastReportedItemId = track.Id ?? null;
+      }
+    })
+     .catch(err => handlePlaybackError(err, 'canplay'));
+ }
+
 
 function handlePlayError() {
   console.error("Şarkı yükleme hatası:", musicPlayerState.audio.src);
+  const t = musicPlayerState.playlist[musicPlayerState.currentIndex];
+  if (t && musicPlayerState.isPlayingReported) {
+    reportPlaybackStopped(t, convertSecondsToTicks(musicPlayerState.audio?.currentTime || 0));
+    musicPlayerState.isPlayingReported = false;
+  }
   setTimeout(playNext, SEEK_RETRY_DELAY);
 }
 
@@ -67,14 +88,15 @@ function cleanupAudioListeners() {
 }
 
 function handleSongEnd() {
-  const { userSettings, playlist, audio } = musicPlayerState;
-  const currentTrack = playlist[musicPlayerState.currentIndex];
-  if (currentTrack) {
-    reportPlaybackStopped(
-      currentTrack,
-      convertSecondsToTicks(audio.currentTime)
-    );
-  }
+   const { userSettings, playlist, audio } = musicPlayerState;
+   const currentTrack = playlist[musicPlayerState.currentIndex];
+  if (currentTrack && musicPlayerState.isPlayingReported) {
+     reportPlaybackStopped(
+       currentTrack,
+       convertSecondsToTicks(audio.currentTime)
+     );
+    musicPlayerState.isPlayingReported = false;
+   }
 
   if (playlist.length === 0) {
     updatePlaybackUI(false);
@@ -121,8 +143,10 @@ export function togglePlayPause() {
       .then(() => {
         updatePlaybackUI(true);
         const currentTrack = musicPlayerState.playlist[musicPlayerState.currentIndex];
-        if (currentTrack) {
+        if (currentTrack && !musicPlayerState.isPlayingReported) {
           reportPlaybackStart(currentTrack);
+          musicPlayerState.isPlayingReported = true;
+          musicPlayerState.lastReportedItemId = currentTrack.Id ?? null;
         }
       })
       .catch(error => handlePlaybackError(error));
@@ -130,17 +154,23 @@ export function togglePlayPause() {
     audio.pause();
     updatePlaybackUI(false);
     const currentTrack = musicPlayerState.playlist[musicPlayerState.currentIndex];
-    if (currentTrack) {
+    if (currentTrack && musicPlayerState.isPlayingReported) {
       reportPlaybackStopped(
         currentTrack,
         convertSecondsToTicks(audio.currentTime)
       );
+      musicPlayerState.isPlayingReported = false;
     }
   }
 }
 
 export function playPrevious() {
   const { playlist, effectivePlaylist, userSettings, audio } = musicPlayerState;
+  const prevTrack = playlist[musicPlayerState.currentIndex];
+  if (prevTrack && musicPlayerState.isPlayingReported) {
+    reportPlaybackStopped(prevTrack, convertSecondsToTicks(audio?.currentTime || 0));
+    musicPlayerState.isPlayingReported = false;
+  }
   const currentIndex = musicPlayerState.currentIndex;
 
   if (playlist.length === 0) {
@@ -189,7 +219,12 @@ export function playPrevious() {
 }
 
 export function playNext() {
-  const { playlist, effectivePlaylist, userSettings, currentIndex } = musicPlayerState;
+  const { playlist, effectivePlaylist, userSettings, currentIndex, audio } = musicPlayerState;
+  const prevTrack = playlist[currentIndex];
+  if (prevTrack && musicPlayerState.isPlayingReported) {
+    reportPlaybackStopped(prevTrack, convertSecondsToTicks(audio?.currentTime || 0));
+    musicPlayerState.isPlayingReported = false;
+  }
 
   if (playlist.length === 0) {
     updatePlaybackUI(false);
@@ -453,13 +488,9 @@ async function getEmbeddedImage(trackId) {
 
 export function playTrack(index) {
   cleanupAudioListeners();
-  const currentTrack = musicPlayerState.playlist[musicPlayerState.currentIndex];
-  if (currentTrack) {
-    reportPlaybackStopped(
-      currentTrack,
-      convertSecondsToTicks(musicPlayerState.audio.currentTime)
-    );
-  }
+  const prevIndex = musicPlayerState.currentIndex;
+  const hadTime = Number.isFinite(musicPlayerState?.audio?.currentTime) && musicPlayerState.audio.currentTime > 0.25;
+  const prevTrack = (prevIndex != null && prevIndex > -1) ? musicPlayerState.playlist[prevIndex] : null;
 
   if (index < 0 || index >= musicPlayerState.playlist.length) return;
 
@@ -471,9 +502,19 @@ export function playTrack(index) {
   const track = musicPlayerState.isUserModified ?
     musicPlayerState.combinedPlaylist[index] :
     musicPlayerState.playlist[index];
-  musicPlayerState.currentIndex = index;
-  musicPlayerState.currentTrackName = track.Name || config.languageLabels.unknownTrack;
-  musicPlayerState.currentAlbumName = track.Album || config.languageLabels.unknownAlbum;
+    if (prevTrack && musicPlayerState.isPlayingReported) {
+    const switchingToDifferent = prevTrack.Id !== track?.Id;
+    if (switchingToDifferent || hadTime) {
+      reportPlaybackStopped(
+        prevTrack,
+        convertSecondsToTicks(musicPlayerState.audio.currentTime)
+      );
+    }
+    musicPlayerState.isPlayingReported = false;
+  }
+    musicPlayerState.currentIndex = index;
+    musicPlayerState.currentTrackName = track.Name || config.languageLabels.unknownTrack;
+    musicPlayerState.currentAlbumName = track.Album || config.languageLabels.unknownAlbum;
 
   showNotification(
     `<i class="fas fa-music" style="margin-right: 8px;"></i>${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
@@ -484,9 +525,8 @@ export function playTrack(index) {
   updateModernTrackInfo(track);
   updatePlaylistModal();
   startLyricsSync();
-  reportPlaybackStart(track);
   loadAlbumArt(track).then(() => {
-    updatePlayerBackground();
+  updatePlayerBackground();
   });
 
   checkMarqueeNeeded(musicPlayerState.modernTitleEl);

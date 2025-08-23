@@ -1,11 +1,65 @@
 import { getConfig, getServerAddress } from "./config.js";
-import { clearCredentials } from "../auth.js";
+import { clearCredentials, getWebClientHints } from "../auth.js";
 
 const config = getConfig();
-
 const itemCache = new Map();
 const dotGenreCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000;
+
+export async function fetchLocalTrailers(itemId, { signal } = {}) {
+  if (!itemId) return [];
+
+  const api = window.ApiClient || null;
+  const apiBase = api && typeof api.serverAddress === 'function'
+    ? api.serverAddress()
+    : '';
+  const userId =
+    (api && typeof api.getCurrentUserId === 'function' && api.getCurrentUserId()) ||
+    (typeof getConfig === 'function' && getConfig()?.userId) ||
+    null;
+  const token =
+    (api && typeof api.accessToken === 'function' && api.accessToken()) ||
+    (api && api._accessToken) ||
+    localStorage.getItem('embyToken') ||
+    sessionStorage.getItem('embyToken') ||
+    null;
+
+  const params = new URLSearchParams();
+  if (userId) params.set('userId', userId);
+  const url = `${apiBase}/Items/${encodeURIComponent(itemId)}/LocalTrailers${params.toString() ? `?${params}` : ''}`;
+  const headers = { 'Accept': 'application/json' };
+
+  if (token) {
+    headers['X-Emby-Token'] = token;
+  } else if (api && typeof api.getAuthorizationHeader === 'function') {
+    headers['X-Emby-Authorization'] = api.getAuthorizationHeader();
+  } else if (typeof getConfig === 'function' && getConfig()?.authHeader) {
+    headers['X-Emby-Authorization'] = getConfig().authHeader;
+  }
+
+  try {
+    const res = await fetch(url, { headers, signal, credentials: 'same-origin' });
+    if (res.status === 401) {
+      console.warn('fetchLocalTrailers: 401 Unauthorized (token eksik/yanlış?)');
+      return [];
+    }
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
+  } catch (e) {
+    console.warn('fetchLocalTrailers error:', e);
+    return [];
+  }
+}
+
+export function pickBestLocalTrailer(trailers = []) {
+  if (!Array.isArray(trailers) || trailers.length === 0) return null;
+  const withName = trailers.find(t => (t.Name || t.Path || '').toLowerCase().includes('trailer'));
+  if (withName) return withName;
+  const byShort = [...trailers].sort((a,b) => (a.RunTimeTicks||0) - (b.RunTimeTicks||0));
+  return byShort[0] || trailers[0];
+}
 
 export async function getCachedItemDetails(itemId) {
   const now = Date.now();
@@ -56,35 +110,39 @@ export function getSessionInfo() {
     localStorage.getItem("json-credentials");
   if (!raw) throw new Error("Kimlik bilgisi bulunamadı.");
   const parsed = JSON.parse(raw);
-
-  const topLevelToken = parsed.AccessToken;
-  const topLevelSessionId = parsed.SessionId;
+  const hints = getWebClientHints();
+  const topLevelToken = parsed.AccessToken || hints.accessToken;
+  const topLevelSessionId = parsed.SessionId || hints.sessionId;
   const topLevelUser = parsed.User?.Id;
 
-  if (topLevelToken && topLevelSessionId && topLevelUser) {
+  if (topLevelToken && topLevelUser) {
     return {
       userId: topLevelUser,
       accessToken: topLevelToken,
-      sessionId: topLevelSessionId,
-      deviceId: parsed.DeviceId || parsed.ClientDeviceId || "web-client",
-      clientName: parsed.Client || "Jellyfin Web Client",
-      clientVersion: parsed.Version || "1.0.0"
+      sessionId: topLevelSessionId || parsed.SessionId || null,
+      deviceId:
+        parsed.DeviceId ||
+        parsed.ClientDeviceId ||
+        hints.deviceId ||
+        "web-client",
+      clientName: parsed.Client || hints.clientName || "Jellyfin Web Client",
+      clientVersion: parsed.Version || hints.clientVersion || "1.0.0",
     };
   }
 
   const server = (parsed.Servers && parsed.Servers[0]) || {};
-  const oldToken = server.AccessToken;
-  const oldSessionId = server.Id;
+  const oldToken = server.AccessToken || hints.accessToken;
+  const oldSessionId = server.Id || hints.sessionId;
   const oldUser = server.UserId;
 
-  if (oldToken && oldSessionId && oldUser) {
+  if (oldToken && oldUser) {
     return {
       userId: oldUser,
       accessToken: oldToken,
-      sessionId: oldSessionId,
-      deviceId: server.SystemId || "web-client",
-      clientName: parsed.Client || "Jellyfin Web Client",
-      clientVersion: parsed.Version || "1.0.0"
+      sessionId: oldSessionId || null,
+      deviceId: server.SystemId || hints.deviceId || "web-client",
+      clientName: parsed.Client || hints.clientName || "Jellyfin Web Client",
+      clientVersion: parsed.Version || hints.clientVersion || "1.0.0",
     };
   }
 
@@ -92,6 +150,7 @@ export function getSessionInfo() {
     "Kimlik bilgisi eksik: ne top-level ne de Servers[0] altından gerekli alanlar bulunamadı"
   );
 }
+
 
 async function makeApiRequest(url, options = {}) {
   try {
@@ -192,47 +251,97 @@ export async function getImageDimensions(url) {
   });
 }
 
+function scoreSessionCandidate(s, self) {
+  let score = 0;
+
+  if (s?.Id && self.sessionId && s.Id === self.sessionId) score += 120;
+  if (s?.DeviceId && self.deviceId && s.DeviceId === self.deviceId) score += 100;
+  if (s?.AccessToken && self.accessToken && s.AccessToken === self.accessToken) score += 60;
+  if (s?.UserId && s.UserId === self.userId) score += 30;
+
+  const sClient = (s?.Client || "").toLowerCase();
+  const myClient = (self.clientName || "").toLowerCase();
+  if (sClient && myClient && (sClient.includes("web") || sClient.includes(myClient))) score += 15;
+
+  const last = s?.LastActivityDate ? new Date(s.LastActivityDate).getTime() : 0;
+  if (last && Date.now() - last < 2 * 60 * 1000) score += 10;
+  if (s?.SupportsRemoteControl) score += 6;
+
+  return score;
+}
+
+function resolveSelfSession(videoClients, self, { allowLastActiveFallback = false } = {}) {
+  const ranked = videoClients
+    .map((s) => ({ s, score: scoreSessionCandidate(s, self) }))
+    .sort((a, b) => b.score - a.score);
+
+  const MIN_SCORE = 100;
+  if (ranked.length && ranked[0].score >= MIN_SCORE) {
+    return ranked[0].s;
+  }
+
+  if (allowLastActiveFallback && ranked.length) {
+    return ranked[0].s;
+  }
+
+  return null;
+}
 
 export async function playNow(itemId) {
   try {
-    const { userId } = getSessionInfo();
-
-    const item = await fetchItemDetails(itemId);
-    if (item.Type === "Series") {
-  itemId = await getRandomEpisodeId(itemId);
-}
-
-    const { deviceId, sessionId } = getSessionInfo();
-    const sessions = await makeApiRequest(`/Sessions?UserId=${userId}`);
-    const videoClients = sessions.filter(s =>
-      s.Capabilities?.PlayableMediaTypes?.includes('Video')
+    const self = getSessionInfo();
+    let item = await fetchItemDetails(itemId);
+    if (item?.Type === "Series") {
+      itemId = await getRandomEpisodeId(itemId);
+      item = await fetchItemDetails(itemId);
+    }
+    const sessions = await makeApiRequest(`/Sessions?UserId=${self.userId}`);
+    const videoClients = (Array.isArray(sessions) ? sessions : []).filter(
+      (s) => s?.Capabilities?.PlayableMediaTypes?.includes("Video")
     );
 
-    let target = videoClients.find(s => s.Id === sessionId) ||
-      videoClients.find(s => s.DeviceId === deviceId) ||
-      videoClients.find(s => s.NowPlayingItem) ||
-      videoClients.sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))[0];
-
-    if (!target) {
+    if (!videoClients.length) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
     }
+    let target = resolveSelfSession(videoClients, self, { allowLastActiveFallback: false });
+    let usedFallback = false;
+    if (!target) {
+      target = resolveSelfSession(videoClients, self, { allowLastActiveFallback: true });
+      if (target) usedFallback = true;
+    }
+    if (!target) {
+      const sorted = [...videoClients].sort((a, b) => {
+        const ta = new Date(a?.LastActivityDate || 0).getTime();
+        const tb = new Date(b?.LastActivityDate || 0).getTime();
+        return tb - ta;
+      });
+      target = sorted[0];
+      usedFallback = true;
+    }
 
-    const userItemData = await makeApiRequest(`/Users/${userId}/Items/${itemId}`);
+    if (!target) {
+      throw new Error("Bu istemcinin oturumu bulunamadı.");
+    }
+    if (target?.UserId && target.UserId !== self.userId) {
+      throw new Error("Seçilen hedef başka bir kullanıcıya ait. Komut iptal edildi.");
+    }
+    if (!usedFallback) {
+      if (target.AccessToken && self.accessToken && target.AccessToken !== self.accessToken) {
+        throw new Error("Hedef oturumun AccessToken değeri farklı. Komut iptal edildi.");
+      }
+    }
+
+    const userItemData = await makeApiRequest(`/Users/${self.userId}/Items/${itemId}`);
     const resumeTicks = userItemData?.UserData?.PlaybackPositionTicks || 0;
 
     let playUrl = `/Sessions/${target.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
-    if (resumeTicks > 0) {
-      playUrl += `&StartPositionTicks=${resumeTicks}`;
-    }
+    if (resumeTicks > 0) playUrl += `&StartPositionTicks=${resumeTicks}`;
 
     const res = await fetch(playUrl, {
       method: "POST",
-      headers: { Authorization: getAuthHeader() }
+      headers: { Authorization: getAuthHeader() },
     });
-
-    if (!res.ok) {
-      throw new Error(`Oynatma komutu başarısız: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`Oynatma komutu başarısız: ${res.status} ${res.statusText}`);
 
     window.currentPlayingItemId = itemId;
     return true;

@@ -181,12 +181,10 @@ export function createSettingsModal() {
     const applyBtn = document.createElement('button');
     applyBtn.type = 'button';
     applyBtn.textContent = labels.uygula || 'Uygula';
-    applyBtn.style.marginLeft = '10px';
 
     const resetBtn = document.createElement('button');
     resetBtn.type = 'button';
     resetBtn.textContent = labels.resetToDefaults || 'Sıfırla';
-    resetBtn.style.marginLeft = '10px';
     resetBtn.className = 'reset-btn';
     resetBtn.onclick = () => {
         createConfirmationModal(
@@ -216,7 +214,6 @@ export function createSettingsModal() {
     const themeToggleBtn = document.createElement('button');
     themeToggleBtn.type = 'button';
     themeToggleBtn.className = 'theme-toggle-btn';
-    themeToggleBtn.style.marginLeft = '10px';
 
 function setSettingsThemeToggleVisuals() {
   const cfg = getConfig();
