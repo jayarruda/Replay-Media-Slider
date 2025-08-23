@@ -228,18 +228,20 @@ process_item() {
       continue
     fi
 
-    # Geçici dosya artık WORK_DIR altında tutulur
     local tmp="$WORK_DIR/${id}.tmp.mp4"
     cleanup_tmp() { rm -f "$tmp" >/dev/null 2>&1 || true; }
     trap 'cleanup_tmp' EXIT INT TERM
 
     echo "[INDIR] $name ($year) -> $out  [${site}:${key}] (source quality)"
-    local yd_base=( -f 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
-                    --merge-output-format mp4
-                    --no-part
-                    --no-progress
-                    --retry-sleep 2
-                    -o "$tmp" "$url" )
+    local yd_base=(
+  -f "bv*[vcodec^=avc1][height<=1080]+ba[acodec^=mp4a]/b[ext=mp4]"
+  -S "res,fps,br"
+  --merge-output-format mp4
+  --no-part
+  --no-progress
+  --retry-sleep 2
+  -o "$tmp" "$url"
+)
 
     if [[ -n "$COOKIES_BROWSER" ]]; then
       yd_base=( --cookies-from-browser "$COOKIES_BROWSER" "${yd_base[@]}" )
