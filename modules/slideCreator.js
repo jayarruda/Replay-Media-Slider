@@ -425,6 +425,17 @@ function addSlideToSettingsBackground(itemId, backdropUrl) {
   }
 }
 
+function buildStarLayer(useSolid) {
+  const layer = document.createElement("span");
+  layer.className = useSolid ? "trailer-star-fill" : "trailer-star-track";
+  for (let i = 0; i < 5; i++) {
+    const star = document.createElement("i");
+    star.className = useSolid ? "fa-solid fa-star" : "fa-regular fa-star";
+    layer.appendChild(star);
+  }
+  return layer;
+}
+
 function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '', isFavorite = false, itemId = null, updateFavoriteCallback = null, CommunityRating = null, CriticRating = null, OfficialRating = null) {
   const embedUrl = getYoutubeEmbedUrl(trailerUrl);
   const sep = embedUrl.includes('?') ? '&' : '?';
@@ -504,53 +515,40 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   ratingContainer.style.gap = "15px";
   ratingContainer.style.alignItems = "center";
 
-  if (CommunityRating) {
-    let ratingValue = Array.isArray(CommunityRating)
-      ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
-      : Math.round(CommunityRating * 10) / 10;
+  if (CommunityRating != null) {
+  let rating10 = Array.isArray(CommunityRating)
+    ? (CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length)
+    : CommunityRating;
+  rating10 = Math.max(0, Math.min(10, Number(rating10) || 0));
 
-    const ratingPercentage = ratingValue * 9.5;
+  const rating5 = rating10 / 2;
+  const fillPercent = (rating5 / 5) * 100;
 
-    const communityRatingElement = document.createElement("div");
-    communityRatingElement.style.display = "flex";
-    communityRatingElement.style.alignItems = "center";
-    communityRatingElement.style.gap = "5px";
+  const communityRatingElement = document.createElement("div");
+  communityRatingElement.style.display = "flex";
+  communityRatingElement.style.alignItems = "center";
+  communityRatingElement.style.gap = "8px";
 
-    const starContainer = document.createElement("span");
-    starContainer.className = "star-rating";
-    starContainer.style.position = "relative";
-    starContainer.style.display = "inline-block";
-    starContainer.style.fontSize = "1em";
-    starContainer.style.color = "#ccc";
+  const starWrap = document.createElement("span");
+  starWrap.className = "trailer-star-rating";
+  starWrap.setAttribute("aria-label", `${rating5.toFixed(1)} / 5`);
 
-    const emptyStar = document.createElement("i");
-    emptyStar.className = "fa-regular fa-star";
+  const track = buildStarLayer(false);
+  const fill  = buildStarLayer(true);
+  fill.style.width = `${fillPercent}%`;
 
-    const filledStarWrapper = document.createElement("span");
-    filledStarWrapper.className = "star-filled";
-    filledStarWrapper.style.position = "absolute";
-    filledStarWrapper.style.bottom = "0";
-    filledStarWrapper.style.left = "0";
-    filledStarWrapper.style.width = "auto";
-    filledStarWrapper.style.color = "gold";
-    filledStarWrapper.style.overflow = "hidden";
-    filledStarWrapper.style.clipPath = `inset(${100 - ratingPercentage}% 0 0 0)`;
+  starWrap.appendChild(track);
+  starWrap.appendChild(fill);
 
-    const filledStar = document.createElement("i");
-    filledStar.className = "fa-solid fa-star";
-    filledStar.style.display = "block";
+  const ratingText = document.createElement("span");
+  // ratingText.textContent = `${rating5.toFixed(1)} / 5 (${rating10.toFixed(1)} / 10)`;
+  ratingText.textContent = `${rating5.toFixed(1)} / 5`;
 
-    filledStarWrapper.appendChild(filledStar);
-    starContainer.appendChild(emptyStar);
-    starContainer.appendChild(filledStarWrapper);
+  communityRatingElement.appendChild(starWrap);
+  communityRatingElement.appendChild(ratingText);
+  ratingContainer.appendChild(communityRatingElement);
+}
 
-    const ratingText = document.createElement("span");
-    ratingText.textContent = ratingValue;
-
-    communityRatingElement.appendChild(starContainer);
-    communityRatingElement.appendChild(ratingText);
-    ratingContainer.appendChild(communityRatingElement);
-  }
 
   if (CriticRating) {
     const criticRatingElement = document.createElement("div");

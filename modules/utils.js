@@ -120,16 +120,18 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     } catch (_) {}
     return;
   }
+
   const savedMode = localStorage.getItem('previewPlaybackMode');
   const mode = (savedMode === 'trailer' || savedMode === 'video' || savedMode === 'trailerThenVideo')
     ? savedMode
     : (config.enableTrailerPlayback ? 'trailer' : 'video');
 
   if (!itemId) return;
+
   const videoContainer = document.createElement("div");
   videoContainer.className = "intro-video-container";
   Object.assign(videoContainer.style, {
-    width: "70%", height: "90%", border: "none", display: "none",
+    width: "70%", height: "100%", border: "none", display: "none",
     position: "absolute", top: "0%", right: "0%"
   });
 
@@ -140,7 +142,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   videoElement.playsInline = true;
   videoElement.style.width = "100%";
   videoElement.style.height = "100%";
-  videoElement.style.transition = "opacity 0.4s ease-in-out";
+  videoElement.style.transition = "opacity 0.2s ease-in-out";
   videoElement.style.opacity = "0";
 
   videoContainer.appendChild(videoElement);
@@ -148,80 +150,99 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
 
   let ytIframe = null;
   let playingKind = null;
-  let enterTimeout = null;
   let isMouseOver = false;
   let latestHoverId = 0;
   let abortController = new AbortController();
-  const delay = config.gecikmeSure || 500;
+  let enterTimeout = null;
   const enableHls = config.enableHls === true;
+  const delayRaw = (config && (config.gecikmeSure ?? config.gecikmesure));
+  const delay = Number.isFinite(+delayRaw) ? +delayRaw : 500;
 
-  const cleanupHls = () => {
+  const stopYoutube = (iframe) => {
+    try {
+      if (!iframe) return;
+      iframe.contentWindow?.postMessage(JSON.stringify({
+        event: 'command', func: 'stopVideo', args: []
+      }), '*');
+    } catch (_) {}
+  };
+
+  const destroyHlsIfAny = () => {
     if (videoElement.hls) {
       try { videoElement.hls.destroy(); } catch (_) {}
       delete videoElement.hls;
     }
   };
-  const cleanupVideo = () => {
-    videoElement.pause();
-    videoElement.src = "";
-    cleanupHls();
+
+  const hardStopVideo = () => {
+    try { videoElement.pause(); } catch (_) {}
+    destroyHlsIfAny();
+    try {
+      videoElement.removeAttribute('src');
+      videoElement.load();
+    } catch (_) {}
     videoContainer.style.display = "none";
     videoElement.style.opacity = "0";
     slide.classList.remove("video-active", "intro-active");
   };
-  const cleanupIframe = () => {
+
+  const hardStopIframe = () => {
     if (ytIframe) {
-      ytIframe.src = "";
+      stopYoutube(ytIframe);
+      try { ytIframe.src = ""; } catch (_) {}
       ytIframe.style.display = "none";
-      slide.classList.remove("trailer-active");
     }
+    slide.classList.remove("trailer-active");
   };
+
   const fullCleanup = () => {
-    cleanupVideo();
-    cleanupIframe();
-    backdropImg.style.opacity = "1";
+    hardStopVideo();
+    hardStopIframe();
+    try { backdropImg.style.opacity = "1"; } catch (_) {}
     playingKind = null;
   };
 
-async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
-  const introUrl = await getVideoStreamUrl(
-    itemIdToPlay, 1920, 0, null, ["h264"], ["aac"], false, false, enableHls, { signal: abortController.signal }
-  );
-  if (!isMouseOver || hoverId !== latestHoverId) throw new Error('HoverAbortError');
+  async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
+    const introUrl = await getVideoStreamUrl(
+      itemIdToPlay, 1920, 0, null, ["h264"], ["aac"], false, false, enableHls, { signal: abortController.signal }
+    );
+    if (!isMouseOver || hoverId !== latestHoverId) throw new Error('HoverAbortError');
 
-  if (enableHls && typeof window.Hls !== "undefined" && window.Hls.isSupported() && introUrl && /\.m3u8(\?|$)/.test(introUrl)) {
-    const hls = new window.Hls();
-    videoElement.hls = hls;
-    hls.loadSource(introUrl);
-    hls.attachMedia(videoElement);
-    hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-      if (!isMouseOver || hoverId !== latestHoverId) { cleanupHls(); return; }
-      videoElement.currentTime = startSeconds;
-      videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
-    });
-    hls.on(window.Hls.Events.ERROR, (_e, data) => {
-      console.error('HLS ERROR', data);
-      if (data.fatal) fullCleanup();
-    });
-  } else {
-    videoElement.src = introUrl;
-    videoElement.load();
-    videoElement.addEventListener('loadedmetadata', () => {
-      if (!isMouseOver || hoverId !== latestHoverId) { fullCleanup(); return; }
-      videoElement.currentTime = startSeconds;
-      videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
-    }, { once: true });
+    if (enableHls && typeof window.Hls !== "undefined" && window.Hls.isSupported() && introUrl && /\.m3u8(\?|$)/.test(introUrl)) {
+      const hls = new window.Hls();
+      videoElement.hls = hls;
+      hls.loadSource(introUrl);
+      hls.attachMedia(videoElement);
+      hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+        if (!isMouseOver || hoverId !== latestHoverId) { destroyHlsIfAny(); return; }
+        videoElement.currentTime = startSeconds;
+        videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
+      });
+      hls.on(window.Hls.Events.ERROR, (_e, data) => {
+        console.error('HLS ERROR', data);
+        if (data.fatal) fullCleanup();
+      });
+    } else {
+      videoElement.src = introUrl;
+      videoElement.load();
+      const onMeta = () => {
+        videoElement.removeEventListener('loadedmetadata', onMeta);
+        if (!isMouseOver || hoverId !== latestHoverId) { fullCleanup(); return; }
+        videoElement.currentTime = startSeconds;
+        videoElement.play().then(() => { videoElement.style.opacity = "1"; }).catch(()=>{});
+      };
+      videoElement.addEventListener('loadedmetadata', onMeta, { once: true });
+    }
   }
-}
 
   async function tryPlayLocalTrailer(hoverId) {
     const locals = await fetchLocalTrailers(itemId, { signal: abortController.signal });
     if (!isMouseOver || hoverId !== latestHoverId) throw new Error('HoverAbortError');
     const best = pickBestLocalTrailer(locals);
-    if (!best || !best.Id) return false;
+    if (!best?.Id) return false;
 
     backdropImg.style.opacity = "0";
-    cleanupIframe();
+    hardStopIframe();
     videoContainer.style.display = "block";
     slide.classList.add("video-active", "intro-active");
     playingKind = 'localTrailer';
@@ -232,11 +253,13 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
   async function tryPlayRemoteTrailer(hoverId) {
     const trailer = Array.isArray(RemoteTrailers) && RemoteTrailers.length ? RemoteTrailers[0] : null;
     if (!trailer?.Url) return false;
+
     const url = getYoutubeEmbedUrl(trailer.Url);
     if (!isValidUrl(url)) return false;
 
     backdropImg.style.opacity = "0";
-    cleanupVideo();
+    hardStopVideo();
+
     if (!ytIframe) {
       ytIframe = document.createElement("iframe");
       ytIframe.title = trailer.Name || 'Trailer';
@@ -248,6 +271,7 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
       });
       slide.appendChild(ytIframe);
     }
+
     ytIframe.style.display = "block";
     ytIframe.src = url;
     slide.classList.add("trailer-active");
@@ -257,7 +281,7 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
 
   async function playMainVideo(hoverId) {
     backdropImg.style.opacity = "0";
-    cleanupIframe();
+    hardStopIframe();
     videoContainer.style.display = "block";
     slide.classList.add("video-active", "intro-active");
     playingKind = 'video';
@@ -265,77 +289,76 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
     return true;
   }
 
-  const handleEnter = debounce(async () => {
+  const handleEnter = () => {
     isMouseOver = true;
     latestHoverId++;
     const thisHoverId = latestHoverId;
-    abortController.abort(); abortController = new AbortController();
+    abortController.abort();
+    abortController = new AbortController();
+
+    if (enterTimeout) { clearTimeout(enterTimeout); enterTimeout = null; }
 
     enterTimeout = setTimeout(async () => {
       if (!isMouseOver || thisHoverId !== latestHoverId) return;
+    try {
+      if (mode === 'video') {
+        await playMainVideo(thisHoverId);
+        return;
+      }
+      const localOk = await tryPlayLocalTrailer(thisHoverId);
+      if (localOk) return;
 
-      try {
-        if (mode === 'video') {
-          await playMainVideo(thisHoverId);
-          return;
-        }
-        const localOk = await tryPlayLocalTrailer(thisHoverId);
-        if (localOk) return;
+      const remoteOk = await tryPlayRemoteTrailer(thisHoverId);
+      if (remoteOk) return;
 
-        const remoteOk = await tryPlayRemoteTrailer(thisHoverId);
-        if (remoteOk) return;
-
-        if (mode === 'trailerThenVideo') {
-          await playMainVideo(thisHoverId);
-        } else {
-          fullCleanup();
-        }
-      } catch (e) {
-        if (e.name === 'AbortError' || e.message === 'HoverAbortError') return;
-        console.error('Hover/play error:', e);
+      if (mode === 'trailerThenVideo') {
+        await playMainVideo(thisHoverId);
+      } else {
         fullCleanup();
       }
-    }, delay);
-  }, 0);
+    } catch (e) {
+      if (e.name === 'AbortError' || e.message === 'HoverAbortError') return;
+      console.error('Hover/play error:', e);
+      fullCleanup();
+    }
+  }, delay);
+  };
 
   const handleLeave = () => {
     isMouseOver = false;
     latestHoverId++;
-    abortController.abort(); abortController = new AbortController();
+    abortController.abort();
+    abortController = new AbortController();
     if (enterTimeout) { clearTimeout(enterTimeout); enterTimeout = null; }
-    if (playingKind) fullCleanup();
+    fullCleanup();
   };
 
-  function attachAutoCleanupGuards(slideEl, backdropEl) {
+  function attachAutoCleanupGuards(slideEl) {
     const cleanups = [];
+
     const viewport =
       slideEl.closest('.swiper') ||
       slideEl.closest('.splide__track') ||
       slideEl.closest('.embla__viewport') ||
       slideEl.closest('.flickity-viewport') ||
-      slideEl.closest('[data-slider-viewport]') ||
-      null;
+      slideEl.closest('[data-slider-viewport]') || null;
+
     if ('IntersectionObserver' in window) {
       const io = new IntersectionObserver((entries) => {
         for (const entry of entries) {
           if (entry.target === slideEl) {
             const visible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
-            if (!visible) {
-              handleLeave();
-            }
+            if (!visible) handleLeave();
           }
         }
-      }, {
-        root: viewport || null,
-        threshold: [0, 0.5, 1]
-      });
+      }, { root: viewport || null, threshold: [0, 0.5, 1] });
       io.observe(slideEl);
       cleanups.push(() => io.disconnect());
     }
+
     const mo = new MutationObserver(() => {
       if (!document.body.contains(slideEl)) {
         try { handleLeave(); } catch (_) {}
-        try { fullCleanup(); } catch (_) {}
         cleanups.forEach(fn => { try { fn(); } catch(_){} });
         mo.disconnect();
       }
@@ -343,14 +366,20 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
     mo.observe(document.body, { childList: true, subtree: true });
     cleanups.push(() => mo.disconnect());
 
-    const onVis = () => {
-      if (document.hidden) handleLeave();
-    };
+    const onVis = () => { if (document.hidden) handleLeave(); };
     document.addEventListener('visibilitychange', onVis);
     cleanups.push(() => document.removeEventListener('visibilitychange', onVis));
+    const onPageHide = () => handleLeave();
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onPageHide);
+    cleanups.push(() => {
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onPageHide);
+    });
+
     const swiperHost = slideEl.closest('.swiper');
     const swiperInst = swiperHost && swiperHost.swiper;
-    if (swiperInst && swiperInst.on && swiperInst.off) {
+    if (swiperInst?.on && swiperInst?.off) {
       const onSwiperChange = () => handleLeave();
       swiperInst.on('slideChangeTransitionStart', onSwiperChange);
       swiperInst.on('slideChange', onSwiperChange);
@@ -361,9 +390,10 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
         try { swiperInst.off('transitionStart', onSwiperChange); } catch(_) {}
       });
     }
+
     const splideRoot = slideEl.closest('.splide');
     const splideInst = splideRoot && (splideRoot.__splide || window.splide);
-    if (splideInst && splideInst.on && splideInst.off) {
+    if (splideInst?.on && splideInst?.off) {
       const onMove = () => handleLeave();
       splideInst.on('move', onMove);
       splideInst.on('moved', onMove);
@@ -375,7 +405,7 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
 
     const flktyRoot = slideEl.closest('.flickity-enabled');
     const flktyInst = flktyRoot && flktyRoot.flickity;
-    if (flktyInst && flktyInst.on && flktyInst.off) {
+    if (flktyInst?.on && flktyInst?.off) {
       const onChange = () => handleLeave();
       flktyInst.on('change', onChange);
       flktyInst.on('select', onChange);
@@ -387,7 +417,7 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
 
     const emblaViewport = slideEl.closest('.embla__viewport');
     const emblaInst = emblaViewport && emblaViewport.__embla;
-    if (emblaInst && emblaInst.on) {
+    if (emblaInst?.on) {
       const onSelect = () => handleLeave();
       const onReInit = () => handleLeave();
       emblaInst.on('select', onSelect);
@@ -397,15 +427,13 @@ async function loadStreamFor(itemIdToPlay, hoverId, startSeconds = 0) {
         try { emblaInst.off('reInit', onReInit); } catch(_) {}
       });
     }
-
-    return () => {
-      cleanups.forEach(fn => { try { fn(); } catch(_){} });
-    };
+    return () => cleanups.forEach(fn => { try { fn(); } catch(_){} });
   }
-  const detachGuards = attachAutoCleanupGuards(slide, backdropImg);
+  attachAutoCleanupGuards(slide);
   backdropImg.addEventListener("mouseenter", handleEnter);
   backdropImg.addEventListener("mouseleave", handleLeave);
 }
+
 
 export function prefetchImages(urls) {
   if (!Array.isArray(urls) || urls.length === 0) return;

@@ -27,7 +27,7 @@ let _modalClosingUntil = 0;
 let _playbackToken = 0;
 let _soundOn = true;
 
-const OPEN_HOVER_DELAY_MS   = 400;
+const OPEN_HOVER_DELAY_MS   = 500;
 const REOPEN_COOLDOWN_MS    = 50;
 const CROSS_ITEM_SETTLE_MS  = 180;
 const HARD_CLOSE_BUFFER_MS = 30;
@@ -113,6 +113,46 @@ async function getSeriesTrailerUrl(seriesId) {
     return null;
   }
 }
+
+async function openModalForDot(dot, itemId, signal) {
+  if (videoModal) {
+    hardStopPlayback();
+    resetModalInfo(videoModal);
+    resetModalButtons();
+    videoModal.style.display = 'none';
+  }
+
+  const item = await fetchItemDetails(itemId, { signal });
+  if (signal?.aborted) return;
+
+  if (!videoModal || !document.body.contains(videoModal)) {
+    const modalElements = createVideoModal({ showButtons: true });
+    if (!modalElements) return;
+    videoModal          = modalElements.modal;
+    modalVideo          = modalElements.video;
+    modalTitle          = modalElements.title;
+    modalMeta           = modalElements.meta;
+    modalMatchInfo      = modalElements.matchInfo;
+    modalGenres         = modalElements.genres;
+    modalPlayButton     = modalElements.playButton;
+    modalFavoriteButton = modalElements.favoriteButton;
+    modalEpisodeLine    = modalElements.episodeLine;
+    modalMatchButton    = modalElements.matchButton;
+    bindModalEvents(videoModal);
+  }
+
+  videoModal.dataset.itemId = itemId;
+  positionModalRelativeToDot(videoModal, dot);
+
+  if (videoModal.style.display !== 'block') {
+    animatedShow(videoModal);
+  } else {
+    videoModal.style.display = 'block';
+  }
+  const videoUrl = await preloadVideoPreview(itemId);
+  await updateModalContent(item, videoUrl);
+}
+
 
 function setGlobalSound(on) {
   _soundOn = !!on;
@@ -683,129 +723,87 @@ export function createDotNavigation() {
             }
         });
 
-      dot.addEventListener("mouseenter", async () => {
-      if (dot.abortController) {
-      dot.abortController.abort();
-    }
-    dot.abortController = new AbortController();
-    if (videoModal) {
-    videoModal.style.display = 'none';
-    if (modalVideo) {
-      modalVideo.pause();
-      modalVideo.src = '';
-    }
-  }
+      dot.addEventListener("mouseenter", () => {
+      isMouseInItem = true;
+      clearTimeout(modalHideTimeout);
+      modalHoverState = true;
+      if (dot.abortController) dot.abortController.abort();
+      dot.abortController = new AbortController();
+      const { signal } = dot.abortController;
+      const itemId = dot.dataset.itemId;
+      if (!itemId) return;
+      scheduleOpenForItem(dot, itemId, signal, async () => {
+      if (!isMouseInItem && !isMouseInModal) return;
+      try {
+      await openModalForDot(dot, itemId, signal);
 
-  modalHoverState = true;
-  clearTimeout(modalHideTimeout);
+      const item = await fetchItemDetails(itemId, { signal });
+      const isFavorite = item.UserData?.IsFavorite || false;
+      const isPlayed   = item.UserData?.Played || false;
+      const positionTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
+      const runtimeTicks  = Number(item.RunTimeTicks || 0);
+      const hasPartialPlayback = positionTicks > 0 && positionTicks < runtimeTicks;
 
-  const itemId = dot.dataset.itemId;
-  if (!itemId) return;
+      const playButton = dot.querySelector('.dot-play-button');
+      if (playButton) {
+        playButton.textContent = getPlayButtonText({
+          isPlayed,
+          hasPartialPlayback,
+          labels: config.languageLabels
+        });
+      }
 
-  try {
-    if (!videoModal) {
-    const modalElements = createVideoModal();
-    if (!modalElements) {
-    return;
-  }
-    videoModal = modalElements.modal;
-    modalVideo = modalElements.video;
-    modalTitle = modalElements.title;
-    modalMeta = modalElements.meta;
-    modalMatchInfo = modalElements.matchInfo;
-    modalGenres = modalElements.genres;
-    modalPlayButton = modalElements.playButton;
-    modalFavoriteButton = modalElements.favoriteButton;
-    modalEpisodeLine = modalElements.episodeLine;
-    modalMatchButton = modalElements.matchButton;
-  }
-    resetModalButtons();
-    videoModal.dataset.itemId = itemId;
-    positionModalRelativeToDot(videoModal, dot);
-    videoModal.style.display = 'block';
-    videoModal.style.opacity = '0';
-    videoModal.style.transform = 'translateY(20px)';
+      const matchPercentage = await calculateMatchPercentage(item.UserData, item);
+      const matchBadge = dot.querySelector('.dot-match-div');
+      if (matchBadge) {
+        matchBadge.textContent = `${matchPercentage}% ${config.languageLabels.uygun}`;
+      }
 
-    const signal = dot.abortController.signal;
-    let videoUrl = await preloadVideoPreview(itemId);
-
-    const [item] = await Promise.all([
-      fetchItemDetails(itemId, { signal }),
-      Promise.resolve()
-    ]);
-    updateModalContent(item, videoUrl);
-    setTimeout(() => {
-      videoModal.style.opacity = '1';
-      videoModal.style.transform = 'translateY(10px)';
-    }, 500);
-
-    const isFavorite = item.UserData?.IsFavorite || false;
-    const isPlayed = item.UserData?.Played || false;
-    const positionTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
-    const runtimeTicks = Number(item.RunTimeTicks || 0);
-    const hasPartialPlayback = positionTicks > 0 && positionTicks < runtimeTicks;
-
-    const playButton = dot.querySelector('.dot-play-button');
-    if (playButton) {
-  playButton.textContent = getPlayButtonText({
-    isPlayed,
-    hasPartialPlayback,
-    labels: config.languageLabels
-  });
-}
-
-    const matchPercentage = await calculateMatchPercentage(item.UserData, item);
-    const matchBadge = dot.querySelector('.dot-match-div');
-    if (matchBadge) {
-      matchBadge.textContent = `${matchPercentage}% ${config.languageLabels.uygun}`;
-    }
-
-    dot.dataset.favorite = isFavorite.toString();
-    dot.dataset.played = isPlayed.toString();
-
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      if (videoModal) {
-        videoModal.style.display = 'none';
-        if (modalVideo) {
-          modalVideo.pause();
-          modalVideo.src = '';
-        }
+      dot.dataset.favorite = isFavorite.toString();
+      dot.dataset.played   = isPlayed.toString();
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        console.error('Poster dot hover hatası:', error);
+        if (videoModal) videoModal.style.display = 'none';
       }
     }
-  }
-});
-
-  dot.addEventListener("mouseleave", () => {
-  modalHoverState = false;
-
-  if (dot.abortController) {
-    dot.abortController.abort();
-    dot.abortController = null;
-  }
-  startModalHideTimer();
-});
-
-    return dot;
-    }).filter(Boolean);
-
-    setTimeout(() => {
-  const createdDots = Array.from(scrollWrapper.querySelectorAll('.poster-dot'));
-  createdDots.forEach(dot => {
-    const itemId = dot.dataset.itemId;
-    if (itemId) preloadVideoPreview(itemId);
   });
+});
+      dot.addEventListener("mouseleave", () => {
+      isMouseInItem = false;
 
-  if (previewPreloadCache.size > PREVIEW_MAX_ENTRIES) {
-    clearVideoPreloadCache({ mode: 'overLimit' });
-  }
-}, 0);
+      if (dot.abortController) {
+      dot.abortController.abort();
+      dot.abortController = null;
+    }
 
-    dotElements.forEach(dot => scrollWrapper.appendChild(dot));
-    setTimeout(async () => {
-    const dotItemIds = dotElements.map(dot => dot.dataset.itemId).filter(Boolean);
-    await preloadGenreData(dotItemIds);
-    for (const dot of dotElements) {
+      if (_hoverOpenTimer) {
+      clearTimeout(_hoverOpenTimer);
+      _hoverOpenTimer = null;
+    }
+      startModalHideTimer();
+});
+
+      return dot;
+      }).filter(Boolean);
+
+      setTimeout(() => {
+      const createdDots = Array.from(scrollWrapper.querySelectorAll('.poster-dot'));
+      createdDots.forEach(dot => {
+      const itemId = dot.dataset.itemId;
+      if (itemId) preloadVideoPreview(itemId);
+    });
+
+      if (previewPreloadCache.size > PREVIEW_MAX_ENTRIES) {
+      clearVideoPreloadCache({ mode: 'overLimit' });
+    }
+  }, 0);
+
+      dotElements.forEach(dot => scrollWrapper.appendChild(dot));
+      setTimeout(async () => {
+      const dotItemIds = dotElements.map(dot => dot.dataset.itemId).filter(Boolean);
+      await preloadGenreData(dotItemIds);
+      for (const dot of dotElements) {
         try {
             const itemId = dot.dataset.itemId;
             const item = await fetchItemDetails(itemId);
@@ -1555,7 +1553,7 @@ function createVideoModal({ showButtons = true } = {}) {
     if (showButtons) {
       modal.appendChild(buttonsContainer);
     }
-      await sleep(250);
+      await sleep(150);
 
       if (Hls.isSupported() && url.includes('.m3u8')) {
         const hls = new Hls({
@@ -1594,7 +1592,7 @@ function createVideoModal({ showButtons = true } = {}) {
                 break;
               default:
                 hls.destroy();
-                setTimeout(() => startVideoPlayback(url), 250);
+                setTimeout(() => startVideoPlayback(url), 150);
                 break;
             }
           }
@@ -2178,7 +2176,7 @@ export function setupHoverForAllItems() {
     videoModal.dataset.itemId = itemId;
     positionModalRelativeToItem(videoModal, item);
     let videoUrl = await preloadVideoPreview(itemId);
-    await sleep(250);
+    await sleep(150);
     updateModalContent(itemDetails, videoUrl);
     animatedShow(videoModal);
   } catch (error) {

@@ -54,11 +54,11 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
     const typeSpan = document.createElement("span");
     typeSpan.className = "type";
     const typeTranslations = {
-      Series: { text: config.languageLabels.dizi, icon: '<i class="fas fa-tv"></i>' },
-      Season: { text: config.languageLabels.season, icon: '<i class="fas fa-tv"></i>' },
-      Episode: { text: config.languageLabels.episode, icon: '<i class="fas fa-tv"></i>' },
-      BoxSet: { text: config.languageLabels.boxset, icon: '<i class="fas fa-film"></i>' },
-      Movie: { text: config.languageLabels.film, icon: '<i class="fas fa-film"></i>' }
+      Series: { text: config.languageLabels.dizi, icon: '<i class="fas fa-tv fa-lg"></i>' },
+      Season: { text: config.languageLabels.season, icon: '<i class="fas fa-tv fa-lg"></i>' },
+      Episode: { text: config.languageLabels.episode, icon: '<i class="fas fa-tv fa-lg"></i>' },
+      BoxSet: { text: config.languageLabels.boxset, icon: '<i class="fas fa-film fa-lg"></i>' },
+      Movie: { text: config.languageLabels.film, icon: '<i class="fas fa-film fa-lg"></i>' }
     };
     const typeInfo = typeTranslations[itemType] || { text: itemType, icon: "" };
     typeSpan.innerHTML = `${typeInfo.icon} ${typeInfo.text}`;
@@ -75,8 +75,8 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
     const watchedSpan = document.createElement("span");
     watchedSpan.className = "watched-status";
     let watchedText = UserData.Played
-      ? `<i class="fa-light fa-circle-check"></i> ${config.languageLabels.izlendi}`
-      : `<i class="fa-light fa-circle-xmark"></i> ${config.languageLabels.izlenmedi}`;
+      ? `<i class="fa-light fa-circle-check fa-lg"></i> ${config.languageLabels.izlendi}`
+      : `<i class="fa-light fa-circle-xmark fa-lg"></i> ${config.languageLabels.izlenmedi}`;
     if (UserData.Played && UserData.PlayCount > 0) {
       watchedText += ` (${UserData.PlayCount})`;
     }
@@ -95,7 +95,7 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
         ? `${hours}${config.languageLabels.sa} ${minutes}${config.languageLabels.dk}`
         : `${minutes}${config.languageLabels.dk}`;
     };
-    runtimeSpan.innerHTML = `<i class="fa-regular fa-hourglass-end"></i> ${
+    runtimeSpan.innerHTML = `<i class="fa-regular fa-hourglass-end fa-lg"></i> ${
       Array.isArray(RunTimeTicks)
         ? RunTimeTicks.map(val => calcRuntime(val)).join(", ")
         : calcRuntime(RunTimeTicks)
@@ -138,7 +138,7 @@ export function createStatusContainer(itemType, config, UserData, ChildCount, Ru
 
     qualitySpan.innerHTML = `
       <img src="${rangeSvg}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">
-      <img src="${qualitySvg}" alt="" style="width:32px;height:24px;vertical-align:middle;margin-right:2px;">
+      <img src="${qualitySvg}" alt="" style="width:24px;height:24px;vertical-align:middle;margin-right:2px;">
       ${codecSvg}
     `.trim();
 
@@ -405,14 +405,14 @@ export async function createRatingContainer({
         ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
         : Math.round(CommunityRating * 10) / 10;
 
-      const ratingPercentage = ratingValue * 9.5;
+      const ratingPercentage = ratingValue * 10;
       const ratingSpan = document.createElement("span");
       ratingSpan.className = "rating";
       ratingSpan.innerHTML = `
-        <span class="star-rating" style="position: relative; display: inline-block; font-size: 1em; color: #ccc;">
-          <i class="fa-regular fa-star"></i>
-          <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: auto; color: gold; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
-            <i class="fa-solid fa-star" style="display: block;"></i>
+        <span class="star-rating" style="position: relative; color: #ccc;">
+          <i class="fa-solid fa-star fa-lg"></i>
+          <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: auto; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
+            <i class="fa-regular fa-star fa-lg" style="display: block;"></i>
           </span>
         </span> ${ratingValue} `;
       container.appendChild(ratingSpan);
@@ -422,7 +422,7 @@ export async function createRatingContainer({
     if (config.showCriticRating && CriticRating) {
       const criticSpan = document.createElement("span");
       criticSpan.className = "t-rating";
-      criticSpan.innerHTML = `<i class="fa-duotone fa-solid fa-tomato" style="--fa-primary-color: #01902e; --fa-secondary-color: #f93208; --fa-secondary-opacity: 1;"></i> ${
+      criticSpan.innerHTML = `<i class="fa-duotone fa-solid fa-tomato fa-lg" style="--fa-primary-color: #01902e; --fa-secondary-color: #f93208; --fa-secondary-opacity: 1;"></i> ${
         Array.isArray(CriticRating) ? CriticRating.join(", ") : CriticRating
       } `;
       container.appendChild(criticSpan);
@@ -432,7 +432,7 @@ export async function createRatingContainer({
     if (config.showOfficialRating && OfficialRating) {
       const officialRatingSpan = document.createElement("span");
       officialRatingSpan.className = "officialrating";
-      officialRatingSpan.innerHTML = `<i class="fa-solid fa-family"></i> ${
+      officialRatingSpan.innerHTML = `<i class="fa-solid fa-family fa-lg"></i> ${
         Array.isArray(OfficialRating) ? OfficialRating.join(", ") : OfficialRating
       }`;
       container.appendChild(officialRatingSpan);
