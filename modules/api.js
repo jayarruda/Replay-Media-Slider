@@ -5,6 +5,28 @@ const config = getConfig();
 const itemCache = new Map();
 const dotGenreCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000;
+const USER_ID_KEY = "jf_userId";
+
+ function getStoredUserId() {
+   try {
+     return (
+       localStorage.getItem(USER_ID_KEY) ||
+       sessionStorage.getItem(USER_ID_KEY) ||
+       null
+     );
+   } catch {
+     return null;
+   }
+ }
+
+ function persistUserId(id) {
+   try {
+     if (id) {
+       localStorage.setItem(USER_ID_KEY, id);
+       sessionStorage.setItem(USER_ID_KEY, id);
+     }
+   } catch {}
+ }
 
 export async function fetchLocalTrailers(itemId, { signal } = {}) {
   if (!itemId) return [];
@@ -26,7 +48,7 @@ export async function fetchLocalTrailers(itemId, { signal } = {}) {
 
   const params = new URLSearchParams();
   if (userId) params.set('userId', userId);
-  const url = `${apiBase}/Items/${encodeURIComponent(itemId)}/LocalTrailers${params.toString() ? `?${params}` : ''}`;
+  const url = `/Items/${encodeURIComponent(itemId)}/LocalTrailers${params.toString() ? `?${params}` : ''}`;
   const headers = { 'Accept': 'application/json' };
 
   if (token) {
@@ -108,7 +130,22 @@ export function getSessionInfo() {
   const raw =
     sessionStorage.getItem("json-credentials") ||
     localStorage.getItem("json-credentials");
-  if (!raw) throw new Error("Kimlik bilgisi bulunamadı.");
+  if (!raw) {
+    const stored = getStoredUserId();
+    if (stored) {
+      const hints = getWebClientHints();
+      return {
+        userId: stored,
+        accessToken: hints.accessToken || "",
+        sessionId: hints.sessionId || null,
+        serverId: hints.serverId || null,
+        deviceId: hints.deviceId || "web-client",
+        clientName: hints.clientName || "Jellyfin Web Client",
+        clientVersion: hints.clientVersion || "1.0.0",
+      };
+    }
+    throw new Error("Kimlik bilgisi bulunamadı.");
+  }
   const parsed = JSON.parse(raw);
   const hints = getWebClientHints();
 
@@ -125,6 +162,7 @@ export function getSessionInfo() {
     null;
 
   if (topLevelToken && topLevelUser) {
+    persistUserId(topLevelUser);
     return {
       userId: topLevelUser,
       accessToken: topLevelToken,
@@ -151,6 +189,7 @@ export function getSessionInfo() {
     null;
 
   if (oldToken && oldUser) {
+    persistUserId(oldUser);
     return {
       userId: oldUser,
       accessToken: oldToken,
@@ -162,6 +201,19 @@ export function getSessionInfo() {
     };
   }
 
+  const stored = getStoredUserId();
+  if (stored) {
+    const hints2 = getWebClientHints();
+    return {
+      userId: stored,
+      accessToken: hints2.accessToken || "",
+      sessionId: hints2.sessionId || null,
+      serverId: hints2.serverId || null,
+      deviceId: hints2.deviceId || "web-client",
+      clientName: hints2.clientName || "Jellyfin Web Client",
+      clientVersion: hints2.clientVersion || "1.0.0",
+    };
+  }
   throw new Error(
     "Kimlik bilgisi eksik: ne top-level ne de Servers[0] altından gerekli alanlar bulunamadı"
   );
@@ -284,11 +336,13 @@ export async function getImageDimensions(url) {
 
 function scoreSessionCandidate(s, self) {
   let score = 0;
+  const storedUserId = getStoredUserId();
 
   if (s?.Id && self.sessionId && s.Id === self.sessionId) score += 120;
   if (s?.DeviceId && self.deviceId && s.DeviceId === self.deviceId) score += 100;
   if (s?.AccessToken && self.accessToken && s.AccessToken === self.accessToken) score += 60;
   if (s?.UserId && s.UserId === self.userId) score += 30;
+  if (storedUserId && s?.UserId === storedUserId) score += 40;
 
   const sClient = (s?.Client || "").toLowerCase();
   const myClient = (self.clientName || "").toLowerCase();
@@ -321,27 +375,29 @@ function resolveSelfSession(videoClients, self, { allowLastActiveFallback = fals
 export async function playNow(itemId) {
   try {
     const self = getSessionInfo();
+    const storedUserId = getStoredUserId() || self.userId;
     let item = await fetchItemDetails(itemId);
     if (item?.Type === "Series") {
       itemId = await getRandomEpisodeId(itemId);
       item = await fetchItemDetails(itemId);
     }
     const sessions = await makeApiRequest(`/Sessions?UserId=${self.userId}`);
-    const videoClients = (Array.isArray(sessions) ? sessions : []).filter(
-      (s) => s?.Capabilities?.PlayableMediaTypes?.includes("Video")
-    );
+    const allClients = Array.isArray(sessions) ? sessions : [];
+    const videoClients = allClients.filter(s => s?.Capabilities?.PlayableMediaTypes?.includes("Video"));
+    let sameUserClients = videoClients.filter(s => s?.UserId === storedUserId);
+    if (!sameUserClients.length) sameUserClients = videoClients.filter(s => s?.UserId === self.userId);
 
     if (!videoClients.length) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
     }
-    let target = resolveSelfSession(videoClients, self, { allowLastActiveFallback: false });
+    let target = resolveSelfSession(sameUserClients, self, { allowLastActiveFallback: false });
     let usedFallback = false;
     if (!target) {
-      target = resolveSelfSession(videoClients, self, { allowLastActiveFallback: true });
+      target = resolveSelfSession(sameUserClients, self, { allowLastActiveFallback: true });
       if (target) usedFallback = true;
     }
     if (!target) {
-      const sorted = [...videoClients].sort((a, b) => {
+      const sorted = [...sameUserClients].sort((a, b) => {
         const ta = new Date(a?.LastActivityDate || 0).getTime();
         const tb = new Date(b?.LastActivityDate || 0).getTime();
         return tb - ta;
@@ -353,13 +409,11 @@ export async function playNow(itemId) {
     if (!target) {
       throw new Error("Bu istemcinin oturumu bulunamadı.");
     }
-    if (target?.UserId && target.UserId !== self.userId) {
+    if (target?.UserId && target.UserId !== storedUserId && target.UserId !== self.userId) {
       throw new Error("Seçilen hedef başka bir kullanıcıya ait. Komut iptal edildi.");
     }
-    if (!usedFallback) {
-      if (target.AccessToken && self.accessToken && target.AccessToken !== self.accessToken) {
-        throw new Error("Hedef oturumun AccessToken değeri farklı. Komut iptal edildi.");
-      }
+    if (!usedFallback && target.AccessToken && self.accessToken && target.AccessToken !== self.accessToken) {
+      console.warn("Uyarı: Hedef AccessToken farklı, yine de devam ediliyor.");
     }
 
     const userItemData = await makeApiRequest(`/Users/${self.userId}/Items/${itemId}`);
