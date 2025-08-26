@@ -384,8 +384,6 @@ chmod +x trailers.sh trailersurl.sh
 
 Both scripts use environment variables. Common ones:
 
-Here’s the complete list of environment variables for **`trailers.sh`**, fully documented in English. This can be shared directly on GitHub for clarity.
-
 ---
 
 ## Environment Variables Reference
@@ -581,8 +579,6 @@ chmod +x trailers.sh trailersurl.sh
 ```
 
 #### Yapılandırma
-
-İşte **`trailers.sh`** için tüm environment değişkenlerinin Türkçe açıklamaları. GitHub üzerinde paylaşım için hazırdır.
 
 ---
 
