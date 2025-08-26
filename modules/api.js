@@ -111,15 +111,25 @@ export function getSessionInfo() {
   if (!raw) throw new Error("Kimlik bilgisi bulunamadı.");
   const parsed = JSON.parse(raw);
   const hints = getWebClientHints();
+
   const topLevelToken = parsed.AccessToken || hints.accessToken;
   const topLevelSessionId = parsed.SessionId || hints.sessionId;
   const topLevelUser = parsed.User?.Id;
+  const topLevelServerId =
+    parsed.ServerId ||
+    parsed.SystemId ||
+    hints.serverId ||
+    (parsed.Servers && (parsed.Servers[0]?.SystemId || parsed.Servers[0]?.Id)) ||
+    localStorage.getItem("serverId") ||
+    sessionStorage.getItem("serverId") ||
+    null;
 
   if (topLevelToken && topLevelUser) {
     return {
       userId: topLevelUser,
       accessToken: topLevelToken,
       sessionId: topLevelSessionId || parsed.SessionId || null,
+      serverId: topLevelServerId || null,
       deviceId:
         parsed.DeviceId ||
         parsed.ClientDeviceId ||
@@ -134,12 +144,18 @@ export function getSessionInfo() {
   const oldToken = server.AccessToken || hints.accessToken;
   const oldSessionId = server.Id || hints.sessionId;
   const oldUser = server.UserId;
+  const oldServerId =
+    server.SystemId ||
+    server.Id ||
+    topLevelServerId ||
+    null;
 
   if (oldToken && oldUser) {
     return {
       userId: oldUser,
       accessToken: oldToken,
       sessionId: oldSessionId || null,
+      serverId: oldServerId || null,
       deviceId: server.SystemId || hints.deviceId || "web-client",
       clientName: parsed.Client || hints.clientName || "Jellyfin Web Client",
       clientVersion: parsed.Version || hints.clientVersion || "1.0.0",
@@ -150,7 +166,6 @@ export function getSessionInfo() {
     "Kimlik bilgisi eksik: ne top-level ne de Servers[0] altından gerekli alanlar bulunamadı"
   );
 }
-
 
 async function makeApiRequest(url, options = {}) {
   try {
@@ -187,6 +202,22 @@ async function makeApiRequest(url, options = {}) {
     }
     throw error;
   }
+}
+
+export function getDetailsUrl(itemId) {
+  const serverId =
+    localStorage.getItem("serverId") ||
+    sessionStorage.getItem("serverId") ||
+    "";
+
+  const id = encodeURIComponent(String(itemId ?? "").trim());
+  const sid = encodeURIComponent(serverId);
+  return `#/details?id=${id}${sid ? `&serverId=${sid}` : ""}`;
+}
+
+export function goToDetailsPage(itemId) {
+  const url = getDetailsUrl(itemId);
+  window.location.href = url;
 }
 
 export async function fetchItemDetails(itemId) {

@@ -21,6 +21,11 @@ INCLUDE_TYPES="${INCLUDE_TYPES:-Movie,Series,Season,Episode}"
 PAGE_SIZE="${PAGE_SIZE:-200}"
 SLEEP_SECS="${SLEEP_SECS:-1}"
 JF_USER_ID="${JF_USER_ID:-}"
+OVERWRITE_POLICY="${OVERWRITE_POLICY:-skip}"
+BETTER_MIN_SIZE_DELTA="${BETTER_MIN_SIZE_DELTA:-1048576}"
+BETTER_MIN_DURATION_DELTA="${BETTER_MIN_DURATION_DELTA:-3}"
+ENABLE_THEME_LINK="${ENABLE_THEME_LINK:-0}"
+THEME_LINK_MODE="${THEME_LINK_MODE:-symlink}"
 
 COOKIES_BROWSER="${COOKIES_BROWSER:-}"
 WORK_DIR="${WORK_DIR:-/tmp/trailers-dl}"
@@ -45,6 +50,52 @@ mkdir -p "$WORK_DIR" 2>/dev/null || {
 }
 
 
+ensure_backdrops_theme() {
+  local dir="$1"; local trailer="$2"
+  local bd="$dir/backdrops"
+  local theme="$bd/theme.mp4"
+
+  [[ "${ENABLE_THEME_LINK:-0}" -eq 1 ]] || return 0
+
+  mkdir -p "$bd" 2>/dev/null || {
+    echo "[WARN] backdrops klasörü oluşturulamadı: $bd" >&2
+    return 1
+  }
+
+  if [[ -e "$theme" || -L "$theme" ]]; then
+    return 0
+  fi
+
+  local rel="../$(basename "$trailer")"
+  case "$THEME_LINK_MODE" in
+    symlink)
+      ln -s "$rel" "$theme" 2>/dev/null \
+        || ln -s "$trailer" "$theme" 2>/dev/null \
+        || ln "$trailer" "$theme" 2>/dev/null \
+        || cp -f "$trailer" "$theme"
+      ;;
+    hardlink)
+      ln "$trailer" "$theme" 2>/dev/null \
+        || ln -s "$rel" "$theme" 2>/dev/null \
+        || ln -s "$trailer" "$theme" 2>/dev/null \
+        || cp -f "$trailer" "$theme"
+      ;;
+    copy|*)
+      cp -f "$trailer" "$theme" 2>/dev/null \
+        || ln -s "$rel" "$theme" 2>/dev/null \
+        || ln -s "$trailer" "$theme" 2>/dev/null \
+        || ln "$trailer" "$theme"
+      ;;
+  esac
+
+  if [[ -e "$theme" || -L "$theme" ]]; then
+    echo "[OK] backdrops/theme.mp4 hazırlandı → $(readlink -f "$theme" 2>/dev/null || echo "$theme")"
+  else
+    echo "[WARN] theme.mp4 oluşturulamadı: $theme" >&2
+    return 1
+  fi
+}
+
 declare -i DL_OK=0 DL_FAIL=0 DL_SKIP=0
 
 resolve_user_id() {
@@ -67,6 +118,24 @@ imdb_to_tmdb() {
   [[ -n "$tv" ]] && { echo "Series:$tv"; return 0; }
   return 2
 }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --overwrite=*)
+      OVERWRITE_POLICY="${1#*=}"; shift ;;
+    --overwrite)
+      OVERWRITE_POLICY="replace"; shift ;;
+    --no-overwrite)
+      OVERWRITE_POLICY="skip"; shift ;;
+    *)
+      echo "[WARN] Bilinmeyen argüman: $1" >&2; shift ;;
+  esac
+done
+
+case "$OVERWRITE_POLICY" in
+  skip|replace|if-better) : ;;
+  *) echo "[HATA] OVERWRITE_POLICY geçersiz: $OVERWRITE_POLICY (skip|replace|if-better)" >&2; exit 2 ;;
+esac
 
 jq_trailer_defs='
   def ytid:
@@ -150,11 +219,31 @@ process_item() {
   local dir out; dir="$(dirname "$path")"; out="${dir}/trailer.mp4"
   SEEN_DIRS["$dir"]=1
 
-  if [[ -e "$out" ]]; then
-    echo "[ATLA] Zaten var: $out  ->  $name ($year)"
+  local compare_after=0
+if [[ -e "$out" ]]; then
+  if [[ "$OVERWRITE_POLICY" != "replace" && "${ENABLE_THEME_LINK:-0}" -eq 1 ]]; then
+    ensure_backdrops_theme "$dir" "$out" || true
+    echo "[ATLA] Zaten var: $out  -> theme.mp4 kuruldu/korundu."
     DL_SKIP+=1
     return 0
   fi
+
+  case "$OVERWRITE_POLICY" in
+    skip)
+      echo "[ATLA] Zaten var: $out  ->  $name ($year)"
+      DL_SKIP+=1
+      return 0
+      ;;
+    replace)
+      echo "[BİLGİ] Üzerine yazılacak: $out"
+      ;;
+    if-better)
+      echo "[BİLGİ] if-better modu: karşılaştırma için indirilecek."
+      compare_after=1
+      ;;
+  esac
+fi
+
 
   echo "[DEBUG] İşleniyor: $name (IMDb: ${imdb:-}, TMDb: ${tmdb:-}, Tür: $type)" >&2
   local tmdb_id="${tmdb:-}" season_no="" episode_no=""
@@ -277,16 +366,55 @@ process_item() {
       fi
     fi
 
-    mv -f "$tmp" "$out"
-    trap - EXIT INT TERM
-    curl -sS -X POST -H "X-Emby-Token: $JF_API_KEY" \
-      "$JF_BASE/Items/$id/Refresh?Recursive=true&ImageRefreshMode=Default&MetadataRefreshMode=Default&ReplaceAllImages=false&RegenerateTrickplay=false&ReplaceAllMetadata=false" >/dev/null || true
+local tmp_size tmp_dur out_size out_dur
+tmp_size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+if command -v ffprobe >/dev/null; then
+  tmp_dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$tmp" 2>/dev/null || echo 0)
+else
+  tmp_dur=0
+fi
 
-    echo "[OK] Eklendi ve yenilendi: $out"
-    DL_OK+=1
-    sleep "$SLEEP_SECS"
-    success=1
+if (( compare_after == 1 )) && [[ -e "$out" ]]; then
+  out_size=$(stat -c%s "$out" 2>/dev/null || echo 0)
+  if command -v ffprobe >/dev/null; then
+    out_dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$out" 2>/dev/null || echo 0)
+  else
+    out_dur=0
+  fi
+
+  awk -v nd="$tmp_dur" -v od="$out_dur" -v ds="$tmp_size" -v os="$out_size" \
+      -v dth="$BETTER_MIN_DURATION_DELTA" -v sth="$BETTER_MIN_SIZE_DELTA" '
+      BEGIN {
+        better = 0
+        if (nd > 0 && od > 0 && (nd - od) >= dth) better = 1
+        if (!better && (ds - os) >= sth) better = 1
+        exit(better ? 0 : 1)
+      }'
+  if [[ $? -eq 0 ]]; then
+    echo "[OK] Yeni trailer daha iyi bulundu (if-better): değiştiriliyor."
+    ensure_backdrops_theme "$dir" "$out" || true
+    mv -f "$tmp" "$out"
+  else
+    echo "[ATLA] Mevcut trailer daha iyi/eşdeğer: yenisi silindi."
+    rm -f "$tmp"
+    trap - EXIT INT TERM
+    DL_SKIP+=1
     return 0
+  fi
+else
+  mv -f "$tmp" "$out"
+fi
+
+trap - EXIT INT TERM
+curl -sS -X POST -H "X-Emby-Token: $JF_API_KEY" \
+  "$JF_BASE/Items/$id/Refresh?Recursive=true&ImageRefreshMode=Default&MetadataRefreshMode=Default&RegenerateTrickplay=false&ReplaceAllMetadata=false" >/dev/null || true
+
+echo "[OK] Eklendi ve yenilendi: $out"
+DL_OK+=1
+sleep "$SLEEP_SECS"
+success=1
+return 0
+
   done <<< "$key_stream"
 
   if (( success == 0 )); then

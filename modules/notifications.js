@@ -1,4 +1,4 @@
-import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow } from "./api.js";
+import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow, goToDetailsPage } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { getCurrentVersionFromEnv, compareSemver } from "./update.js";
@@ -650,7 +650,7 @@ if (status !== "removed" && n.itemId) {
   li.addEventListener("click", () => {
     markNotificationRead(n.id, { silent: true });
     closeModal();
-    window.location.href = `/web/#/details?id=${n.itemId}`;
+    goToDetailsPage(n.itemId);
   });
 }
 

@@ -4,7 +4,7 @@ import { getConfig } from './config.js';
 import { resetProgressBar } from "./progressBar.js";
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js"
-import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, getCachedUserTopGenres, getGenresForDot, fetchLocalTrailers, pickBestLocalTrailer } from "./api.js";
+import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, getCachedUserTopGenres, getGenresForDot, fetchLocalTrailers, pickBestLocalTrailer, goToDetailsPage } from "./api.js";
 import { applySlideAnimation, applyDotPosterAnimation} from "./animations.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { getYoutubeEmbedUrl, isValidUrl } from "./utils.js";
@@ -28,7 +28,7 @@ let _playbackToken = 0;
 let _soundOn = true;
 
 const OPEN_HOVER_DELAY_MS   = 500;
-const REOPEN_COOLDOWN_MS    = 50;
+const REOPEN_COOLDOWN_MS    = 150;
 const CROSS_ITEM_SETTLE_MS  = 180;
 const HARD_CLOSE_BUFFER_MS = 30;
 const config = getConfig();
@@ -45,7 +45,24 @@ const _ytPlayers = new Map();
 const _ytReadyMap = new Map();
 const _ytReadyResolvers = [];
 const _seriesTrailerCache = new Map();
-const OPEN_ANIM_MS = 300;
+
+
+const MODAL_ANIM = {
+  openMs: 340,
+  closeMs: 180,
+  ease: 'cubic-bezier(.41,.4,.36,1.01)',
+  scaleFrom: 0.6,
+  scaleTo: 1,
+  opacityFrom: 0.8,
+  opacityTo: 1
+};
+
+const OPEN_ANIM_MS = MODAL_ANIM.openMs;
+
+export function setModalAnimation(opts = {}) {
+  Object.assign(MODAL_ANIM, opts);
+  injectOrUpdateModalStyle();
+}
 
 function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
 function modalIsVisible() {
@@ -140,6 +157,10 @@ async function openModalForDot(dot, itemId, signal) {
     modalMatchButton    = modalElements.matchButton;
     bindModalEvents(videoModal);
   }
+
+  const domUrl = getBackdropFromDot(dot);
+const itemUrl = getBackdropFromItem(item);
+videoModal.setBackdrop(domUrl || itemUrl || null);
 
   videoModal.dataset.itemId = itemId;
   positionModalRelativeToDot(videoModal, dot);
@@ -312,7 +333,8 @@ function getYTPlayerForIframe(iframe) {
   } catch (error) {}
 },
         onStateChange: (event) => {
-          if (event.data === YT.PlayerState.PLAYING) {
+  if (event.data === YT.PlayerState.PLAYING) {
+    try { videoModal?.hideBackdrop?.(); } catch {}
             const btn = videoModal?.querySelector?.('.preview-volume-button');
             if (btn && typeof event.target.getVolume === 'function') {
               try {
@@ -403,13 +425,17 @@ function shouldHideModal() {
 function closeVideoModal() {
   if (!videoModal || videoModal.style.display === "none") return;
   _isModalClosing = true;
-  _modalClosingUntil = Date.now() + 300 + HARD_CLOSE_BUFFER_MS;
+  _modalClosingUntil = Date.now() + MODAL_ANIM.closeMs + HARD_CLOSE_BUFFER_MS;
 
   modalHoverState = false;
   clearTimeout(modalHideTimeout);
   hardStopPlayback();
-  videoModal.style.opacity = '0';
-  videoModal.style.transform = 'translateY(20px)';
+
+  videoModal.style.transition =
+    `opacity ${MODAL_ANIM.closeMs}ms ${MODAL_ANIM.ease}, ` +
+    `transform ${MODAL_ANIM.closeMs}ms ${MODAL_ANIM.ease}`;
+  videoModal.style.opacity = String(MODAL_ANIM.opacityFrom);
+  videoModal.style.transform = `scale(${MODAL_ANIM.scaleFrom})`;
 
   setTimeout(() => {
     if (videoModal) {
@@ -418,8 +444,9 @@ function closeVideoModal() {
     }
     _lastModalHideAt = Date.now();
     _isModalClosing = false;
-  }, 300);
+  }, MODAL_ANIM.closeMs);
 }
+
 
 function handleVisibilityChange() {
   if (document.hidden || document.visibilityState === 'hidden') {
@@ -665,13 +692,16 @@ export function createDotNavigation() {
         alert("Oynatma başarısız: itemId bulunamadı");
         return;
       }
+      closeVideoModal();
       try {
-      await playNow(itemId);
-    } catch (error) {
-      console.error("Oynatma hatası:", error);
-      alert("Oynatma başarısız: " + error.message);
-    }
-  });
+        await playNow(itemId);
+      } catch (error) {
+        console.error("Oynatma hatası:", error);
+        alert("Oynatma başarısız: " + error.message);
+      } finally {
+        closeVideoModal();
+      }
+    });
 
         const matchBadge = document.createElement("div");
         matchBadge.className = "dot-match-div";
@@ -1084,34 +1114,52 @@ export function showAndHideElementWithAnimation(el, config) {
   }, girisSure);
 }
 
-function createVideoModal({ showButtons = true } = {}) {
-  if (!config || config.previewModal === false) {
-    return null;
-  }
-
-  if (!document.getElementById('video-modal-modern-style')) {
-    const style = document.createElement('style');
-    style.id = 'video-modal-modern-style';
-    style.textContent = `
-      .video-preview-modal {
-        position: absolute;
-        width: 400px;
-        max-width: 96vw;
-        height: 340px;
-        background: rgba(24, 27, 38, 0.97);
-        border-radius: 20px;
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.38), 0 1.5px 4px rgba(0,0,0,.09);
-        z-index: 1000;
-        display: none;
-        overflow: hidden;
-        transform: translateY(10px);
-        transition: opacity 0.24s cubic-bezier(.41,.4,.36,1.01), transform 0.24s cubic-bezier(.41,.4,.36,1.01);
-        font-family: "Inter", "Netflix Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-        pointer-events: auto;
-        border: 1.5px solid rgba(255, 255, 255, 0.10);
-        backdrop-filter: blur(18px) saturate(160%);
-        user-select: none;
+function injectOrUpdateModalStyle() {
+  const id = 'video-modal-modern-style';
+  const style = document.getElementById(id) || document.createElement('style');
+  style.id = id;
+  style.textContent = `
+    .video-preview-modal {
+      position: absolute;
+      width: 400px;
+      height: 320px;
+      background: rgba(24, 27, 38, 0.97);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.38), 0 1.5px 4px rgba(0,0,0,.09);
+      z-index: 1000;
+      display: none;
+      overflow: hidden;
+      transform: translateY(5px) scale(${MODAL_ANIM.scaleFrom});
+      opacity: ${MODAL_ANIM.opacityFrom};
+      transition:
+      opacity ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease},
+      transform ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease};
+      font-family: "Inter","Netflix Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+      pointer-events: auto;
+      border: 1.5px solid rgba(255, 255, 255, 0.10);
+      backdrop-filter: blur(18px) saturate(160%);
+      user-select: none;
       }
+      .video-preview-modal .preview-backdrop {
+      position: absolute;
+      inset: 10px 10px 130px 10px;
+      border-radius: 12px;
+      padding: 10px;
+      box-sizing: border-box;
+      object-fit: cover;
+      width: 100%;
+      height: 190px;
+      background-position: center;
+      opacity: 0;
+      transition: opacity .25s ease;
+      pointer-events: none;
+      z-index: 0;
+      left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
       .video-preview-modal .preview-episode {
         grid-column: 1 / 3;
         color: #e5e6fb;
@@ -1122,18 +1170,16 @@ function createVideoModal({ showButtons = true } = {}) {
         text-overflow: ellipsis;
       }
       .video-preview-modal .video-container {
-        width: 100%;
-        height: 200px;
-        padding: 10px;
-        box-sizing: border-box;
-        background: linear-gradient(160deg, rgba(33,36,54,.97) 65%, rgba(52,56,80,0.19));
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        box-shadow: 0 4px 18px 0 rgba(20,20,50,.06);
-      }
+      width: 100%;
+      height: 200px;
+      padding: 10px;
+      box-sizing: border-box;
+      background: linear-gradient(160deg, rgba(33,36,54,.97) 65%, rgba(52,56,80,0.19));
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 4px 18px 0 rgba(20,20,50,.06);
+    }
       .video-preview-modal .preview-video {
         width: 100%;
         height: 100%;
@@ -1144,19 +1190,19 @@ function createVideoModal({ showButtons = true } = {}) {
         transition: opacity 0.7s;
       }
       .video-preview-modal .preview-info {
-        padding: 16px 18px 12px 18px;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0px;
-        z-index: 2;
-        background: linear-gradient(0deg, rgba(24,27,38, 0.94) 60%, transparent 100%);
-        display: grid;
-        grid-template-columns: auto 1fr;
-        grid-template-rows: repeat(3, auto);
-        gap: 4px 16px;
-        align-items: end;
-      }
+      padding: 16px 18px 12px 18px;
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      right: 0px;
+      z-index: 2;
+      background: linear-gradient(0deg, rgba(24,27,38, 0.94) 60%, transparent 100%);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      grid-template-rows: repeat(3, auto);
+      gap: 6px 16px;
+      align-items: end;
+    }
       .video-preview-modal .preview-match {
         color: #46d369;
         font-weight: 600;
@@ -1333,8 +1379,15 @@ function createVideoModal({ showButtons = true } = {}) {
         }
       }
     `;
-    document.head.appendChild(style);
+  if (!style.isConnected) document.head.appendChild(style);
+}
+
+function createVideoModal({ showButtons = true } = {}) {
+  if (!config || config.previewModal === false) {
+    return null;
   }
+
+  injectOrUpdateModalStyle();
 
   if (typeof config !== 'undefined' && config.previewModal !== false) {
     destroyVideoModal();
@@ -1343,6 +1396,12 @@ function createVideoModal({ showButtons = true } = {}) {
     modal.style.display = 'none';
     const videoContainer = document.createElement('div');
     videoContainer.className = 'video-container';
+    const backdropImg = document.createElement('img');
+    backdropImg.className = 'preview-backdrop';
+    backdropImg.alt = '';
+    backdropImg.decoding = 'async';
+    backdropImg.loading = 'lazy';
+    videoContainer.appendChild(backdropImg);
     const video = document.createElement('video');
     video.className = 'preview-video';
     video.setAttribute('playsinline', '');
@@ -1357,7 +1416,10 @@ function createVideoModal({ showButtons = true } = {}) {
       if (!src) return;
     });
     video.addEventListener('stalled', () => video.load());
-    video.addEventListener('playing', () => video.style.opacity = '1');
+    video.addEventListener('playing', () => {
+  video.style.opacity = '1';
+  try { videoModal?.hideBackdrop?.(); } catch {}
+});
 
     const infoContainer = document.createElement('div');
     infoContainer.className = 'preview-info';
@@ -1395,19 +1457,22 @@ function createVideoModal({ showButtons = true } = {}) {
     buttonsContainer.append(matchButton, playButton, favoriteButton, infoButton, volumeButton);
 
     playButton.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const itemId = modal.dataset.itemId;
-      if (!itemId) {
-        alert("Oynatma başarısız: itemId bulunamadı");
-        return;
-      }
-      try {
-        await playNow(itemId);
-      } catch (error) {
-        console.error("Oynatma hatası:", error);
-        alert("Oynatma başarısız: " + error.message);
-      }
-    });
+    e.stopPropagation();
+    const itemId = modal.dataset.itemId;
+    if (!itemId) {
+      alert("Oynatma başarısız: itemId bulunamadı");
+      return;
+    }
+    closeVideoModal();
+    try {
+      await playNow(itemId);
+    } catch (error) {
+      console.error("Oynatma hatası:", error);
+      alert("Oynatma başarısız: " + error.message);
+    } finally {
+      closeVideoModal();
+    }
+  });
 
     favoriteButton.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -1449,7 +1514,7 @@ function createVideoModal({ showButtons = true } = {}) {
           });
           document.dispatchEvent(event);
         } else {
-          window.location.href = `#/details?id=${itemId}`;
+          goToDetailsPage(itemId);
         }
       }
     });
@@ -1535,6 +1600,17 @@ function createVideoModal({ showButtons = true } = {}) {
 
     videoContainer.appendChild(video);
     modal.appendChild(videoContainer);
+    modal.setBackdrop = function(url) {
+  try {
+    if (!url) return;
+    backdropImg.src = url;
+    backdropImg.style.opacity = '1';;
+  } catch {}
+};
+
+modal.hideBackdrop = function() {
+  try { backdropImg.style.opacity = '0'; } catch {}
+};
     if (showButtons) modal.appendChild(buttonsContainer);
     modal.appendChild(infoContainer);
 
@@ -1648,7 +1724,7 @@ function positionModalRelativeToDot(modal, dot) {
   const modalHeight = 320;
   const windowPadding = 20;
   const edgeThreshold = 100;
-  const verticalOffset = -20;
+  const verticalOffset = -10;
 
   let left = dotRect.left + window.scrollX + (dotRect.width - modalWidth) / 2;
   let top = dotRect.top + window.scrollY - modalHeight + verticalOffset;
@@ -1699,9 +1775,13 @@ function startModalHideTimer() {
   modalHideTimeout = setTimeout(() => {
     if (shouldHideModal() && videoModal) {
       _isModalClosing = true;
-      _modalClosingUntil = Date.now() + 180 + HARD_CLOSE_BUFFER_MS;
-      videoModal.style.opacity = '0';
-      videoModal.style.transform = 'translateY(20px)';
+      _modalClosingUntil = Date.now() + MODAL_ANIM.closeMs + HARD_CLOSE_BUFFER_MS;
+
+      videoModal.style.transition =
+        `opacity ${MODAL_ANIM.closeMs}ms ${MODAL_ANIM.ease}, ` +
+        `transform ${MODAL_ANIM.closeMs}ms ${MODAL_ANIM.ease}`;
+      videoModal.style.opacity = String(MODAL_ANIM.opacityFrom);
+      videoModal.style.transform = `scale(${MODAL_ANIM.scaleFrom})`;
       softStopPlayback();
 
       setTimeout(() => {
@@ -1714,10 +1794,11 @@ function startModalHideTimer() {
           clearTransientOverlays(videoModal);
           videoModal.style.display = 'none';
         }
-      }, 180);
+      }, MODAL_ANIM.closeMs);
     }
-  }, 280);
+  }, 150);
 }
+
 
 export async function calculateMatchPercentage(userData = {}, item = {}) {
   let score = 50;
@@ -2073,18 +2154,22 @@ function getClosingRemaining() {
 function animatedShow(modal) {
   if (!modal) return;
   modal.style.display = 'block';
-  modal.style.opacity = '0';
-  modal.style.transform = 'translateY(16px)';
-  modal.offsetHeight;
+  modal.style.transition = 'none';
+  modal.style.opacity = String(MODAL_ANIM.opacityFrom);
+  modal.style.transform = `scale(${MODAL_ANIM.scaleFrom})`;
+
   requestAnimationFrame(() => {
-    modal.style.opacity = '1';
-    modal.style.transform = 'translateY(0)';
+    modal.style.transition =
+      `opacity ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease}, ` +
+      `transform ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease}`;
+    modal.style.opacity = String(MODAL_ANIM.opacityTo);
+    modal.style.transform = `scale(${MODAL_ANIM.scaleTo})`;
   });
 }
 
 function prepareForNextOpen(modal) {
   if (!modal) return;
-  modal.style.transform = 'translateY(16px)';
+  modal.style.transform = 'scale(0.7)';
 }
 
 function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
@@ -2171,14 +2256,26 @@ export function setupHoverForAllItems() {
       modalMatchButton = modalElements.matchButton;
       bindModalEvents(videoModal);
     }
+
+    let domBackdrop = null;
+    domBackdrop = item.dataset?.background || item.dataset?.backdrop || null;
+
+    const itemBackdrop = getBackdropFromItem(itemDetails);
+    videoModal.setBackdrop(domBackdrop || itemBackdrop || null);
+
     if (!isMouseInItem && !isMouseInModal) return;
 
     videoModal.dataset.itemId = itemId;
     positionModalRelativeToItem(videoModal, item);
-    let videoUrl = await preloadVideoPreview(itemId);
-    await sleep(150);
-    updateModalContent(itemDetails, videoUrl);
     animatedShow(videoModal);
+    applyVolumePreference();
+
+    let videoUrl = null;
+    try { videoUrl = await preloadVideoPreview(itemId); } catch {}
+    if (signal.aborted || videoModal?.dataset?.itemId !== String(itemId)) return;
+
+    await updateModalContent(itemDetails, videoUrl);
+
   } catch (error) {
     if (error.name !== 'AbortError') {
       console.error('Öğe hover hatası:', error);
@@ -2221,12 +2318,12 @@ function positionModalRelativeToItem(modal, item, options = {}) {
     modalWidth: 400,
     modalHeight: 320,
     windowPadding: 16,
-    animationDuration: 360,
+    animationDuration: 400,
     openAnimation: 'cubic-bezier(.33,1.3,.7,1)',
     openTransform: 'scale(1)',
     openOpacity: '1',
-    closedTransform: 'scale(0)',
-    closedOpacity: '0',
+    closedTransform: 'scale(0.7)',
+    closedOpacity: '1',
     preferredPosition: 'center',
     autoReposition: true
   };
@@ -2372,3 +2469,24 @@ window.addEventListener("beforeunload", () => {
   destroyVideoModal();
   clearVideoPreloadCache({ mode: 'all' });
 });
+function getBackdropFromDot(dot) {
+  const img = dot?.querySelector?.('.dot-poster-image');
+  if (img?.src) return img.src;
+  const slideEl = document.querySelector(`.slide[data-item-id="${dot?.dataset?.itemId}"]`);
+  if (slideEl) {
+    return slideEl.dataset.background || slideEl.dataset.backdrop || slideEl.dataset.primaryimage || null;
+  }
+  return null;
+}
+
+function getBackdropFromItem(item) {
+  if (item?.BackdropImageTags?.length) {
+    const tag = item.BackdropImageTags[0];
+    return `/Items/${item.Id}/Images/Backdrop?tag=${tag}`;
+  }
+  if (item?.ImageTags?.Primary) {
+    const tag = item.ImageTags.Primary;
+    return `/Items/${item.Id}/Images/Primary?tag=${tag}`;
+  }
+  return null;
+}

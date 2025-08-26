@@ -1,6 +1,6 @@
 import { getSessionInfo, makeApiRequest, getAuthHeader } from "./api.js";
 import { getConfig } from "./config.js";
-import { updateFavoriteStatus } from "./api.js";
+import { updateFavoriteStatus, goToDetailsPage, getDetailsUrl } from "./api.js";
 
 const config = getConfig();
 
@@ -244,7 +244,7 @@ async function showNowPlayingModal(nowPlayingItem, device) {
       const year = itemDetails.ProductionYear || '';
       const tmdbId = itemDetails.ProviderIds?.Tmdb;
       const imdbId = itemDetails.ProviderIds?.Imdb;
-      const itemPageUrl = `/web/#!/details?id=${itemId}`;
+      const itemPageUrl = getDetailsUrl(itemId);
       const artists = itemDetails.Artists?.join(", ") || '';
       const album = itemDetails.Album || '';
       const albumArtist = itemDetails.AlbumArtist || '';
@@ -279,7 +279,7 @@ async function showNowPlayingModal(nowPlayingItem, device) {
 
             ${tmdbId ? `<p><strong>TMDB:</strong> <a href="https://www.themoviedb.org/${item.Type === 'Episode' ? 'tv' : 'movie'}/${tmdbId}" target="_blank">Link</a></p>` : ''}
             ${imdbId ? `<p><strong>IMDB:</strong> <a href="https://www.imdb.com/title/${imdbId}" target="_blank">Link</a></p>` : ''}
-            ${itemPageUrl ? `<p><a href="${itemPageUrl}" class="open-in-new" target="_blank">${config.languageLabels.yenisekme || "Yeni sekmede aç"}</a></p>` : ''}
+            ${itemPageUrl ? `<p><a href="${itemPageUrl}" class="open-in-new" target="_blank" rel="noopener noreferrer">${config.languageLabels.yenisekme || "Yeni sekmede aç"}</a></p>` : ''}
             ${genres ? `<p><strong>${config.languageLabels.etiketler}:</strong> ${genres}</p>` : ''}
             ${audioLanguages ? `<p><strong>${config.languageLabels.ses}:</strong> ${audioLanguages}</p>` : ''}
             ${subtitleLanguages ? `<p><strong>${config.languageLabels.altyazi}:</strong> ${subtitleLanguages}</p>` : ''}
@@ -323,23 +323,23 @@ async function showNowPlayingModal(nowPlayingItem, device) {
     document.body.appendChild(modal);
 
     modal.querySelectorAll('.server-info-header').forEach(header => {
-  header.addEventListener('click', () => {
-    const content = header.nextElementSibling;
-    const toggleButton = header.querySelector('.toggle-server-info');
-    const isShowing = content.style.display === 'block';
+      header.addEventListener('click', () => {
+        const content = header.nextElementSibling;
+        const toggleButton = header.querySelector('.toggle-server-info');
+        const isShowing = content.style.display === 'block';
 
-    content.style.display = isShowing ? 'none' : 'block';
-    toggleButton.classList.toggle('active', !isShowing);
-    toggleButton.setAttribute('aria-label',
-      isShowing
-        ? config.languageLabels.showServerInfo
-        : config.languageLabels.hideServerInfo
-    );
-    toggleButton.innerHTML = isShowing
-      ? '<i class="fas fa-chevron-down"></i>'
-      : '<i class="fas fa-chevron-up"></i>';
-  });
-});
+        content.style.display = isShowing ? 'none' : 'block';
+        toggleButton.classList.toggle('active', !isShowing);
+        toggleButton.setAttribute('aria-label',
+          isShowing
+            ? config.languageLabels.showServerInfo
+            : config.languageLabels.hideServerInfo
+        );
+        toggleButton.innerHTML = isShowing
+          ? '<i class="fas fa-chevron-down"></i>'
+          : '<i class="fas fa-chevron-up"></i>';
+      });
+    });
 
     const lazyImages = modal.querySelectorAll('.lazy-load');
     lazyImages.forEach(img => {
@@ -357,59 +357,62 @@ async function showNowPlayingModal(nowPlayingItem, device) {
         e.preventDefault();
 
         const sessionId = button.dataset.sessionId;
-        const isMuted = button.dataset.isMuted === 'true';
-        const slider = modal.querySelector(`.volume-slider[data-session-id="${sessionId}"]`);
-        const valueLabel = modal.querySelector(`.volume-value[data-session-id="${sessionId}"]`);
+        theMuteToggle:
+        {
+          const isMuted = button.dataset.isMuted === 'true';
+          const slider = modal.querySelector(`.volume-slider[data-session-id="${sessionId}"]`);
+          const valueLabel = modal.querySelector(`.volume-value[data-session-id="${sessionId}"]`);
 
-        try {
-          await makeApiRequest(`/Sessions/${sessionId}/Command`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': getAuthHeader()
-            },
-            body: JSON.stringify({
-              Name: isMuted ? 'Unmute' : 'Mute',
-              ControllingUserId: getSessionInfo().userId
-            })
-          });
+          try {
+            await makeApiRequest(`/Sessions/${sessionId}/Command`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': getAuthHeader()
+              },
+              body: JSON.stringify({
+                Name: isMuted ? 'Unmute' : 'Mute',
+                ControllingUserId: getSessionInfo().userId
+              })
+            });
 
-          let newVolume;
-          if (isMuted) {
-            newVolume = button.dataset.lastVolume || '50';
-          } else {
-            button.dataset.lastVolume = slider.value;
-            newVolume = '0';
+            let newVolume;
+            if (isMuted) {
+              newVolume = button.dataset.lastVolume || '50';
+            } else {
+              button.dataset.lastVolume = slider.value;
+              newVolume = '0';
+            }
+            slider.value = newVolume;
+            if (valueLabel) valueLabel.textContent = `${newVolume}%`;
+            button.dataset.isMuted = (!isMuted).toString();
+            button.innerHTML = !isMuted
+              ? '🔊 ' + config.languageLabels.sesac
+              : '🔇 ' + config.languageLabels.seskapat;
+
+            showNotification(
+              !isMuted
+                ? config.languageLabels.volOff
+                : config.languageLabels.volOn,
+              'success'
+            );
+            await makeApiRequest(`/Sessions/${sessionId}/Command`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': getAuthHeader()
+              },
+              body: JSON.stringify({
+                Name: 'SetVolume',
+                ControllingUserId: getSessionInfo().userId,
+                Arguments: { Volume: parseInt(newVolume, 10) }
+              })
+            });
+
+          } catch (err) {
+            console.error("Mute/Unmute hatası:", err);
+            showNotification(`${config.languageLabels.seshata}: ${err.message}`, 'error');
           }
-          slider.value = newVolume;
-          if (valueLabel) valueLabel.textContent = `${newVolume}%`;
-          button.dataset.isMuted = (!isMuted).toString();
-          button.innerHTML = !isMuted
-            ? '🔊 ' + config.languageLabels.sesac
-            : '🔇 ' + config.languageLabels.seskapat;
-
-          showNotification(
-            !isMuted
-              ? config.languageLabels.volOff
-              : config.languageLabels.volOn,
-            'success'
-          );
-          await makeApiRequest(`/Sessions/${sessionId}/Command`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': getAuthHeader()
-            },
-            body: JSON.stringify({
-              Name: 'SetVolume',
-              ControllingUserId: getSessionInfo().userId,
-              Arguments: { Volume: parseInt(newVolume, 10) }
-            })
-          });
-
-        } catch (err) {
-          console.error("Mute/Unmute hatası:", err);
-          showNotification(`${config.languageLabels.seshata}: ${err.message}`, 'error');
         }
       });
     });
@@ -591,7 +594,7 @@ async function getServerInfoHtml() {
             </div>
             <div class="server-info-item">
               <strong>${config.languageLabels.localTime || 'Yerel Zaman'}:</strong>
-              <span class="local-time-display">${new Date().toLocaleString()}</span>
+              <span class="local-time-display">${localTime}</span>
             </div>
             <div class="server-info-item">
               <strong>${config.languageLabels.startupwizard || 'Kurulum Sihirbazı'}:</strong>
@@ -746,6 +749,7 @@ async function toggleFavorite(itemId, makeFavorite) {
     showNotification(`${config.languageLabels.favorihata}: ${err.message}`, 'error');
   }
 }
+
 async function updatePlaybackTimes(modal, activeDevices) {
   try {
     const { userId } = getSessionInfo();
@@ -794,7 +798,7 @@ async function updatePlaybackTimes(modal, activeDevices) {
           : '⏸️ ' + (config.languageLabels.duraklat || "Duraklat");
       }
     });
-     if (modal) {
+    if (modal) {
       modal.querySelectorAll('.local-time-display').forEach(el => {
         el.textContent = new Date().toLocaleString();
       });

@@ -1,5 +1,5 @@
 import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex } from "./utils.js";
-import { updateFavoriteStatus, updatePlayedStatus, fetchItemDetails } from "./api.js";
+import { updateFavoriteStatus, updatePlayedStatus, fetchItemDetails, goToDetailsPage } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
 import { createSlidesContainer, createGradientOverlay, createHorizontalGradientOverlay, createLogoContainer, createStatusContainer, createActorSlider, createInfoContainer, createDirectorContainer, createRatingContainer, createLanguageContainer, createMetaContainer, createMainContentContainer, createPlotContainer, createTitleContainer } from "./containerUtils.js";
@@ -279,7 +279,7 @@ const warmOnHover = () => {
 io.observe(backdropImg);
 
   backdropImg.addEventListener('click', () => {
-    window.location.href = slide.dataset.detailUrl;
+    goToDetailsPage(itemId);
   });
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
