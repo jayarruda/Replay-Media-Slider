@@ -507,53 +507,57 @@ function initializeSlider() {
 }
 
 function setupNavigationObserver() {
-    let previousUrl = window.location.href;
-    let isOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
+  let previousUrl = window.location.href;
+  let isOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
 
-    const checkPageChange = () => {
-        const currentUrl = window.location.href;
-        const nowOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
+  const checkPageChange = () => {
+    const currentUrl = window.location.href;
+    const nowOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
 
-        if (currentUrl !== previousUrl || isOnHomePage !== nowOnHomePage) {
-            previousUrl = currentUrl;
-            isOnHomePage = nowOnHomePage;
+    if (currentUrl !== previousUrl || isOnHomePage !== nowOnHomePage) {
+      previousUrl = currentUrl;
+      isOnHomePage = nowOnHomePage;
 
-            if (isOnHomePage) {
-                fullSliderReset();
+      if (isOnHomePage) {
+        fullSliderReset();
 
-                setTimeout(() => {
-                    if (!document.querySelector("#slides-container")) {
-                        const slidesContainer = document.createElement("div");
-                        slidesContainer.id = "slides-container";
-                        document.querySelector("#indexPage:not(.hide)").appendChild(slidesContainer);
-                    }
-                    slidesInit();
-                }, 100);
-            } else {
-                fullSliderReset();
-            }
-        }
-    };
+        setTimeout(() => {
+          const idxPage = document.querySelector("#indexPage:not(.hide)");
+          if (idxPage && !idxPage.querySelector("#slides-container")) {
+            const slidesContainer = document.createElement("div");
+            slidesContainer.id = "slides-container";
+            idxPage.appendChild(slidesContainer);
+          }
+          if (idxPage) {
+            slidesInit();
+          }
+        }, 100);
+      } else {
+        fullSliderReset();
+      }
+    }
+  };
 
-    const observerInterval = setInterval(checkPageChange, 300);
+  const observerInterval = setInterval(checkPageChange, 300);
 
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
 
-    history.pushState = function() {
-        originalPushState.apply(this, arguments);
-        checkPageChange();
-    };
+  history.pushState = function () {
+    originalPushState.apply(this, arguments);
+    checkPageChange();
+  };
 
-    history.replaceState = function() {
-        originalReplaceState.apply(this, arguments);
-        checkPageChange();
-    };
+  history.replaceState = function () {
+    originalReplaceState.apply(this, arguments);
+    checkPageChange();
+  };
 
-    window.addEventListener('popstate', checkPageChange);
+  window.addEventListener('popstate', checkPageChange);
 
-    return () => clearInterval(observerInterval);
+  return () => clearInterval(observerInterval);
 }
+
 
 function initializeSliderOnHome() {
     const indexPage = document.querySelector("#indexPage:not(.hide)");
