@@ -295,7 +295,7 @@ If your file path contains spaces, enclose it in double quotes, e.g., ``` sh lrc
 </details>
 
 <details>
-<summary> Trailer Scripts/Fragman Betikleri – Setup Guide (EN & TR) </summary>
+<summary> Trailer Scripts / Fragman Betikleri – Setup Guide (EN & TR) </summary>
 
 <details>
 <summary>
@@ -384,21 +384,48 @@ chmod +x trailers.sh trailersurl.sh
 
 Both scripts use environment variables. Common ones:
 
-| Variable         | Description                                                 |
-| ---------------- | ----------------------------------------------------------- |
-| `JF_BASE`        | Jellyfin base URL (default `http://localhost:8096`)    |
-| `JF_API_KEY`     | **Required** Jellyfin API key                          |
-| `TMDB_API_KEY`   | **Required** TMDb API key                                   |
-| `PREFERRED_LANG` | Preferred language code (default `tr-TR`)                   |
-| `FALLBACK_LANG`  | Fallback language (default `en-US`)                         |
-| `INCLUDE_TYPES`  | Media types to scan (default `Movie,Series,Season,Episode`) |
-| `INCLUDE_LANGS_WIDE`  | Comprehensive search  ( `tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null` )    
+Here’s the complete list of environment variables for **`trailers.sh`**, fully documented in English. This can be shared directly on GitHub for clarity.
+
+---
+
+## Environment Variables Reference
+
+| Variable                    | Default                                                            | Description / Allowed Values                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JF_BASE`                   | `http://localhost:8096`                                            | Jellyfin server base URL.                                                                                                                           |
+| `JF_API_KEY`                | `CHANGE_ME`                                                        | **Required.** Jellyfin API key.                                                                                                                     |
+| `TMDB_API_KEY`              | `CHANGE_ME`                                                        | **Required.** TMDb API key.                                                                                                                         |
+| `PREFERRED_LANG`            | `tr-TR`                                                            | Preferred language code for TMDb lookups.                                                                                                           |
+| `FALLBACK_LANG`             | `en-US`                                                            | Fallback language code if preferred is unavailable.                                                                                                 |
+| `INCLUDE_TYPES`             | `Movie,Series,Season,Episode`                                      | Media types to scan from Jellyfin.                                                                                                                  |
+| `PAGE_SIZE`                 | `200`                                                              | Pagination size for Jellyfin `/Items` queries.                                                                                                      |
+| `JF_USER_ID`                | *(empty)*                                                          | Jellyfin user ID. If unset, the script auto-detects an administrator or first user.                                                                 |
+| `INCLUDE_LANGS_WIDE`        | `tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,nl,pl,sv,cs,uk,el,null` | Broad set of fallback languages for TMDb trailer search when preferred/fallback fails.                                                              |
+| `PREFERRED_ISO639`          | derived from `PREFERRED_LANG`                                      | Auto-extracted ISO 639-1 code from preferred language (e.g., `tr-TR` → `tr`). Not typically set manually.                                           |
+| `FALLBACK_ISO639`           | derived from `FALLBACK_LANG`                                       | Auto-extracted ISO 639-1 code from fallback language (e.g., `en-US` → `en`). Not typically set manually.                                            |
+
+---
 
 Extra for `trailers.sh`:
 
-* `COOKIES_BROWSER` → supply cookies to yt-dlp (firefox/chrome)
-* `MIN_FREE_MB` → minimum free disk space to attempt download
-* `SLEEP_SECS` → delay between downloads
+* `COOKIES_BROWSER` → Default `(empty)` : Browser to export cookies from for yt-dlp (e.g., firefox, chrome:Default, edge, safari). Useful for age-restricted or region-locked videos.
+* `MIN_FREE_MB`  → Default `1024` : Minimum required free space (MiB) in both destination and working directory before downloads are attempted.
+* `SLEEP_SECS` → Default `1` : Delay (seconds) after each successful download.
+* `MIN_FREE_MB` → Default `1024` : Minimum required free space (MiB) in both destination and working directory before downloads are attempted.
+* `CLEANUP_EXTRA_PATHS` → Default *(empty)* : Extra root paths (colon-separated) to clean temp files from.
+* `WORK_DIR` → Default `/tmp/trailers-dl` : Working directory for temporary downloads. 
+* `ENABLE_THEME_LINK` → Default `0` : If `1`, create `backdrops/theme.mp4` symlink/hardlink/copy pointing to trailer.
+* `THEME_LINK_MODE` → Default `symlink` : Mode for theme creation. Options: `symlink`, `hardlink`, `copy`.
+* `OVERWRITE_POLICY` → Default `skip` : Behavior when `trailer.mp4` already exists. Values: `skip`, `replace`, `if-better`.
+* `BETTER_MIN_SIZE_DELTA` → Default `1048576` : In `if-better` mode: new trailer must be at least this many bytes larger to count as better.
+* `BETTER_MIN_DURATION_DELTA` → Default `3` : In `if-better` mode: new trailer must be longer by at least this many seconds to count as better.
+
+## Notes
+
+* **`OVERWRITE_POLICY=if-better`** logic: the new trailer is kept only if it is longer (`BETTER_MIN_DURATION_DELTA`) **or** larger (`BETTER_MIN_SIZE_DELTA`) than the existing one.
+* **Theme file (`backdrops/theme.mp4`)**: Enabled with `ENABLE_THEME_LINK=1`, created using the chosen method in `THEME_LINK_MODE`.
+* **`COOKIES_BROWSER`** example: `COOKIES_BROWSER=firefox` or `COOKIES_BROWSER="chrome:Default"` to use yt-dlp with authenticated sessions.
+---
 
 #### Usage
 
@@ -410,6 +437,8 @@ JF_API_KEY="API-KEY-HERE" \
 TMDB_API_KEY="TMDB-API-KEY-HERE" \
 COOKIES_BROWSER=chrome \
 MIN_FREE_MB=2048 \
+OVERWRITE_POLICY= if-better \
+ENABLE_THEME_LINK=1 \
 PREFERRED_LANG=tr-TR \
 INCLUDE_LANGS_WIDE="tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null" \
 ./trailers.sh
@@ -553,23 +582,49 @@ chmod +x trailers.sh trailersurl.sh
 
 #### Yapılandırma
 
-Ortak değişkenler:
+İşte **`trailers.sh`** için tüm environment değişkenlerinin Türkçe açıklamaları. GitHub üzerinde paylaşım için hazırdır.
 
-| Değişken         | Açıklama                                                    |
-| ---------------- | ----------------------------------------------------------- |
-| `JF_BASE`        | Jellyfin adresi (varsayılan `http://localhost:8096`)   |
-| `JF_API_KEY`     | **Zorunlu** Jellyfin API anahtarı                      |
-| `TMDB_API_KEY`   | **Zorunlu** TMDb API anahtarı                               |
-| `PREFERRED_LANG` | Tercih edilen dil (varsayılan `tr-TR`)                      |
-| `FALLBACK_LANG`  | Yedek dil (varsayılan `en-US`)                              |
-| `INCLUDE_TYPES`  | Taranacak türler (varsayılan `Movie,Series,Season,Episode`) |
-| `INCLUDE_LANGS_WIDE`  | Kapsamlı arama  ( `tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null` )                            |
+---
+
+## Ortam Değişkenleri Referansı
+
+| Değişken                    | Varsayılan                                                         | Açıklama / Geçerli Değerler                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JF_BASE`                   | `http://localhost:8096`                                            | Jellyfin sunucu adresi.                                                                                                                            |
+| `JF_API_KEY`                | `CHANGE_ME`                                                        | **Zorunlu.** Jellyfin API anahtarı.                                                                                                                |
+| `TMDB_API_KEY`              | `CHANGE_ME`                                                        | **Zorunlu.** TMDb API anahtarı.                                                                                                                    |
+| `PREFERRED_LANG`            | `tr-TR`                                                            | TMDb sorguları için tercih edilen dil kodu.                                                                                                        |
+| `FALLBACK_LANG`             | `en-US`                                                            | Tercih edilen dil bulunmazsa kullanılacak yedek dil.                                                                                               |
+| `INCLUDE_TYPES`             | `Movie,Series,Season,Episode`                                      | Jellyfin’de taranacak medya türleri.                                                                                                               |
+| `PAGE_SIZE`                 | `200`                                                              | Jellyfin `/Items` sayfalama boyutu.                                                                                                                |
+| `JF_USER_ID`                | *(boş)*                                                            | Jellyfin kullanıcı ID’si. Ayarlanmazsa script otomatik yönetici veya ilk kullanıcıyı çözer.                                                        |
+| `INCLUDE_LANGS_WIDE`        | `tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,nl,pl,sv,cs,uk,el,null` | TMDb trailer aramalarında geniş dil havuzu. Tercih/yedek dil sonuç vermezse devreye girer.                                                         |
+| `PREFERRED_ISO639`          | `PREFERRED_LANG`’den türetilir                                     | Otomatik çıkarılır (`tr-TR` → `tr`). Manuel ayarlamaya gerek yok.                                                                                  |
+| `FALLBACK_ISO639`           | `FALLBACK_LANG`’den türetilir                                      | Otomatik çıkarılır (`en-US` → `en`). Manuel ayarlamaya gerek yok.                                                                                  |
+
+---
 
 Ekstra `trailers.sh` için:
 
-* `COOKIES_BROWSER` → yt-dlp için tarayıcı çerezleri (firefox/chrome)
-* `MIN_FREE_MB` → İndirme için gereken minimum boş alan
-* `SLEEP_SECS` → İndirmeler arası bekleme süresi
+* `COOKIES_BROWSER` → varsayılan `(boş)` : yt-dlp için çerezlerin alınacağı tarayıcı (örn. firefox, chrome:Default, edge, safari). Yaş kısıtlı veya bölge kilitli videolarda faydalı.
+* `MIN_FREE_MB` → varsayılan `1024` : Hem hedef hem de çalışma klasöründe olması gereken minimum boş alan (MiB). Altındaysa indirme yapılmaz.
+* `SLEEP_SECS ` → varsayılan `1` : Başarılı her indirmeden sonra beklenecek saniye.
+* `OVERWRITE_POLICY` → varsayılan `skip` : Var olan `trailer.mp4` dosyası için davranış. Değerler: `skip`, `replace`, `if-better`.                              
+* `WORK_DIR` → varsayılan`/tmp/trailers-dl` : Geçici indirme klasörü.                                                                                            
+* `ENABLE_THEME_LINK` → varsayılan `0` : `1` ise `backdrops/theme.mp4` dosyası trailer’a symlink/hardlink/kopya olarak oluşturulur.                              
+* `THEME_LINK_MODE` → varsayılan `symlink` : Tema dosyası oluşturma yöntemi: `symlink`, `hardlink`, `copy`.                                                      
+* `CLEANUP_EXTRA_PATHS` → *(boş)* : Ek temizlenecek klasör kökleri. Birden çok yol `:` ile ayrılabilir. 
+* `BETTER_MIN_SIZE_DELTA` → `1048576` : `if-better` modunda: yeni dosya en az bu kadar bayt daha büyükse “daha iyi” kabul edilir.
+* `BETTER_MIN_DURATION_DELTA` → `3` : `if-better` modunda: yeni dosya en az bu kadar saniye daha uzunsa “daha iyi” kabul edilir.             
+
+## Notlar
+
+* **`OVERWRITE_POLICY=if-better`** mantığı: Yeni trailer, süresi `BETTER_MIN_DURATION_DELTA` kadar daha uzunsa **veya** boyutu `BETTER_MIN_SIZE_DELTA` kadar daha büyükse kabul edilir.
+* **Tema dosyası (`backdrops/theme.mp4`)**: `ENABLE_THEME_LINK=1` ile etkinleştirilir, `THEME_LINK_MODE` yöntemine göre oluşturulur.
+* **`COOKIES_BROWSER`** örnek: `COOKIES_BROWSER=firefox` veya `COOKIES_BROWSER="chrome:Default"`.
+
+---
+
 
 #### Örnek Kullanım
 
@@ -581,7 +636,9 @@ JF_API_KEY="API-KEY-BURAYA" \
 TMDB_API_KEY="TMDB-API-KEY-BURAYA" \
 COOKIES_BROWSER=chrome \
 MIN_FREE_MB=2048 \
+ENABLE_THEME_LINK=1 \
 PREFERRED_LANG=tr-TR \
+OVERWRITE_POLICY=if-better \
 INCLUDE_LANGS_WIDE="tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null" \
 ./trailers.sh
 ```
