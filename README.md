@@ -112,7 +112,7 @@ Kullanıcı adına göre veya DiceBear desteği ile otomatik olarak avatar üret
 - #### Gelişmiş ayar yönetimi
 Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
 
-### Kurulum/Installation
+### Kurulum / Installation
 <details>
 <summary> Türkçe Kurulum </summary>
 
