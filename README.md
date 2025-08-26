@@ -126,8 +126,8 @@ Kullanıcı adına göre veya DiceBear desteği ile otomatik olarak avatar üret
 - #### Gelişmiş ayar yönetimi
 Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
 
-- #### Jellyin Genelinde Kullanılabilir Kalite Etiketleri
-Jellyfin üzerinde görüntülenebilen tutarlı, platform genelinde kaliteli etiketler (örneğin HD, 4K, HDR) sağlar ve kullanıcıların medyalarının kalitesini tek bakışta belirlemesini kolaylaştırır.
+- #### Jellyfin Genelinde Kullanılabilir Kalite Etiketleri
+Jellyfin üzerinde görüntülenebilen tutarlı, platform genelinde kalite etiketleri (örneğin HD, 4K, HDR) sağlar ve kullanıcıların medyalarının kalitesini tek bakışta belirlemesini kolaylaştırır.
 
 - #### Netflix Benzeri Hover Video Önizlemeleri
 Netflix'e benzer etkileşimli video veya fragman önizlemeleri ekler: Bir öğenin üzerine gelindiğinde, kısa bir fragman veya önizleme otomatik olarak oynatılır ve kullanıcılara ayrıntılar sayfasını açmadan içeriğe hızlıca göz atma olanağı sağlar.
