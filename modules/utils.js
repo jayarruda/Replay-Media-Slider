@@ -3,63 +3,68 @@ import { fetchItemDetails, getImageDimensions, getIntroVideoUrl, getVideoStreamU
 
 const config = getConfig();
 
-export function getYoutubeEmbedUrl(url) {
-  if (!url || typeof url !== 'string') return url;
-
+export function getYoutubeEmbedUrl(input) {
+  if (!input || typeof input !== "string") return input;
   const parseYouTubeTime = (t) => {
     if (!t) return 0;
     if (/^\d+$/.test(t)) return parseInt(t, 10);
-    const m = t.match(/(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?/i);
+    const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
     if (!m) return 0;
-    const h = parseInt(m[1] || '0', 10);
-    const min = parseInt(m[2] || '0', 10);
-    const s = parseInt(m[3] || '0', 10);
+    const h = parseInt(m[1] || "0", 10);
+    const min = parseInt(m[2] || "0", 10);
+    const s = parseInt(m[3] || "0", 10);
     return h * 3600 + min * 60 + s;
   };
+  const ensureUrl = (raw) => {
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+    const lower = raw.toLowerCase();
+    const isYT = /\b(youtu\.be|youtube\.com)\b/.test(lower);
+    const scheme = isYT ? "https:" : (window.location?.protocol || "http:");
+    return `${scheme}//${raw}`;
+  };
 
+  let parsed;
   try {
-    const parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
-    const host = parsedUrl.hostname.replace(/^www\./, '').toLowerCase();
-    let videoId = '';
-    if (host === 'youtu.be') {
-      videoId = parsedUrl.pathname.split('/').filter(Boolean)[0] || '';
-    } else if (host.endsWith('youtube.com')) {
-      if (parsedUrl.pathname.startsWith('/embed/')) {
-        videoId = parsedUrl.pathname.split('/').filter(Boolean)[1] || '';
-      } else if (parsedUrl.pathname.startsWith('/shorts/')) {
-        videoId = parsedUrl.pathname.split('/').filter(Boolean)[1] || '';
-      } else {
-        videoId = parsedUrl.searchParams.get('v') || '';
-      }
-    }
-
-    if (!videoId) return url;
-
-    const startParam = parsedUrl.searchParams.get('start');
-    const tParam = parsedUrl.searchParams.get('t');
-    const start = startParam ? parseInt(startParam, 10) : parseYouTubeTime(tParam);
-
-    const params = new URLSearchParams({
-      autoplay: '1',
-      rel: '0',
-      modestbranding: '1',
-      iv_load_policy: '3',
-      enablejsapi: '1',
-      playsinline: '1',
-      mute: '0',
-      controls: '0',
-      origin: window.location.origin || ''
-    });
-
-    if (start && Number.isFinite(start) && start > 0) {
-      params.set('start', String(start));
-    }
-
-    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
-  } catch (e) {
-    console.error('YouTube URL dönüştürme hatası:', e);
-    return url;
+    parsed = new URL(ensureUrl(input));
+  } catch {
+    return input;
   }
+
+  const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+  const isYouTube =
+    host === "youtu.be" ||
+    host.endsWith("youtube.com");
+
+  if (!isYouTube) return input;
+  let videoId = "";
+  if (host === "youtu.be") {
+    videoId = parsed.pathname.split("/").filter(Boolean)[0] || "";
+  } else {
+    if (parsed.pathname.startsWith("/embed/")) {
+      videoId = parsed.pathname.split("/").filter(Boolean)[1] || "";
+    } else if (parsed.pathname.startsWith("/shorts/")) {
+      videoId = parsed.pathname.split("/").filter(Boolean)[1] || "";
+    } else {
+      videoId = parsed.searchParams.get("v") || "";
+    }
+  }
+  if (!videoId) return input;
+  const startParam = parsed.searchParams.get("start");
+  const tParam = parsed.searchParams.get("t");
+  const start = startParam ? parseInt(startParam, 10) : parseYouTubeTime(tParam);
+  const params = new URLSearchParams({
+    autoplay: "1",
+    rel: "0",
+    modestbranding: "1",
+    iv_load_policy: "3",
+    enablejsapi: "1",
+    playsinline: "1",
+    mute: "0",
+    controls: "0",
+    origin: (typeof window !== "undefined" && window.location?.origin) ? window.location.origin : ""
+  });
+  if (Number.isFinite(start) && start > 0) params.set("start", String(start));
+  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
 }
 
 export function getProviderUrl(provider, id, slug = '') {
