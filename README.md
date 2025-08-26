@@ -95,6 +95,9 @@ Adds interactive video previews similar to Netflix: when hovering over an item, 
 - #### Newly Added Content & System Notifications Module
 Displays a dedicated module for newly added content (movies, series, or episodes) alongside system notifications (such as updates, alerts, or custom messages), ensuring users never miss important updates or fresh media.
 
+- #### Trailer Fetching Scripts
+With these scripts, you can download trailers and use them across Jellyfin. Optionally, the downloaded trailers can be set as theme videos, or alternatively, you can skip downloading and simply embed trailer metadata directly into the content’s NFO files.
+
 </summary>
 
 ### Türkçe
@@ -131,6 +134,9 @@ Netflix'e benzer etkileşimli video veya fragman önizlemeleri ekler: Bir öğen
 
 - #### Yeni Eklenen İçerik ve Sistem Bildirimleri Modülü
 Yeni eklenen içerikler (filmler, diziler veya bölümler) için özel bir modül. Sistem bildirimleri ile (güncellemeler, uyarılar veya özel mesajlar gibi) birlikte çalışır ve kullanıcıların önemli güncellemeleri veya yeni medyayı asla kaçırmamasını sağlar.
+
+- #### Fragman Edinim Betikleri
+Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe bağlı olarak indirilen fragmanları tema videoları olarak kullanabilir veya alternatif olarak, fragmanları indirmeden fragman bilgilerini doğrudan içeriğin NFO dosyalarına yazabilirsiniz.
 
 ### Kurulum / Installation
 <details>
