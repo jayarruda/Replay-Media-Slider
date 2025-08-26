@@ -10,6 +10,7 @@ import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
 const labels = getLanguageLabels(currentLang) || {};
+const imageBlobCache = new Map();
 
 export function setupPauseScreen() {
     const config = getConfig();
@@ -176,17 +177,16 @@ function hideOverlay() {
     }
 
     async function refreshData(data) {
-        console.log('pause overlay data:', { data, ep: data._episodeData });
         resetContent();
         const ep = data._episodeData || null;
         if (config.pauseOverlay.showBackdrop) {
-            await setBackdrop();
+        await setBackdrop(data);
         } else {
             backdropEl.style.backgroundImage = 'none';
             backdropEl.style.opacity = '0';
         }
         if (config.pauseOverlay.showLogo) {
-            await setLogo(data);
+        await setLogo(data);
         } else {
             logoEl.innerHTML = '';
         }
@@ -224,81 +224,59 @@ function hideOverlay() {
         }
     }
 
-    async function setBackdrop() {
-        if (!currentMediaId) return;
-        const url = `/Items/${currentMediaId}/Images/Backdrop/0`;
-        try {
-            const ok = await checkExists(url);
-            backdropEl.style.backgroundImage = ok ? `url('${url}')` : 'none';
-            backdropEl.style.opacity = ok ? '0.7' : '0';
-        } catch (e) {
-            backdropEl.style.backgroundImage = 'none';
-            backdropEl.style.opacity = '0';
-        }
-    }
+async function setBackdrop(item) {
+   const tags = item?.BackdropImageTags || [];
+   if (tags.length > 0) {
+     const url = `/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tags[0])}`;
+     backdropEl.style.backgroundImage = `url('${url}')`;
+     backdropEl.style.opacity = '0.7';
+   } else {
+     backdropEl.style.backgroundImage = 'none';
+     backdropEl.style.opacity = '0';
+   }
+ }
 
-    async function setLogo(data) {
-        if (!currentMediaId || !data) return;
-        const imagePref = config.pauseOverlay?.imagePreference || 'auto';
-        const logoUrl = `/Items/${currentMediaId}/Images/Logo`;
-        const discUrl = `/Items/${currentMediaId}/Images/Disc`;
+ async function setLogo(item) {
+   if (!item) return;
+   const imagePref = config.pauseOverlay?.imagePreference || 'auto';
+   const hasLogoTag = item?.ImageTags?.Logo || item?.SeriesLogoImageTag || null;
+   const hasDiscTag  = item?.ImageTags?.Disc || null;
+   const logoUrl = hasLogoTag
+     ? `/Items/${item.Id}/Images/Logo?tag=${encodeURIComponent(hasLogoTag)}`
+     : null;
+   const discUrl = hasDiscTag
+     ? `/Items/${item.Id}/Images/Disc?tag=${encodeURIComponent(hasDiscTag)}`
+     : null;
 
-        async function tryImage(url) {
-            try {
-                return await checkExists(url);
-            } catch { return false; }
-        }
+   const sequence = (() => {
+     switch (imagePref) {
+       case 'logo': return ['logo'];
+       case 'disc': return ['disc'];
+       case 'title': return ['title'];
+       case 'logo-title': return ['logo', 'title'];
+       case 'disc-logo-title': return ['disc', 'logo', 'title'];
+       case 'disc-title': return ['disc', 'title'];
+       case 'auto': default: return ['logo', 'disc', 'title'];
+     }
+   })();
 
-        let sequence = [];
-        switch (imagePref) {
-            case 'logo': sequence = ['logo']; break;
-            case 'disc': sequence = ['disc']; break;
-            case 'title': sequence = ['title']; break;
-            case 'logo-title': sequence = ['logo', 'title']; break;
-            case 'disc-logo-title': sequence = ['disc', 'logo', 'title']; break;
-            case 'disc-title': sequence = ['disc', 'title']; break;
-            case 'auto': sequence = ['logo', 'disc', 'title']; break;
-            default: sequence = ['logo', 'disc', 'title']; break;
-        }
-        for (const pref of sequence) {
-            if (pref === 'logo' && await tryImage(logoUrl)) {
-                logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
-                return;
-            }
-            if (pref === 'disc' && await tryImage(discUrl)) {
-                logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt="" onerror="this.parentElement.innerHTML=''"/></div>`;
-                return;
-            }
-            if (pref === 'title') {
-                logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
-                return;
-            }
-        }
-        logoEl.innerHTML = `<div class="pause-text-logo">${data.Name || data.OriginalTitle || ''}</div>`;
-    }
-
-    async function checkExists(url) {
-        if (!url) return false;
-        if (window.__imageCache === undefined) {
-            window.__imageCache = {};
-        }
-        if (window.__imageCache[url] !== undefined) {
-            return window.__imageCache[url];
-        }
-        try {
-            const response = await fetch(url, {
-                method: 'HEAD',
-                cache: 'no-store',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-            const exists = response.ok;
-            window.__imageCache[url] = exists;
-            return exists;
-        } catch (e) {
-            window.__imageCache[url] = false;
-            return false;
-        }
-    }
+   logoEl.innerHTML = '';
+   for (const pref of sequence) {
+     if (pref === 'logo' && logoUrl) {
+       logoEl.innerHTML = `<div class="pause-logo-container"><img class="pause-logo" src="${logoUrl}" alt=""/></div>`;
+       return;
+     }
+     if (pref === 'disc' && discUrl) {
+       logoEl.innerHTML = `<div class="pause-disk-container"><img class="pause-disk" src="${discUrl}" alt=""/></div>`;
+       return;
+     }
+     if (pref === 'title') {
+       logoEl.innerHTML = `<div class="pause-text-logo">${item.Name || item.OriginalTitle || ''}</div>`;
+       return;
+     }
+   }
+   logoEl.innerHTML = `<div class="pause-text-logo">${item.Name || item.OriginalTitle || ''}</div>`;
+ }
 
     function getPlayingItemIdFromVideo(video) {
   if (!video) return null;
@@ -570,3 +548,9 @@ function formatSeasonEpisodeLine(ep) {
     const mid = left && right ? ' • ' : '';
     return `${left}${mid}${right}${eTitle}`.trim();
 }
+
+
+window.addEventListener('beforeunload', () => {
+  for (const v of imageBlobCache.values()) { if (v) URL.revokeObjectURL(v); }
+  imageBlobCache.clear();
+});
