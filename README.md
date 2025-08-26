@@ -84,7 +84,16 @@ Displays an informative overlay when content is paused, including media details 
 It is a module that automatically generates and applies avatars based on the username or with DiceBear support.
 
 - #### Advanced settings management
-A user-friendly settings panel makes it easy to configure all features.</summary>
+A user-friendly settings panel makes it easy to configure all features.
+
+- #### Global Quality Labels in Jellyfin
+Provides consistent, platform-wide quality labels (such as HD, 4K, HDR) that can be displayed across all sections of Jellyfin, making it easier for users to identify the quality of their media at a glance.
+
+- #### Netflix-like Hover Video Previews
+
+- #### Newly Added Content & System Notifications Module
+
+</summary>
 
 ### Türkçe
 
