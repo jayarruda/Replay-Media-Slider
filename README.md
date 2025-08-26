@@ -90,8 +90,10 @@ A user-friendly settings panel makes it easy to configure all features.
 Provides consistent, platform-wide quality labels (such as HD, 4K, HDR) that can be displayed across all sections of Jellyfin, making it easier for users to identify the quality of their media at a glance.
 
 - #### Netflix-like Hover Video Previews
+Adds interactive video previews similar to Netflix: when hovering over an item, a short trailer or preview automatically plays, giving users a quick look at the content without opening the details page.
 
 - #### Newly Added Content & System Notifications Module
+Displays a dedicated module for newly added content (movies, series, or episodes) alongside system notifications (such as updates, alerts, or custom messages), ensuring users never miss important updates or fresh media.
 
 </summary>
 
@@ -120,6 +122,15 @@ Kullanıcı adına göre veya DiceBear desteği ile otomatik olarak avatar üret
 
 - #### Gelişmiş ayar yönetimi
 Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
+
+- #### Jellyin Genelinde Kullanılabilir Kalite Etiketleri
+Jellyfin üzerinde görüntülenebilen tutarlı, platform genelinde kaliteli etiketler (örneğin HD, 4K, HDR) sağlar ve kullanıcıların medyalarının kalitesini tek bakışta belirlemesini kolaylaştırır.
+
+- #### Netflix Benzeri Hover Video Önizlemeleri
+Netflix'e benzer etkileşimli video veya fragman önizlemeleri ekler: Bir öğenin üzerine gelindiğinde, kısa bir fragman veya önizleme otomatik olarak oynatılır ve kullanıcılara ayrıntılar sayfasını açmadan içeriğe hızlıca göz atma olanağı sağlar.
+
+- #### Yeni Eklenen İçerik ve Sistem Bildirimleri Modülü
+Yeni eklenen içerikler (filmler, diziler veya bölümler) için özel bir modül. Sistem bildirimleri ile (güncellemeler, uyarılar veya özel mesajlar gibi) birlikte çalışır ve kullanıcıların önemli güncellemeleri veya yeni medyayı asla kaçırmamasını sağlar.
 
 ### Kurulum / Installation
 <details>
