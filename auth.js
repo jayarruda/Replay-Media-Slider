@@ -12,11 +12,30 @@ export function saveCredentials(credentials) {
       localStorage.setItem("accessToken", credentials.AccessToken);
     }
 
+    const serverId =
+      credentials?.ServerId ||
+      credentials?.SystemId ||
+      credentials?.DeviceId === 'Server' ? null : null ||
+      credentials?.Servers?.[0]?.SystemId ||
+      credentials?.Servers?.[0]?.Id ||
+      (() => {
+        try {
+          const ac = window.ApiClient || window.apiClient || null;
+          return ac?._serverInfo?.SystemId || ac?._serverInfo?.Id || null;
+        } catch { return null; }
+      })();
+
+    if (serverId) {
+      sessionStorage.setItem("serverId", serverId);
+      localStorage.setItem("serverId", serverId);
+    }
+
     console.log("Kimlik bilgileri kaydedildi.");
   } catch (err) {
     console.error("Kimlik bilgileri kaydedilirken hata:", err);
   }
 }
+
 
 export function getWebClientHints() {
   const hints = {};
@@ -31,6 +50,10 @@ export function getWebClientHints() {
         ac._authToken || ac.accessToken || ac?._serverInfo?.AccessToken || null;
       hints.clientName = ac._appName || ac.name || "Jellyfin Web";
       hints.clientVersion = ac._appVersion || ac.appVersion || "1.0.0";
+      hints.serverId =
+        ac?._serverInfo?.SystemId ||
+        ac?._serverInfo?.Id ||
+        null;
     }
   } catch {}
 
@@ -46,6 +69,11 @@ export function getWebClientHints() {
       localStorage.getItem("emby.session.id") ||
       null;
     if (!hints.sessionId && lsSessionId) hints.sessionId = lsSessionId;
+    const lsServerId =
+      localStorage.getItem("serverId") ||
+      localStorage.getItem("emby.server.id") ||
+      null;
+    if (!hints.serverId && lsServerId) hints.serverId = lsServerId;
   } catch {}
 
   return hints;
@@ -57,6 +85,14 @@ export function saveApiKey(apiKey) {
     localStorage.setItem("api-key", apiKey);
     sessionStorage.setItem("accessToken", apiKey);
     localStorage.setItem("accessToken", apiKey);
+    try {
+      const ac = window.ApiClient || window.apiClient || null;
+      const serverId = ac?._serverInfo?.SystemId || ac?._serverInfo?.Id || null;
+      if (serverId) {
+        sessionStorage.setItem("serverId", serverId);
+        localStorage.setItem("serverId", serverId);
+      }
+    } catch {}
 
     console.log("API anahtarı kaydedildi.");
   } catch (err) {
@@ -64,8 +100,9 @@ export function saveApiKey(apiKey) {
   }
 }
 
+
 function clearCredentials() {
-  ["json-credentials","api-key","accessToken"].forEach(k => {
+  ["json-credentials","api-key","accessToken","serverId"].forEach(k => {
     sessionStorage.removeItem(k);
     localStorage.removeItem(k);
   });
@@ -105,6 +142,14 @@ export function getAuthToken() {
           try {
             const key = new URL(url).searchParams.get("api_key");
             if (key) saveApiKey(key);
+            try {
+              const ac = window.ApiClient || window.apiClient || null;
+              const serverId = ac?._serverInfo?.SystemId || ac?._serverInfo?.Id || null;
+              if (serverId) {
+                sessionStorage.setItem("serverId", serverId);
+                localStorage.setItem("serverId", serverId);
+              }
+            } catch {}
           } catch {}
         }
       }
@@ -112,6 +157,7 @@ export function getAuthToken() {
     orig.apply(console, args);
   };
 })();
+
 
 async function onLoginSubmit(credentials) {
   const response = await authenticateUser(username, password);

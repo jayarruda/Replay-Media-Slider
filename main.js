@@ -49,6 +49,22 @@ import { startUpdatePolling } from "./modules/update.js";
 const config = getConfig();
 
 let cleanupPauseOverlay = null;
+let pauseBooted = false;
+let navObsBooted = false;
+
+function startPauseOverlayOnce() {
+  if (pauseBooted) return;
+  cleanupPauseOverlay = setupPauseScreen();
+  pauseBooted = true;
+}
+
+function restartPauseOverlay() {
+  if (cleanupPauseOverlay) {
+    try { cleanupPauseOverlay(); } catch {}
+  }
+  pauseBooted = false;
+  startPauseOverlayOnce();
+}
 
 (function preloadNotifCSS() {
   if (document.getElementById("jfNotifCss")) return;
@@ -62,6 +78,16 @@ let cleanupPauseOverlay = null;
   const firstChild = head.firstElementChild;
   if (firstChild) head.insertBefore(link, firstChild);
   else head.appendChild(link);
+})();
+
+(function ensurePauseCss() {
+  if (!document.getElementById('jms-pause-css')) {
+    const link = document.createElement('link');
+    link.id = 'jms-pause-css';
+    link.rel = 'stylesheet';
+    link.href = 'slider/src/pauseModul.css';
+    document.head.appendChild(link);
+  }
 })();
 
 function setupGlobalModalInit() {
@@ -82,13 +108,6 @@ function setupGlobalModalInit() {
 
 const cleanupModalObserver = setupGlobalModalInit();
 window.cleanupModalObserver = cleanupModalObserver;
-
-function setupPauseScreenIfNeeded() {
-    if (cleanupPauseOverlay) {
-        cleanupPauseOverlay();
-    }
-    cleanupPauseOverlay = setupPauseScreen();
-}
 
 
 const shuffleArray = array => {
@@ -131,11 +150,6 @@ function fullSliderReset() {
         window.autoSlideTimeout = null;
     }
 
-    if (cleanupPauseOverlay) {
-        cleanupPauseOverlay();
-        cleanupPauseOverlay = null;
-    }
-
     setCurrentIndex(0);
     stopSlideTimer();
     cleanupSlider();
@@ -158,6 +172,13 @@ const cssPath = config.cssVariant === 'fullslider'
         : "./slider/src/slider.css";
 
 loadExternalCSS(cssPath);
+
+window.__cssVariant = (config.cssVariant === 'fullslider')
+  ? 'fullslider'
+  : (config.cssVariant === 'normalslider')
+    ? 'normalslider'
+    : 'slider';
+document.documentElement.dataset.cssVariant = window.__cssVariant;
 
 let isOnHomePage = true;
 
@@ -507,20 +528,22 @@ function initializeSlider() {
 }
 
 function setupNavigationObserver() {
+  if (navObsBooted) return () => {};
+  navObsBooted = true;
+
   let previousUrl = window.location.href;
-  let isOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
+  let isOnHomePage = !!document.querySelector("#indexPage:not(.hide)") || window.location.pathname === '/';
 
   const checkPageChange = () => {
     const currentUrl = window.location.href;
-    const nowOnHomePage = window.location.pathname === '/' || document.querySelector("#indexPage:not(.hide)");
+    const nowOnHomePage = !!document.querySelector("#indexPage:not(.hide)") || window.location.pathname === '/';
 
-    if (currentUrl !== previousUrl || isOnHomePage !== nowOnHomePage) {
+    if (currentUrl !== previousUrl || nowOnHomePage !== isOnHomePage) {
       previousUrl = currentUrl;
       isOnHomePage = nowOnHomePage;
 
       if (isOnHomePage) {
         fullSliderReset();
-
         setTimeout(() => {
           const idxPage = document.querySelector("#indexPage:not(.hide)");
           if (idxPage && !idxPage.querySelector("#slides-container")) {
@@ -528,36 +551,32 @@ function setupNavigationObserver() {
             slidesContainer.id = "slides-container";
             idxPage.appendChild(slidesContainer);
           }
-          if (idxPage) {
-            slidesInit();
-          }
+          if (idxPage) initializeSliderOnHome();
         }, 100);
       } else {
-        fullSliderReset();
+        cleanupSlider();
       }
+      startPauseOverlayOnce();
     }
   };
+  setTimeout(checkPageChange, 0);
 
   const observerInterval = setInterval(checkPageChange, 300);
-
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
+  const origPush = history.pushState;
+  const origReplace = history.replaceState;
 
   history.pushState = function () {
-    originalPushState.apply(this, arguments);
+    origPush.apply(this, arguments);
     checkPageChange();
   };
-
   history.replaceState = function () {
-    originalReplaceState.apply(this, arguments);
+    origReplace.apply(this, arguments);
     checkPageChange();
   };
-
   window.addEventListener('popstate', checkPageChange);
 
   return () => clearInterval(observerInterval);
 }
-
 
 function initializeSliderOnHome() {
     const indexPage = document.querySelector("#indexPage:not(.hide)");
@@ -609,15 +628,19 @@ function cleanupSlider() {
 }
 
 const domCheckInterval = setInterval(() => {
-    const indexPage = document.querySelector("#indexPage:not(.hide)");
-    if ((document.readyState === "complete" || document.readyState === "interactive") && indexPage) {
-        initializeSliderOnHome();
-        setupNavigationObserver();
-        setupPauseScreenIfNeeded();
-        setupPauseScreen();
-        clearInterval(domCheckInterval);
-    }
+  const ready = document.readyState === "complete" || document.readyState === "interactive";
+  if (!ready) return;
+
+  startPauseOverlayOnce();
+  setupNavigationObserver();
+  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  if (indexPage) {
+    initializeSliderOnHome();
+  }
+
+  clearInterval(domCheckInterval);
 }, 100);
+
 
 function extractItemTypesFromQuery(query) {
     const match = query.match(/IncludeItemTypes=([^&]+)/i);
