@@ -372,66 +372,136 @@ function resolveSelfSession(videoClients, self, { allowLastActiveFallback = fals
   return null;
 }
 
+function sortEpisodes(episodes = []) {
+  return [...episodes].sort((a, b) => {
+    const sa = a.ParentIndexNumber ?? a.SeasonIndex ?? 0;
+    const sb = b.ParentIndexNumber ?? b.SeasonIndex ?? 0;
+    if (sa !== sb) return sa - sb;
+    const ea = a.IndexNumber ?? 0;
+    const eb = b.IndexNumber ?? 0;
+    return ea - eb;
+  });
+}
+
+async function getBestEpisodeIdForSeries(seriesId, userId) {
+  try {
+    const nextUp = await makeApiRequest(`/Shows/${seriesId}/NextUp?UserId=${userId}&Limit=1&Fields=UserData,IndexNumber,ParentIndexNumber`);
+    const cand = Array.isArray(nextUp?.Items) && nextUp.Items[0];
+    if (cand?.Id) return cand.Id;
+  } catch {}
+  const epsResp = await makeApiRequest(
+    `/Shows/${seriesId}/Episodes?Fields=UserData,IndexNumber,ParentIndexNumber&UserId=${userId}&Limit=10000`
+  );
+  const all = sortEpisodes(epsResp?.Items || []);
+  const partial = all.find(e => e?.UserData?.PlaybackPositionTicks > 0 && !e?.UserData?.Played);
+  if (partial?.Id) return partial.Id;
+  const firstUnplayed = all.find(e => !e?.UserData?.Played);
+  if (firstUnplayed?.Id) return firstUnplayed.Id;
+  return all[0]?.Id || null;
+}
+
+async function getBestEpisodeIdForSeason(seasonId, seriesId, userId) {
+  const epsResp = await makeApiRequest(
+    `/Shows/${seriesId}/Episodes?SeasonId=${seasonId}&Fields=UserData,IndexNumber,ParentIndexNumber&UserId=${userId}`
+  );
+  const all = sortEpisodes(epsResp?.Items || []);
+
+  const partial = all.find(e => e?.UserData?.PlaybackPositionTicks > 0 && !e?.UserData?.Played);
+  if (partial?.Id) return partial.Id;
+
+  const firstUnplayed = all.find(e => !e?.UserData?.Played);
+  if (firstUnplayed?.Id) return firstUnplayed.Id;
+
+  return all[0]?.Id || null;
+}
+
 export async function playNow(itemId) {
   try {
     const self = getSessionInfo();
     const storedUserId = getStoredUserId() || self.userId;
+
     let item = await fetchItemDetails(itemId);
-    if (item?.Type === "Series") {
-      itemId = await getRandomEpisodeId(itemId);
+    if (!item) throw new Error("Öğe bulunamadı");
+    if (item.Type === "Series") {
+      const best = await getBestEpisodeIdForSeries(item.Id, self.userId);
+      if (!best) throw new Error("Bölüm bulunamadı");
+      itemId = best;
       item = await fetchItemDetails(itemId);
     }
-    const sessions = await makeApiRequest(`/Sessions?UserId=${self.userId}`);
+    if (item.Type === "Season") {
+      const best = await getBestEpisodeIdForSeason(item.Id, item.SeriesId, self.userId);
+      if (!best) throw new Error("Bu sezonda hiç bölüm yok!");
+      itemId = best;
+      item = await fetchItemDetails(itemId);
+    }
+    const sessions = await makeApiRequest(`/Sessions`);
     const allClients = Array.isArray(sessions) ? sessions : [];
-    const videoClients = allClients.filter(s => s?.Capabilities?.PlayableMediaTypes?.includes("Video"));
-    let sameUserClients = videoClients.filter(s => s?.UserId === storedUserId);
-    if (!sameUserClients.length) sameUserClients = videoClients.filter(s => s?.UserId === self.userId);
+    const videoClients = allClients.filter(s =>
+      s?.Capabilities?.PlayableMediaTypes?.includes("Video")
+    );
 
     if (!videoClients.length) {
       throw new Error("Video oynatıcı bulunamadı. Lütfen bir TV/telefon uygulaması açın.");
     }
-    let target = resolveSelfSession(sameUserClients, self, { allowLastActiveFallback: false });
-    let usedFallback = false;
+    let target = null;
+    target = videoClients.find(s =>
+      s.UserId === storedUserId &&
+      s.DeviceId === self.deviceId
+    );
     if (!target) {
-      target = resolveSelfSession(sameUserClients, self, { allowLastActiveFallback: true });
-      if (target) usedFallback = true;
+      target = videoClients.find(s => s.UserId === storedUserId);
+    }
+    if (!target && self.sessionId) {
+      target = videoClients.find(s => s.Id === self.sessionId);
     }
     if (!target) {
-      const sorted = [...sameUserClients].sort((a, b) => {
-        const ta = new Date(a?.LastActivityDate || 0).getTime();
-        const tb = new Date(b?.LastActivityDate || 0).getTime();
-        return tb - ta;
-      });
-      target = sorted[0];
-      usedFallback = true;
+      target = videoClients
+        .filter(s => s.LastActivityDate)
+        .sort((a, b) =>
+          new Date(b.LastActivityDate) - new Date(a.LastActivityDate)
+        )[0];
     }
 
     if (!target) {
-      throw new Error("Bu istemcinin oturumu bulunamadı.");
-    }
-    if (target?.UserId && target.UserId !== storedUserId && target.UserId !== self.userId) {
-      throw new Error("Seçilen hedef başka bir kullanıcıya ait. Komut iptal edildi.");
-    }
-    if (!usedFallback && target.AccessToken && self.accessToken && target.AccessToken !== self.accessToken) {
-      console.warn("Uyarı: Hedef AccessToken farklı, yine de devam ediliyor.");
+      throw new Error("Uygun oynatıcı cihaz bulunamadı");
     }
 
+    if (target.UserId && target.UserId !== storedUserId) {
+      console.warn("Hedef cihaz farklı kullanıcıya ait, yine de denenecek");
+    }
     const userItemData = await makeApiRequest(`/Users/${self.userId}/Items/${itemId}`);
     const resumeTicks = userItemData?.UserData?.PlaybackPositionTicks || 0;
+    const playCommand = resumeTicks > 0 ? "PlayNow" : "PlayNow";
+    let playUrl = `/Sessions/${target.Id}/Playing?playCommand=${playCommand}&itemIds=${itemId}`;
 
-    let playUrl = `/Sessions/${target.Id}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
-    if (resumeTicks > 0) playUrl += `&StartPositionTicks=${resumeTicks}`;
-
+    if (resumeTicks > 0) {
+      playUrl += `&StartPositionTicks=${resumeTicks}`;
+    }
     const res = await fetch(playUrl, {
       method: "POST",
-      headers: { Authorization: getAuthHeader() },
+      headers: {
+        'Authorization': getAuthHeader(),
+        'Content-Type': 'application/json'
+      }
     });
-    if (!res.ok) throw new Error(`Oynatma komutu başarısız: ${res.status} ${res.statusText}`);
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      throw new Error(`Oynatma komutu başarısız: ${res.status} ${errorText}`);
+    }
 
     window.currentPlayingItemId = itemId;
+    if (target.DeviceName) {
+      console.log(`Oynatma komutu gönderildi: ${target.DeviceName}`);
+    }
     return true;
   } catch (err) {
     console.error("Oynatma hatası:", err);
+    const errorMsg = err.message || "Oynatma sırasında bir hata oluştu";
+    if (typeof window.showMessage === 'function') {
+      window.showMessage(errorMsg, 'error');
+    }
+
     return false;
   }
 }

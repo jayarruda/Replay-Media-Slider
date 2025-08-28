@@ -1,25 +1,57 @@
 import { getConfig } from './config.js';
 import { updateSlidePosition } from './positionUtils.js';
 
+function detectCssVariantFromDom() {
+  if (window.__cssVariant) return window.__cssVariant;
+  const dv = document.documentElement?.dataset?.cssVariant;
+  if (dv) return dv;
+  const has = (s) => !!document.querySelector(`link[href*="${s}"]`);
+  if (has('normalslider.css')) return 'normalslider';
+  if (has('fullslider.css'))   return 'fullslider';
+  if (has('slider.css'))       return 'slider';
+  return 'slider';
+}
+
+function getDefaultTopByVariant(variant) {
+  switch (variant) {
+    case 'normalslider': return -23;
+    case 'fullslider':   return -12;
+    case 'slider':
+    default:             return 0;
+  }
+}
+
+function readUserTopFromLocalStorage() {
+  const raw = localStorage.getItem('homeSectionsTop');
+  if (raw === null || raw === '') return null;
+
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  if (n === 0) return null;
+
+  return n;
+}
+
+function applyTopToElements(vh) {
+  const elements = [
+    ...document.querySelectorAll('.homeSectionsContainer'),
+    document.querySelector('#favoritesTab')
+  ];
+  elements.forEach(el => {
+    if (!el) return;
+    el.style.setProperty('top', `${vh}vh`, 'important');
+  });
+}
+
 export function forceHomeSectionsTop() {
   const applyAlways = () => {
-    const topValue = getConfig().homeSectionsTop;
-
-    const elements = [
-      ...document.querySelectorAll('.homeSectionsContainer'),
-      document.querySelector('#favoritesTab')
-    ];
-
-    elements.forEach(el => {
-      if (!el) return;
-
-      if (typeof topValue === 'number' && !isNaN(topValue) && topValue !== 0) {
-        el.style.setProperty('top', `${topValue}vh`, 'important');
-      } else {
-        el.style.removeProperty('top');
-      }
-    });
-    waitForFavoritesTabAndApply(topValue);
+    const cfg = (typeof getConfig === 'function') ? getConfig() : {};
+    const userTop = readUserTopFromLocalStorage();
+    const hasCustomTop = (userTop !== null);
+    const variant = cfg.cssVariant || detectCssVariantFromDom();
+    const effectiveTop = hasCustomTop ? userTop : getDefaultTopByVariant(variant);
+    applyTopToElements(effectiveTop);
+    waitForFavoritesTabAndApply(effectiveTop);
   };
 
   if (document.readyState === 'loading') {
@@ -41,18 +73,13 @@ function waitForFavoritesTabAndApply(topValue) {
   function attempt() {
     const el = document.querySelector('#favoritesTab');
     if (el) {
-      if (typeof topValue === 'number' && !isNaN(topValue) && topValue !== 0) {
-        el.style.setProperty('top', `${topValue}vh`, 'important');
-      } else {
-        el.style.removeProperty('top');
-      }
+      el.style.setProperty('top', `${topValue}vh`, 'important');
       return;
     }
     if (++tries < 30) setTimeout(attempt, 100);
   }
   attempt();
 }
-
 
 export function forceSkinHeaderPointerEvents() {
   const apply = () => {

@@ -643,7 +643,7 @@ export function getVideoQualityText(videoStream) {
   let baseQuality = "sd";
   let qualitySvg = `/web/slider/src/images/quality/sd.svg`;
 
-  if (videoStream.Width >= 3800) {
+  if (videoStream.Height >= 3800) {
     baseQuality = "4k";
     qualitySvg = `/web/slider/src/images/quality/4k.svg`;
   } else if (videoStream.Width >= 2500) {

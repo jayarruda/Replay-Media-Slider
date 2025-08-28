@@ -3,7 +3,7 @@
  * and without obtaining permission is considered unethical and is not permitted.
  */
 
-import { getSessionInfo, fetchItemDetails } from "./api.js";
+import { getSessionInfo, fetchItemDetails, makeApiRequest } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 
@@ -34,8 +34,12 @@ export function setupPauseScreen() {
             <div id="jms-overlay-title" class="pause-title"></div>
             <div id="jms-overlay-metadata" class="pause-metadata"></div>
             <div id="jms-overlay-plot" class="pause-plot"></div>
+    <div id="jms-overlay-recos" class="pause-recos">
+        <div class="pause-recos-header" id="jms-recos-header"></div>
+        <div class="pause-recos-row" id="jms-recos-row"></div>
+    </div>
         </div>
-        <div class="pause-right">
+    <div class="pause-right">
             <div class="pause-right-backdrop"></div>
             <div id="jms-overlay-logo" class="pause-logo-container"></div>
         </div>
@@ -56,17 +60,6 @@ export function setupPauseScreen() {
         if (!document.getElementById('jms-pause-extra-css')) {
             const style = document.createElement('style');
             style.id = 'jms-pause-extra-css';
-            style.innerHTML = `
-                #jms-pause-overlay {
-                    opacity: 0;
-                    transition: opacity 0.45s cubic-bezier(0.3,0.5,0.3,1);
-                    pointer-events: none;
-                }
-                #jms-pause-overlay.visible {
-                    opacity: 1;
-                    pointer-events: auto;
-                }
-            `;
             document.head.appendChild(style);
         }
     }
@@ -77,6 +70,7 @@ export function setupPauseScreen() {
     const plotEl = document.getElementById('jms-overlay-plot');
     const backdropEl = document.querySelector('.pause-right-backdrop');
     const logoEl = document.getElementById('jms-overlay-logo');
+    const recosHeaderEl = document.getElementById('jms-recos-header');
     const pausedLabel = document.getElementById('pause-status-bottom-right');
 
     overlayEl.addEventListener('click', e => {
@@ -85,6 +79,27 @@ export function setupPauseScreen() {
             hideOverlay();
         }
     });
+
+    function renderIconOrEmoji(iconValue) {
+      if (!iconValue) return '';
+      if (iconValue.startsWith('fa-') || iconValue.includes('fa ')) {
+        return `<i class="${iconValue}"></i>`;
+      }
+      return iconValue;
+    }
+
+    function setRecosHeader(isEpisodeContext) {
+      if (!recosHeaderEl) return;
+      if (isEpisodeContext) {
+        const icon = renderIconOrEmoji(labels.unwatchedIcon || '📺');
+        const text = labels.unwatchedEpisodes || 'İzlemediğiniz Bölümler';
+        recosHeaderEl.innerHTML = `${icon} ${text}`;
+      } else {
+        const icon = renderIconOrEmoji(labels.recosIcon || '👍');
+        const text = labels.youMayAlsoLike || 'Bunları da beğenebilirsiniz';
+       recosHeaderEl.innerHTML = `${icon} ${text}`;
+      }
+    }
 
     function showOverlay() {
     overlayEl.classList.add('visible');
@@ -151,6 +166,10 @@ function hideOverlay() {
         titleEl.innerHTML = '';
         metaEl.innerHTML = '';
         plotEl.textContent = '';
+        const recos = document.getElementById('jms-overlay-recos');
+        const recosRow = document.getElementById('jms-recos-row');
+        if (recos) recos.classList.remove('visible');
+        if (recosRow) recosRow.innerHTML = '';
     }
 
     function convertTicks(ticks) {
@@ -222,12 +241,27 @@ function hideOverlay() {
         } else {
             plotEl.textContent = '';
         }
+        setRecosHeader(Boolean(ep));
+        try {
+        let recs = [];
+        if (ep) {
+            recs = await fetchUnplayedEpisodesInSameSeason(ep, { limit: 5 });
+        } else {
+            recs = await fetchSimilarUnplayed(data, { limit: 5 });
+        }
+        renderRecommendations(recs);
+        } catch (e) {
+        console.warn('duraklatma ekranı tavsiye hatası:', e);
+        setRecosHeader(Boolean(ep));
+        renderRecommendations([]);
+        }
     }
 
 async function setBackdrop(item) {
    const tags = item?.BackdropImageTags || [];
    if (tags.length > 0) {
-     const url = `/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tags[0])}`;
+     const { accessToken } = getSessionInfo();
+     const url = `/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tags[0])}&api_key=${encodeURIComponent(accessToken || '')}`;
      backdropEl.style.backgroundImage = `url('${url}')`;
      backdropEl.style.opacity = '0.7';
    } else {
@@ -241,12 +275,13 @@ async function setBackdrop(item) {
    const imagePref = config.pauseOverlay?.imagePreference || 'auto';
    const hasLogoTag = item?.ImageTags?.Logo || item?.SeriesLogoImageTag || null;
    const hasDiscTag  = item?.ImageTags?.Disc || null;
-   const logoUrl = hasLogoTag
-     ? `/Items/${item.Id}/Images/Logo?tag=${encodeURIComponent(hasLogoTag)}`
-     : null;
-   const discUrl = hasDiscTag
-     ? `/Items/${item.Id}/Images/Disc?tag=${encodeURIComponent(hasDiscTag)}`
-     : null;
+   const { accessToken } = getSessionInfo();
+    const logoUrl = hasLogoTag
+   ? `/Items/${item.Id}/Images/Logo?tag=${encodeURIComponent(hasLogoTag)}&api_key=${encodeURIComponent(accessToken || '')}`
+   : null;
+    const discUrl = hasDiscTag
+   ? `/Items/${item.Id}/Images/Disc?tag=${encodeURIComponent(hasDiscTag)}&api_key=${encodeURIComponent(accessToken || '')}`
+   : null;
 
    const sequence = (() => {
      switch (imagePref) {
@@ -549,6 +584,238 @@ function formatSeasonEpisodeLine(ep) {
     return `${left}${mid}${right}${eTitle}`.trim();
 }
 
+function formatEpisodeLineShort(ep) {
+  const eNum = ep?.IndexNumber;
+  const titlePart = ep?.Name ? ` - ${ep.Name}` : '';
+  const lang = String(currentLang || '').toLowerCase();
+  const fallbackWords = {
+    tur: 'bölüm',
+    eng: 'Episode',
+    en:  'Episode',
+    fra: 'Épisode',
+    fr:  'Épisode',
+    deu: 'Folge',
+    de:  'Folge',
+    rus: 'серия',
+    ru:  'серия'
+  };
+  const rawWord =
+    (labels && typeof labels.episode === 'string' && labels.episode.trim()) ||
+    fallbackWords[lang] ||
+    'Episode';
+
+  const numberFirstOverride =
+    typeof labels?.numberFirstEpisode === 'boolean' ? labels.numberFirstEpisode : null;
+
+  const numberFirst =
+    numberFirstOverride !== null
+      ? numberFirstOverride
+      : (lang === 'tur' || lang === 'ru' || lang === 'rus');
+
+  if (eNum == null) {
+    return `${rawWord}${titlePart}`.trim();
+  }
+
+  if (lang === 'tur') {
+    const w = rawWord.toLocaleLowerCase('tr');
+    return `${eNum}.${w}${titlePart}`;
+  }
+
+  if (lang === 'ru' || lang === 'rus') {
+    const w = rawWord.toLocaleLowerCase('ru');
+    return `${eNum} ${w}${titlePart}`;
+  }
+
+  return `${rawWord} ${eNum}${titlePart}`;
+}
+
+
+function getApiClientSafe() {
+  return (window.ApiClient && typeof window.ApiClient.serverAddress === 'function') ? window.ApiClient : null;
+}
+function getApiBase() {
+  const api = getApiClientSafe();
+  return api ? api.serverAddress() : (getConfig()?.serverAddress || '');
+}
+function getUserIdSafe() {
+  const api = getApiClientSafe();
+  return (api && typeof api.getCurrentUserId === 'function' && api.getCurrentUserId()) || getConfig()?.userId || null;
+}
+
+function buildImgUrl(item, kind='Primary', w=300, h=169) {
+  if (!item?.Id) return '';
+  const tag =
+    (item.ImageTags && (item.ImageTags[kind] || item.ImageTags['Primary'])) ||
+    item.PrimaryImageTag || item.SeriesPrimaryImageTag || '';
+  const base = getApiBase();
+  const q = new URLSearchParams({
+    fillWidth: String(w),
+    fillHeight: String(h),
+    quality: '90',
+    tag
+  });
+  return `${base}/Items/${item.Id}/Images/${kind}?${q.toString()}`;
+}
+
+function buildBackdropUrl(item, w = 360, h = 202) {
+  const base = getApiBase();
+  if (!item) return '';
+
+  const directTag =
+    (Array.isArray(item.BackdropImageTags) && item.BackdropImageTags[0]) ||
+    (Array.isArray(item.ParentBackdropImageTags) && item.ParentBackdropImageTags[0]) ||
+    null;
+  if (directTag) {
+    const q = new URLSearchParams({
+      fillWidth: String(w),
+      fillHeight: String(h),
+      quality: '90',
+      tag: directTag
+    });
+    return `${base}/Items/${item.Id}/Images/Backdrop?${q.toString()}`;
+  }
+
+  if (item.ParentId) {
+    const q = new URLSearchParams({
+      fillWidth: String(w),
+      fillHeight: String(h),
+      quality: '90'
+    });
+    if (Array.isArray(item.ParentBackdropImageTags) && item.ParentBackdropImageTags[0]) {
+      q.set('tag', item.ParentBackdropImageTags[0]);
+    }
+    return `${base}/Items/${item.ParentId}/Images/Backdrop?${q.toString()}`;
+  }
+
+  const seriesId = item.SeriesId || null;
+  const seriesBackdropTag =
+    item.SeriesBackdropImageTag ||
+    (Array.isArray(item.SeriesBackdropImageTags) && item.SeriesBackdropImageTags[0]) ||
+    null;
+
+  if (seriesId) {
+    const q = new URLSearchParams({
+      fillWidth: String(w),
+      fillHeight: String(h),
+      quality: '90'
+    });
+    if (seriesBackdropTag) q.set('tag', seriesBackdropTag);
+    return `${base}/Items/${seriesId}/Images/Backdrop?${q.toString()}`;
+  }
+  return buildImgUrl(item, 'Primary', w, h);
+}
+
+function goToItem(item) {
+  if (!item?.Id) return;
+  const type = item.Type;
+  if (type === 'Episode') {
+    location.href = `#!/details?id=${encodeURIComponent(item.Id)}`;
+  } else if (type === 'Season') {
+    location.href = `#!/details?id=${encodeURIComponent(item.Id)}`;
+  } else {
+    location.href = `#!/details?id=${encodeURIComponent(item.Id)}`;
+  }
+}
+async function fetchUnplayedEpisodesInSameSeason(currentEp, { limit = 5 } = {}) {
+  if (!currentEp?.SeasonId) return [];
+  const { userId } = getSessionInfo();
+  const qs = new URLSearchParams({
+    ParentId: currentEp.SeasonId,
+    IncludeItemTypes: 'Episode',
+    Recursive: 'false',
+    UserId: userId || '',
+    Filters: 'IsUnplayed',
+    Limit: String(limit + 1),
+    Fields: [
+      'UserData',
+      'PrimaryImageAspectRatio',
+      'RunTimeTicks',
+      'ProductionYear',
+      'SeriesId',
+      'ParentId',
+      'ImageTags',
+      'PrimaryImageTag',
+      'BackdropImageTags',
+      'ParentBackdropImageTags',
+      'SeriesBackdropImageTag',
+      'SeriesPrimaryImageTag'
+    ].join(',')
+    , SortBy: 'IndexNumber',
+    SortOrder: 'Ascending'
+  });
+  const data = await makeApiRequest(`/Items?${qs.toString()}`);
+  const items = data?.Items || [];
+  return items.filter(i => i.Id !== currentEp.Id).slice(0, limit);
+}
+
+async function fetchSimilarUnplayed(item, { limit = 5 } = {}) {
+  if (!item?.Id) return [];
+  const { userId } = getSessionInfo();
+  const qs = new URLSearchParams({
+    UserId: userId || '',
+    Limit: String(limit * 3),
+    EnableUserData: 'true',
+    Fields: [
+      'UserData',
+      'PrimaryImageAspectRatio',
+      'RunTimeTicks',
+      'ProductionYear',
+      'Genres',
+      'SeriesId',
+      'ParentId',
+      'ImageTags',
+      'PrimaryImageTag',
+      'BackdropImageTags',
+      'ParentBackdropImageTags',
+      'SeriesBackdropImageTag',
+      'SeriesPrimaryImageTag'
+    ].join(',')
+  });
+  const items = await makeApiRequest(`/Items/${encodeURIComponent(item.Id)}/Similar?${qs.toString()}`);
+  const list = Array.isArray(items) ? items : (items?.Items || []);
+  const unplayed = list.filter(x => {
+    const ud = x?.UserData || {};
+    if (typeof ud.Played === 'boolean') return !ud.Played;
+    if (typeof ud.PlayCount === 'number') return ud.PlayCount === 0;
+    return true;
+  });
+  return unplayed.slice(0, limit);
+}
+
+function renderRecommendations(items) {
+  const recos = document.getElementById('jms-overlay-recos');
+  const row = document.getElementById('jms-recos-row');
+  if (!recos || !row) return;
+  row.innerHTML = '';
+  if (!items?.length) {
+    recos.classList.remove('visible');
+    return;
+  }
+  items.forEach(it => {
+     const card = document.createElement('button');
+     card.className = 'pause-reco-card';
+     card.type = 'button';
+     const img = buildBackdropUrl(it, 360, 202);
+     const primaryFallback = buildImgUrl(it, 'Primary', 360, 202);
+     const titleText = (it.Type === 'Episode')
+     ? formatEpisodeLineShort(it)
+     : (it.Name || it.OriginalTitle || '');
+     card.innerHTML = `
+      <div class="pause-reco-thumb-wrap">
+        ${img
+          ? `<img class="pause-reco-thumb" loading="lazy" src="${img}" alt="" onerror="this.onerror=null; this.src='${primaryFallback}'">`
+          : `<div class="pause-reco-thumb"></div>`}
+      </div>
+       <div class="pause-reco-title">${titleText}</div>
+     `;
+    card.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goToItem(it);
+    });
+    row.appendChild(card);
+  });
+  recos.classList.add('visible');
+}
 
 window.addEventListener('beforeunload', () => {
   for (const v of imageBlobCache.values()) { if (v) URL.revokeObjectURL(v); }

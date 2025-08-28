@@ -1,6 +1,7 @@
 import { stopSlideTimer, startSlideTimer } from "./timer.js";
 import { SLIDE_DURATION } from "./timer.js";
 import { getConfig } from './config.js';
+import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { resetProgressBar } from "./progressBar.js";
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js"
@@ -33,6 +34,9 @@ const CROSS_ITEM_SETTLE_MS  = 180;
 const HARD_CLOSE_BUFFER_MS = 30;
 const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
+if (!config.languageLabels) {
+  config.languageLabels = getLanguageLabels(currentLang) || {};
+}
 const previewPreloadCache = new Map();
    if (typeof document !== 'undefined' && (document.hidden || document.visibilityState === 'hidden')) {
   closeVideoModal();
@@ -62,6 +66,11 @@ const OPEN_ANIM_MS = MODAL_ANIM.openMs;
 export function setModalAnimation(opts = {}) {
   Object.assign(MODAL_ANIM, opts);
   injectOrUpdateModalStyle();
+}
+
+function L(key, fallback = '') {
+  try { return (getConfig()?.languageLabels?.[key]) ?? fallback; }
+  catch { return fallback; }
 }
 
 function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
@@ -141,36 +150,37 @@ async function openModalForDot(dot, itemId, signal) {
 
   const item = await fetchItemDetails(itemId, { signal });
   if (signal?.aborted) return;
-
   if (!videoModal || !document.body.contains(videoModal)) {
     const modalElements = createVideoModal({ showButtons: true });
     if (!modalElements) return;
-    videoModal          = modalElements.modal;
-    modalVideo          = modalElements.video;
-    modalTitle          = modalElements.title;
-    modalMeta           = modalElements.meta;
-    modalMatchInfo      = modalElements.matchInfo;
-    modalGenres         = modalElements.genres;
-    modalPlayButton     = modalElements.playButton;
+    videoModal = modalElements.modal;
+    modalVideo = modalElements.video;
+    modalTitle = modalElements.title;
+    modalMeta = modalElements.meta;
+    modalMatchInfo = modalElements.matchInfo;
+    modalGenres = modalElements.genres;
+    modalPlayButton = modalElements.playButton;
     modalFavoriteButton = modalElements.favoriteButton;
-    modalEpisodeLine    = modalElements.episodeLine;
-    modalMatchButton    = modalElements.matchButton;
+    modalEpisodeLine = modalElements.episodeLine;
+    modalMatchButton = modalElements.matchButton;
     bindModalEvents(videoModal);
   }
 
   const domUrl = getBackdropFromDot(dot);
-const itemUrl = getBackdropFromItem(item);
-videoModal.setBackdrop(domUrl || itemUrl || null);
+  const itemUrl = getBackdropFromItem(item);
+  videoModal.setBackdrop(domUrl || itemUrl || null);
 
   videoModal.dataset.itemId = itemId;
   positionModalRelativeToDot(videoModal, dot);
-
   if (videoModal.style.display !== 'block') {
     animatedShow(videoModal);
   } else {
     videoModal.style.display = 'block';
   }
+  applyVolumePreference();
+
   const videoUrl = await preloadVideoPreview(itemId);
+  if (signal?.aborted) return;
   await updateModalContent(item, videoUrl);
 }
 
@@ -1438,10 +1448,11 @@ function createVideoModal({ showButtons = true } = {}) {
     modalButtonsContainer = buttonsContainer;
     const matchButton = document.createElement('button');
     matchButton.className = 'preview-match-button';
+    matchButton.textContent = '';
 
     const playButton = document.createElement('button');
     playButton.className = 'preview-play-button';
-    playButton.innerHTML = '<i class="fa-solid fa-play"></i> Oynat';
+    playButton.innerHTML = `<i class="fa-solid fa-play"></i>${L('izle') ? ' ' + L('izle') : ''}`;
 
     const favoriteButton = document.createElement('button');
     favoriteButton.className = 'preview-favorite-button';
@@ -2388,8 +2399,8 @@ function positionModalRelativeToItem(modal, item, options = {}) {
 }
 
 function formatSeasonEpisodeLine(ep) {
-    const sWord = config.languageLabels.season || 'Season';
-    const eWord = config.languageLabels.episode || 'Episode';
+    const sWord = L('season', 'Season');
+    const eWord = L('episode', 'Episode');
     const sNum  = ep?.ParentIndexNumber;
     const eNum  = ep?.IndexNumber;
     const eTitle = ep?.Name ? ` – ${ep.Name}` : '';
@@ -2408,9 +2419,9 @@ function formatSeasonEpisodeLine(ep) {
 }
 
 function getPlayButtonText({ isPlayed, hasPartialPlayback, labels }) {
-  if (isPlayed && !hasPartialPlayback) return config.languageLabels.izlendi;
-  if (hasPartialPlayback) return config.languageLabels.devamet;
-  return config.languageLabels.izle;
+  if (isPlayed && !hasPartialPlayback) return L('izlendi', 'İzlendi');
+  if (hasPartialPlayback) return L('devamet', 'Devam et');
+  return L('izle', 'İzle');
 }
 
 function startCacheMaintenance() {
