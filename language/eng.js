@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  youMayAlsoLike: 'You may also like',
+  unwatchedEpisodes: 'Unwatched Episodes',
+  recosIcon: 'fa-solid fa-thumbs-up',
+  unwatchedIcon: 'fa-solid fa-tv',
   toastGroupThreshold: "Toast Group Limit",
   enableTrailerPlayback: "Play Embedded Trailer on Slider Hover",
   enableVideoPlayback: "Play Embedded Video on Slider Hover",

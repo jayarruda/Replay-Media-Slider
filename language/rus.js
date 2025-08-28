@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  youMayAlsoLike: 'Вам также может понравиться',
+  unwatchedEpisodes: 'Непросмотренные серии',
+  recosIcon: 'fa-solid fa-thumbs-up',
+  unwatchedIcon: 'fa-solid fa-tv',
   toastGroupThreshold: "Лимит Группы Toast",
   enableTrailerPlayback: "Воспроизводить встроенный трейлер при наведении на слайдер",
   enableVideoPlayback: "Воспроизводить встроенное видео при наведении на слайдер",

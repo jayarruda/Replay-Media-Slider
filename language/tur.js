@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  youMayAlsoLike: 'Bunları da beğenebilirsiniz',
+  unwatchedEpisodes: 'İzlemediğiniz Bölümler',
+  recosIcon: 'fa-solid fa-thumbs-up',
+  unwatchedIcon: 'fa-solid fa-tv',
   toastGroupThreshold: "Toast Grup Limiti",
   enableTrailerPlayback: "Slider da Hover ile Yerleşik Fragman Oynat",
   enableVideoPlayback: "Slider'da Hover ile Yerleşik Video Oynat",
