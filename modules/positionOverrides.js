@@ -12,12 +12,30 @@ function detectCssVariantFromDom() {
   return 'slider';
 }
 
+function isMobileDevice() {
+  const coarse = window.matchMedia?.('(pointer: coarse)')?.matches;
+  const narrow = window.matchMedia?.('(max-width: 768px)')?.matches;
+  const touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  return Boolean(coarse || narrow || touch);
+}
+
 function getDefaultTopByVariant(variant) {
-  switch (variant) {
-    case 'normalslider': return -23;
-    case 'fullslider':   return -12;
-    case 'slider':
-    default:             return 0;
+  const mobile = isMobileDevice();
+
+  if (mobile) {
+    switch (variant) {
+      case 'normalslider': return -20;
+      case 'fullslider': return 0;
+      case 'slider':
+      default: return 0;
+    }
+  } else {
+    switch (variant) {
+      case 'normalslider': return -23;
+      case 'fullslider': return -12;
+      case 'slider':
+      default: return 0;
+    }
   }
 }
 
