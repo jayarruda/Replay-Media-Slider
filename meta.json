@@ -3,7 +3,7 @@
   "description": "JMS-Fusion injects your custom JS modules into the Jellyfin web UI (response rewrite) and serves them from an external directory or embedded /Resources/slider.",
   "id": "c0b4a5e0-2f6a-4e70-9c5f-1e7c2d0b7f12",
   "name": "JMSFusion",
-  "version": "1.0.0",
+  "version": "1.4.2",
   "status": "Active",
   "autoUpdate": true,
   "targetAbi": "10.10.7.0",
