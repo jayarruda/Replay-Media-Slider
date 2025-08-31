@@ -1,0 +1,76 @@
+<div id="JMSFusionConfigPage"
+     data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     translate="no" data-jf-no-translate="1">
+
+  <div class="content-primary">
+    <div class="verticalSection">
+      <h2 data-jf-no-translate="1">JMS-Fusion</h2>
+      <p data-jf-no-translate="1">
+        Serves files under <code>/slider</code> and injects <code>&lt;script type="module"&gt;</code> tags into <code>index.html</code> (response rewrite).<br>
+        If no external directory is configured, embedded assets under <code>/Resources/slider</code> are served.
+      </p>
+    </div>
+
+    <form id="configForm" onsubmit="return false;">
+      <div class="inputContainer">
+        <label class="inputLabel" for="scriptDir">Script Directory</label>
+        <input id="scriptDir" type="text" class="emby-input" placeholder="/home/gkhng/slider">
+        <div class="fieldDescription">Leave empty to use embedded <code>/Resources/slider</code></div>
+      </div>
+
+      <div class="inputContainer">
+        <label class="inputLabel" for="playerSub">Player Subdirectory</label>
+        <input id="playerSub" type="text" class="emby-input" placeholder="modules/player">
+      </div>
+
+      <div class="buttonContainer" data-jf-no-translate="1" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="saveBtn" type="button" class="raised button-submit">Save</button>
+        <button id="refreshEnvBtn" type="button" class="raised">Refresh Web Path & Permissions</button>
+        <button id="copyAclBtn" type="button" class="raised">Copy Permission Commands</button>
+        <button id="patchBtn" type="button" class="raised">Patch (Inject into index.html)</button>
+        <button id="unpatchBtn" type="button" class="raised">Unpatch (Remove from index.html)</button>
+      </div>
+    </form>
+
+    <div id="msg" class="fieldDescription" data-jf-no-translate="1" style="min-height:24px; margin-top:12px;"></div>
+
+    <div class="verticalSection" style="margin-top:20px;">
+      <h3 data-jf-no-translate="1">Status</h3>
+      <pre id="status" class="preformatted" style="margin-top:12px;" data-jf-no-translate="1">Status hasn’t been loaded yet…</pre>
+    </div>
+
+    <div class="verticalSection" style="margin-top:20px;">
+      <h3 data-jf-no-translate="1">In-Memory Injection</h3>
+      <div id="inmem" class="fieldDescription" style="margin-top:12px;" data-jf-no-translate="1">
+        Checking in-memory status…
+      </div>
+    </div>
+
+    <div class="verticalSection" style="margin-top:20px;">
+      <h3 data-jf-no-translate="1">HTML Snippet</h3>
+      <div id="snippet" style="margin-top:12px; border:1px solid #ddd; padding:10px;" data-jf-no-translate="1">
+        Snippet hasn’t been loaded yet…
+      </div>
+    </div>
+
+    <div class="verticalSection" style="margin-top:20px;">
+      <h3 data-jf-no-translate="1">Web Path & Permissions</h3>
+      <div id="envBox" style="margin-top:12px; border:1px solid #ddd; padding:10px;">
+        <div><b>Running user:</b> <code id="envUser">?</code></div>
+        <div style="margin-top:6px;"><b>Detected web root:</b> <code id="envWebRoot">?</code></div>
+        <div style="margin-top:6px;"><b>Files:</b>
+          <ul style="margin:6px 0 0 16px;">
+            <li><code>index.html</code>: <span id="envIdx">?</span></li>
+            <li><code>index.html.gz</code>: <span id="envGz">?</span></li>
+            <li><code>index.html.br</code>: <span id="envBr">?</span></li>
+          </ul>
+        </div>
+        <div style="margin-top:10px;"><b>Suggested ACL commands:</b></div>
+        <pre id="envAcl" class="preformatted" style="margin-top:6px; white-space:pre-wrap;">(not computed yet)</pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="/Plugins/JMSFusion/assets/UiJs" type="text/javascript" data-jf-no-translate="1"></script>
+</div>
