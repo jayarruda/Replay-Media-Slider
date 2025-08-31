@@ -8,6 +8,6 @@
   "autoUpdate": true,
   "targetAbi": "10.10.7.0",
   "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider",
-  "imagePath": "/var/lib/jellyfin/plugins/JMSFusion_1.0.0.0/icon.png",
+  "imagePath": "/var/lib/jellyfin/plugins/JMSFusion_0.1.4.2/icon.png",
   "timestamp": "2025-01-01T00:00:00.0000000Z"
 }
