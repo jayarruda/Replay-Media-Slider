@@ -9,7 +9,7 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
-        "version": "1.0.0.0",
+        "version": "0.1.4.2",
         "changelog": "Auto-generated.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/JMSFusion-0.1.4.2-server.zip",
