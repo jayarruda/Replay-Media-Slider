@@ -167,7 +167,7 @@ Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe ba�
 
 ``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
 
-``` cd Jellyfin-Media-Slider ```
+``` cd Jellyfin-Media-Slider/Resources/slider/ ```
 
 #### Kurulum scriptini çalıştırın:
 
@@ -248,7 +248,7 @@ Run the script ``` uninstall.bat ``` as administrator.
 
 ``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
 
-``` cd Jellyfin-Media-Slider ```
+``` cd Jellyfin-Media-Slider/Resources/slider/ ```
 
 #### Run the installation script:
 
@@ -431,8 +431,8 @@ sudo apk add curl jq ffmpeg yt-dlp
 #### Get the scripts
 
 ```bash
-curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailers.sh"
-curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailersurl.sh"
+curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailers.sh"
+curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailersurl.sh"
 chmod +x trailers.sh trailersurl.sh
 ```
 
@@ -629,8 +629,8 @@ sudo apk add curl jq ffmpeg yt-dlp
 #### Betikleri indir
 
 ```bash
-curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailers.sh"
-curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailersurl.sh"
+curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailers.sh"
+curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailersurl.sh"
 chmod +x trailers.sh trailersurl.sh
 ```
 
