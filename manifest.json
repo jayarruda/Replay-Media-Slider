@@ -12,7 +12,7 @@
         "version": "0.1.4.2",
         "changelog": "Auto-generated.",
         "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/JMSFusion-0.1.4.2-server.zip",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.2/JMSFusion-0.1.4.2-server.zip",
         "checksum": "0b4a2c3c00fb0e85c7ca52f003690d1b",
         "timestamp": "2025-08-31T06:00:00Z"
       }
