@@ -142,6 +142,18 @@ Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe ba�
 <details>
 <summary> Türkçe Kurulum </summary>
 
+#### Eklenti olarak 
+
+- Jellyfin yönetici paneline giriş yapın. 
+- Eklentiler (Plugins) bölümüne gidin.
+- Katalog (Catalog) sekmesine tıklayın.
+- Üsteki ayar ikonuna tıklayarak + ikonu ile yeni kaynak ekle sayfasını açın ve aşağıdaki adresi ekleyin
+``` https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/manifest.json ```
+- Kaynağı kaydedin ve Katalog bölümünde JMSFusion eklentisini bulun ve yükleyin.
+- JMS-Fusion yüklendikten sonra değişikliklerin geçerli olması için Jellyfin’i tekrar yeniden başlatın.
+
+### Manuel Kurulum (güncellenecek)
+
 #### Windows için
 
 İndirdiğiniz sıkıştırılmış klasörü herhangi boş bir klasöre çıkarıp ``` install.bat ``` betiğini yönetici olarak çalıştırın ve tarayıcı çerezlerini birkaç kez temizleyin.
@@ -207,6 +219,24 @@ Detaylı açıklamalar;
 
 <details>
 <summary> English Installation</summary>
+
+### Installation with a plugin
+
+Log in to your Jellyfin admin dashboard.
+
+Go to the Plugins section.
+
+Click on the Catalog tab.
+
+Click the settings icon at the top, then use the + button to open the “Add Repository” page and enter the following address:
+
+```https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/manifest.json```
+
+Save the repository, then go to the Catalog section, find the JMS-Fusion plugin, and install it.
+
+After installing JMS-Fusion, restart Jellyfin again to apply the changes.
+
+### Manual Installation (To be Updated)
 
 #### For Windows
 Extract the downloaded compressed folder to any empty folder, then run the ``` install.bat ``` file as administrator and clear your browser cookies a few times.
