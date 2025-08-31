@@ -2240,12 +2240,17 @@ export function setupHoverForAllItems() {
       resetModalButtons();
       videoModal.style.display = 'none';
     }
+
     const itemDetails = await fetchItemDetails(itemId, { signal });
-    if (signal.aborted) return;
+    if (signal.aborted || !itemDetails) {
+      closeVideoModal();
+      return;
+    }
 
     if (itemDetails.Genres && itemDetails.Genres.length > 3) {
       itemDetails.Genres = itemDetails.Genres.slice(0, 3);
     }
+
     const videoTypes = ['Movie', 'Episode', 'Series', 'Season'];
     if (!videoTypes.includes(itemDetails.Type)) {
       closeVideoModal();

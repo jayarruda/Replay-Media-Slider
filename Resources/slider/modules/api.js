@@ -314,10 +314,25 @@ export function goToDetailsPage(itemId) {
 }
 
 export async function fetchItemDetails(itemId) {
-  const { userId } = getSessionInfo();
-  const data = await safeFetch(`/Users/${userId}/Items/${itemId}`);
-  return data || null;
+  try {
+    const { userId } = getSessionInfo();
+    const resp1 = await makeApiRequest(
+      `/Users/${userId}/Items?Ids=${encodeURIComponent(itemId)}&Fields=Overview,Genres,GenreItems,UserData,IndexNumber,ParentIndexNumber,SeriesId,RunTimeTicks`
+    );
+    const hit1 = Array.isArray(resp1?.Items) ? resp1.Items[0] : null;
+    if (hit1) return hit1;
+    const resp2 = await makeApiRequest(
+      `/Items?Ids=${encodeURIComponent(itemId)}&Fields=Overview,Genres,GenreItems,IndexNumber,ParentIndexNumber,SeriesId,RunTimeTicks`
+    );
+    const hit2 = Array.isArray(resp2?.Items) ? resp2.Items[0] : null;
+    return hit2 || null;
+  } catch (error) {
+    console.error(`fetchItemDetails hatası (itemId: ${itemId}):`, error);
+    return null;
+  }
 }
+
+
 export async function updateFavoriteStatus(itemId, isFavorite) {
   const { userId } = getSessionInfo();
   return makeApiRequest(`/Users/${userId}/Items/${itemId}/UserData`, {
@@ -521,7 +536,10 @@ export async function playNow(itemId) {
     if (target.UserId && target.UserId !== storedUserId) {
       console.warn("Hedef cihaz farklı kullanıcıya ait, yine de denenecek");
     }
-    const userItemData = await makeApiRequest(`/Users/${self.userId}/Items/${itemId}`);
+    const resp = await makeApiRequest(
+      `/Users/${self.userId}/Items?Ids=${encodeURIComponent(itemId)}&Fields=UserData`
+    );
+    const userItemData = Array.isArray(resp?.Items) ? resp.Items[0] : null;
     const resumeTicks = userItemData?.UserData?.PlaybackPositionTicks || 0;
     const playCommand = resumeTicks > 0 ? "PlayNow" : "PlayNow";
     let playUrl = `/Sessions/${target.Id}/Playing?playCommand=${playCommand}&itemIds=${itemId}`;
