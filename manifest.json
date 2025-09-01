@@ -8,6 +8,14 @@
     "category": "General",
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
+    {
+        "version": "0.1.4.3",
+        "changelog": "Auto-generated.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.3/JMSFusion-0.1.4.3-server.zip",
+        "checksum": "d585b66c39d21535cbfb5d8e3df9eeb3",
+        "timestamp": "2025-09-01T17:45:21.3872033Z"
+      },
       {
         "version": "0.1.4.2",
         "changelog": "Auto-generated.",
