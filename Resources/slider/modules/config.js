@@ -112,7 +112,7 @@ export function getConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v1.4.2",
+    version: "v1.4.3",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -194,6 +194,8 @@ export function getConfig() {
     enableRenderResume: localStorage.getItem('enableRenderResume') !== 'false',
     toastGroupThreshold: parseInt(localStorage.getItem("toastGroupThreshold"), 10) || 5,
     enableCounterSystem: localStorage.getItem('enableCounterSystem') !== 'false',
+
+    enableStudioHubs: localStorage.getItem('enableStudioHubs') !== 'false',
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,

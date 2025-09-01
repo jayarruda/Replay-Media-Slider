@@ -89,6 +89,8 @@ export function applySettings(reload = false) {
             toastGroupThreshold: parseInt(formData.get('toastGroupThreshold'), 10),
             enableCounterSystem: formData.get('enableCounterSystem') === 'on',
 
+            enableStudioHubs: formData.get('enableStudioHubs') === 'on',
+
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
             showWatchedInfo: formData.get('showWatchedInfo') === 'on',

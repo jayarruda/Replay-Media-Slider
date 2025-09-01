@@ -15,6 +15,7 @@ import { createPausePanel } from './settings/pausePage.js';
 import { createButtonsPanel } from './settings/buttonsPage.js';
 import { createAvatarPanel } from './settings/avatarPage.js';
 import { createNotificationsPanel } from './settings/notificationsPage.js';
+import { createStudioHubsPanel } from './settings/studioHubsPage.js';
 
 let settingsModal = null;
 
@@ -70,6 +71,7 @@ export function createSettingsModal() {
     const pauseTab = createTab('pause', labels.pauseSettings || 'Durdurma Ekranı', true);
     const positionTab = createTab('position', labels.positionSettings || 'Konumlardıma Ayarları', true);
     const queryTab = createTab('query', labels.queryStringInput || 'API Sorgu Parametresi', true);
+    const studioTab = createTab('studio', labels.studioHubs || 'Stüdyo Koleksiyonları Ayarı', true);
     const avatarTab = createTab('avatar', labels.avatarCreateInput || 'Avatar Ayarları', true);
     const notificationsTab = createTab('notifications', labels.notificationsSettings || 'Bildirim Ayarları', true);
     const logoTitleTab = createTab('logo-title', labels.logoOrTitleHeader || 'Logo/Başlık', true);
@@ -86,7 +88,7 @@ export function createSettingsModal() {
 
     tabContainer.append(
         sliderTab, animationTab, musicTab, pauseTab, positionTab,
-        queryTab, avatarTab, notificationsTab, statusRatingTab, actorTab, directorTab,
+        queryTab, studioTab, avatarTab, notificationsTab, statusRatingTab, actorTab, directorTab,
         languageTab, logoTitleTab, descriptionTab, providerTab,
         buttonsTab, infoTab, exporterTab, aboutTab
     );
@@ -97,6 +99,7 @@ export function createSettingsModal() {
     const pausePanel = createPausePanel(config, labels);
     const positionPanel = createPositionPanel(config, labels);
     const queryPanel = createQueryPanel(config, labels);
+    const studioPanel = createStudioHubsPanel(config, labels);
     const avatarPanel = createAvatarPanel(config, labels);
     const statusRatingPanel = createStatusRatingPanel(config, labels);
     const actorPanel = createActorPanel(config, labels);
@@ -113,7 +116,7 @@ export function createSettingsModal() {
 
     [
         sliderPanel, animationPanel, musicPanel, positionPanel, queryPanel,
-        avatarPanel, notificationsPanel, statusRatingPanel,
+         studioPanel, avatarPanel, notificationsPanel, statusRatingPanel,
         actorPanel, directorPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, exporterPanel, aboutPanel
@@ -124,21 +127,22 @@ export function createSettingsModal() {
 
     tabContent.append(
         sliderPanel, animationPanel, musicPanel, statusRatingPanel, actorPanel,
-        directorPanel, queryPanel, avatarPanel, languagePanel, logoTitlePanel,
+        directorPanel, queryPanel, studioPanel, avatarPanel, languagePanel, logoTitlePanel,
         descriptionPanel, providerPanel, buttonsPanel, infoPanel,
         pausePanel, positionPanel, aboutPanel, exporterPanel, notificationsPanel
     );
 
     [
         sliderTab, animationTab, musicTab, queryTab,
-        avatarTab, notificationsTab, statusRatingTab,
+        studioTab, avatarTab, notificationsTab, statusRatingTab,
         actorTab, directorTab, languageTab, logoTitleTab,
         descriptionTab, providerTab, buttonsTab, infoTab,
         positionTab, pauseTab, aboutTab, exporterTab
     ].forEach(tab => {
         tab.addEventListener('click', () => {
             [
-                sliderTab, animationTab, musicTab, queryTab, avatarTab, notificationsTab, statusRatingTab,
+                sliderTab, animationTab, musicTab, queryTab, studioTab,
+                avatarTab, notificationsTab, statusRatingTab,
                 actorTab, directorTab, languageTab, logoTitleTab,
                 descriptionTab, providerTab, buttonsTab, infoTab,
                 positionTab, pauseTab, aboutTab, exporterTab,
@@ -147,7 +151,7 @@ export function createSettingsModal() {
             });
             [
                 sliderPanel, animationPanel, statusRatingPanel, actorPanel, directorPanel,
-                musicPanel, queryPanel, avatarPanel, languagePanel, logoTitlePanel,
+                musicPanel, queryPanel, studioPanel, avatarPanel, languagePanel, logoTitlePanel,
                 descriptionPanel, providerPanel, buttonsPanel, infoPanel,
                 positionPanel, aboutPanel, exporterPanel, pausePanel, notificationsPanel
             ].forEach(panel => {
@@ -417,6 +421,18 @@ function createQueryPage(config, labels) {
   return panel;
 }
 
+function createStudioHubsPage(config, labels) {
+  const panel = document.createElement('div');
+  panel.id = 'studiohubs-panel';
+  panel.className = 'studiohubs-panel';
+
+  const section = createSection();
+  const studioPage = createStudioHubsPanel(config, labels);
+  studioPage.render();
+
+  panel.appendChild(section);
+  return panel;
+}
 
 function createLanguagePanel(config, labels) {
     const panel = document.createElement('div');
