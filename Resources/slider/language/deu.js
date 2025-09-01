@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  studioHubs: "Studio-Sammlungen",
+  studioHubsSettings: "Einstellungen für Studio-Sammlungen",
+  enableStudioHubs: "Studio-Sammlungen aktivieren",
   youMayAlsoLike: 'Das könnte dir auch gefallen',
   unwatchedEpisodes: 'Ungesehene Folgen',
   recosIcon: 'fa-solid fa-thumbs-up',

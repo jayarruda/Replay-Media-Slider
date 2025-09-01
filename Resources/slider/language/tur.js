@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  studioHubs: "Stüdyo Koleksiyonları",
+  studioHubsSettings: "Stüdyo Koleksiyonları Ayarları",
+  enableStudioHubs: "Stüdyo Koleksiyonlarını Etkinleştir",
   youMayAlsoLike: 'Bunları da beğenebilirsiniz',
   unwatchedEpisodes: 'İzlemediğiniz Bölümler',
   recosIcon: 'fa-solid fa-thumbs-up',

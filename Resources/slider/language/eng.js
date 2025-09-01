@@ -1,5 +1,8 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  studioHubs: "Studio Collections",
+  studioHubsSettings: "Studio Collections Settings",
+  enableStudioHubs: "Enable Studio Collections",
   youMayAlsoLike: 'You may also like',
   unwatchedEpisodes: 'Unwatched Episodes',
   recosIcon: 'fa-solid fa-thumbs-up',
