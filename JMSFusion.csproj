@@ -1,4 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 🔑 Tek-kaynak sürüm: sadece <Version>’ı değiştir; diğerleri buradan beslenecek -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -7,10 +9,17 @@
     <AssemblyName>JMSFusion</AssemblyName>
     <RootNamespace>JMSFusion</RootNamespace>
 
-    <AssemblyVersion>0.1.4.4</AssemblyVersion>
-    <FileVersion>0.1.4.4</FileVersion>
+    <!-- Burayı CI'da -p:Version=... ile geçebilirsin -->
+    <Version>0.1.4.5</Version>
+
+    <!-- Derlenen assembly öznitelikleri <Version>’dan türesin -->
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+
+    <!-- AssemblyInfo özniteliklerini MSBuild üretsin (Properties/AssemblyInfo.cs içindeki sürüm satırlarını kaldır) -->
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <LangVersion>latest</LangVersion>
     <PublishTrimmed>false</PublishTrimmed>
@@ -18,7 +27,6 @@
 
   <PropertyGroup>
     <PackageId>JMSFusion</PackageId>
-    <Version>0.1.4.4</Version>
     <Authors>G-Grbz</Authors>
     <Company>JMS</Company>
     <Description>
@@ -28,13 +36,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
-    <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.0" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-  <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Embedded" Version="8.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -50,15 +55,19 @@
     <EmbeddedResource Include="Resources/**/*" />
   </ItemGroup>
 
+  <!-- meta.json'ı çıktıya kopyala -->
   <ItemGroup>
     <None Update="meta.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Build sonunda meta.json'ı güncelle (timestamp + varsa version ve imagePath) -->
   <Target Name="UpdateMetaJson"
           BeforeTargets="CopyFilesToOutputDirectory;ComputeFilesToPublish">
-    <Message Text="Updating meta.json (timestamp &amp; version)..." Importance="high" />
+    <Message Text="Updating meta.json (timestamp &amp; version &amp; imagePath)..." Importance="high" />
     <Exec Command="bash ./update_meta.sh &quot;$(Version)&quot;"
           WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
+
 </Project>
