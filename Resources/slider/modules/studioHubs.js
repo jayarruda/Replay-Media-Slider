@@ -1,5 +1,6 @@
-import { getSessionInfo, getAuthHeader } from "./api.js";
+import { getSessionInfo, getAuthHeader, makeApiRequest, getUserTopGenres } from "./api.js";
 import { getConfig } from './config.js';
+import { getLanguageLabels } from "../language/index.js";
 
 const config = getConfig();
 const DEFAULT_ORDER = [
@@ -16,6 +17,62 @@ const LOGO_CACHE_KEY = "studioHub_logoUrlCache_v1";
 const LOGO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 const VIDEO_EXTS = [".mp4", ".webm"];
 const HOVER_VIDEO_TIMEOUT = 4000;
+
+const I18N_LANGS = ["eng", "tur", "deu", "fre", "rus"];
+const ALL_LANG_TURLER = I18N_LANGS
+  .map(l => getLanguageLabels(l))
+  .map(p => p && p.turler)
+  .filter(Boolean);
+
+function normGenre(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2019'’´`"]/g, "")
+    .replace(/[\W_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildGenreAliasMap(dicts) {
+  const map = Object.create(null);
+
+  const SPECIAL_EQUIVS = [
+    ["sci fi", "science fiction"],
+    ["sci-fi", "science fiction"],
+    ["bilim kurgu", "science fiction"],
+    ["научная фантастика", "science fiction"],
+    ["sciencefiction", "science fiction"],
+  ];
+
+  for (const d of dicts) {
+    for (const [canonicalKey, localizedVal] of Object.entries(d)) {
+      const canonical = normGenre(canonicalKey);
+      const aliases = new Set([
+        canonicalKey,
+        localizedVal,
+        canonicalKey.replace(/-/g, " "),
+        localizedVal && String(localizedVal).replace(/-/g, " "),
+      ].filter(Boolean));
+      for (const [a, b] of SPECIAL_EQUIVS) {
+        if (normGenre(b) === canonical) aliases.add(a);
+      }
+
+      for (const alias of aliases) {
+        map[normGenre(alias)] = canonical;
+      }
+    }
+  }
+  return map;
+}
+
+const GENRE_ALIAS = buildGenreAliasMap(ALL_LANG_TURLER);
+
+function toCanonicalGenre(g) {
+  const key = GENRE_ALIAS[normGenre(g)];
+  return key || null;
+}
+
 
 function replaceExt(url, newExt) {
   return url.replace(/\.[a-z0-9]+(?:\?.*)?$/i, newExt);
@@ -50,7 +107,246 @@ function probeVideo(url, timeoutMs = HOVER_VIDEO_TIMEOUT) {
   });
 }
 
-async function setupHoverVideo(card, logoUrl) {
+let __hubPreviewPopover = null;
+let __hubPreviewCloseTimer = null;
+
+function ensurePreviewPopover() {
+  if (__hubPreviewPopover) return __hubPreviewPopover;
+  const pop = document.createElement('div');
+  pop.className = 'hub-preview-popover';
+  pop.innerHTML = `
+    <div class="hub-preview-header">
+      <h3 class="hub-preview-title"></h3>
+      <button class="hub-preview-close" aria-label="Close">×</button>
+    </div>
+    <div class="hub-preview-body"></div>
+  `;
+  document.body.appendChild(pop);
+  pop.querySelector('.hub-preview-close').addEventListener('click', hidePreviewPopover);
+  pop.addEventListener('mouseenter', () => {
+    if (__hubPreviewCloseTimer) { clearTimeout(__hubPreviewCloseTimer); __hubPreviewCloseTimer = null; }
+  });
+  pop.addEventListener('mouseleave', () => scheduleHidePopover());
+
+  __hubPreviewPopover = pop;
+  return pop;
+}
+
+function scheduleHidePopover(delay = 160) {
+  if (__hubPreviewCloseTimer) clearTimeout(__hubPreviewCloseTimer);
+  __hubPreviewCloseTimer = setTimeout(() => {
+    hidePreviewPopover();
+  }, delay);
+}
+
+function hidePreviewPopover() {
+  if (__hubPreviewCloseTimer) { clearTimeout(__hubPreviewCloseTimer); __hubPreviewCloseTimer = null; }
+  if (!__hubPreviewPopover) return;
+  __hubPreviewPopover.style.opacity = '0';
+  __hubPreviewPopover.style.pointerEvents = 'none';
+}
+
+function setPopoverContent(studioName, items) {
+  const pop = ensurePreviewPopover();
+  const title = pop.querySelector('.hub-preview-title');
+  const body  = pop.querySelector('.hub-preview-body');
+
+  title.textContent = `${studioName} - ${config.languageLabels.previewModalTitle || 'Top Rated Movies'}`;
+  pop.querySelector('.hub-preview-close').setAttribute('aria-label', config.languageLabels.closeButton || 'Close');
+
+  body.innerHTML = '';
+  items.slice(0, 5).forEach(item => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'hub-preview-item';
+    const posterUrl = buildPosterUrl(item, 300, 95);
+    let ratingVal = item.CommunityRating || item.CriticRating;
+  let rating;
+  if (typeof ratingVal === "number") {
+    rating = ratingVal.toFixed(1);
+  } else {
+    rating = config.languageLabels.noRating || 'N/A';
+  }
+    itemEl.innerHTML = `
+      <img class="hub-preview-poster" src="${posterUrl || '/css/images/placeholder.png'}" alt="${item.Name}" loading="lazy">
+      <div class="hub-preview-info">
+        <div class="hub-preview-item-title">${item.Name}</div>
+        <div class="hub-preview-rating">⭐ ${rating}</div>
+      </div>
+    `;
+    itemEl.addEventListener('click', () => {
+      hidePreviewPopover();
+      window.location.href = `#/details?id=${item.Id}`;
+    });
+    body.appendChild(itemEl);
+  });
+
+  return pop;
+}
+
+function positionPopover(anchorEl, pop) {
+  const margin = 8;
+  const docEl = document.documentElement;
+  const vw = docEl.clientWidth;
+  const vh = docEl.clientHeight;
+  const r = anchorEl.getBoundingClientRect();
+  const prevOpacity = pop.style.opacity;
+  const prevPe = pop.style.pointerEvents;
+  const prevDisplay = pop.style.display;
+  pop.style.display = 'block';
+  pop.style.opacity = '0';
+  pop.style.pointerEvents = 'none';
+  const pw = Math.min(pop.offsetWidth || 360, vw - 2 * margin);
+  const ph = Math.min(pop.offsetHeight || 300, vh - 2 * margin);
+  const spaceRight  = vw - r.right  - margin;
+  const spaceLeft   = r.left        - margin;
+  const spaceBottom = vh - r.bottom - margin;
+  const spaceTop    = r.top         - margin;
+  let placement = 'right';
+  if (spaceRight >= pw) placement = 'right';
+  else if (spaceLeft >= pw) placement = 'left';
+  else if (spaceBottom >= ph) placement = 'bottom';
+  else if (spaceTop >= ph) placement = 'top';
+  else {
+    const candidates = [
+      { side: 'right',  size: spaceRight },
+      { side: 'left',   size: spaceLeft },
+      { side: 'bottom', size: spaceBottom },
+      { side: 'top',    size: spaceTop },
+    ].sort((a,b) => b.size - a.size);
+    placement = candidates[0].side;
+  }
+
+  let left, top;
+
+  switch (placement) {
+    case 'right':
+      left = r.right + margin;
+      top  = r.top + (r.height - ph) / 2;
+      break;
+    case 'left':
+      left = r.left - margin - pw;
+      top  = r.top + (r.height - ph) / 2;
+      break;
+    case 'bottom':
+      left = r.left + (r.width - pw) / 2;
+      top  = r.bottom + margin;
+      break;
+    case 'top':
+      left = r.left + (r.width - pw) / 2;
+      top  = r.top - margin - ph;
+      break;
+  }
+
+  left = Math.max(margin, Math.min(left, vw - margin - pw));
+  top  = Math.max(margin, Math.min(top,  vh - margin - ph));
+  pop.style.left = `${Math.round(left + window.scrollX)}px`;
+  pop.style.top  = `${Math.round(top  + window.scrollY)}px`;
+  pop.style.display = prevDisplay || 'block';
+  pop.style.pointerEvents = prevPe || 'auto';
+  pop.style.opacity = prevOpacity || '1';
+}
+
+
+function showPreviewPopover(anchorEl, studioName, items) {
+  const pop = setPopoverContent(studioName, items);
+  pop.style.position = 'absolute';
+  pop.style.maxWidth = 'min(520px, 90vw)';
+  pop.style.maxHeight = 'min(70vh, 600px)';
+  pop.style.overflow = 'auto';
+  pop.style.pointerEvents = 'auto';
+  pop.style.display = 'block';
+  pop.style.opacity = '0';
+  const reposition = () => positionPopover(anchorEl, pop);
+  requestAnimationFrame(() => {
+    reposition();
+    pop.style.opacity = '1';
+  });
+
+  const onWin = () => reposition();
+  window.addEventListener('resize', onWin, { passive: true });
+  window.addEventListener('scroll', onWin, { passive: true });
+  const row = anchorEl.closest('.hub-row');
+  const onRow = () => reposition();
+  if (row) row.addEventListener('scroll', onRow, { passive: true });
+
+  const cleanup = () => {
+    window.removeEventListener('resize', onWin);
+    window.removeEventListener('scroll', onWin);
+    if (row) row.removeEventListener('scroll', onRow);
+  };
+
+  const _hide = hidePreviewPopover;
+  hidePreviewPopover = function() {
+    cleanup();
+    _hide();
+  };
+}
+
+function createPreviewButton(card, studioName, studioId, userId) {
+  const btn = document.createElement('button');
+  btn.className = 'hub-preview-btn';
+  btn.setAttribute('aria-label', `${config.languageLabels.personalHub || "Sana Özel"} ${config.languageLabels.previewButtonLabel || "Önizleme"}`);
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+
+  let isFetching = false;
+  let studioItems = null;
+  let hoverOpenTimer = null;
+
+  async function ensureItems() {
+    if (studioItems || isFetching) return;
+    isFetching = true;
+    btn.style.opacity = '0.5';
+    try {
+      const signal = __fetchAbort ? __fetchAbort.signal : null;
+      studioItems = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal);
+      studioItems.sort((a, b) => (b.CommunityRating || b.CriticRating || 0) - (a.CommunityRating || a.CriticRating || 0));
+    } catch (err) {
+      console.error('Ön izleme verileri alınamadı:', err);
+      studioItems = [];
+    } finally {
+      isFetching = false;
+      btn.style.opacity = '';
+    }
+  }
+
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await ensureItems();
+    if (studioItems && studioItems.length) {
+      showPreviewPopover(btn, studioName, studioItems);
+    }
+  });
+
+  btn.addEventListener('mouseenter', async () => {
+    if (hoverOpenTimer) clearTimeout(hoverOpenTimer);
+    await ensureItems();
+    hoverOpenTimer = setTimeout(() => {
+      if (studioItems && studioItems.length) {
+        showPreviewPopover(btn, studioName, studioItems);
+      }
+    }, 180);
+  });
+
+  btn.addEventListener('mouseleave', () => {
+    if (hoverOpenTimer) { clearTimeout(hoverOpenTimer); hoverOpenTimer = null; }
+    scheduleHidePopover(160);
+  });
+
+  btn.addEventListener('focus', async () => {
+    await ensureItems();
+    if (studioItems && studioItems.length) {
+      showPreviewPopover(btn, studioName, studioItems);
+    }
+  });
+  btn.addEventListener('blur', () => scheduleHidePopover(160));
+
+  card.appendChild(btn);
+  return btn;
+}
+
+
+async function setupHoverVideo(card, logoUrl, studioName, studioId, userId) {
   if (!card || !logoUrl) return;
 
   const candidates = deriveVideoCandidatesFromLogo(logoUrl);
@@ -75,6 +371,10 @@ async function setupHoverVideo(card, logoUrl) {
     vidEl.setAttribute("aria-hidden", "true");
     card.style.position = card.style.position || "relative";
     card.appendChild(vidEl);
+    if (studioName && studioId && userId) {
+      createPreviewButton(card, studioName, studioId, userId);
+    }
+
     return vidEl;
   };
 
@@ -169,8 +469,161 @@ async function resolveLogoUrl(name) {
   return null;
 }
 
-const MANUAL_IDS = {};
+async function fetchMoviesViewId(signal) {
+  try {
+    const { userId } = getSessionInfo();
+    const views = await makeApiRequest(`/Users/${userId}/Views`, { signal });
+    const items = Array.isArray(views?.Items) ? views.Items : [];
+    const movies = items.find(v => (v.CollectionType || "").toLowerCase() === "movies")
+               ||  items.find(v => /movies?|filmler?/i.test(v.Name || ""));
+    return movies?.Id || null;
+  } catch {
+    return null;
+  }
+}
 
+async function buildMoviesHref(signal) {
+  const vid = await fetchMoviesViewId(signal);
+  return vid ? `#/movies.html?topParentId=${encodeURIComponent(vid)}` : `#/movies.html`;
+}
+
+async function fetchPersonalUnplayedTopGenreItems(userId, signal) {
+  try {
+    const rawTop = await getUserTopGenres(3);
+    const topCanon = new Set(
+      (Array.isArray(rawTop) ? rawTop : [])
+        .map(toCanonicalGenre)
+        .filter(Boolean)
+    );
+
+    const matchesTopGenres = (it) => {
+      const gs = Array.isArray(it?.Genres) ? it.Genres : [];
+      for (const g of gs) {
+        const c = toCanonicalGenre(g);
+        if (c && topCanon.has(c)) return true;
+      }
+      return false;
+    };
+
+    const baseUrl =
+      `/Users/${userId}/Items?IncludeItemTypes=Movie` +
+      `&Recursive=true&Filters=IsUnplayed&Limit=400` +
+      `&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating,Genres,UserData` +
+      `&SortBy=CommunityRating,DateCreated` +
+      `&SortOrder=Descending`;
+
+    let data = await makeApiRequest(baseUrl, { signal });
+    let items = Array.isArray(data?.Items) ? data.Items : [];
+    let neverWatched = items.filter(
+      it => !(it?.UserData?.Played) && (it?.UserData?.PlayCount || 0) === 0
+    );
+
+    let byTop = topCanon.size
+      ? neverWatched.filter(matchesTopGenres)
+      : neverWatched;
+
+    if (!byTop.length) {
+      byTop = neverWatched;
+    }
+
+    if (!byTop.length) {
+      const url2 =
+        `/Users/${userId}/Items?IncludeItemTypes=Movie` +
+        `&Recursive=true&Limit=400` +
+        `&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating,Genres,UserData` +
+        `&SortBy=CommunityRating,DateCreated&SortOrder=Descending`;
+      data = await makeApiRequest(url2, { signal });
+      items = Array.isArray(data?.Items) ? data.Items : [];
+      const unplayedGuess = items.filter(it => !(it?.UserData?.Played));
+      byTop = topCanon.size ? unplayedGuess.filter(matchesTopGenres) : unplayedGuess;
+      if (!byTop.length) byTop = items;
+    }
+
+ const score = (it) => {
+   const rating = Number(it.CommunityRating || it.CriticRating || 0);
+   const jitter = Math.random() * 2;
+   return rating * 0.2 + jitter;
+ };
+ const ranked = [...byTop].sort((a,b) => score(b) - score(a));
+ const pool = ranked.slice(0, Math.min(20, ranked.length));
+ for (let i = pool.length - 1; i > 0; i--) {
+   const j = Math.floor(Math.random() * (i + 1));
+   [pool[i], pool[j]] = [pool[j], pool[i]];
+ }
+ return pool.slice(0, 5);
+  } catch (e) {
+    console.warn("Bana Özel öneriler (i18n-genre) alınamadı:", e);
+    return [];
+  }
+}
+
+function attachPersonalPopover(card, userId) {
+  let isFetching = false;
+  let itemsCache = null;
+  let hoverTimer = null;
+
+  async function ensureItems() {
+    if (itemsCache || isFetching) return;
+    isFetching = true;
+    try {
+      const signal = __fetchAbort ? __fetchAbort.signal : null;
+      itemsCache = await fetchPersonalUnplayedTopGenreItems(userId, signal);
+    } finally {
+      isFetching = false;
+    }
+  }
+
+  const title = (config.languageLabels.personalHub || "Bana Özel");
+  const btn = document.createElement('button');
+  btn.className = 'hub-preview-btn';
+  btn.setAttribute('aria-label', `${title} ${config.languageLabels.previewButtonLabel || 'Önizleme'}`);
+  btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+  card.appendChild(btn);
+
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await ensureItems();
+    if (itemsCache && itemsCache.length) {
+      showPreviewPopover(btn, title, itemsCache);
+    }
+  });
+  btn.addEventListener('mouseenter', () => {
+  if (hoverTimer) clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(async () => {
+    await ensureItems();
+    if (itemsCache && itemsCache.length) {
+      showPreviewPopover(btn, title, itemsCache);
+    }
+  }, 180);
+});
+  btn.addEventListener('mouseleave', () => {
+    if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+    scheduleHidePopover(160);
+  });
+  btn.addEventListener('focus', async () => {
+    await ensureItems();
+    if (itemsCache && itemsCache.length) {
+      showPreviewPopover(btn, title, itemsCache);
+    }
+  });
+  btn.addEventListener('blur', () => scheduleHidePopover(160));
+
+  card.addEventListener("click", async (e) => {
+    try {
+      const signal = __fetchAbort ? __fetchAbort.signal : null;
+      const href = await buildMoviesHref(signal);
+      window.location.href = href;
+    } catch {
+      window.location.href = "#/movies.html";
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  });
+}
+
+
+const MANUAL_IDS = {};
 const ALIASES = {
   "Marvel Studios": ["marvel studios","marvel","marvel entertainment","marvel studios llc"],
   "Pixar": ["pixar","pixar animation studios","disney pixar"],
@@ -257,7 +710,7 @@ async function fetchStudios(signal) {
 }
 
 async function fetchStudioItemsViaUsers(studioId, studioName, userId, signal) {
-  const common = `StartIndex=0&Limit=${STUDIO_ITEMS_LIMIT}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags&Recursive=true&SortOrder=Descending`;
+  const common = `StartIndex=0&Limit=${STUDIO_ITEMS_LIMIT}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating&Recursive=true&SortOrder=Descending`;
   const urls = [
     `/Users/${userId}/Items?${common}&IncludeItemTypes=Movie,Series&StudioIds=${encodeURIComponent(studioId)}`,
     `/Users/${userId}/Items?${common}&IncludeItemTypes=Movie,Series&Studios=${encodeURIComponent(studioName)}`
@@ -281,10 +734,10 @@ function buildBackdropUrl(item, index = 0) {
   return `/Items/${item.Id}/Images/Backdrop/${index}?tag=${encodeURIComponent(tag)}&quality=90`;
 }
 
-function buildPosterUrl(item) {
+function buildPosterUrl(item, height = 300, quality = 95) {
   const tag = item.ImageTags?.Primary || item.PrimaryImageTag;
   if (!tag) return null;
-  return `/Items/${item.Id}/Images/Primary?tag=${encodeURIComponent(tag)}&fillHeight=${LOGO_H}&quality=90`;
+  return `/Items/${item.Id}/Images/Primary?tag=${encodeURIComponent(tag)}&fillHeight=${height}&quality=${quality}`;
 }
 
 function pickRandom(arr) { return arr.length ? arr[Math.floor(Math.random()*arr.length)] : null; }
@@ -363,17 +816,16 @@ function ensureContainer(indexPage) {
     section = document.createElement("div");
     section.id = "studio-hubs";
     section.classList.add("homeSection");
-
     section.innerHTML = `
    <div class="sectionTitleContainer sectionTitleContainer-cards">
-     <h2 class="sectionTitle sectionTitle-cards">${config.languageLabels.studioHubs || 'Stüdyo Koleksiyonlarını'}</h2>
+     <h2 class="sectionTitle sectionTitle-cards">${config.languageLabels.studioHubs || 'Studio Collections'}</h2>
    </div>
    <div class="hub-scroll-wrap">
-     <button class="hub-scroll-btn hub-scroll-left" aria-label="Sola kaydır" aria-disabled="true">
+     <button class="hub-scroll-btn hub-scroll-left" aria-label="${config.languageLabels.scrollLeft || 'Scroll left'}" aria-disabled="true">
        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
      </button>
      <div class="itemsContainer hub-row backdrop-mode" role="list"></div>
-     <button class="hub-scroll-btn hub-scroll-right" aria-label="Sağa kaydır" aria-disabled="true">
+     <button class="hub-scroll-btn hub-scroll-right" aria-label="${config.languageLabels.scrollRight || 'Scroll right'}" aria-disabled="true">
        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
      </button>
    </div>
@@ -435,8 +887,31 @@ export async function renderStudioHubs() {
 
     const { serverId, userId } = getSessionInfo();
     const shells = {};
+    const personalTitle = (config.languageLabels.personalHub || "Bana Özel");
+    const personalCard = createBackdropCardShell(personalTitle, null, null);
+    personalCard.classList.add("personal-hub-card");
+    personalCard.classList.remove("skeleton");
+    personalCard.href = "javascript:void(0)";
+    row.prepend(personalCard);
+
+ try {
+   const PERSONAL_KEY = "personal-hub";
+   const personalLogoUrl = await tryLocalLogo(PERSONAL_KEY);
+   if (personalLogoUrl) {
+     const img = document.createElement("img");
+     img.className = "hub-img hub-logo";
+     img.loading = "lazy";
+     img.decoding = "async";
+     img.alt = PERSONAL_KEY;
+     img.src = personalLogoUrl;
+     personalCard.appendChild(img);
+   }
+ } catch (e) { console.warn("personal-hub görseli eklenemedi:", e); }
+
+    attachPersonalPopover(personalCard, userId);
+
     const maxCards = Number.isFinite(config.studioHubsCardCount) ? config.studioHubsCardCount : ORDER.length;
-  const wanted = ORDER.slice(0, Math.max(1, maxCards));
+    const wanted = ORDER.slice(0, Math.max(1, maxCards));
 
   for (const desired of wanted) {
   const card = createBackdropCardShell(desired, null, null);
@@ -481,11 +956,10 @@ export async function renderStudioHubs() {
         card.classList.remove("skeleton");
         card.appendChild(img);
         if (config.studioHubsHoverVideo) {
-        setupHoverVideo(card, logoUrl);
+        setupHoverVideo(card, logoUrl, name, studio.Id, userId);
       }
         used = true;
       }
-
 
       if (!used) {
         const chosen = await chooseBackdropForStudio(studio, userId, __fetchAbort.signal);
