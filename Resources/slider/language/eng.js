@@ -1,5 +1,11 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  personalHub: "Recommended",
+  previewModalTitle: "Top Picks",
+  closeButton: "Close",
+  rating: "Rating",
+  noRating: "N/A",
+  previewButtonLabel: "Preview",
   studioHubsHoverVideo: "Play video on hover",
   studioHubsCardCount: "Number of cards to show",
   dragToReorder: "Drag to reorder",

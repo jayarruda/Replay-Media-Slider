@@ -1,5 +1,11 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  personalHub: "Önerilenler",
+  previewModalTitle: 'En iyiler',
+  closeButton: 'Kapat',
+  rating: 'Oylama',
+  noRating: 'N/A',
+  previewButtonLabel: 'Ön Bakış',
   studioHubsHoverVideo: "Hover’da video oynat",
   studioHubsCardCount: "Gösterilecek kart sayısı",
   dragToReorder: "Sürükle-bırak",

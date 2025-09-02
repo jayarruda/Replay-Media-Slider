@@ -1,5 +1,11 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  personalHub: "Рекомендованные",
+  previewModalTitle: "Лучшие",
+  closeButton: "Закрыть",
+  rating: "Рейтинг",
+  noRating: "Н/Д",
+  previewButtonLabel: "Предпросмотр",
   studioHubsHoverVideo: "Воспроизводить видео при наведении",
   studioHubsCardCount: "Количество карточек для отображения",
   dragToReorder: "Перетащите, чтобы изменить порядок",
