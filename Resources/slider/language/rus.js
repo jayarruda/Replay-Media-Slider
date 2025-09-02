@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  studioHubsHoverVideo: "Воспроизводить видео при наведении",
+  studioHubsCardCount: "Количество карточек для отображения",
+  dragToReorder: "Перетащите, чтобы изменить порядок",
+  studioHubsOrderLabel: "Порядок (перетаскивание)",
   studioHubs: "Коллекции студий",
   studioHubsSettings: "Настройки коллекций студий",
   enableStudioHubs: "Включить коллекции студий",

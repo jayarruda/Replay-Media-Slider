@@ -90,6 +90,18 @@ export function applySettings(reload = false) {
             enableCounterSystem: formData.get('enableCounterSystem') === 'on',
 
             enableStudioHubs: formData.get('enableStudioHubs') === 'on',
+            studioHubsHoverVideo: formData.get('studioHubsHoverVideo') === 'on',
+            studioHubsCardCount: parseInt(formData.get('studioHubsCardCount'), 10) || 10,
+            studioHubsOrder: (() => {
+              const raw = formData.get('studioHubsOrder');
+              if (!raw) return getConfig().studioHubsOrder;
+              try {
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) && arr.length ? arr : getConfig().studioHubsOrder;
+              } catch {
+                return getConfig().studioHubsOrder;
+              }
+            })(),
 
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',

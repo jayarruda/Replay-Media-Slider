@@ -1,8 +1,3 @@
-/**
- * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
- * and without obtaining permission is considered unethical and is not permitted.
- */
-
 import { getSessionInfo, fetchItemDetails, makeApiRequest } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
@@ -329,8 +324,6 @@ async function setBackdrop(item) {
 
   return m ? m[1] : null;
 }
-
-
     async function resolveNowPlayingEpisode() {
     try {
         const session = await getSessionInfo();
@@ -396,8 +389,15 @@ async function setBackdrop(item) {
     return null;
 }
 
+    function isStudioHubsVideo(video) {
+        return video.closest('#studio-hubs, .hub-card, .hub-row, .hub-video') !== null;
+    }
 
     function bindVideo(video) {
+        if (isStudioHubsVideo(video)) {
+            return;
+        }
+
         if (removeHandlers) removeHandlers();
         if (video.closest('.video-preview-modal, .intro-video-container')) {
             return;

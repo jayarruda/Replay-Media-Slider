@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  studioHubsHoverVideo: "Play video on hover",
+  studioHubsCardCount: "Number of cards to show",
+  dragToReorder: "Drag to reorder",
+  studioHubsOrderLabel: "Order (drag & drop)",
   studioHubs: "Studio Collections",
   studioHubsSettings: "Studio Collections Settings",
   enableStudioHubs: "Enable Studio Collections",

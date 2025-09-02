@@ -112,7 +112,7 @@ export function getConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v1.4.3",
+    version: "v1.4.4",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -196,6 +196,21 @@ export function getConfig() {
     enableCounterSystem: localStorage.getItem('enableCounterSystem') !== 'false',
 
     enableStudioHubs: localStorage.getItem('enableStudioHubs') !== 'false',
+    studioHubsHoverVideo: localStorage.getItem('studioHubsHoverVideo') !== 'false',
+    studioHubsCardCount: parseInt(localStorage.getItem('studioHubsCardCount'), 10) || 10,
+    studioHubsOrder: (() => {
+      try {
+       const raw = localStorage.getItem('studioHubsOrder');
+        if (raw && raw !== '[object Object]') {
+          const arr = JSON.parse(raw);
+         if (Array.isArray(arr) && arr.length) return arr;
+        }
+     } catch {}
+     return [
+        "Marvel Studios","Pixar","Walt Disney Pictures","Disney+","DC",
+        "Warner Bros. Pictures","Lucasfilm Ltd.","Columbia Pictures","Paramount Pictures","Netflix"
+      ];
+    })(),
 
     slideTop: parseInt(localStorage.getItem('slideTop'), 10) || 0,
     slideLeft: parseInt(localStorage.getItem('slideLeft'), 10) || 0,

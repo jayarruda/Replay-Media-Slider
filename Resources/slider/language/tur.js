@@ -1,5 +1,9 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  studioHubsHoverVideo: "Hover’da video oynat",
+  studioHubsCardCount: "Gösterilecek kart sayısı",
+  dragToReorder: "Sürükle-bırak",
+  studioHubsOrderLabel: "Sıralama (sürükle-bırak)",
   studioHubs: "Stüdyo Koleksiyonları",
   studioHubsSettings: "Stüdyo Koleksiyonları Ayarları",
   enableStudioHubs: "Stüdyo Koleksiyonlarını Etkinleştir",

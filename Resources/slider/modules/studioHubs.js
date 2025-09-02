@@ -1,26 +1,102 @@
 import { getSessionInfo, getAuthHeader } from "./api.js";
 import { getConfig } from './config.js';
 
-
 const config = getConfig();
-const DESIRED_ORDER = [
-  "Marvel Studios",
-  "Pixar",
-  "Walt Disney Pictures",
-  "Disney+",
-  "DC",
-  "Warner Bros. Pictures",
-  "Lucasfilm Ltd.",
-  "Columbia Pictures",
-  "Paramount Pictures",
-  "Netflix"
+const DEFAULT_ORDER = [
+  "Marvel Studios","Pixar","Walt Disney Pictures","Disney+","DC",
+  "Warner Bros. Pictures","Lucasfilm Ltd.","Columbia Pictures","Paramount Pictures","Netflix"
 ];
+const ORDER = (config.studioHubsOrder && config.studioHubsOrder.length)
+  ? config.studioHubsOrder
+  : DEFAULT_ORDER;
 
 const LOGO_BASE = "slider/src/images/studios/";
-
 const LOCAL_EXTS = [".webp"];
 const LOGO_CACHE_KEY = "studioHub_logoUrlCache_v1";
 const LOGO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+const VIDEO_EXTS = [".mp4", ".webm"];
+const HOVER_VIDEO_TIMEOUT = 4000;
+
+function replaceExt(url, newExt) {
+  return url.replace(/\.[a-z0-9]+(?:\?.*)?$/i, newExt);
+}
+
+function deriveVideoCandidatesFromLogo(logoUrl) {
+  return VIDEO_EXTS.map(ext => replaceExt(logoUrl, ext));
+}
+
+function probeVideo(url, timeoutMs = HOVER_VIDEO_TIMEOUT) {
+  return new Promise((resolve) => {
+    if (!url) return resolve(false);
+    const v = document.createElement("video");
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true; resolve(false);
+      try { v.src = ""; } catch {}
+    }, timeoutMs);
+
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "metadata";
+    v.src = url;
+
+    const ok = () => { if (done) return; done = true; clearTimeout(timer); resolve(true); };
+    const bad = () => { if (done) return; done = true; clearTimeout(timer); resolve(false); };
+
+    v.oncanplay = ok;
+    v.onloadeddata = ok;
+    v.onerror = bad;
+  });
+}
+
+async function setupHoverVideo(card, logoUrl) {
+  if (!card || !logoUrl) return;
+
+  const candidates = deriveVideoCandidatesFromLogo(logoUrl);
+  let playableUrl = null;
+  for (const u of candidates) {
+    const ok = await probeVideo(u);
+    if (ok) { playableUrl = u; break; }
+  }
+  if (!playableUrl) return;
+  let vidEl = null;
+
+  const ensureVideo = () => {
+    if (vidEl) return vidEl;
+
+    vidEl = document.createElement("video");
+    vidEl.className = "hub-video";
+    vidEl.src = playableUrl;
+    vidEl.muted = true;
+    vidEl.loop = true;
+    vidEl.playsInline = true;
+    vidEl.preload = "auto";
+    vidEl.setAttribute("aria-hidden", "true");
+    card.style.position = card.style.position || "relative";
+    card.appendChild(vidEl);
+    return vidEl;
+  };
+
+  const play = () => {
+    const v = ensureVideo();
+    v.currentTime = 0;
+    v.style.opacity = "1";
+    v.play().catch(() => {});
+  };
+
+  const stop = () => {
+    if (!vidEl) return;
+    vidEl.pause();
+    vidEl.style.opacity = "0";
+  };
+
+  card.addEventListener("mouseenter", play);
+  card.addEventListener("mouseleave", stop);
+  card.addEventListener("focus", play);
+  card.addEventListener("blur", stop);
+}
+
 
 function withVer(url, v = "1") {
   if (!url) return url;
@@ -359,11 +435,14 @@ export async function renderStudioHubs() {
 
     const { serverId, userId } = getSessionInfo();
     const shells = {};
-    for (const desired of DESIRED_ORDER) {
-      const card = createBackdropCardShell(desired, null, null);
-      row.appendChild(card);
-      shells[desired] = card;
-    }
+    const maxCards = Number.isFinite(config.studioHubsCardCount) ? config.studioHubsCardCount : ORDER.length;
+  const wanted = ORDER.slice(0, Math.max(1, maxCards));
+
+  for (const desired of wanted) {
+  const card = createBackdropCardShell(desired, null, null);
+  row.appendChild(card);
+  shells[desired] = card;
+}
     row.parentElement.style.display = "";
 
     const cached = loadCache(LS_KEY, CACHE_TTL);
@@ -371,11 +450,13 @@ export async function renderStudioHubs() {
     if (!cached && studios.length) saveCache(LS_KEY, studios);
     const nameMap = loadCache(MAP_KEY, MAP_TTL) || {};
     const resolved = [];
-    for (const desired of DESIRED_ORDER) {
-      const manualId = MANUAL_IDS[desired];
-      let studio = manualId ? { Id: manualId, Name: desired } : (nameMap[desired] || studios.find(s => matches(desired, s.Name)) || await searchStudiosByAliases(desired, __fetchAbort.signal));
-      if (studio) { resolved.push({ name: desired, studio }); nameMap[desired] = studio; }
-    }
+    for (const desired of wanted) {
+    const manualId = MANUAL_IDS[desired];
+    let studio = manualId
+      ? { Id: manualId, Name: desired }
+      : (nameMap[desired] || studios.find(s => matches(desired, s.Name)) || await searchStudiosByAliases(desired, __fetchAbort.signal));
+    if (studio) { resolved.push({ name: desired, studio }); nameMap[desired] = studio; }
+  }
     saveCache(MAP_KEY, nameMap);
 
     await Promise.allSettled(resolved.map(async ({ name, studio }) => {
@@ -399,8 +480,12 @@ export async function renderStudioHubs() {
         card.href = buildStudioHref(studio.Id, serverId);
         card.classList.remove("skeleton");
         card.appendChild(img);
+        if (config.studioHubsHoverVideo) {
+        setupHoverVideo(card, logoUrl);
+      }
         used = true;
       }
+
 
       if (!used) {
         const chosen = await chooseBackdropForStudio(studio, userId, __fetchAbort.signal);
