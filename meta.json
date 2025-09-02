@@ -4,11 +4,11 @@
   "id": "c0b4a5e0-2f6a-4e70-9c5f-1e7c2d0b7f12",
   "name": "JMSFusion",
   "owner": "G-grbz",
-  "version": "1.4.3",
+  "version": "0.1.4.4",
   "status": "Active",
   "autoUpdate": true,
   "targetAbi": "10.10.7.0",
   "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider",
-  "imagePath": "/var/lib/jellyfin/plugins/JMSFusion_0.1.4.3/icon.png",
-  "timestamp": "2025-01-01T00:00:00.0000000Z"
+  "imagePath": "/var/lib/jellyfin/plugins/JMSFusion_0.1.4.4/icon.png",
+  "timestamp": "2025-09-02T08:15:21.7068212Z"
 }

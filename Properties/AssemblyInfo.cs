@@ -1,15 +1,15 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("JMS-Fusion")]
+[assembly: AssemblyTitle("JMSFusion")]
 [assembly: AssemblyDescription("JMS-Fusion: Inject & serve custom JS for Jellyfin via response rewrite")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("JMS-Fusion")]
+[assembly: AssemblyProduct("JMSFusion")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 [assembly: Guid("c0b4a5e0-2f6a-4e70-9c5f-1e7c2d0b7f12")]
-[assembly: AssemblyVersion("0.1.4.2")]
+[assembly: AssemblyVersion("0.1.4.4")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
