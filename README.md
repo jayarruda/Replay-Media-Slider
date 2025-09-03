@@ -95,9 +95,6 @@ Adds interactive video previews similar to Netflix: when hovering over an item, 
 - #### Newly Added Content & System Notifications Module
 Displays a dedicated module for newly added content (movies, series, or episodes) alongside system notifications (such as updates, alerts, or custom messages), ensuring users never miss important updates or fresh media.
 
-- #### Quality Labels
-Adds quality information to cards across Jellyfin.
-
 - #### StudioHubs
 Adds Disney+-style studio collection cards to the home screen and popover-based random recommendations based on your watched genres.
 
@@ -140,9 +137,6 @@ Netflix'e benzer etkileşimli video veya fragman önizlemeleri ekler: Bir öğen
 
 - #### Yeni Eklenen İçerik ve Sistem Bildirimleri Modülü
 Yeni eklenen içerikler (filmler, diziler veya bölümler) için özel bir modül. Sistem bildirimleri ile (güncellemeler, uyarılar veya özel mesajlar gibi) birlikte çalışır ve kullanıcıların önemli güncellemeleri veya yeni medyayı asla kaçırmamasını sağlar.
-
-- #### Kalite Etikleri
-Jellyfin genelinde kullanılabilen, kartlar üzerine kalite bilgilerini ekler.
 
 - #### StudioHubs
 Ana ekrana Disney+ tarzı stüdyo koleksiyon kartları ve izlediğiniz türlere göre açılan pencerede rastgele öneriler ekler.
