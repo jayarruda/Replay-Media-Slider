@@ -1,6 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
-  personalHub: "Рекомендованные",
+  personalHub: "Рекомендации на основе ваших самых просматриваемых жанров",
   previewModalTitle: "Лучшие",
   closeButton: "Закрыть",
   rating: "Рейтинг",

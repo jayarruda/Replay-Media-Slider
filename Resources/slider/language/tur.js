@@ -1,6 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
-  personalHub: "Önerilenler",
+  personalHub: "En Çok İzlediğiniz Türlere Göre Öneriler",
   previewModalTitle: 'En iyiler',
   closeButton: 'Kapat',
   rating: 'Oylama',
