@@ -112,6 +112,7 @@ let __hubPreviewCloseTimer = null;
 
 function ensurePreviewPopover() {
   if (__hubPreviewPopover) return __hubPreviewPopover;
+
   const pop = document.createElement('div');
   pop.className = 'hub-preview-popover';
   pop.innerHTML = `
@@ -121,11 +122,17 @@ function ensurePreviewPopover() {
     </div>
     <div class="hub-preview-body"></div>
   `;
+
   document.body.appendChild(pop);
   pop.querySelector('.hub-preview-close').addEventListener('click', hidePreviewPopover);
+
   pop.addEventListener('mouseenter', () => {
-    if (__hubPreviewCloseTimer) { clearTimeout(__hubPreviewCloseTimer); __hubPreviewCloseTimer = null; }
+    if (__hubPreviewCloseTimer) {
+      clearTimeout(__hubPreviewCloseTimer);
+      __hubPreviewCloseTimer = null;
+    }
   });
+
   pop.addEventListener('mouseleave', () => scheduleHidePopover());
 
   __hubPreviewPopover = pop;
@@ -140,32 +147,41 @@ function scheduleHidePopover(delay = 160) {
 }
 
 function hidePreviewPopover() {
-  if (__hubPreviewCloseTimer) { clearTimeout(__hubPreviewCloseTimer); __hubPreviewCloseTimer = null; }
+  if (__hubPreviewCloseTimer) {
+    clearTimeout(__hubPreviewCloseTimer);
+    __hubPreviewCloseTimer = null;
+  }
   if (!__hubPreviewPopover) return;
-  __hubPreviewPopover.style.opacity = '0';
-  __hubPreviewPopover.style.pointerEvents = 'none';
+  __hubPreviewPopover.classList.remove('visible');
+  setTimeout(() => {
+    if (!__hubPreviewPopover.classList.contains('visible')) {
+      __hubPreviewPopover.style.display = 'none';
+    }
+  }, 200);
 }
 
 function setPopoverContent(studioName, items) {
   const pop = ensurePreviewPopover();
   const title = pop.querySelector('.hub-preview-title');
-  const body  = pop.querySelector('.hub-preview-body');
+  const body = pop.querySelector('.hub-preview-body');
 
   title.textContent = `${studioName} - ${config.languageLabels.previewModalTitle || 'Top Rated Movies'}`;
   pop.querySelector('.hub-preview-close').setAttribute('aria-label', config.languageLabels.closeButton || 'Close');
 
   body.innerHTML = '';
+  const { serverId } = getSessionInfo();
+
   items.slice(0, 5).forEach(item => {
     const itemEl = document.createElement('div');
     itemEl.className = 'hub-preview-item';
     const posterUrl = buildPosterUrl(item, 300, 95);
     let ratingVal = item.CommunityRating || item.CriticRating;
-  let rating;
-  if (typeof ratingVal === "number") {
-    rating = ratingVal.toFixed(1);
-  } else {
-    rating = config.languageLabels.noRating || 'N/A';
-  }
+    let rating;
+    if (typeof ratingVal === "number") {
+      rating = ratingVal.toFixed(1);
+    } else {
+      rating = config.languageLabels.noRating || 'N/A';
+    }
     itemEl.innerHTML = `
       <img class="hub-preview-poster" src="${posterUrl || '/css/images/placeholder.png'}" alt="${item.Name}" loading="lazy">
       <div class="hub-preview-info">
@@ -175,8 +191,9 @@ function setPopoverContent(studioName, items) {
     `;
     itemEl.addEventListener('click', () => {
       hidePreviewPopover();
-      window.location.href = `#/details?id=${item.Id}`;
+      window.location.href = `#/details?id=${item.Id}&serverId=${encodeURIComponent(serverId)}`;
     });
+
     body.appendChild(itemEl);
   });
 
@@ -189,18 +206,19 @@ function positionPopover(anchorEl, pop) {
   const vw = docEl.clientWidth;
   const vh = docEl.clientHeight;
   const r = anchorEl.getBoundingClientRect();
-  const prevOpacity = pop.style.opacity;
-  const prevPe = pop.style.pointerEvents;
   const prevDisplay = pop.style.display;
   pop.style.display = 'block';
   pop.style.opacity = '0';
   pop.style.pointerEvents = 'none';
+
   const pw = Math.min(pop.offsetWidth || 360, vw - 2 * margin);
   const ph = Math.min(pop.offsetHeight || 300, vh - 2 * margin);
+
   const spaceRight  = vw - r.right  - margin;
   const spaceLeft   = r.left        - margin;
   const spaceBottom = vh - r.bottom - margin;
   const spaceTop    = r.top         - margin;
+
   let placement = 'right';
   if (spaceRight >= pw) placement = 'right';
   else if (spaceLeft >= pw) placement = 'left';
@@ -242,8 +260,8 @@ function positionPopover(anchorEl, pop) {
   pop.style.left = `${Math.round(left + window.scrollX)}px`;
   pop.style.top  = `${Math.round(top  + window.scrollY)}px`;
   pop.style.display = prevDisplay || 'block';
-  pop.style.pointerEvents = prevPe || 'auto';
-  pop.style.opacity = prevOpacity || '1';
+  pop.style.opacity = '';
+  pop.style.pointerEvents = '';
 }
 
 
@@ -253,18 +271,21 @@ function showPreviewPopover(anchorEl, studioName, items) {
   pop.style.maxWidth = 'min(520px, 90vw)';
   pop.style.maxHeight = 'min(70vh, 600px)';
   pop.style.overflow = 'auto';
-  pop.style.pointerEvents = 'auto';
   pop.style.display = 'block';
-  pop.style.opacity = '0';
+  pop.classList.remove('visible');
+
   const reposition = () => positionPopover(anchorEl, pop);
   requestAnimationFrame(() => {
     reposition();
-    pop.style.opacity = '1';
+    requestAnimationFrame(() => {
+      pop.classList.add('visible');
+    });
   });
 
   const onWin = () => reposition();
   window.addEventListener('resize', onWin, { passive: true });
   window.addEventListener('scroll', onWin, { passive: true });
+
   const row = anchorEl.closest('.hub-row');
   const onRow = () => reposition();
   if (row) row.addEventListener('scroll', onRow, { passive: true });
@@ -344,7 +365,6 @@ function createPreviewButton(card, studioName, studioId, userId) {
   card.appendChild(btn);
   return btn;
 }
-
 
 async function setupHoverVideo(card, logoUrl, studioName, studioId, userId) {
   if (!card || !logoUrl) return;
@@ -483,79 +503,97 @@ async function fetchMoviesViewId(signal) {
 }
 
 async function buildMoviesHref(signal) {
+  const { serverId } = getSessionInfo();
   const vid = await fetchMoviesViewId(signal);
-  return vid ? `#/movies.html?topParentId=${encodeURIComponent(vid)}` : `#/movies.html`;
+  return vid ? `#/movies.html?topParentId=${encodeURIComponent(vid)}&serverId=${encodeURIComponent(serverId)}` : `#/movies.html?serverId=${encodeURIComponent(serverId)}`;
 }
 
 async function fetchPersonalUnplayedTopGenreItems(userId, signal) {
+  let rawTop = [];
   try {
-    const rawTop = await getUserTopGenres(3);
-    const topCanon = new Set(
-      (Array.isArray(rawTop) ? rawTop : [])
-        .map(toCanonicalGenre)
-        .filter(Boolean)
-    );
-
-    const matchesTopGenres = (it) => {
-      const gs = Array.isArray(it?.Genres) ? it.Genres : [];
-      for (const g of gs) {
-        const c = toCanonicalGenre(g);
-        if (c && topCanon.has(c)) return true;
-      }
-      return false;
-    };
-
-    const baseUrl =
-      `/Users/${userId}/Items?IncludeItemTypes=Movie` +
-      `&Recursive=true&Filters=IsUnplayed&Limit=400` +
-      `&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating,Genres,UserData` +
-      `&SortBy=CommunityRating,DateCreated` +
-      `&SortOrder=Descending`;
-
-    let data = await makeApiRequest(baseUrl, { signal });
-    let items = Array.isArray(data?.Items) ? data.Items : [];
-    let neverWatched = items.filter(
-      it => !(it?.UserData?.Played) && (it?.UserData?.PlayCount || 0) === 0
-    );
-
-    let byTop = topCanon.size
-      ? neverWatched.filter(matchesTopGenres)
-      : neverWatched;
-
-    if (!byTop.length) {
-      byTop = neverWatched;
-    }
-
-    if (!byTop.length) {
-      const url2 =
-        `/Users/${userId}/Items?IncludeItemTypes=Movie` +
-        `&Recursive=true&Limit=400` +
-        `&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating,Genres,UserData` +
-        `&SortBy=CommunityRating,DateCreated&SortOrder=Descending`;
-      data = await makeApiRequest(url2, { signal });
-      items = Array.isArray(data?.Items) ? data.Items : [];
-      const unplayedGuess = items.filter(it => !(it?.UserData?.Played));
-      byTop = topCanon.size ? unplayedGuess.filter(matchesTopGenres) : unplayedGuess;
-      if (!byTop.length) byTop = items;
-    }
-
- const score = (it) => {
-   const rating = Number(it.CommunityRating || it.CriticRating || 0);
-   const jitter = Math.random() * 2;
-   return rating * 0.2 + jitter;
- };
- const ranked = [...byTop].sort((a,b) => score(b) - score(a));
- const pool = ranked.slice(0, Math.min(20, ranked.length));
- for (let i = pool.length - 1; i > 0; i--) {
-   const j = Math.floor(Math.random() * (i + 1));
-   [pool[i], pool[j]] = [pool[j], pool[i]];
- }
- return pool.slice(0, 5);
+    rawTop = await getUserTopGenres(3);
   } catch (e) {
-    console.warn("Bana Özel öneriler (i18n-genre) alınamadı:", e);
-    return [];
+    console.warn("getUserTopGenres hatası:", e);
   }
+
+  const topGenres = (Array.isArray(rawTop) ? rawTop : [])
+    .map(g => typeof g === "string" ? g : (g?.Name || g?.name || ""))
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const genresParam = encodeURIComponent(topGenres.join("|"));
+
+  const commonFields =
+    "&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating,Genres,UserData";
+  const commonSort = "&SortBy=CommunityRating,DateCreated&SortOrder=Descending";
+  const base = `/Users/${userId}/Items?IncludeItemTypes=Movie&Recursive=true&Limit=400${commonFields}${commonSort}`;
+
+  async function query(url) {
+    try {
+      const data = await makeApiRequest(url, { signal });
+      return Array.isArray(data?.Items) ? data.Items : [];
+    } catch (e) {
+      console.warn("Kişisel öneri sorgu hatası:", e, url);
+      return [];
+    }
+  }
+
+  let items = [];
+
+  if (topGenres.length) {
+    items = await query(`${base}&Filters=IsUnplayed&Genres=${genresParam}`);
+  }
+
+  if (!items.length && topGenres.length) {
+    items = await query(`${base}&Genres=${genresParam}`);
+  }
+
+  if (!items.length && topGenres.length) {
+    const data = await query(`${base}&Limit=600`);
+    const topCanon = new Set(
+      topGenres.map(toCanonicalGenre).filter(Boolean)
+    );
+    const matchesTop = (it) => {
+      const gs = Array.isArray(it?.Genres) ? it.Genres : [];
+      return gs.some(g => {
+        const c = toCanonicalGenre(g);
+        return c && topCanon.has(c);
+      });
+    };
+    items = data.filter(matchesTop);
+  }
+
+  if (!items.length) {
+    items = await query(`${base}&Filters=IsUnplayed`);
+  }
+  if (!items.length) {
+    items = await query(base);
+  }
+
+  const score = (it) => {
+    const rating = Number(it.CommunityRating || it.CriticRating || 0);
+    const jitter = Math.random() * 0.8;
+    return rating + jitter;
+  };
+
+  const ranked = [...items].sort((a, b) => score(b) - score(a));
+  const poolSize = Math.min(30, ranked.length);
+  const pool = ranked.slice(0, poolSize);
+  const pickCount = Math.min(5, pool.length);
+  const chosen = [];
+  const used = new Set();
+  while (chosen.length < pickCount) {
+    const idx = Math.floor(Math.random() * pool.length);
+    if (!used.has(idx)) {
+      used.add(idx);
+      chosen.push(pool[idx]);
+    }
+    if (used.size === pool.length) break;
+  }
+
+  return chosen;
 }
+
 
 function attachPersonalPopover(card, userId) {
   let isFetching = false;
@@ -579,7 +617,6 @@ function attachPersonalPopover(card, userId) {
   btn.setAttribute('aria-label', `${title} ${config.languageLabels.previewButtonLabel || 'Önizleme'}`);
   btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
   card.appendChild(btn);
-
   btn.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -608,20 +645,20 @@ function attachPersonalPopover(card, userId) {
     }
   });
   btn.addEventListener('blur', () => scheduleHidePopover(160));
-
   card.addEventListener("click", async (e) => {
-    try {
-      const signal = __fetchAbort ? __fetchAbort.signal : null;
-      const href = await buildMoviesHref(signal);
-      window.location.href = href;
-    } catch {
-      window.location.href = "#/movies.html";
-    }
-    e.preventDefault();
-    e.stopPropagation();
-  });
+  try {
+    const signal = __fetchAbort ? __fetchAbort.signal : null;
+    const { serverId } = getSessionInfo();
+    const href = await buildMoviesHref(signal);
+    window.location.href = href;
+  } catch {
+    const { serverId } = getSessionInfo();
+    window.location.href = `#/movies.html?serverId=${encodeURIComponent(serverId)}`;
+  }
+  e.preventDefault();
+  e.stopPropagation();
+});
 }
-
 
 const MANUAL_IDS = {};
 const ALIASES = {
@@ -894,9 +931,9 @@ export async function renderStudioHubs() {
     personalCard.href = "javascript:void(0)";
     row.prepend(personalCard);
 
- try {
+  try {
    const PERSONAL_KEY = "personal-hub";
-   const personalLogoUrl = await tryLocalLogo(PERSONAL_KEY);
+   const personalLogoUrl = await resolveLogoUrl(PERSONAL_KEY);
    if (personalLogoUrl) {
      const img = document.createElement("img");
      img.className = "hub-img hub-logo";
@@ -905,6 +942,9 @@ export async function renderStudioHubs() {
      img.alt = PERSONAL_KEY;
      img.src = personalLogoUrl;
      personalCard.appendChild(img);
+     if (config.studioHubsHoverVideo) {
+       setupHoverVideo(personalCard, personalLogoUrl, PERSONAL_KEY, null, userId);
+     }
    }
  } catch (e) { console.warn("personal-hub görseli eklenemedi:", e); }
 
