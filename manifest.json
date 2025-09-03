@@ -13,8 +13,8 @@
         "changelog": "Fixed a YouTube trailer playback error for HoverTrailer. / HoverTrailer için YouTube fragman oynatma hatası giderildi.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.5/JMSFusion-1.4.5.2-server.zip",
-        "checksum": "3f9dcdcf421d04a01def2051919d4353",
-        "timestamp": "2025-09-03T19:46:12.4674353Z"
+        "checksum": "f46e14c1b2a0ca2bde7d6e63fb12df2d",
+        "timestamp": "2025-09-03T19:56:38.8569979Z"
     },
       {
         "version": "1.4.5.1",
