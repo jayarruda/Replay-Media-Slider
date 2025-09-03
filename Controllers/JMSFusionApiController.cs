@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Text;
 using System.Text.Json.Serialization;
-using Microsoft.Win32;
+using System.Text.RegularExpressions;
+using System.IO.Compression;
 using IOFile = System.IO.File;
 
 namespace JMSFusion.Controllers
@@ -85,6 +88,7 @@ namespace JMSFusion.Controllers
             return Ok(res);
         }
 
+
         [HttpGet("Snippet")]
         public ContentResult GetSnippet()
         {
@@ -92,72 +96,6 @@ namespace JMSFusion.Controllers
             var html = JMSFusionPlugin.Instance.BuildScriptsHtml(pathBase);
             var safe = System.Net.WebUtility.HtmlEncode(html);
             return Content($"<html><body><pre>{safe}</pre></body></html>", "text/html; charset=utf-8");
-        }
-        private static string? DetectWebRoot()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                static string? Reg(string hivePath, string valueName)
-                {
-                    try
-                    {
-                        using var key = Registry.LocalMachine.OpenSubKey(hivePath);
-                        var v = key?.GetValue(valueName) as string;
-                        return string.IsNullOrWhiteSpace(v) ? null : v;
-                    }
-                    catch { return null; }
-                }
-
-                var install =
-                    Reg(@"SOFTWARE\WOW6432Node\Jellyfin\Server", "InstallFolder") ??
-                    Reg(@"SOFTWARE\Jellyfin\Server", "InstallFolder");
-
-                if (!string.IsNullOrWhiteSpace(install))
-                {
-                    var web = Path.Combine(install, "jellyfin-web");
-                    if (Directory.Exists(web) && IOFile.Exists(Path.Combine(web, "index.html")))
-                        return web;
-                }
-
-                string? pf  = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-                string? pfx = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-                foreach (var root in new[] { pf, pfx })
-                {
-                    try
-                    {
-                        if (string.IsNullOrWhiteSpace(root)) continue;
-                        var web = Path.Combine(root, "Jellyfin", "Server", "jellyfin-web");
-                        if (Directory.Exists(web) && IOFile.Exists(Path.Combine(web, "index.html")))
-                            return web;
-                    }
-                    catch { }
-                }
-            }
-
-            var candidates = new[] { "/usr/share/jellyfin/web", "/var/lib/jellyfin/web", "/opt/jellyfin/web" };
-            foreach (var p in candidates)
-            {
-                try
-                {
-                    if (Directory.Exists(p) && IOFile.Exists(Path.Combine(p, "index.html")))
-                        return p;
-                }
-                catch { }
-            }
-
-            return null;
-        }
-
-        private static (bool exists, bool writable) ProbeFile(string path)
-        {
-            try
-            {
-                if (!IOFile.Exists(path)) return (false, false);
-                using var _ = IOFile.Open(path, FileMode.Open, FileAccess.Write, FileShare.Read);
-                return (true, true);
-            }
-            catch (UnauthorizedAccessException) { return (IOFile.Exists(path), false); }
-            catch { return (IOFile.Exists(path), false); }
         }
 
         [HttpGet("Env")]
@@ -233,6 +171,201 @@ namespace JMSFusion.Controllers
                 },
                 acl = new { primary = primaryCmd, alternative = altCmd }
             });
+        }
+
+
+        private const string BeginMarker = "<!-- SL-INJECT BEGIN -->";
+        private const string EndMarker   = "<!-- SL-INJECT END -->";
+
+        private static string InjectOrReplace(string html, string snippet)
+        {
+            var pattern = new Regex(Regex.Escape(BeginMarker) + ".*?" + Regex.Escape(EndMarker),
+                                    RegexOptions.Singleline);
+            html = pattern.Replace(html, string.Empty);
+
+            var block = $"{BeginMarker}\n{snippet}\n{EndMarker}";
+            var idx = html.IndexOf("</head>", StringComparison.OrdinalIgnoreCase);
+            if (idx >= 0)
+            {
+                return html.Substring(0, idx) + block + "\n" + html.Substring(idx);
+            }
+            return html + "\n" + block + "\n";
+        }
+
+        private static string RemoveBlock(string html)
+        {
+            var pattern = new Regex(Regex.Escape(BeginMarker) + ".*?" + Regex.Escape(EndMarker),
+                                    RegexOptions.Singleline);
+            return pattern.Replace(html, string.Empty);
+        }
+
+        private static void TryWriteCompressedCopies(string indexHtmlPath, string htmlContent, ILogger logger)
+        {
+            try
+            {
+                var bytes = Encoding.UTF8.GetBytes(htmlContent);
+                var gzPath = Path.Combine(Path.GetDirectoryName(indexHtmlPath)!, "index.html.gz");
+                try
+                {
+                    using var gzFs = IOFile.Open(gzPath, FileMode.Create, FileAccess.Write, FileShare.Read);
+                    using var gz = new GZipStream(gzFs, CompressionLevel.SmallestSize, leaveOpen: false);
+                    gz.Write(bytes, 0, bytes.Length);
+                }
+                catch (Exception ex) { logger.LogWarning(ex, "Could not write {Gz}", gzPath); }
+                var brPath = Path.Combine(Path.GetDirectoryName(indexHtmlPath)!, "index.html.br");
+                try
+                {
+                    using var brFs = IOFile.Open(brPath, FileMode.Create, FileAccess.Write, FileShare.Read);
+                    using var br = new BrotliStream(brFs, CompressionLevel.SmallestSize, leaveOpen: false);
+                    br.Write(bytes, 0, bytes.Length);
+                }
+                catch (Exception ex) { logger.LogWarning(ex, "Could not write {Br}", brPath); }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Compressed copies step failed");
+            }
+        }
+
+        [HttpPost("Patch")]
+        public IActionResult Patch()
+        {
+            try
+            {
+                var webRoot = DetectWebRoot();
+                if (string.IsNullOrWhiteSpace(webRoot))
+                    return NotFound(new { success = false, error = "Web root not detected" });
+
+                var indexPath = Path.Combine(webRoot, "index.html");
+                if (!IOFile.Exists(indexPath))
+                    return NotFound(new { success = false, error = "index.html not found under detected web root" });
+
+                var html = IOFile.ReadAllText(indexPath, Encoding.UTF8);
+
+                var pathBase = HttpContext?.Request.PathBase.Value ?? string.Empty;
+                var snippet = JMSFusionPlugin.Instance.BuildScriptsHtml(pathBase);
+
+                var newHtml = InjectOrReplace(html, snippet);
+
+                IOFile.WriteAllText(indexPath, newHtml, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+                TryWriteCompressedCopies(indexPath, newHtml, _logger);
+
+                _logger.LogInformation("[JMS-Fusion] Patched index.html at {Index}", indexPath);
+                return Ok(new { success = true, path = indexPath });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Patch permission error");
+                return StatusCode(403, new { success = false, error = "Permission denied while writing index.html (see Env > ACL)" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Patch failed");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost("Unpatch")]
+        public IActionResult Unpatch()
+        {
+            try
+            {
+                var webRoot = DetectWebRoot();
+                if (string.IsNullOrWhiteSpace(webRoot))
+                    return NotFound(new { success = false, error = "Web root not detected" });
+
+                var indexPath = Path.Combine(webRoot, "index.html");
+                if (!IOFile.Exists(indexPath))
+                    return NotFound(new { success = false, error = "index.html not found under detected web root" });
+
+                var html = IOFile.ReadAllText(indexPath, Encoding.UTF8);
+                var newHtml = RemoveBlock(html);
+
+                IOFile.WriteAllText(indexPath, newHtml, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+                TryWriteCompressedCopies(indexPath, newHtml, _logger);
+
+                _logger.LogInformation("[JMS-Fusion] Unpatched index.html at {Index}", indexPath);
+                return Ok(new { success = true, path = indexPath });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError(ex, "Unpatch permission error");
+                return StatusCode(403, new { success = false, error = "Permission denied while writing index.html (see Env > ACL)" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unpatch failed");
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        private static string? DetectWebRoot()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                static string? Reg(string hivePath, string valueName)
+                {
+                    try
+                    {
+                        using var key = Registry.LocalMachine.OpenSubKey(hivePath);
+                        var v = key?.GetValue(valueName) as string;
+                        return string.IsNullOrWhiteSpace(v) ? null : v;
+                    }
+                    catch { return null; }
+                }
+
+                var install =
+                    Reg(@"SOFTWARE\WOW6432Node\Jellyfin\Server", "InstallFolder") ??
+                    Reg(@"SOFTWARE\Jellyfin\Server", "InstallFolder");
+
+                if (!string.IsNullOrWhiteSpace(install))
+                {
+                    var web = Path.Combine(install, "jellyfin-web");
+                    if (Directory.Exists(web) && IOFile.Exists(Path.Combine(web, "index.html")))
+                        return web;
+                }
+
+                string? pf  = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                string? pfx = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                foreach (var root in new[] { pf, pfx })
+                {
+                    try
+                    {
+                        if (string.IsNullOrWhiteSpace(root)) continue;
+                        var web = Path.Combine(root, "Jellyfin", "Server", "jellyfin-web");
+                        if (Directory.Exists(web) && IOFile.Exists(Path.Combine(web, "index.html")))
+                            return web;
+                    }
+                    catch { }
+                }
+            }
+
+            var candidates = new[] { "/usr/share/jellyfin/web", "/var/lib/jellyfin/web", "/opt/jellyfin/web" };
+            foreach (var p in candidates)
+            {
+                try
+                {
+                    if (Directory.Exists(p) && IOFile.Exists(Path.Combine(p, "index.html")))
+                        return p;
+                }
+                catch { }
+            }
+
+            return null;
+        }
+
+        private static (bool exists, bool writable) ProbeFile(string path)
+        {
+            try
+            {
+                if (!IOFile.Exists(path)) return (false, false);
+                using var _ = IOFile.Open(path, FileMode.Open, FileAccess.Write, FileShare.Read);
+                return (true, true);
+            }
+            catch (UnauthorizedAccessException) { return (IOFile.Exists(path), false); }
+            catch { return (IOFile.Exists(path), false); }
         }
 
         private static string GetRunningUser()
