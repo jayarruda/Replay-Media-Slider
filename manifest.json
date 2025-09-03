@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.4.5.1",
+        "changelog": "StudioHubs enhanced. / StudioHubs geliştirildi.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.5/JMSFusion-1.4.5.1-server.zip",
+        "checksum": "96aaad5a88da1586bd068c4691591b58",
+        "timestamp": "2025-09-03T10:31:40.4323492Z"
+    },
+      {
         "version": "0.1.4.5",
         "changelog": "StudioHubs Updated (popover added for recommendations) / StudioHubs Geliştirildi ( Öneriler için popover eklendi )",
         "targetAbi": "10.10.0.0",
