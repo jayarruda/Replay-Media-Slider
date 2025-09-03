@@ -95,6 +95,12 @@ Adds interactive video previews similar to Netflix: when hovering over an item, 
 - #### Newly Added Content & System Notifications Module
 Displays a dedicated module for newly added content (movies, series, or episodes) alongside system notifications (such as updates, alerts, or custom messages), ensuring users never miss important updates or fresh media.
 
+- #### Quality Labels
+Adds quality information to cards across Jellyfin.
+
+- #### StudioHubs
+Adds Disney+-style studio collection cards to the home screen and popover-based random recommendations based on your watched genres.
+
 - #### Trailer Fetching Scripts
 With these scripts, you can download trailers and use them across Jellyfin. Optionally, the downloaded trailers can be set as theme videos, or alternatively, you can skip downloading and simply embed trailer metadata directly into the content’s NFO files.
 
@@ -135,6 +141,12 @@ Netflix'e benzer etkileşimli video veya fragman önizlemeleri ekler: Bir öğen
 - #### Yeni Eklenen İçerik ve Sistem Bildirimleri Modülü
 Yeni eklenen içerikler (filmler, diziler veya bölümler) için özel bir modül. Sistem bildirimleri ile (güncellemeler, uyarılar veya özel mesajlar gibi) birlikte çalışır ve kullanıcıların önemli güncellemeleri veya yeni medyayı asla kaçırmamasını sağlar.
 
+- #### Kalite Etikleri
+Jellyfin genelinde kullanılabilen, kartlar üzerine kalite bilgilerini ekler.
+
+- #### StudioHubs
+Ana ekrana Disney+ tarzı stüdyo koleksiyon kartları ve izlediğiniz türlere göre açılan pencerede rastgele öneriler ekler.
+
 - #### Fragman Edinim Betikleri
 Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe bağlı olarak indirilen fragmanları tema videoları olarak kullanabilir veya alternatif olarak, fragmanları indirmeden fragman bilgilerini doğrudan içeriğin NFO dosyalarına yazabilirsiniz.
 
@@ -152,7 +164,7 @@ Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe ba�
 - Kaynağı kaydedin ve Katalog bölümünde JMSFusion eklentisini bulun ve yükleyin.
 - JMS-Fusion yüklendikten sonra değişikliklerin geçerli olması için Jellyfin’i tekrar yeniden başlatın.
 
-### Manuel Kurulum (güncellenecek)
+### Manuel Kurulum
 
 #### Windows için
 
@@ -236,7 +248,7 @@ Save the repository, then go to the Catalog section, find the JMS-Fusion plugin,
 
 After installing JMS-Fusion, restart Jellyfin again to apply the changes.
 
-### Manual Installation (To be Updated)
+### Manual Installation
 
 #### For Windows
 Extract the downloaded compressed folder to any empty folder, then run the ``` install.bat ``` file as administrator and clear your browser cookies a few times.
