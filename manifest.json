@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.5.0.0",
+        "changelog": "For details: https://github.com/G-grbz/Jellyfin-Media-Slider ",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.5.0/JMSFusion-1.5.0.0-server.zip",
+        "checksum": "7f521fdc59ba637718cf69278950ab38",
+        "timestamp": "2025-09-04T12:51:04.3996451Z"
+    },
+      {
         "version": "1.4.5.3",
         "changelog": "StudioHubs has been improved with a new helper popover that displays detailed content information when hovering over preview cards. / StudioHubs geliştirildi ön bakış kartlarının üzerine gelindiğinde detaylı içerik bilgisi gösteren yeni bir yardımcı popover eklendi.",
         "targetAbi": "10.10.0.0",
