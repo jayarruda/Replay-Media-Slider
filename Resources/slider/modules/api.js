@@ -104,6 +104,9 @@ export async function fetchLocalTrailers(itemId, { signal } = {}) {
     const data = await res.json();
     return Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
   } catch (e) {
+    if (e?.name === 'AbortError' || signal?.aborted || signal?.reason === 'hover-cancel') {
+      return [];
+    }
     console.warn('fetchLocalTrailers error:', e);
     return [];
   }

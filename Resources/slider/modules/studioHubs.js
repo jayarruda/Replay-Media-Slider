@@ -1,6 +1,7 @@
 import { getSessionInfo, getAuthHeader, makeApiRequest, getUserTopGenres } from "./api.js";
 import { getConfig } from './config.js';
 import { getLanguageLabels } from "../language/index.js";
+import { attachMiniPosterHover } from "./studioHubsUtils.js";
 
 const config = getConfig();
 const DEFAULT_ORDER = [
@@ -17,6 +18,26 @@ const LOGO_CACHE_KEY = "studioHub_logoUrlCache_v1";
 const LOGO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 const VIDEO_EXTS = [".mp4", ".webm"];
 const HOVER_VIDEO_TIMEOUT = 4000;
+const MIN_RATING = Number.isFinite(config.studioHubsMinRating)
+  ? config.studioHubsMinRating
+  : 6.5;
+
+const getRating = (it) => Number(it?.CommunityRating ?? it?.CriticRating ?? 0);
+function randomSample(arr, n) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, Math.max(0, n));
+}
+function selectRandomItemsWithMinRating(items, min = MIN_RATING, count = 5) {
+  const good = items.filter(it => getRating(it) >= min);
+  if (good.length >= count) return randomSample(good, count);
+  const rest = items.filter(it => !good.includes(it));
+  const picked = good.concat(randomSample(rest, count - good.length));
+  return picked.slice(0, count);
+}
 
 const I18N_LANGS = ["eng", "tur", "deu", "fre", "rus"];
 const ALL_LANG_TURLER = I18N_LANGS
@@ -169,7 +190,7 @@ function setPopoverContent(studioName, items) {
   pop.querySelector('.hub-preview-close').setAttribute('aria-label', config.languageLabels.closeButton || 'Close');
 
   body.innerHTML = '';
-  const { serverId } = getSessionInfo();
+  const { serverId, userId } = getSessionInfo();
 
   items.slice(0, 5).forEach(item => {
     const itemEl = document.createElement('div');
@@ -182,23 +203,105 @@ function setPopoverContent(studioName, items) {
     } else {
       rating = config.languageLabels.noRating || 'N/A';
     }
+    let isFavorite = !!(item.UserData?.IsFavorite);
+    const favAddText = config.languageLabels.addToFavorites || 'Favorilere ekle';
+    const favRemoveText = config.languageLabels.removeFromFavorites || 'Favorilerden çıkar';
+
     itemEl.innerHTML = `
       <img class="hub-preview-poster" src="${posterUrl || '/css/images/placeholder.png'}" alt="${item.Name}" loading="lazy">
       <div class="hub-preview-info">
         <div class="hub-preview-item-title">${item.Name}</div>
-        <div class="hub-preview-rating">⭐ ${rating}</div>
+        <div class="hub-preview-rating">
+          ⭐ ${rating}
+          <button class="favorite-heart ${isFavorite ? 'favorited' : ''}"
+                  data-item-id="${item.Id}"
+                  aria-label="${isFavorite ? favRemoveText : favAddText}">
+            ${isFavorite ? '❤️' : '🤍'}
+          </button>
+        </div>
       </div>
     `;
-    itemEl.addEventListener('click', () => {
-      hidePreviewPopover();
-      window.location.href = `#/details?id=${item.Id}&serverId=${encodeURIComponent(serverId)}`;
+
+    const favoriteBtn = itemEl.querySelector('.favorite-heart');
+    favoriteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (favoriteBtn.__busy) return;
+      favoriteBtn.__busy = true;
+      const next = !isFavorite;
+      const ok = await toggleFavorite(item.Id, next, favoriteBtn);
+      favoriteBtn.__busy = false;
+      if (ok) {
+        isFavorite = next;
+        item.UserData = item.UserData || {};
+        item.UserData.IsFavorite = isFavorite;
+        favoriteBtn.classList.toggle('favorited', isFavorite);
+        favoriteBtn.innerHTML = isFavorite ? '❤️' : '🤍';
+        favoriteBtn.setAttribute('aria-label', isFavorite ? favRemoveText : favAddText);
+      } else {
+      }
     });
 
+    itemEl.addEventListener('click', (e) => {
+      if (!e.target.closest('.favorite-heart')) {
+        hidePreviewPopover();
+        window.location.href = `#/details?id=${item.Id}&serverId=${encodeURIComponent(serverId)}`;
+      }
+    });
+
+    attachMiniPosterHover(itemEl, item);
     body.appendChild(itemEl);
   });
 
   return pop;
 }
+
+async function toggleFavorite(itemId, isFavorite, buttonElement) {
+  const { userId } = getSessionInfo();
+  const favAddText = config.languageLabels.addToFavorites || 'Favorilere ekle';
+  const favRemoveText = config.languageLabels.removeFromFavorites || 'Favorilerden çıkar';
+  try {
+    const response = await fetch(`/Users/${userId}/FavoriteItems/${itemId}`, {
+      method: isFavorite ? 'POST' : 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': getAuthHeader()
+      }
+    });
+
+    if (response.ok) {
+      if (isFavorite) {
+        buttonElement.innerHTML = '❤️';
+        buttonElement.classList.add('favorited');
+        buttonElement.setAttribute('aria-label', favRemoveText);
+      } else {
+        buttonElement.innerHTML = '🤍';
+        buttonElement.classList.remove('favorited');
+        buttonElement.setAttribute('aria-label', favAddText);
+      }
+      buttonElement.style.transform = 'scale(1.2)';
+      setTimeout(() => {
+        buttonElement.style.transform = 'scale(1)';
+      }, 200);
+
+      return true;
+    } else {
+      console.error('Favori durumu değiştirilemedi:', response.status);
+      buttonElement.style.animation = 'shake 0.5s';
+      setTimeout(() => {
+        buttonElement.style.animation = '';
+      }, 500);
+      return false;
+    }
+  } catch (error) {
+    console.error('Favori işlemi hatası:', error);
+    buttonElement.style.animation = 'shake 0.5s';
+    setTimeout(() => {
+      buttonElement.style.animation = '';
+    }, 500);
+    return false;
+  }
+}
+
 
 function positionPopover(anchorEl, pop) {
   const margin = 8;
@@ -319,8 +422,8 @@ function createPreviewButton(card, studioName, studioId, userId) {
     btn.style.opacity = '0.5';
     try {
       const signal = __fetchAbort ? __fetchAbort.signal : null;
-      studioItems = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal);
-      studioItems.sort((a, b) => (b.CommunityRating || b.CriticRating || 0) - (a.CommunityRating || a.CriticRating || 0));
+      const fetched = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal);
+      studioItems = selectRandomItemsWithMinRating(fetched, MIN_RATING, 5);
     } catch (err) {
       console.error('Ön izleme verileri alınamadı:', err);
       studioItems = [];

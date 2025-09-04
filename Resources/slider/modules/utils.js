@@ -298,7 +298,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     isMouseOver = true;
     latestHoverId++;
     const thisHoverId = latestHoverId;
-    abortController.abort();
+    abortController.abort('hover-cancel');
     abortController = new AbortController();
 
     if (enterTimeout) { clearTimeout(enterTimeout); enterTimeout = null; }
@@ -332,7 +332,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   const handleLeave = () => {
     isMouseOver = false;
     latestHoverId++;
-    abortController.abort();
+    abortController.abort('hover-cancel');
     abortController = new AbortController();
     if (enterTimeout) { clearTimeout(enterTimeout); enterTimeout = null; }
     fullCleanup();
@@ -552,7 +552,10 @@ export async function getHighestQualityBackdropIndex(itemId) {
 }
 
 async function getImageSizeInBytes(url) {
-  const response = await fetch(url, { method: "HEAD" });
+  const response = await fetch(url, {
+    method: "HEAD",
+    headers: { Authorization: getAuthHeader() }
+  });
   const size = response.headers.get("Content-Length");
   if (!size) throw new Error("Görsel boyutu alınamadı");
   return parseInt(size, 10);

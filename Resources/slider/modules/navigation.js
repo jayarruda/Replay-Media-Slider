@@ -493,8 +493,8 @@ function getOrCreateTrailerIframe() {
    if (!iframe) {
      iframe = document.createElement('iframe');
      iframe.className = 'preview-trailer-iframe';
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-    iframe.referrerPolicy = 'no-referrer';
+     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+     iframe.referrerPolicy = 'origin-when-cross-origin';
      iframe.allowFullscreen = true;
      Object.assign(iframe.style, {
        width: '100%',

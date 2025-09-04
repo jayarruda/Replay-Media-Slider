@@ -31,7 +31,7 @@ function getDefaultTopByVariant(variant) {
     }
   } else {
     switch (variant) {
-      case 'normalslider': return -20;
+      case 'normalslider': return -23;
       case 'fullslider': return -12;
       case 'slider':
       default: return 0;
