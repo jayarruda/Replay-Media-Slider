@@ -72,5 +72,237 @@
     </div>
   </div>
 
+  <style>
+#JMSFusionConfigPage {
+  --jf-primary: #00a4dc;
+  --jf-primary-hover: #0088bf;
+  --jf-success: #00b893;
+  --jf-warning: #ff9a14;
+  --jf-error: #e53935;
+  --jf-bg-light: #f5f5f5;
+  --jf-border-light: #e0e0e0;
+  --jf-text-dark: #212121;
+  --jf-text-light: #f5f5f5;
+  --jf-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --jf-card-radius: 8px;
+}
+
+.theme-dark #JMSFusionConfigPage {
+  --jf-bg-light: #2b2b2b;
+  --jf-border-light: #404040;
+  --jf-text-dark: #eaeaea;
+  --jf-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+#JMSFusionConfigPage .content-primary {
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+#JMSFusionConfigPage .verticalSection {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--cardBackgroundColor);
+  border-radius: var(--jf-card-radius);
+  box-shadow: var(--jf-card-shadow);
+}
+
+#JMSFusionConfigPage h2 {
+  color: var(--primaryAccentColor);
+  margin-bottom: 16px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+#JMSFusionConfigPage h3 {
+  color: var(--textColor);
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+#JMSFusionConfigPage p {
+  color: var(--textColor);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+#JMSFusionConfigPage .inputContainer {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: var(--cardBackgroundColor);
+  border-radius: var(--jf-card-radius);
+  box-shadow: var(--jf-card-shadow);
+}
+
+#JMSFusionConfigPage .inputLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--textColor);
+  font-weight: 500;
+}
+
+#JMSFusionConfigPage .emby-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--jf-border-light);
+  border-radius: 4px;
+  background-color: var(--inputBackgroundColor);
+  color: var(--textColor);
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+#JMSFusionConfigPage .emby-input:focus {
+  border-color: var(--jf-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 164, 220, 0.2);
+}
+
+#JMSFusionConfigPage .fieldDescription {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--labelTextColor);
+  line-height: 1.4;
+}
+
+#JMSFusionConfigPage .fieldDescription.ok {
+  color: var(--jf-success);
+}
+
+#JMSFusionConfigPage .fieldDescription.warn {
+  color: var(--jf-warning);
+}
+
+#JMSFusionConfigPage .fieldDescription.err {
+  color: var(--jf-error);
+}
+
+#JMSFusionConfigPage .buttonContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+#JMSFusionConfigPage .raised {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--buttonBackgroundColor);
+  color: var(--buttonTextColor);
+}
+
+#JMSFusionConfigPage .raised:hover {
+  background-color: var(--buttonHoverBackgroundColor);
+  transform: translateY(-1px);
+}
+
+#JMSFusionConfigPage .button-submit {
+  background-color: var(--jf-primary);
+  color: white;
+}
+
+#JMSFusionConfigPage .button-submit:hover {
+  background-color: var(--jf-primary-hover);
+}
+
+#JMSFusionConfigPage #msg {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin: 16px 0;
+  background-color: var(--cardBackgroundColor);
+  border-left: 4px solid transparent;
+}
+
+#JMSFusionConfigPage #msg.ok {
+  border-left-color: var(--jf-success);
+  background-color: rgba(0, 184, 147, 0.1);
+}
+
+#JMSFusionConfigPage #msg.warn {
+  border-left-color: var(--jf-warning);
+  background-color: rgba(255, 154, 20, 0.1);
+}
+
+#JMSFusionConfigPage #msg.err {
+  border-left-color: var(--jf-error);
+  background-color: rgba(229, 57, 53, 0.1);
+}
+
+#JMSFusionConfigPage pre.preformatted {
+  padding: 16px;
+  background-color: var(--inputBackgroundColor);
+  border-radius: 4px;
+  border: 1px solid var(--jf-border-light);
+  overflow: auto;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--textColor);
+}
+
+#JMSFusionConfigPage #snippet,
+#JMSFusionConfigPage #envBox {
+  padding: 16px;
+  background-color: var(--inputBackgroundColor);
+  border-radius: 4px;
+  border: 1px solid var(--jf-border-light);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--textColor);
+}
+
+#JMSFusionConfigPage #snippet code,
+#JMSFusionConfigPage #envBox code {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.theme-dark #JMSFusionConfigPage #snippet code,
+.theme-dark #JMSFusionConfigPage #envBox code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#JMSFusionConfigPage .ok {
+  color: var(--jf-success);
+  font-weight: 500;
+}
+
+#JMSFusionConfigPage .warn {
+  color: var(--jf-warning);
+  font-weight: 500;
+}
+
+#JMSFusionConfigPage ul {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+#JMSFusionConfigPage li {
+  margin-bottom: 4px;
+  color: var(--textColor);
+}
+
+@media (max-width: 768px) {
+  #JMSFusionConfigPage .buttonContainer {
+    flex-direction: column;
+  }
+
+  #JMSFusionConfigPage .raised {
+    width: 100%;
+  }
+
+  #JMSFusionConfigPage .content-primary {
+    padding: 12px;
+  }
+}
+</style>
   <script src="/Plugins/JMSFusion/assets/UiJs" type="text/javascript" data-jf-no-translate="1"></script>
 </div>
