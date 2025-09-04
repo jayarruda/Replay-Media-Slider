@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  optionAuto: "🌐 Automatisch (Browsersprache)",
   personalHub: "Empfehlungen basierend auf Ihren meistgesehenen Genres",
   previewModalTitle: "Beste",
   closeButton: "Schließen",

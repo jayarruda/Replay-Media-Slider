@@ -1,34 +1,47 @@
-import { getLanguageLabels, getDefaultLanguage } from './index.js';
+import {
+  getLanguageLabels,
+  getDefaultLanguage,
+  getStoredLanguagePreference,
+  setLanguagePreference,
+  getEffectiveLanguage
+} from './index.js';
 
 let translations = getLanguageLabels(getDefaultLanguage());
 
 function applyTranslations() {
-  document.querySelectorAll("[data-translate]").forEach(element => {
-    const key = element.getAttribute("data-translate");
-    const keys = key.split('.');
-    let translation = translations;
-
-    keys.forEach(k => {
-      if (translation && translation[k]) {
-        translation = translation[k];
-      } else {
-        translation = null;
-      }
-    });
-
-    if (translation) {
-      element.textContent = translation;
+  document.querySelectorAll('[data-translate]').forEach(el => {
+    const path = el.getAttribute('data-translate');
+    if (!path) return;
+    const keys = path.split('.');
+    let t = translations;
+    for (const k of keys) {
+      t = t && t[k] != null ? t[k] : null;
+      if (t == null) break;
     }
+    if (t != null) el.textContent = t;
   });
+}
+
+function wireSelectOnce() {
+  const sel = document.getElementById('defaultLanguageSelect')
+        || document.querySelector('select[name="defaultLanguage"]');
+  if (!sel) return false;
+
+  const uiPref = getStoredLanguagePreference() || 'auto';
+  if ([...sel.options].some(o => o.value === uiPref)) sel.value = uiPref;
+
+  sel.addEventListener('change', (e) => {
+    const selected = e.target.value;
+    setLanguagePreference(selected);
+    const effective = getEffectiveLanguage();
+    translations = getLanguageLabels(effective);
+    applyTranslations();
+  });
+
+  return true;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   applyTranslations();
-});
-
-document.getElementById('defaultLanguageSelect').addEventListener('change', (event) => {
-  const selectedLanguage = event.target.value;
-  localStorage.setItem('defaultLanguage', selectedLanguage);
-  translations = getLanguageLabels(selectedLanguage);
-  applyTranslations();
+  if (!wireSelectOnce()) requestAnimationFrame(wireSelectOnce);
 });

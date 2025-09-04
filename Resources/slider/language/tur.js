@@ -1,5 +1,6 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  optionAuto: "🌐 Otomatik (Tarayıcı dili)",
   personalHub: "En Çok İzlediğiniz Türlere Göre Öneriler",
   previewModalTitle: 'En iyiler',
   closeButton: 'Kapat',
