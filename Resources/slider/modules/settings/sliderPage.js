@@ -1,40 +1,46 @@
 import { getConfig } from "../config.js";
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol } from "../settings.js";
 import { applySettings, applyRawConfig } from "./applySettings.js";
+import { getDefaultLanguage, getStoredLanguagePreference } from '../../language/index.js';
 
 export function createSliderPanel(config, labels) {
-    const panel = document.createElement('div');
-    panel.id = 'slider-panel';
-    panel.className = 'settings-panel';
+  const panel = document.createElement('div');
+  panel.id = 'slider-panel';
+  panel.className = 'settings-panel';
 
-    const languageDiv = document.createElement('div');
-    languageDiv.className = 'setting-item';
-    const languageLabel = document.createElement('label');
-    languageLabel.textContent = labels.defaultLanguage || 'Dil:';
-    languageLabel.htmlFor = 'languageDiv';
-    languageLabel.id = 'languageDiv';
-    const languageSelect = document.createElement('select');
-    languageSelect.name = 'defaultLanguage';
+  const languageDiv = document.createElement('div');
+  languageDiv.className = 'setting-item';
+  const languageLabel = document.createElement('label');
+  languageLabel.textContent = labels.defaultLanguage || 'Dil:';
+  languageLabel.htmlFor = 'languageDiv';
+  languageLabel.id = 'languageDiv';
+  const languageSelect = document.createElement('select');
+  languageSelect.name = 'defaultLanguage';
+  languageSelect.id = 'defaultLanguageSelect';
 
-    const languages = [
-        { value: 'tur', label: labels.optionTurkish || '🇹🇷 Türkçe' },
-        { value: 'eng', label: labels.optionEnglish || '🇬🇧 English' },
-        { value: 'deu', label: labels.optionGerman || '🇩🇪 Deutsch' },
-        { value: 'fre', label: labels.optionFrench || '🇫🇷 Français' },
-        { value: 'rus', label: labels.optionRussian || '🇷🇺 Русский' },
-    ];
+  const uiPref = getStoredLanguagePreference() || 'auto';
+  const effective = getDefaultLanguage();
 
-    languages.forEach(lang => {
-        const option = document.createElement('option');
-        option.value = lang.value;
-        option.textContent = lang.label;
-        if (lang.value === config.defaultLanguage) {
-            option.selected = true;
-        }
-        languageSelect.appendChild(option);
-    });
+  const languages = [
+    { value: 'auto', label: labels.optionAuto || '🌐 Otomatik (Tarayıcı dili)' },
+    { value: 'tur',  label: labels.optionTurkish || '🇹🇷 Türkçe' },
+    { value: 'eng',  label: labels.optionEnglish || '🇬🇧 English' },
+    { value: 'deu',  label: labels.optionGerman  || '🇩🇪 Deutsch' },
+    { value: 'fre',  label: labels.optionFrench  || '🇫🇷 Français' },
+    { value: 'rus',  label: labels.optionRussian || '🇷🇺 Русский' },
+  ];
 
-    languageDiv.append(languageLabel, languageSelect);
+  languages.forEach(lang => {
+    const option = document.createElement('option');
+    option.value = lang.value;
+    option.textContent = lang.label;
+    if (lang.value === uiPref || (uiPref === 'auto' && lang.value === effective)) {
+      option.selected = true;
+    }
+    languageSelect.appendChild(option);
+  });
+
+  languageDiv.append(languageLabel, languageSelect);
 
     const cssDiv = document.createElement('div');
     cssDiv.className = 'fsetting-item';
@@ -406,72 +412,46 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
       config.previewModal
     );
       sliderDiv.appendChild(previewModalCheckbox);
+      const dotPreviewDiv = document.createElement('div');
+      dotPreviewDiv.className = 'fsetting-item';
+      const dotPreviewLabel = document.createElement('label');
+      dotPreviewLabel.textContent = labels.dotPreviewMode || 'Poster Dot Önizleme Modu:';
+      dotPreviewLabel.style.display = 'block';
+      dotPreviewLabel.style.marginBottom = '6px';
 
-      const allPreviewModalCheckbox = createCheckbox(
-      'allPreviewModal',
-      labels.allPreviewModal || 'Modalı Jellyfin geneline uygula',
-      config.allPreviewModal
-  );
-    sliderDiv.appendChild(allPreviewModalCheckbox);
+      const modes = [
+        { value: 'trailer',     text: labels.preferTrailersInPreviewModal || 'Fragman + Video' },
+        { value: 'video',       text: labels.videoOnly || 'Video' },
+        { value: 'onlyTrailer', text: labels.onlyTrailerInPreviewModal || 'Sadece Fragman' },
+      ];
 
-    const preferTrailerCheckbox = createCheckbox(
-    'preferTrailersInPreviewModal',
-    labels.preferTrailersInPreviewModal || 'Modalda Fragman > Video',
-    config.preferTrailersInPreviewModal
-  );
-    sliderDiv.appendChild(preferTrailerCheckbox);
+      const dotPreviewGroup = document.createElement('div');
+      dotPreviewGroup.style.display = 'flex';
+      dotPreviewGroup.style.flexDirection = 'column';
+      dotPreviewGroup.style.gap = '4px';
 
-    const onlyTrailerCheckbox = createCheckbox(
-    'onlyTrailerInPreviewModal',
-    labels.onlyTrailerInPreviewModal || 'Modalda Sadece Fragman',
-    config.onlyTrailerInPreviewModal
-  );
-    sliderDiv.appendChild(onlyTrailerCheckbox);
+      modes.forEach(m => {
+        const wrap = document.createElement('label');
+        wrap.style.display = 'flex';
+        wrap.style.alignItems = 'center';
+        wrap.style.gap = '8px';
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = 'dotPreviewPlaybackMode';
+        input.value = m.value;
+        input.checked = (config.dotPreviewPlaybackMode || '') === m.value;
+        wrap.appendChild(input);
+        wrap.appendChild(document.createTextNode(m.text));
+        dotPreviewGroup.appendChild(wrap);
+      });
 
-    const preferTrailerInput = preferTrailerCheckbox.querySelector('input');
-    const onlyTrailerInput = onlyTrailerCheckbox.querySelector('input');
-    const allPreviewModalInput = allPreviewModalCheckbox.querySelector('input');
-    const previewModalInput = previewModalCheckbox.querySelector('input');
+      if (!config.dotPreviewPlaybackMode) {
+        const first = dotPreviewGroup.querySelector('input[value="trailer"]');
+        if (first) first.checked = true;
+      }
 
-    preferTrailerInput.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        onlyTrailerInput.checked = false;
-    }
-});
-
-    onlyTrailerInput.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        preferTrailerInput.checked = false;
-    }
-});
-
-function updateModalRelatedFields() {
-    const previewModalEnabled = previewModalInput.checked;
-    const allPreviewModalEnabled = allPreviewModalInput.checked;
-    if (!previewModalEnabled) {
-        allPreviewModalInput.checked = false;
-        preferTrailerInput.checked = false;
-        onlyTrailerInput.checked = false;
-
-        allPreviewModalInput.disabled = true;
-        preferTrailerInput.disabled = true;
-        onlyTrailerInput.disabled = true;
-    } else {
-        allPreviewModalInput.disabled = false;
-        if (!allPreviewModalEnabled) {
-            preferTrailerInput.checked = false;
-            onlyTrailerInput.checked = false;
-            preferTrailerInput.disabled = true;
-            onlyTrailerInput.disabled = true;
-        } else {
-            preferTrailerInput.disabled = false;
-            onlyTrailerInput.disabled = false;
-        }
-    }
-}
-
-    previewModalInput.addEventListener('change', updateModalRelatedFields);
-    allPreviewModalInput.addEventListener('change', updateModalRelatedFields);
+      dotPreviewDiv.append(dotPreviewLabel, dotPreviewGroup);
+      sliderDiv.appendChild(dotPreviewDiv);
 
     document.addEventListener('DOMContentLoaded', () => {
       if (preferTrailerInput.checked && onlyTrailerInput.checked) {
@@ -480,24 +460,9 @@ function updateModalRelatedFields() {
     updateModalRelatedFields();
   });
 
-    requestAnimationFrame(updateModalRelatedFields);
-
-    const enableHlsDesc = document.createElement('div');
-    enableHlsDesc.className = 'description-text';
-    enableHlsDesc.textContent = labels.enableHlsDescription || 'HLS aktifleştirildiğinde kod dönüştürme yapılmaktadır. Ffmpeg kullanımı yüksek cpu kullanımına sebep olabilir. Aktifleştirilmezse sadece tarayıcının desteklediği video ve ses kodecleri oynatılır.';
-
-    sliderDiv.appendChild(enableHlsDesc);
-
-    const enableHls = createCheckbox(
-        'enableHls',
-        labels.enableHls || 'HLS Desteğini ektinleştir',
-        config.enableHls
-    );
-     sliderDiv.appendChild(enableHls);
-
 
     const dotBgDiv = document.createElement('div');
-    dotBgDiv.className = 'fsetting-item dot-bg-container';
+    dotBgDiv.className = 'fsetting-item';
     const dotBgLabel = document.createElement('label');
     dotBgLabel.textContent = labels.dotBackgroundImageType || 'Dot Arka Plan Görsel Türü:';
     const dotBgSelect = createImageTypeSelect(

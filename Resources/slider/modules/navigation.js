@@ -9,6 +9,7 @@ import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, get
 import { applySlideAnimation, applyDotPosterAnimation} from "./animations.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { getYoutubeEmbedUrl, isValidUrl } from "./utils.js";
+import { attachMiniPosterHover } from "./studioHubsUtils.js";
 
 let videoModal, modalVideo, modalTitle, modalMeta, modalMatchInfo, modalGenres, modalPlayButton, modalFavoriteButton, modalEpisodeLine, modalButtonsContainer, modalMatchButton;
 let modalHoverState = false;
@@ -27,6 +28,8 @@ let _isModalClosing = false;
 let _modalClosingUntil = 0;
 let _playbackToken = 0;
 let _soundOn = true;
+let _modalContext = null;
+
 
 const OPEN_HOVER_DELAY_MS   = 500;
 const REOPEN_COOLDOWN_MS    = 150;
@@ -49,8 +52,6 @@ const _ytPlayers = new Map();
 const _ytReadyMap = new Map();
 const _ytReadyResolvers = [];
 const _seriesTrailerCache = new Map();
-
-
 const MODAL_ANIM = {
   openMs: 340,
   closeMs: 180,
@@ -62,6 +63,8 @@ const MODAL_ANIM = {
 };
 
 const OPEN_ANIM_MS = MODAL_ANIM.openMs;
+const contextIsDot = _modalContext === 'dot';
+const dotMode = (getConfig()?.dotPreviewPlaybackMode) || null;
 
 export function setModalAnimation(opts = {}) {
   Object.assign(MODAL_ANIM, opts);
@@ -141,17 +144,23 @@ async function getSeriesTrailerUrl(seriesId) {
 }
 
 async function openModalForDot(dot, itemId, signal) {
+  const cfg = getConfig();
+  if (!cfg || cfg.previewModal === false) return
   if (videoModal) {
     hardStopPlayback();
     resetModalInfo(videoModal);
     resetModalButtons();
-    videoModal.style.display = 'none';
+    if (_modalContext !== 'dot') {
+      destroyVideoModal();
+    } else {
+      videoModal.style.display = 'none';
+    }
   }
 
   const item = await fetchItemDetails(itemId, { signal });
   if (signal?.aborted) return;
   if (!videoModal || !document.body.contains(videoModal)) {
-    const modalElements = createVideoModal({ showButtons: true });
+    const modalElements = createVideoModal({ showButtons: true, context: 'dot' });
     if (!modalElements) return;
     videoModal = modalElements.modal;
     modalVideo = modalElements.video;
@@ -1392,14 +1401,14 @@ function injectOrUpdateModalStyle() {
   if (!style.isConnected) document.head.appendChild(style);
 }
 
-function createVideoModal({ showButtons = true } = {}) {
-  if (!config || config.previewModal === false) {
-    return null;
-  }
+function createVideoModal({ showButtons = true, context = 'dot' } = {}) {
+  if (!config) return null;
+  const allow =
+    (context === 'dot'    && config.previewModal     !== false) ||
+    (context === 'global' && config.allPreviewModal  !== false);
+  if (!allow) return null;
 
   injectOrUpdateModalStyle();
-
-  if (typeof config !== 'undefined' && config.previewModal !== false) {
     destroyVideoModal();
     const modal = document.createElement('div');
     modal.className = 'video-preview-modal';
@@ -1710,6 +1719,7 @@ modal.hideBackdrop = function() {
     document.body.appendChild(modal);
     videoModal = modal;
     modalVideo = video;
+    _modalContext = context;
     if (typeof bindModalEvents === "function") bindModalEvents(modal);
 
     return {
@@ -1727,7 +1737,6 @@ modal.hideBackdrop = function() {
       buttonsContainer
     };
   }
-}
 
 function positionModalRelativeToDot(modal, dot) {
   const dotRect = dot.getBoundingClientRect();
@@ -1891,8 +1900,30 @@ async function updateModalContent(item, videoUrl) {
     delete modalVideo._hls;
   }
 
-  const onlyTrailer = !!config.onlyTrailerInPreviewModal;
-  const preferTrailer = !!config.preferTrailersInPreviewModal;
+  const contextIsDot = _modalContext === 'dot';
+  const dotMode = config.dotPreviewPlaybackMode || null;
+  const onlyTrailerGlobal   = !!config.onlyTrailerInPreviewModal;
+  const preferTrailerGlobal = !!config.preferTrailersInPreviewModal;
+  let onlyTrailer = false;
+  let preferTrailer = false;
+  if (contextIsDot) {
+    if (dotMode === 'onlyTrailer') {
+      onlyTrailer = true;
+      preferTrailer = false;
+    } else if (dotMode === 'trailer') {
+      onlyTrailer = false;
+      preferTrailer = true;
+    } else if (dotMode === 'video') {
+      onlyTrailer = false;
+      preferTrailer = false;
+    } else {
+      onlyTrailer = onlyTrailerGlobal;
+      preferTrailer = preferTrailerGlobal;
+    }
+  } else {
+    onlyTrailer = onlyTrailerGlobal;
+    preferTrailer = preferTrailerGlobal;
+  }
   const trailerInfo = await resolveTrailerUrlFor(item);
   const trailerUrl = trailerInfo.url;
   const isLocal = trailerInfo.level === 'local';
@@ -2213,7 +2244,29 @@ function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
 
 export function setupHoverForAllItems() {
   if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) return;
-  if (!config || config.previewModal === false) return;
+  if (!config || config.allPreviewModal === false) return;
+  const mode = config.globalPreviewMode || 'modal';
+
+  const items = document.querySelectorAll('.cardImageContainer');
+  if (!items.length) return;
+  if (mode === 'studioMini') {
+    destroyVideoModal();
+
+    items.forEach(item => {
+      if (item.__miniBound) return;
+      item.__miniBound = true;
+
+      const itemId =
+        item.dataset.itemId ||
+        item.dataset.id ||
+        (item.closest('[data-id]') && item.closest('[data-id]').dataset.id);
+
+      if (!itemId) return;
+      attachMiniPosterHover(item, { Id: itemId });
+    });
+    return;
+  }
+
   if (typeof config !== 'undefined' && config.allPreviewModal !== false) {
     const items = document.querySelectorAll('.cardImageContainer');
     items.forEach(item => {
@@ -2257,8 +2310,9 @@ export function setupHoverForAllItems() {
       return;
     }
 
-    if (!videoModal || !document.body.contains(videoModal)) {
-      const modalElements = createVideoModal({ showButtons: true });
+    if (!videoModal || !document.body.contains(videoModal) || _modalContext !== 'global') {
+      try { destroyVideoModal(); } catch {}
+      const modalElements = createVideoModal({ showButtons: true, context: 'global' });
       if (!modalElements) return;
       videoModal = modalElements.modal;
       modalVideo = modalElements.video;

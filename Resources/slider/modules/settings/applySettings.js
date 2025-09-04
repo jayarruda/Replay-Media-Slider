@@ -74,6 +74,12 @@ export function applySettings(reload = false) {
             allPreviewModal: formData.get('allPreviewModal') === 'on',
             preferTrailersInPreviewModal: formData.get('preferTrailersInPreviewModal') === 'on',
             onlyTrailerInPreviewModal: formData.get('onlyTrailerInPreviewModal') === 'on',
+            dotPreviewPlaybackMode: (() => {
+              const v = formData.get('dotPreviewPlaybackMode');
+              if (v === 'trailer' || v === 'video' || v === 'onlyTrailer') return v;
+              return null;
+            })(),
+            globalPreviewMode: formData.get('globalPreviewMode') || 'modal',
             enabledGmmp: formData.get('enabledGmmp') === 'on',
             enableQualityBadges: formData.get('enableQualityBadges') === 'on',
             enableTrailerThenVideo: formData.get('enableTrailerThenVideo') === 'on',

@@ -1,7 +1,17 @@
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 
 export function getConfig() {
-
+  function readDotPreviewMode() {
+    try {
+      const v = localStorage.getItem('dotPreviewPlaybackMode');
+      if (!v || v === '[object Object]') return null;
+      if (v === 'trailer' || v === 'video' || v === 'onlyTrailer') return v;
+      localStorage.removeItem('dotPreviewPlaybackMode');
+      return null;
+    } catch {
+      return null;
+    }
+  }
   function readPauseOverlay() {
   const raw = localStorage.getItem('pauseOverlay');
 
@@ -112,7 +122,7 @@ export function getConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v1.4.5",
+    version: "v1.5.0",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -165,6 +175,8 @@ export function getConfig() {
     enableHls: localStorage.getItem('enableHls') === 'true' ? true : false,
     previewModal: localStorage.getItem('previewModal') !== 'false',
     allPreviewModal: localStorage.getItem('allPreviewModal') !== 'false',
+    globalPreviewMode: localStorage.getItem('globalPreviewMode') || 'modal',
+    dotPreviewPlaybackMode: readDotPreviewMode(),
     preferTrailersInPreviewModal: localStorage.getItem('preferTrailersInPreviewModal') === 'true',
     onlyTrailerInPreviewModal: localStorage.getItem('onlyTrailerInPreviewModal') === 'true',
     enabledGmmp: localStorage.getItem('enabledGmmp') !== 'false',

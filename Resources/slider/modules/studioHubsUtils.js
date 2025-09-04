@@ -10,6 +10,16 @@ const detailsCache = new Map();
 
 const config = getConfig();
 
+function isAudioItem(it) {
+  const t = (it?.Type || it?.MediaType || '').toLowerCase();
+  return ['audio', 'musictrack', 'musicalbum', 'audiobook', 'playlist'].includes(t);
+}
+
+async function fetchItem(itemId, fields, abortSignal) {
+  const qs = fields && fields.length ? `?Fields=${fields.join(',')}` : '';
+  return makeApiRequest(`/Items/${itemId}${qs}`, { signal: abortSignal });
+}
+
 function ensureCss() {
   if (__cssLoaded) return;
   const link = document.createElement("link");
@@ -28,6 +38,7 @@ function ensureCss() {
    el.innerHTML = `
      <div class="mini-bg" aria-hidden="true"></div>
      <div class="mini-overlay">
+     <div class="mini-title"></div>
       <div class="mini-meta">
         <div class="mini-topline">
           <div class="mini-left">
@@ -166,41 +177,95 @@ function buildBackdropUrl(it, idx = 0) {
 }
 
 async function getDetails(itemId, abortSignal) {
-  const cached = detailsCache.get(itemId);
-  if (cached && (Date.now() - cached.ts) < DETAILS_TTL) return cached.data;
+   const cached = detailsCache.get(itemId);
+   if (cached && (Date.now() - cached.ts) < DETAILS_TTL) return cached.data;
   const fields = [
+    "Type","Name","SeriesId","SeriesName","ParentId","ParentIndexNumber","IndexNumber",
     "Overview","Genres","RunTimeTicks","OfficialRating","ProductionYear",
     "CommunityRating","CriticRating","ImageTags","BackdropImageTags",
     "UserData","MediaStreams"
-  ].join(",");
+  ];
   try {
-    const data = await makeApiRequest(`/Items/${itemId}?Fields=${fields}`, { signal: abortSignal });
+    const data = await fetchItem(itemId, fields, abortSignal);
+    if (data?.Type === 'Season' && data?.SeriesId) {
+      const seriesFields = [
+        "Type","Name","Overview","Genres","OfficialRating","ProductionYear",
+        "CommunityRating","CriticRating","ImageTags","BackdropImageTags","MediaStreams"
+      ];
+      const series = await fetchItem(data.SeriesId, seriesFields, abortSignal);
+      data.__series = series || null;
+    }
+
     detailsCache.set(itemId, { ts: Date.now(), data });
     return data;
   } catch (e) {
     return null;
   }
-}
+ }
 
 function fillMiniContent(pop, itemBase, details) {
+  const titleWrap = pop.querySelector(".mini-title");
   const yearWrap = pop.querySelector(".mini-year");
-  const yearEl   = pop.querySelector(".mini-year .v");
-  const rtWrap   = pop.querySelector(".mini-runtime");
-  const rtEl     = pop.querySelector(".mini-runtime .v");
-  const dotEl    = pop.querySelector(".mini-dot");
+  const yearEl = pop.querySelector(".mini-year .v");
+  const rtWrap = pop.querySelector(".mini-runtime");
+  const rtEl = pop.querySelector(".mini-runtime .v");
+  const dotEl = pop.querySelector(".mini-dot");
   const starWrap = pop.querySelector(".mini-star");
-  const starVal  = pop.querySelector(".mini-star .v");
-  const tomWrap  = pop.querySelector(".mini-tomato");
-  const tomVal   = pop.querySelector(".mini-tomato .v");
-  const ageWrap  = pop.querySelector(".mini-age");
-  const tagsEl   = pop.querySelector(".mini-tags");
-  const audioEl  = pop.querySelector(".mini-audio");
-  const qualityEl= pop.querySelector(".mini-quality-inline");
-   const ovEl     = pop.querySelector(".mini-overview");
-   const bgEl     = pop.querySelector(".mini-bg");
-   const item = { ...itemBase, ...details };
-   const poster = buildPosterUrl(item, 600, 95) || buildBackdropUrl(item, 0);
-   bgEl.style.backgroundImage = poster ? `url("${poster}")` : "none";
+  const starVal = pop.querySelector(".mini-star .v");
+  const tomWrap = pop.querySelector(".mini-tomato");
+  const tomVal = pop.querySelector(".mini-tomato .v");
+  const ageWrap = pop.querySelector(".mini-age");
+  const tagsEl = pop.querySelector(".mini-tags");
+  const audioEl = pop.querySelector(".mini-audio");
+  const qualityEl = pop.querySelector(".mini-quality-inline");
+  const ovEl = pop.querySelector(".mini-overview");
+  const bgEl = pop.querySelector(".mini-bg");
+
+  let item = { ...itemBase, ...details };
+
+  if (item?.Type === 'Season' && details?.__series) {
+    const s = details.__series;
+    item = {
+      ...item,
+      Overview: item.Overview || s.Overview,
+      Genres: (Array.isArray(item.Genres) && item.Genres.length) ? item.Genres : (s.Genres || []),
+      OfficialRating: item.OfficialRating || s.OfficialRating,
+      ProductionYear: item.ProductionYear || s.ProductionYear,
+      CommunityRating: (typeof item.CommunityRating === 'number') ? item.CommunityRating : s.CommunityRating,
+      CriticRating: (typeof item.CriticRating === 'number') ? item.CriticRating : s.CriticRating,
+      ImageTags: item.ImageTags && Object.keys(item.ImageTags).length ? item.ImageTags : s.ImageTags,
+      BackdropImageTags: (Array.isArray(item.BackdropImageTags) && item.BackdropImageTags.length)
+        ? item.BackdropImageTags : (s.BackdropImageTags || []),
+      MediaStreams: Array.isArray(item.MediaStreams) && item.MediaStreams.length ? item.MediaStreams : (s.MediaStreams || [])
+    };
+  }
+
+  const poster = buildPosterUrl(item, 600, 95) || buildBackdropUrl(item, 0);
+  bgEl.style.backgroundImage = poster ? `url("${poster}")` : "none";
+
+  if (isAudioItem(item)) {
+    const artistName = item.Artists && item.Artists.length > 0
+      ? item.Artists[0]
+      : item.AlbumArtist || item.SeriesName || '';
+
+    const titleText = item.Name || item.Album || '';
+
+    if (titleWrap) {
+      if (artistName && titleText) {
+        titleWrap.textContent = `${artistName} - ${titleText}`;
+      } else if (titleText) {
+        titleWrap.textContent = titleText;
+      } else {
+        titleWrap.textContent = '';
+      }
+      titleWrap.style.display = titleWrap.textContent ? '' : 'none';
+    }
+  } else {
+    if (titleWrap) {
+      titleWrap.textContent = item.Name || item.SeriesName || '';
+      titleWrap.style.display = titleWrap.textContent ? '' : 'none';
+    }
+  }
 
   const hasYear = !!item.ProductionYear;
   yearEl.textContent = hasYear ? String(item.ProductionYear) : "";
@@ -225,7 +290,7 @@ function fillMiniContent(pop, itemBase, details) {
   ageWrap.textContent = hasAge ? item.OfficialRating : "";
   ageWrap.style.display = hasAge ? "" : "none";
 
-  const gs = Array.isArray(item.Genres) ? item.Genres.slice(0,3) : [];
+  const gs = Array.isArray(item.Genres) ? item.Genres.slice(0, 3) : [];
   if (gs.length) {
     tagsEl.innerHTML = gs.map(g => `<span class="mini-tag">${g}</span>`).join("");
     tagsEl.style.display = "";
@@ -234,12 +299,12 @@ function fillMiniContent(pop, itemBase, details) {
     tagsEl.style.display = "none";
   }
 
-   let langs = [];
-   const streams = Array.isArray(item.MediaStreams) ? item.MediaStreams : [];
-   langs = uniq(streams.filter(s => s?.Type === "Audio")
-                       .map(s => shortLang(s?.Language || s?.DisplayLanguage || s?.DisplayTitle))
-                       .filter(Boolean)
-                 ).slice(0,3);
+  let langs = [];
+  const streams = Array.isArray(item.MediaStreams) ? item.MediaStreams : [];
+  langs = uniq(streams.filter(s => s?.Type === "Audio")
+                      .map(s => shortLang(s?.Language || s?.DisplayLanguage || s?.DisplayTitle))
+                      .filter(Boolean)
+                ).slice(0, 3);
   if (langs.length) {
     audioEl.innerHTML = `<span class="mini-audio-badge">🔊 ${langs.join(" • ")}</span>`;
     audioEl.style.display = "";
@@ -257,14 +322,32 @@ function fillMiniContent(pop, itemBase, details) {
       qualityEl.innerHTML = html;
       qualityEl.style.display = "";
       hasQual = true;
-    } else { qualityEl.innerHTML = ""; qualityEl.style.display = "none"; }
-  } else { qualityEl.innerHTML = ""; qualityEl.style.display = "none"; }
+    } else {
+      qualityEl.innerHTML = "";
+      qualityEl.style.display = "none";
+    }
+  } else {
+    qualityEl.innerHTML = "";
+    qualityEl.style.display = "none";
+  }
 
   if (dotEl) dotEl.style.display = (hasYear && (hasRt || hasQual)) ? "" : "none";
 
-   const ov = (item.Overview || "").trim();
-   ovEl.textContent = ov;
- }
+  const ov = (item.Overview || "").trim();
+  ovEl.textContent = ov;
+
+  const nonPosterContent =
+    rtEl.textContent ||
+    starVal.textContent ||
+    tomVal.textContent ||
+    ageWrap.textContent ||
+    tagsEl.innerHTML ||
+    audioEl.innerHTML ||
+    qualityEl.innerHTML ||
+    ovEl.textContent;
+
+  return Boolean(nonPosterContent && String(nonPosterContent).trim().length);
+}
 
 export function attachMiniPosterHover(cardEl, itemLike) {
   if (!cardEl || !itemLike || !itemLike.Id) return;
@@ -277,7 +360,11 @@ export function attachMiniPosterHover(cardEl, itemLike) {
   const open = async () => {
     if (overTimer) { clearTimeout(overTimer); overTimer = null; }
     const details = await getDetails(itemLike.Id, null);
-    fillMiniContent(pop, itemLike, details || {});
+    const hasContent = fillMiniContent(pop, itemLike, details || {});
+    if (!hasContent) {
+      hideMiniPopover();
+      return;
+    }
     posNear(cardEl, pop);
     requestAnimationFrame(() => pop.classList.add("visible"));
   };
