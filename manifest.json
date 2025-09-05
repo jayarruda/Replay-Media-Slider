@@ -10,7 +10,7 @@
     "versions": 
     {
         "version": "1.5.1.0",
-        "changelog": "For details: https://github.com/G-grbz/Jellyfin-Media-Slider ",
+        "changelog": "Added robust helper utilities to enhance plugin operation. / Eklenti çalışmasını geliştirmek için güçlü yardımcı fonksiyonlar eklendi. Added an optional Trailer Popover that integrates with Jellyfin's global popover. / Jellyfin'in genel popover'ı ile entegre olan isteğe bağlı fragman popover eklendi General improvements and refinements. / Genel iyileştirmeler ve düzenlemeler yapıldı.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.5.0/JMSFusion-1.5.1.0-server.zip",
         "checksum": "076ccc03f71439f859acbe93e313bbc3",
@@ -39,7 +39,7 @@
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.5/JMSFusion-1.4.5.2-server.zip",
         "checksum": "f46e14c1b2a0ca2bde7d6e63fb12df2d",
         "timestamp": "2025-09-03T19:56:38.8569979Z"
-    }
+      }
     ]
   }
 ]
