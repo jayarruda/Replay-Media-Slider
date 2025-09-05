@@ -7,38 +7,38 @@
     "owner": "G-Grbz",
     "category": "General",
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
-    "versions": 
-    {
+    "versions": [
+      {
         "version": "1.5.1.0",
-        "changelog": "Added robust helper utilities to enhance plugin operation. / Eklenti çalışmasını geliştirmek için güçlü yardımcı fonksiyonlar eklendi. Added an optional Trailer Popover that integrates with Jellyfin's global popover. / Jellyfin'in genel popover'ı ile entegre olan isteğe bağlı fragman popover eklendi General improvements and refinements. / Genel iyileştirmeler ve düzenlemeler yapıldı.",
+        "changelog": "Added robust helper utilities to enhance plugin operation. / Eklenti çalışmasını geliştirmek için güçlü yardımcı fonksiyonlar eklendi.\nAdded an optional Trailer Popover that integrates with Jellyfin's global popover. / Jellyfin'in genel popover'ı ile entegre olan isteğe bağlı fragman popover eklendi.\nGeneral improvements and refinements. / Genel iyileştirmeler ve düzenlemeler yapıldı.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.5.0/JMSFusion-1.5.1.0-server.zip",
         "checksum": "076ccc03f71439f859acbe93e313bbc3",
-        "timestamp": "2025-09-05T10:23:09.9827940Z"
-    },
+        "timestamp": "2025-09-05T10:23:09Z"
+      },
       {
         "version": "1.5.0.0",
         "changelog": "For details: https://github.com/G-grbz/Jellyfin-Media-Slider ",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.5.0/JMSFusion-1.5.0.0-server.zip",
         "checksum": "f23d8f32251450fbe267b7e46aeb6cc8",
-        "timestamp": "2025-09-04T13:30:36.2280969Z"
-    },
+        "timestamp": "2025-09-04T13:30:36Z"
+      },
       {
         "version": "1.4.5.3",
         "changelog": "StudioHubs has been improved with a new helper popover that displays detailed content information when hovering over preview cards. / StudioHubs geliştirildi ön bakış kartlarının üzerine gelindiğinde detaylı içerik bilgisi gösteren yeni bir yardımcı popover eklendi.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.5/JMSFusion-1.4.5.3-server.zip",
         "checksum": "d6b5e993c0e3a912e87c5b6b24d5b972",
-        "timestamp": "2025-09-04T06:31:10.9618846Z"
-    },
+        "timestamp": "2025-09-04T06:31:10Z"
+      },
       {
         "version": "1.4.5.2",
         "changelog": "Fixed a YouTube trailer playback error for HoverTrailer. / HoverTrailer için YouTube fragman oynatma hatası giderildi.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.4.5/JMSFusion-1.4.5.2-server.zip",
         "checksum": "f46e14c1b2a0ca2bde7d6e63fb12df2d",
-        "timestamp": "2025-09-03T19:56:38.8569979Z"
+        "timestamp": "2025-09-03T19:56:38Z"
       }
     ]
   }
