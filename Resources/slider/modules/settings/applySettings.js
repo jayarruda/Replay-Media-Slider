@@ -97,6 +97,8 @@ export function applySettings(reload = false) {
 
             enableStudioHubs: formData.get('enableStudioHubs') === 'on',
             studioHubsHoverVideo: formData.get('studioHubsHoverVideo') === 'on',
+            studioMiniTrailerPopover: formData.get('studioMiniTrailerPopover') === 'on',
+            studioHubsMinRating: parseFloat(formData.get('studioHubsMinRating')) || 6.5,
             studioHubsCardCount: parseInt(formData.get('studioHubsCardCount'), 10) || 10,
             studioHubsOrder: (() => {
               const raw = formData.get('studioHubsOrder');

@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  studioHubsMinRating: "Mindestbewertung",
+  studioMiniTrailerPopover: "Trailer-Popover öffnen",
   globalPreviewMode: "Globaler Hover-Typ",
   globalPreviewModeModal: "HoverTrailer",
   globalPreviewModeStudio: "StudioHubs Mini",

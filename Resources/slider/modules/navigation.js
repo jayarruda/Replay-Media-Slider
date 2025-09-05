@@ -1520,23 +1520,21 @@ function createVideoModal({ showButtons = true, context = 'dot' } = {}) {
       }
     });
 
-    infoButton.addEventListener('click', (e) => {
+    infoButton.addEventListener('click', async (e) => {
       e.stopPropagation();
       const itemId = modal.dataset.itemId;
       if (!itemId) return;
+      await ensureOverlaysClosed();
       if (window.showItemDetailsPage) {
-        window.showItemDetailsPage(itemId);
-      } else {
-        const dialog = document.querySelector('.dialogContainer');
-        if (dialog) {
-          const event = new CustomEvent('showItemDetails', {
-            detail: { Id: itemId }
-          });
-          document.dispatchEvent(event);
-        } else {
-          goToDetailsPage(itemId);
-        }
+        return window.showItemDetailsPage(itemId);
       }
+      const dialog = document.querySelector('.dialogContainer');
+      if (dialog) {
+        const event = new CustomEvent('showItemDetails', { detail: { Id: itemId }});
+        document.dispatchEvent(event);
+        return;
+      }
+      return goToDetailsPageSafe(itemId);
     });
 
     volumeButton.addEventListener('click', async (e) => {
@@ -2560,3 +2558,121 @@ function getBackdropFromItem(item) {
   }
   return null;
 }
+
+function isMiniPopoverOpen() {
+  if (window.__miniPop && document.body.contains(window.__miniPop)) return true;
+  if (document.querySelector('.mini-trailer-popover')) return true;
+
+  return false;
+}
+
+async function closeMiniPopoverSafely() {
+  try {
+    document.dispatchEvent(new CustomEvent('closeAllMiniPopovers'));
+    if (typeof window.__closeMiniPopover === 'function') {
+      window.__closeMiniPopover();
+    }
+  } catch {}
+}
+
+async function closeVideoModalAndWait() {
+  if (!modalIsVisible()) return;
+  closeVideoModal();
+  const wait = (MODAL_ANIM?.closeMs ?? 180) + (HARD_CLOSE_BUFFER_MS ?? 30) + 30;
+  await sleep(wait);
+}
+
+async function ensureOverlaysClosed() {
+  if (isMiniPopoverOpen()) {
+    await closeMiniPopoverSafely();
+    await sleep(40);
+  }
+  await closeVideoModalAndWait();
+}
+
+export async function goToDetailsPageSafe(itemId) {
+  await ensureOverlaysClosed();
+  return goToDetailsPage(itemId);
+}
+
+function toggleYouTubeVolumeManual(iframe, volumeBtn) {
+  try {
+    const src = iframe?.src || '';
+    if (!src) return;
+    const url = new URL(src, window.location.href);
+    const currentMute = url.searchParams.get('mute');
+    const nextMute = currentMute === '1' ? '0' : '1';
+    url.searchParams.set('mute', nextMute);
+    iframe.src = url.toString();
+    if (volumeBtn) {
+      volumeBtn.innerHTML = nextMute === '1'
+        ? '<i class="fa-solid fa-volume-xmark"></i>'
+        : '<i class="fa-solid fa-volume-high"></i>';
+    }
+  } catch {}
+}
+
+function startVideoPlayback(url) {
+  try {
+    if (!videoModal) return;
+    const v = modalVideo;
+    if (!v) return;
+    if (v._hls) { v._hls.destroy(); delete v._hls; }
+    v.pause();
+    v.src = url;
+    v.load();
+    v.onloadedmetadata = () => { v.currentTime = 600; v.play().catch(()=>{}); };
+  } catch {}
+}
+
+(function installNavigationGuards() {
+  if (window.__navGuardsInstalled) return;
+  window.__navGuardsInstalled = true;
+  const tryPatchShowItem = () => {
+    if (typeof window.showItemDetailsPage === 'function' && !window.__showItemPatched) {
+      const __origShowItemDetailsPage = window.showItemDetailsPage;
+      window.showItemDetailsPage = async (...args) => {
+        await ensureOverlaysClosed();
+        return __origShowItemDetailsPage(...args);
+      };
+      window.__showItemPatched = true;
+    }
+  };
+
+  tryPatchShowItem();
+  const patchTimer = setInterval(() => {
+    tryPatchShowItem();
+    if (window.__showItemPatched) clearInterval(patchTimer);
+  }, 250);
+
+  document.addEventListener('click', (e) => {
+    const a = e.target?.closest?.('a[href]');
+    if (!a) return;
+    if (e.defaultPrevented) return;
+    if (a.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (typeof modalIsVisible === 'function' && (modalIsVisible() || (typeof isMiniPopoverOpen === 'function' && isMiniPopoverOpen()))) {
+      e.preventDefault();
+      const href = a.href;
+      ensureOverlaysClosed().then(() => { window.location.href = href; });
+    }
+  }, true);
+  const onRouteChange = () => { ensureOverlaysClosed(); };
+  window.addEventListener('popstate', onRouteChange, true);
+  window.addEventListener('hashchange', onRouteChange, true);
+})();
+
+(function patchHistoryNav() {
+  if (window.__historyPatched) return;
+  window.__historyPatched = true;
+
+  const origPush = history.pushState;
+  const origReplace = history.replaceState;
+
+  const wrap = (fn) => async function(...args) {
+    try { await ensureOverlaysClosed(); } catch {}
+    return fn.apply(this, args);
+  };
+
+  history.pushState   = wrap(origPush);
+  history.replaceState = wrap(origReplace);
+})();

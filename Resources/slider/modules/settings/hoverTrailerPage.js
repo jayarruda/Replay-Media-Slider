@@ -52,6 +52,14 @@ export function createHoverTrailerPanel(config, labels) {
 
   section.appendChild(modeWrap);
 
+  const studioMiniTrailerPopover = createCheckbox(
+    'studioMiniTrailerPopover',
+    (labels.studioMiniTrailerPopover || 'Fragman popover etkin'),
+    !!config.studioMiniTrailerPopover
+  );
+  studioMiniTrailerPopover.style.margin = '8px 0';
+  section.appendChild(studioMiniTrailerPopover);
+
   const preferTrailerCheckbox = createCheckbox(
     'preferTrailersInPreviewModal',
     labels.preferTrailersInPreviewModal || 'Modalda Fragman > Video',
@@ -80,59 +88,81 @@ export function createHoverTrailerPanel(config, labels) {
 
   panel.appendChild(section);
 
-setTimeout(() => {
-  const modalRadio  = document.querySelector('input[name="globalPreviewMode"][value="modal"]');
-  const studioRadio = document.querySelector('input[name="globalPreviewMode"][value="studioMini"]');
+  setTimeout(() => {
+    const modalRadio  = document.querySelector('input[name="globalPreviewMode"][value="modal"]');
+    const studioRadio = document.querySelector('input[name="globalPreviewMode"][value="studioMini"]');
 
-  const preferCb  = document.querySelector('input[name="preferTrailersInPreviewModal"]');
-  const preferLbl = document.querySelector('label[for="preferTrailersInPreviewModal"]');
+    const preferCb  = document.querySelector('input[name="preferTrailersInPreviewModal"]');
+    const preferLbl = document.querySelector('label[for="preferTrailersInPreviewModal"]');
 
-  const onlyCb    = document.querySelector('input[name="onlyTrailerInPreviewModal"]');
-  const onlyLbl   = document.querySelector('label[for="onlyTrailerInPreviewModal"]');
+    const onlyCb    = document.querySelector('input[name="onlyTrailerInPreviewModal"]');
+    const onlyLbl   = document.querySelector('label[for="onlyTrailerInPreviewModal"]');
 
-  const setDisabled = (el, lbl, disabled) => {
-    if (!el || !lbl) return;
-    el.disabled = disabled;
-    el.style.opacity = disabled ? '0.5' : '1';
-    lbl.style.opacity = disabled ? '0.5' : '1';
-  };
+    const smTrailerCb  = document.querySelector('input[name="studioMiniTrailerPopover"]');
+    const smTrailerLbl = document.querySelector('label[for="studioMiniTrailerPopover"]');
+    const smTrailerContainer = smTrailerCb ? smTrailerCb.closest('.checkboxContainer') || smTrailerCb.parentElement : null;
 
-  const updateByMode = () => {
-  const isModal = !!modalRadio?.checked;
+    const setDisabled = (el, lbl, disabled) => {
+      if (!el || !lbl) return;
+      el.disabled = disabled;
+      el.style.opacity = disabled ? '0.5' : '1';
+      lbl.style.opacity = disabled ? '0.5' : '1';
+    };
 
-    if (!preferCb || !onlyCb) return;
-    if (isModal) {
-      setDisabled(preferCb, preferLbl, false);
-      setDisabled(onlyCb,   onlyLbl,   false);
-    } else {
-      setDisabled(preferCb, preferLbl, true);
-      setDisabled(onlyCb,   onlyLbl,   true);
-    }
-  };
+    const setVisible = (element, visible) => {
+      if (!element) return;
+      element.style.display = visible ? '' : 'none';
+    };
 
-  const onPreferChange = () => {
-    if (!modalRadio?.checked || !preferCb || !onlyCb) return;
+    const updateByMode = () => {
+      const isModal = !!modalRadio?.checked;
+      const isStudio = !!studioRadio?.checked;
 
-    if (preferCb.checked) {
-      if (onlyCb.checked) onlyCb.checked = false;
-    }
-  };
+      if (!preferCb || !onlyCb) return;
 
-  const onOnlyChange = () => {
-    if (!modalRadio?.checked || !preferCb || !onlyCb) return;
+      if (isModal) {
+        setDisabled(preferCb, preferLbl, false);
+        setDisabled(onlyCb,   onlyLbl,   false);
+      } else {
+        setDisabled(preferCb, preferLbl, true);
+        setDisabled(onlyCb,   onlyLbl,   true);
+      }
 
-    if (onlyCb.checked) {
-      if (preferCb.checked) preferCb.checked = false;
-    }
-  };
+      if (smTrailerContainer) {
+        setVisible(smTrailerContainer, isStudio);
+      } else if (smTrailerCb && smTrailerLbl) {
+        setVisible(smTrailerCb, isStudio);
+        setVisible(smTrailerLbl, isStudio);
+      }
 
-  updateByMode();
+      if (smTrailerCb && smTrailerLbl) {
+        setDisabled(smTrailerCb, smTrailerLbl, !isStudio);
+      }
+    };
 
-  modalRadio?.addEventListener('change', updateByMode);
-  studioRadio?.addEventListener('change', updateByMode);
-  preferCb?.addEventListener('change', onPreferChange);
-  onlyCb?.addEventListener('change', onOnlyChange);
-}, 100);
+    const onPreferChange = () => {
+      if (!modalRadio?.checked || !preferCb || !onlyCb) return;
+
+      if (preferCb.checked) {
+        if (onlyCb.checked) onlyCb.checked = false;
+      }
+    };
+
+    const onOnlyChange = () => {
+      if (!modalRadio?.checked || !preferCb || !onlyCb) return;
+
+      if (onlyCb.checked) {
+        if (preferCb.checked) preferCb.checked = false;
+      }
+    };
+
+    updateByMode();
+
+    modalRadio?.addEventListener('change', updateByMode);
+    studioRadio?.addEventListener('change', updateByMode);
+    preferCb?.addEventListener('change', onPreferChange);
+    onlyCb?.addEventListener('change', onOnlyChange);
+  }, 100);
 
   return panel;
 }

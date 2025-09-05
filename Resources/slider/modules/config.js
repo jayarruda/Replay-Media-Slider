@@ -208,7 +208,9 @@ export function getConfig() {
     enableCounterSystem: localStorage.getItem('enableCounterSystem') !== 'false',
 
     enableStudioHubs: localStorage.getItem('enableStudioHubs') !== 'false',
+    studioMiniTrailerPopover: localStorage.getItem('studioMiniTrailerPopover') !== 'false',
     studioHubsHoverVideo: localStorage.getItem('studioHubsHoverVideo') !== 'false',
+    studioHubsMinRating: parseFloat(localStorage.getItem('studioHubsMinRating')) || 6.5,
     studioHubsCardCount: parseInt(localStorage.getItem('studioHubsCardCount'), 10) || 10,
     studioHubsOrder: (() => {
       try {

@@ -393,10 +393,18 @@ async function setBackdrop(item) {
         return video.closest('#studio-hubs, .hub-card, .hub-row, .hub-video') !== null;
     }
 
+    function isStudioTrailerPopoverVideo(video) {
+    return video.closest('.mini-trailer-popover') !== null ||
+           video.parentElement?.classList?.contains('mtp-player') ||
+           video.closest('.mtp-inner') !== null ||
+           video.classList.contains('studio-trailer-video') ||
+           (video.tagName === 'IFRAME' && video.classList.contains('studio-trailer-iframe'));
+}
+
     function bindVideo(video) {
-        if (isStudioHubsVideo(video)) {
-            return;
-        }
+    if (isStudioHubsVideo(video) || isStudioTrailerPopoverVideo(video)) {
+        return;
+    }
 
         if (removeHandlers) removeHandlers();
         if (video.closest('.video-preview-modal, .intro-video-container')) {

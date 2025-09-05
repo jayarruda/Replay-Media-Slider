@@ -4,19 +4,107 @@ import { getLanguageLabels } from "../language/index.js";
 import { attachMiniPosterHover } from "./studioHubsUtils.js";
 
 const config = getConfig();
-const DEFAULT_ORDER = [
-  "Marvel Studios","Pixar","Walt Disney Pictures","Disney+","DC",
-  "Warner Bros. Pictures","Lucasfilm Ltd.","Columbia Pictures","Paramount Pictures","Netflix"
-];
-const ORDER = (config.studioHubsOrder && config.studioHubsOrder.length)
-  ? config.studioHubsOrder
-  : DEFAULT_ORDER;
 
+const MANUAL_IDS = {};
+const ALIASES = {
+  "Marvel Studios": ["marvel studios","marvel","marvel entertainment","marvel studios llc"],
+  "Pixar": ["pixar","pixar animation studios","disney pixar"],
+  "Walt Disney Pictures": ["walt disney","walt disney pictures"],
+  "Disney+": ["disney+","disney plus","disney+ originals","disney plus originals","disney+ studio"],
+  "DC": ["DC Entertainment","dc entertainment","dc"],
+  "Warner Bros. Pictures": ["warner bros","warner bros.","warner bros pictures","warner bros. pictures","warner brothers"],
+  "Lucasfilm Ltd.": ["lucasfilm","lucasfilm ltd","lucasfilm ltd."],
+  "Columbia Pictures": ["columbia","columbia pictures","columbia pictures industries"],
+  "Paramount Pictures": ["paramount","paramount pictures","paramount pictures corporation"],
+  "DreamWorks Animation": ["dreamworks","dreamworks animation","dreamworks pictures"]
+};
+const CORE_TOKENS = {
+  "Marvel Studios": ["marvel"],
+  "Pixar": ["pixar"],
+  "Walt Disney Pictures": ["walt","disney"],
+  "Disney+": ["disney","plus"],
+  "DC": ["dc","entertainment"],
+  "Warner Bros. Pictures": ["warner"],
+  "Lucasfilm Ltd.": ["lucasfilm"],
+  "Columbia Pictures": ["columbia"],
+  "Paramount Pictures": ["paramount"],
+  "Netflix": ["netflix"],
+  "DreamWorks Animation": ["dreamworks", "animation"]
+};
+
+const LOGO_H = 160;
+const CACHE_TTL = 6 * 60 * 60 * 1000;
+const MAP_TTL   = 30 * 24 * 60 * 60 * 1000;
+const IMG_TTL   = 7  * 24 * 60 * 60 * 1000;
+const LS_KEY    = "studioHub_cache_v5";
+const MAP_KEY   = "studioHub_nameIdMap_v5";
+const IMG_KEY   = "studioHub_backdropMap_v1";
+const STUDIO_ITEMS_LIMIT = 120;
+
+let __studioHubBusy = false;
+let __fetchAbort = null;
+
+const JUNK_WORDS = ["ltd","ltd.","llc","inc","inc.","company","co.","corp","corp.","the","pictures","studios","animation","film","films","pictures.","studios."];
+
+const nbase = s => (s||"").toLowerCase().replace(/[().,™©®\-:_+]/g," ").replace(/\s+/g," ").trim();
+const strip = s => {
+  let out = " " + nbase(s) + " ";
+  for (const w of JUNK_WORDS) out = out.replace(new RegExp(`\\s${w}\\s`, "g"), " ");
+  return out.trim();
+};
+const toks = s => strip(s).split(" ").filter(Boolean);
+const DEFAULT_ORDER = [
+   "Marvel Studios","Pixar","Walt Disney Pictures","Disney+","DC",
+  "Warner Bros. Pictures","Lucasfilm Ltd.","Columbia Pictures","Paramount Pictures",
+  "Netflix",
+  "DreamWorks Animation"
+ ];
+
+const CANONICALS = new Map(DEFAULT_ORDER.map(n => [n.toLowerCase(), n]));
+const ALIAS_TO_CANON = (() => {
+  const m = new Map();
+  for (const [canon, aliases] of Object.entries(ALIASES)) {
+    m.set(canon.toLowerCase(), canon);
+    for (const a of aliases) m.set(String(a).toLowerCase(), canon);
+  }
+  return m;
+})();
+
+function toCanonicalStudioName(name) {
+  if (!name) return null;
+  const key = String(name).toLowerCase();
+  return ALIAS_TO_CANON.get(key) || CANONICALS.get(key) || null;
+}
+
+function ensurePreviewButton(card, studioName, studioId, userId) {
+  if (!card.querySelector('.hub-preview-btn')) {
+    createPreviewButton(card, studioName, studioId, userId);
+  }
+}
+
+function mergeOrder(defaults, custom) {
+  const out = [];
+  const seen = new Set();
+
+  for (const n of (custom || [])) {
+    const canon = toCanonicalStudioName(n) || n;
+    const k = canon.toLowerCase();
+    if (!seen.has(k)) { out.push(canon); seen.add(k); }
+  }
+  for (const n of defaults) {
+    const k = n.toLowerCase();
+    if (!seen.has(k)) { out.push(n); seen.add(k); }
+  }
+  return out;
+}
+
+const USER_ORDER = Array.isArray(config.studioHubsOrder) ? config.studioHubsOrder : [];
+const ORDER = mergeOrder(DEFAULT_ORDER, USER_ORDER);
 const LOGO_BASE = "slider/src/images/studios/";
 const LOCAL_EXTS = [".webp"];
 const LOGO_CACHE_KEY = "studioHub_logoUrlCache_v1";
 const LOGO_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
-const VIDEO_EXTS = [".mp4", ".webm"];
+const VIDEO_EXTS = [".mp4"];
 const HOVER_VIDEO_TIMEOUT = 4000;
 const MIN_RATING = Number.isFinite(config.studioHubsMinRating)
   ? config.studioHubsMinRating
@@ -31,12 +119,11 @@ function randomSample(arr, n) {
   }
   return a.slice(0, Math.max(0, n));
 }
-function selectRandomItemsWithMinRating(items, min = MIN_RATING, count = 5) {
-  const good = items.filter(it => getRating(it) >= min);
-  if (good.length >= count) return randomSample(good, count);
-  const rest = items.filter(it => !good.includes(it));
-  const picked = good.concat(randomSample(rest, count - good.length));
-  return picked.slice(0, count);
+
+function selectTopNWithMinRating(items, min = MIN_RATING, count = 5) {
+  const pool = items.filter(it => getRating(it) >= min);
+  if (pool.length <= count) return pool;
+  return randomSample(pool, count);
 }
 
 const I18N_LANGS = ["eng", "tur", "deu", "fre", "rus"];
@@ -302,7 +389,6 @@ async function toggleFavorite(itemId, isFavorite, buttonElement) {
   }
 }
 
-
 function positionPopover(anchorEl, pop) {
   const margin = 8;
   const docEl = document.documentElement;
@@ -367,7 +453,6 @@ function positionPopover(anchorEl, pop) {
   pop.style.pointerEvents = '';
 }
 
-
 function showPreviewPopover(anchorEl, studioName, items) {
   const pop = setPopoverContent(studioName, items);
   pop.style.position = 'absolute';
@@ -423,7 +508,7 @@ function createPreviewButton(card, studioName, studioId, userId) {
     try {
       const signal = __fetchAbort ? __fetchAbort.signal : null;
       const fetched = await fetchStudioItemsViaUsers(studioId, studioName, userId, signal);
-      studioItems = selectRandomItemsWithMinRating(fetched, MIN_RATING, 5);
+      studioItems = selectTopNWithMinRating(fetched, MIN_RATING, 5);
     } catch (err) {
       console.error('Ön izleme verileri alınamadı:', err);
       studioItems = [];
@@ -495,7 +580,7 @@ async function setupHoverVideo(card, logoUrl, studioName, studioId, userId) {
     card.style.position = card.style.position || "relative";
     card.appendChild(vidEl);
     if (studioName && studioId && userId) {
-      createPreviewButton(card, studioName, studioId, userId);
+      ensurePreviewButton(card, studioName, studioId, userId);
     }
 
     return vidEl;
@@ -693,7 +778,6 @@ async function fetchPersonalUnplayedTopGenreItems(userId, signal) {
     }
     if (used.size === pool.length) break;
   }
-
   return chosen;
 }
 
@@ -708,7 +792,8 @@ function attachPersonalPopover(card, userId) {
     isFetching = true;
     try {
       const signal = __fetchAbort ? __fetchAbort.signal : null;
-      itemsCache = await fetchPersonalUnplayedTopGenreItems(userId, signal);
+      const personal = await fetchPersonalUnplayedTopGenreItems(userId, signal);
+      itemsCache = selectTopNWithMinRating(personal, MIN_RATING, 5);
     } finally {
       isFetching = false;
     }
@@ -763,53 +848,6 @@ function attachPersonalPopover(card, userId) {
 });
 }
 
-const MANUAL_IDS = {};
-const ALIASES = {
-  "Marvel Studios": ["marvel studios","marvel","marvel entertainment","marvel studios llc"],
-  "Pixar": ["pixar","pixar animation studios","disney pixar"],
-  "Walt Disney Pictures": ["walt disney","walt disney pictures"],
-  "Disney+": ["disney+","disney plus","disney+ originals","disney plus originals","disney+ studio"],
-  "DC": ["DC Entertainment","dc entertainment","dc"],
-  "Warner Bros. Pictures": ["warner bros","warner bros.","warner bros pictures","warner bros. pictures","warner brothers"],
-  "Lucasfilm Ltd.": ["lucasfilm","lucasfilm ltd","lucasfilm ltd."],
-  "Columbia Pictures": ["columbia","columbia pictures","columbia pictures industries"],
-  "Paramount Pictures": ["paramount","paramount pictures","paramount pictures corporation"],
-  "Netflix": ["netflix","netflix studios","netflix animation","a netflix original","netflix original"]
-};
-const CORE_TOKENS = {
-  "Marvel Studios": ["marvel"],
-  "Pixar": ["pixar"],
-  "Walt Disney Pictures": ["walt","disney"],
-  "Disney+": ["disney","plus"],
-  "DC": ["dc","entertainment"],
-  "Warner Bros. Pictures": ["warner"],
-  "Lucasfilm Ltd.": ["lucasfilm"],
-  "Columbia Pictures": ["columbia"],
-  "Paramount Pictures": ["paramount"],
-  "Netflix": ["netflix"]
-};
-
-const LOGO_H = 160;
-const CACHE_TTL = 6 * 60 * 60 * 1000;
-const MAP_TTL   = 30 * 24 * 60 * 60 * 1000;
-const IMG_TTL   = 7  * 24 * 60 * 60 * 1000;
-const LS_KEY    = "studioHub_cache_v4";
-const MAP_KEY   = "studioHub_nameIdMap_v4";
-const IMG_KEY   = "studioHub_backdropMap_v1";
-const STUDIO_ITEMS_LIMIT = 120;
-
-let __studioHubBusy = false;
-let __fetchAbort = null;
-
-const JUNK_WORDS = ["ltd","ltd.","llc","inc","inc.","company","co.","corp","corp.","the","pictures","studios","animation","film","films","pictures.","studios."];
-
-const nbase = s => (s||"").toLowerCase().replace(/[().,™©®\-:_+]/g," ").replace(/\s+/g," ").trim();
-const strip = s => {
-  let out = " " + nbase(s) + " ";
-  for (const w of JUNK_WORDS) out = out.replace(new RegExp(`\\s${w}\\s`, "g"), " ");
-  return out.trim();
-};
-const toks = s => strip(s).split(" ").filter(Boolean);
 
 function scoreMatch(desired, candidate) {
   const a = new Set(toks(desired));
@@ -850,7 +888,8 @@ async function fetchStudios(signal) {
 }
 
 async function fetchStudioItemsViaUsers(studioId, studioName, userId, signal) {
-  const common = `StartIndex=0&Limit=${STUDIO_ITEMS_LIMIT}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating&Recursive=true&SortOrder=Descending`;
+  const ratingPart = Number.isFinite(MIN_RATING) ? `&MinCommunityRating=${MIN_RATING}` : "";
+  const common = `StartIndex=0&Limit=${STUDIO_ITEMS_LIMIT}&Fields=PrimaryImageAspectRatio,ImageTags,BackdropImageTags,CommunityRating,CriticRating&Recursive=true&SortOrder=Descending${ratingPart}`;
   const urls = [
     `/Users/${userId}/Items?${common}&IncludeItemTypes=Movie,Series&StudioIds=${encodeURIComponent(studioId)}`,
     `/Users/${userId}/Items?${common}&IncludeItemTypes=Movie,Series&Studios=${encodeURIComponent(studioName)}`
@@ -1076,7 +1115,6 @@ export async function renderStudioHubs() {
     if (studio) { resolved.push({ name: desired, studio }); nameMap[desired] = studio; }
   }
     saveCache(MAP_KEY, nameMap);
-
     await Promise.allSettled(resolved.map(async ({ name, studio }) => {
       const card = shells[name];
       if (!card) return;
@@ -1098,9 +1136,16 @@ export async function renderStudioHubs() {
         card.href = buildStudioHref(studio.Id, serverId);
         card.classList.remove("skeleton");
         card.appendChild(img);
+
+        card.href = buildStudioHref(studio.Id, serverId);
+        card.classList.remove("skeleton");
+        card.appendChild(img);
+
+        ensurePreviewButton(card, name, studio.Id, userId);
         if (config.studioHubsHoverVideo) {
-        setupHoverVideo(card, logoUrl, name, studio.Id, userId);
-      }
+          setupHoverVideo(card, logoUrl, name, studio.Id, userId);
+        }
+
         used = true;
       }
 
@@ -1122,6 +1167,7 @@ export async function renderStudioHubs() {
         card.href = buildStudioHref(studio.Id, serverId);
         card.classList.remove("skeleton");
         card.appendChild(img);
+        ensurePreviewButton(card, name, studio.Id, userId);
       }
     }));
 

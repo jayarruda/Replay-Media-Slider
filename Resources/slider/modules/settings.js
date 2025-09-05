@@ -944,29 +944,65 @@ function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-export function createNumberInput(key, label, value, min = 0, max = 100) {
-    const container = document.createElement('div');
-    container.className = 'input-container';
+export function createNumberInput(key, label, value, min = 0, max = 100, step = 1) {
+  const container = document.createElement('div');
+  container.className = 'input-container';
 
-    const labelElement = document.createElement('label');
-    labelElement.textContent = label;
-    labelElement.htmlFor = key;
-    container.appendChild(labelElement);
+  const labelElement = document.createElement('label');
+  labelElement.textContent = label;
+  labelElement.htmlFor = key;
+  container.appendChild(labelElement);
 
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.id = key;
-    input.name = key;
-    input.value = value;
-    input.min = min;
-    input.max = max;
-    input.addEventListener('change', (e) => {
-        localStorage.setItem(key, e.target.value);
-    });
-    container.appendChild(input);
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.id = key;
+  input.name = key;
+  input.min = String(min);
+  input.max = String(max);
+  input.step = String(step);
 
-    return container;
+  input.setAttribute('inputmode', 'decimal');
+  input.setAttribute('pattern', '[0-9]+([\\.,][0-9]+)?');
+
+  const normalize = (v) => String(v ?? '').replace(',', '.');
+  const clamp = (num, lo, hi) => Math.min(Math.max(num, lo), hi);
+
+  input.value = normalize(value);
+
+  input.addEventListener('input', () => {
+    if (input.value.includes(',')) {
+      const pos = input.selectionStart;
+      input.value = input.value.replace(',', '.');
+      if (pos != null) input.setSelectionRange(pos, pos);
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    const num = Number.parseFloat(normalize(input.value));
+    if (!Number.isFinite(num)) return;
+
+    let val = clamp(num, Number(input.min), Number(input.max));
+    const stepNum = Number(input.step);
+    if (Number.isFinite(stepNum) && stepNum > 0 && stepNum !== 1) {
+      const decimals = (String(stepNum).split('.')[1] || '').length;
+      val = Number(val.toFixed(decimals));
+      input.value = val.toFixed(decimals);
+    } else {
+      input.value = String(val);
+    }
+
+    localStorage.setItem(key, input.value);
+  });
+
+  input.addEventListener('change', (e) => {
+    const v = normalize(e.target.value);
+    localStorage.setItem(key, v);
+  });
+
+  container.appendChild(input);
+  return container;
 }
+
 
 export function createTextInput(key, label, value) {
     const container = document.createElement('div');

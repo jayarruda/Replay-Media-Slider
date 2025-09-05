@@ -1,5 +1,5 @@
 import { getConfig } from "./config.js";
-import { fetchItemDetails, getImageDimensions, getIntroVideoUrl, getVideoStreamUrl, fetchLocalTrailers, pickBestLocalTrailer } from "./api.js";
+import { fetchItemDetails, getImageDimensions, getIntroVideoUrl, getVideoStreamUrl, fetchLocalTrailers, pickBestLocalTrailer, getAuthHeader } from "./api.js";
 
 const config = getConfig();
 

@@ -320,12 +320,25 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
 
     const duration = config.slideAnimationDuration || 500;
     const transitionType = config.slideTransitionType || 'fade';
+    const same = currentSlide === newSlide;
 
-    currentSlide.style.transition = `all ${duration}ms cubic-bezier(0.33, 1, 0.68, 1)`;
-    newSlide.style.transition = `all ${duration}ms cubic-bezier(0.33, 1, 0.68, 1)`;
     newSlide.style.display = "block";
     newSlide.style.zIndex = "2";
-    currentSlide.style.zIndex = "1";
+    newSlide.style.transition = `all ${duration}ms cubic-bezier(0.33, 1, 0.68, 1)`;
+    if (!same) {
+      currentSlide.style.transition = `all ${duration}ms cubic-bezier(0.33, 1, 0.68, 1)`;
+      currentSlide.style.zIndex = "1";
+    }
+
+    if (same) {
+      newSlide.style.opacity = "0";
+      requestAnimationFrame(() => { newSlide.style.opacity = "1"; });
+      setTimeout(() => {
+        newSlide.style.transition = "";
+        newSlide.style.opacity = "1";
+      }, duration);
+      return;
+    }
 
     function cleanupStyles() {
         if (currentSlide) {

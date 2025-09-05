@@ -1,14 +1,19 @@
 import { makeApiRequest, updateFavoriteStatus, getSessionInfo } from "./api.js";
 import { getConfig } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
+import { tryOpenTrailerPopover, hideTrailerPopover } from "./studioTrailerPopover.js";
 
+const config = getConfig();
+const DETAILS_TTL = 60 * 60 * 1000;
+const detailsCache = new Map();
 let __miniPop = null;
 let __miniCloseTimer = null;
 let __cssLoaded = false;
-const DETAILS_TTL = 60 * 60 * 1000;
-const detailsCache = new Map();
-
-const config = getConfig();
+let __miniOpenSeq = 0;
+let __miniNavSeq  = 0;
+let __miniTombstoneUntil = 0;
+const __miniTimers = new Set();
+const __abortByCard = new WeakMap();
 
 function isAudioItem(it) {
   const t = (it?.Type || it?.MediaType || '').toLowerCase();
@@ -66,6 +71,11 @@ function ensureCss() {
    return el;
  }
 
+ function destroyMiniPopover() {
+  if (!__miniPop) return;
+  try { __miniPop.remove(); } catch {}
+  __miniPop = null;
+}
 
 function scheduleHideMini(delay = 140) {
   if (__miniCloseTimer) clearTimeout(__miniCloseTimer);
@@ -76,11 +86,7 @@ export function hideMiniPopover() {
   if (__miniCloseTimer) { clearTimeout(__miniCloseTimer); __miniCloseTimer = null; }
   if (!__miniPop) return;
   __miniPop.classList.remove("visible");
-  setTimeout(() => {
-    if (!__miniPop.classList.contains("visible")) {
-      __miniPop.style.display = "none";
-    }
-  }, 180);
+  __miniPop.style.display = "none";
 }
 
 function posNear(anchor, pop) {
@@ -353,39 +359,158 @@ export function attachMiniPosterHover(cardEl, itemLike) {
   if (!cardEl || !itemLike || !itemLike.Id) return;
 
   ensureCss();
-  const pop = ensureMiniPopover();
+  ensureMiniPopover();
 
   let overTimer = null;
+  if (!window.__studioLastHumanInputTs) window.__studioLastHumanInputTs = 0;
+  const markHuman = () => (window.__studioLastHumanInputTs = Date.now());
+  window.addEventListener("pointerdown", markHuman, { capture: true, passive: true });
+  window.addEventListener("mousemove",   markHuman, { capture: true, passive: true });
+  window.addEventListener("keydown",     markHuman, { capture: true, passive: true });
+  window.addEventListener("touchstart",  markHuman, { capture: true, passive: true });
+
+  const cancelOpen = () => {
+    if (overTimer) { clearTimeout(overTimer); __miniTimers.delete(overTimer); overTimer = null; }
+    const ac = __abortByCard.get(cardEl);
+    if (ac) { try { ac.abort(); } catch {} __abortByCard.delete(cardEl); }
+  };
 
   const open = async () => {
-    if (overTimer) { clearTimeout(overTimer); overTimer = null; }
-    const details = await getDetails(itemLike.Id, null);
+    if (document.hidden || Date.now() < __miniTombstoneUntil) return;
+
+    const myOpenSeq = ++__miniOpenSeq;
+    const myNavSeq  = __miniNavSeq;
+    const myKill    = window.__studioMiniKillToken || 0;
+    const ac = new AbortController();
+    __abortByCard.set(cardEl, ac);
+    if (!document.contains(cardEl)) { cancelOpen(); return; }
+    let details = null;
+    try {
+      details = await getDetails(itemLike.Id, ac.signal);
+    } catch {}
+    if (ac.signal.aborted) return;
+    if (document.hidden || Date.now() < __miniTombstoneUntil) return;
+    if (myOpenSeq !== __miniOpenSeq || myNavSeq !== __miniNavSeq) return;
+    if ((window.__studioMiniKillToken || 0) !== myKill) return;
+    if (!document.contains(cardEl)) { cancelOpen(); return; }
+    const pop = ensureMiniPopover();
     const hasContent = fillMiniContent(pop, itemLike, details || {});
-    if (!hasContent) {
-      hideMiniPopover();
-      return;
-    }
-    posNear(cardEl, pop);
-    requestAnimationFrame(() => pop.classList.add("visible"));
+    if (!hasContent) { hideMiniPopover(); return; }
+    try {
+      posNear(cardEl, pop);
+    } catch {}
+    if (!document.contains(cardEl)) { hideMiniPopover(); return; }
+    requestAnimationFrame(() => {
+     if (!__miniPop) return;
+      if (document.hidden || Date.now() < __miniTombstoneUntil) return;
+      if (myOpenSeq !== __miniOpenSeq || myNavSeq !== __miniNavSeq) return;
+      if ((window.__studioMiniKillToken || 0) !== myKill) return;
+      if (!document.contains(cardEl)) return;
+
+      __miniPop.style.display = "block";
+      __miniPop.classList.add("visible");
+    });
+    try {
+      const cfg = getConfig();
+      if (cfg?.studioMiniTrailerPopover === true) {
+        await tryOpenTrailerPopover(cardEl, itemLike.Id);
+      }
+    } catch {}
   };
 
   const scheduleOpen = () => {
-    if (overTimer) clearTimeout(overTimer);
+    cancelOpen();
+    if (document.hidden || Date.now() < __miniTombstoneUntil) return;
+    if (Date.now() - (window.__studioLastHumanInputTs || 0) > 1000) return;
     overTimer = setTimeout(open, 160);
+    __miniTimers.add(overTimer);
   };
 
-  const cancelOpen = () => {
-    if (overTimer) { clearTimeout(overTimer); overTimer = null; }
-  };
-
-  cardEl.addEventListener("mouseenter", scheduleOpen);
+  cardEl.addEventListener("mouseenter", scheduleOpen, { passive: true });
   cardEl.addEventListener("mouseleave", () => {
     cancelOpen();
     scheduleHideMini(120);
+    hideTrailerPopover(120);
+  }, { passive: true });
+}
+
+(() => {
+  if (window.__studioHubsAutoCloseInstalled) return;
+  window.__studioHubsAutoCloseInstalled = true;
+
+  const killAllTimers = () => {
+    for (const t of __miniTimers) { try { clearTimeout(t); } catch {} }
+    __miniTimers.clear();
+  };
+
+  const closeAll = (destroy = false) => {
+    __miniOpenSeq++;
+    try { hideMiniPopover(); } catch {}
+    try { hideTrailerPopover(0); } catch {}
+    killAllTimers();
+    try {
+      __abortByCard && __abortByCard.forEach?.(ac => { try { ac.abort(); } catch {} });
+    } catch {}
+    if (destroy) destroyMiniPopover();
+  };
+
+  const markNav = () => {
+    __miniNavSeq++;
+    __miniTombstoneUntil = Date.now() + 1500;
+    window.__studioMiniKillToken = (window.__studioMiniKillToken || 0) + 1;
+    closeAll(true);
+  };
+
+  const markWake = () => {
+    __miniTombstoneUntil = Date.now() + 1500;
+    window.__studioMiniKillToken = (window.__studioMiniKillToken || 0) + 1;
+    closeAll(true);
+  };
+
+  ["pushState", "replaceState"].forEach((fn) => {
+    const orig = history[fn];
+    if (typeof orig === "function") {
+      history[fn] = function (...args) {
+        const ret = orig.apply(this, args);
+        window.dispatchEvent(new Event("studiohubs:navigated"));
+        markNav();
+        return ret;
+      };
+    }
   });
-  cardEl.addEventListener("focus", scheduleOpen);
-  cardEl.addEventListener("blur", () => {
-    cancelOpen();
-    scheduleHideMini(120);
-  });
+
+  window.addEventListener("studiohubs:navigated", markNav, true);
+  window.addEventListener("popstate", markNav, true);
+  window.addEventListener("hashchange", markNav, true);
+  window.addEventListener("pagehide", () => markNav(), true);
+  window.addEventListener("beforeunload", () => markNav(), true);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) markNav();
+    else markWake();
+  }, true);
+  window.addEventListener("focus", markWake, true);
+  window.addEventListener("blur", () => markNav(), true);
+  document.addEventListener("click", (e) => {
+    const a = e.target?.closest?.("a,[data-link],[data-href]") || null;
+    if (!a) return;
+    setTimeout(markNav, 0);
+  }, true);
+  try {
+    const router = window.AppRouter || window.appRouter || window.router;
+    if (router && typeof router.on === "function") {
+      router.on("navigated", markNav);
+      router.on("viewshow", markNav);
+      router.on("viewhide", markNav);
+    }
+  } catch {}
+})();
+
+document.addEventListener('closeAllMiniPopovers', () => {
+  try { destroyMiniPopover(); } catch {}
+});
+
+if (typeof window !== 'undefined') {
+  window.__closeMiniPopover = () => {
+    try { destroyMiniPopover(); } catch {}
+  };
 }
