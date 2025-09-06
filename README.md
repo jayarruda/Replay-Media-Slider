@@ -157,6 +157,7 @@ Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe ba�
 ``` https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/manifest.json ```
 - Kaynağı kaydedin ve Katalog bölümünde JMSFusion eklentisini bulun ve yükleyin.
 - JMS-Fusion yüklendikten sonra değişikliklerin geçerli olması için Jellyfin’i tekrar yeniden başlatın.
+- Yeniden başlatma sonrası ana sayfaya dönüp bir kaç kez ctrl + f5 ile sayfayı yenileyin
 
 ### Manuel Kurulum
 
@@ -241,6 +242,8 @@ Click the settings icon at the top, then use the + button to open the “Add Rep
 Save the repository, then go to the Catalog section, find the JMS-Fusion plugin, and install it.
 
 After installing JMS-Fusion, restart Jellyfin again to apply the changes.
+
+After restarting, go back to the home page and refresh the page with ctrl + f5 a few times.
 
 ### Manual Installation
 
