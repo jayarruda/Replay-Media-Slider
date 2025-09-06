@@ -7,6 +7,9 @@ A customizable media slider component for Jellyfin.
 * [🖼️ Screenshots / Ekran Görüntüleri](#-screenshots--ekran-görüntüleri)
 * [✨ Features / Özellikler](#-features--özellikler)
 * [⚙️ Installation / Kurulum](#️-installation--kurulum)
+
+  * [🇹🇷 Türkçe Kurulum](#türkçe-kurulum)
+  * [🇬🇧 English Installation](#english-installation)
 * [🎵 Synchronized Lyrics Script / Senkronize Şarkı Sözleri Betiği](#-synchronized-lyrics-script--senkronize-şarkı-sözleri-betiği)
 * [🎬 Trailer Scripts / Fragman Betikleri](#-trailer-scripts--fragman-betikleri)
 * [📄 License](#-license)
@@ -105,27 +108,27 @@ A customizable media slider component for Jellyfin.
 
 ### Türkçe Kurulum
 
-* Eklenti kurulumu → [Details](#)
-* Manuel Windows/Linux kurulumu → [Details](#)
+* Eklenti kurulumu → [Detaylı Açıklama](#türkçe-kurulum)
+* Manuel Windows/Linux kurulumu → [Detaylı Açıklama](#türkçe-kurulum)
 
 ### English Installation
 
-* Plugin installation → [Details](#)
-* Manual Windows/Linux installation → [Details](#)
+* Plugin installation → [Detailed Guide](#english-installation)
+* Manual Windows/Linux installation → [Detailed Guide](#english-installation)
 
 ---
 
 ## 🎵 Synchronized Lyrics Script / Senkronize Şarkı Sözleri Betiği
 
-* Türkçe kullanım → [Details](#)
-* English usage → [Details](#)
+* Türkçe kullanım → [Detaylı Açıklama](#-synchronized-lyrics-script--senkronize-şarkı-sözleri-betiği)
+* English usage → [Detailed Guide](#-synchronized-lyrics-script--senkronize-şarkı-sözleri-betiği)
 
 ---
 
 ## 🎬 Trailer Scripts / Fragman Betikleri
 
-* English Guide → [Details](#)
-* Türkçe Rehber → [Details](#)
+* English Guide → [Detailed Guide](#-trailer-scripts--fragman-betikleri)
+* Türkçe Rehber → [Detaylı Açıklama](#-trailer-scripts--fragman-betikleri)
 
 ---
 
