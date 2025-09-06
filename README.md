@@ -490,7 +490,7 @@ Extra for `trailers.sh`:
 * `MIN_FREE_MB` → Default `1024` : Minimum required free space (MiB) in both destination and working directory before downloads are attempted.
 * `CLEANUP_EXTRA_PATHS` → Default *(empty)* : Extra root paths (colon-separated) to clean temp files from.
 * `WORK_DIR` → Default `/tmp/trailers-dl` : Working directory for temporary downloads. 
-* `ENABLE_THEME_LINK` → Default `0` : If `1`, create `backdrops/theme.mp4` symlink/hardlink/copy pointing to trailer.
+* `ENABLE_THEME_LINK` → Default `0` : If the value is `1`, the downloaded `trailer.mp4` file will be used to create a `theme.mp4` inside the newly created `backdrops/` directory, either as a symbolic link, hard link, or copy, depending on the chosen option.
 * `THEME_LINK_MODE` → Default `symlink` : Mode for theme creation. Options: `symlink`, `hardlink`, `copy`.
 * `OVERWRITE_POLICY` → Default `skip` : Behavior when `trailer.mp4` already exists. Values: `skip`, `replace`, `if-better`.
 * `BETTER_MIN_SIZE_DELTA` → Default `1048576` : In `if-better` mode: new trailer must be at least this many bytes larger to count as better.
@@ -683,7 +683,7 @@ Ekstra `trailers.sh` için:
 * `SLEEP_SECS ` → varsayılan `1` : Başarılı her indirmeden sonra beklenecek saniye.
 * `OVERWRITE_POLICY` → varsayılan `skip` : Var olan `trailer.mp4` dosyası için davranış. Değerler: `skip`, `replace`, `if-better`.                              
 * `WORK_DIR` → varsayılan`/tmp/trailers-dl` : Geçici indirme klasörü.                                                                                            
-* `ENABLE_THEME_LINK` → varsayılan `0` : `1` ise `backdrops/theme.mp4` dosyası trailer’a symlink/hardlink/kopya olarak oluşturulur.                              
+* `ENABLE_THEME_LINK` → varsayılan `0` : Değer `1` ise, indirilen `trailer.mp4` dosyası, yeni oluşturulacak `backdrops/` dizininin içinde bir theme.mp4 eklemek için seçime göre sembolik bağlantı, sabit bağlantı veya kopya oluşturur.                              
 * `THEME_LINK_MODE` → varsayılan `symlink` : Tema dosyası oluşturma yöntemi: `symlink`, `hardlink`, `copy`.                                                      
 * `CLEANUP_EXTRA_PATHS` → *(boş)* : Ek temizlenecek klasör kökleri. Birden çok yol `:` ile ayrılabilir. 
 * `BETTER_MIN_SIZE_DELTA` → `1048576` : `if-better` modunda: yeni dosya en az bu kadar bayt daha büyükse “daha iyi” kabul edilir.
