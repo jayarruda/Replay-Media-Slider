@@ -1,9 +1,22 @@
 ## Jellyfin Media Slider
 
- A customizable media slider component for Jellyfin.
+A customizable media slider component for Jellyfin.
+
+## 📑 Table of Contents
+
+* [🖼️ Screenshots / Ekran Görüntüleri](#-screenshots--ekran-görüntüleri)
+* [✨ Features / Özellikler](#-features--özellikler)
+* [⚙️ Installation / Kurulum](#️-installation--kurulum)
+* [🎵 Synchronized Lyrics Script / Senkronize Şarkı Sözleri Betiği](#-synchronized-lyrics-script--senkronize-şarkı-sözleri-betiği)
+* [🎬 Trailer Scripts / Fragman Betikleri](#-trailer-scripts--fragman-betikleri)
+* [📄 License](#-license)
+
+---
+
+## 🖼️ Screenshots / Ekran Görüntüleri
 
 <details>
-<summary>🖼️ Ekran Görüntüleri / Screenshots </summary>
+<summary>Show / Göster</summary>
 
 ### DiceBear Avatar Görünümü / DiceBear Avatar Skin
 
@@ -12,19 +25,15 @@
 ### Bildirim Modalı / Notification Modal
 
 ![bildirim](https://github.com/user-attachments/assets/b6533b70-743f-454d-adab-083d1d8a40ca)
-
 ![bildirim1](https://github.com/user-attachments/assets/041f9727-6ee9-4583-bebf-5ac7e7bd0a86)
-
 
 ### Duraklatma Ekranı / Pause Screen
 
 ![pause](https://github.com/user-attachments/assets/8e3ec49b-b7f2-406a-818d-064f6f64eac7)
 
-
 ### Kompakt Görünüm / Compact View
 
 ![co](https://github.com/user-attachments/assets/afac00a0-68c7-4a7e-b551-f946ec4f1e7b)
-
 
 ### Tam Ekran / Full Screen
 
@@ -34,8 +43,7 @@
 
 ![ng](https://github.com/user-attachments/assets/80e7b0fb-6c8b-4076-ad33-4832bbf1e972)
 
-
-### Konumlandırma yapılmış normal görünüm / Normal view with proper positioning applied.
+### Konumlandırma yapılmış normal görünüm / Normal view with positioning
 
 ![ngy](https://github.com/user-attachments/assets/294cc2a7-3c3c-423b-88ff-a18b79dc6f46)
 
@@ -45,730 +53,88 @@
 
 ![yf](https://github.com/user-attachments/assets/c16c85b1-d14d-42a5-88c4-aa4de182795f)
 
-#### Fragman Modalı (Buton) / Trailer Popup (Button)
+#### Fragman Modalı / Trailer Popup
 
 ![fm](https://github.com/user-attachments/assets/2636496c-4f9b-4a39-8516-8580d39b05fe)
-
 
 ### Ayarlar Modalı / Settings Popup
 
 ![st](https://github.com/user-attachments/assets/080a819c-a1a4-4f10-81ec-fe0dcba885e1)
 
+</details>
 
- </details>
+---
 
-
-### Özellikler / Features
+## ✨ Features / Özellikler
 
 ### English
 
-- #### Per-user list creation
-Allows each Jellyfin user to have their own independent, personalized media lists.
-
-- #### Automatic list updates
-Lists are automatically refreshed based on changes in the media library.
-
-- #### Customizable Jellyfin API integration
-Flexible API integration enables advanced customization to meet specific needs.
-
-- #### Manual positioning for theme compatibility
-UI elements can be manually positioned to adapt seamlessly to any Jellyfin theme.
-
-- #### GMMP Music Player
-A comprehensive music playback plugin designed for rich and responsive audio experiences in Jellyfin.
-
-- #### Pause Screen
-Displays an informative overlay when content is paused, including media details and playback controls.
-
-- #### Avatar Generator
-It is a module that automatically generates and applies avatars based on the username or with DiceBear support.
-
-- #### Advanced settings management
-A user-friendly settings panel makes it easy to configure all features.
-
-- #### Global Quality Labels in Jellyfin
-Provides consistent, platform-wide quality labels (such as HD, 4K, HDR) that can be displayed across all sections of Jellyfin, making it easier for users to identify the quality of their media at a glance.
-
-- #### Netflix-like Hover Video Previews
-Adds interactive video previews similar to Netflix: when hovering over an item, a short trailer or preview automatically plays, giving users a quick look at the content without opening the details page.
-
-- #### Newly Added Content & System Notifications Module
-Displays a dedicated module for newly added content (movies, series, or episodes) alongside system notifications (such as updates, alerts, or custom messages), ensuring users never miss important updates or fresh media.
-
-- #### StudioHubs
-Adds Disney+-style studio collection cards to the home screen and popover-based random recommendations based on your watched genres.
-
-- #### Trailer Fetching Scripts
-With these scripts, you can download trailers and use them across Jellyfin. Optionally, the downloaded trailers can be set as theme videos, or alternatively, you can skip downloading and simply embed trailer metadata directly into the content’s NFO files.
-
-</summary>
+* Per-user list creation
+* Automatic list updates
+* Customizable Jellyfin API integration
+* Manual positioning for theme compatibility
+* GMMP Music Player
+* Pause Screen
+* Avatar Generator (DiceBear supported)
+* Advanced settings management
+* Global Quality Labels in Jellyfin
+* Netflix-like Hover Video Previews
+* Newly Added Content & Notifications Module
+* StudioHubs (Disney+ style)
+* Trailer Fetching Scripts
 
 ### Türkçe
 
-- #### Her kullanıcı için ayrı liste oluşturma
-Her Jellyfin kullanıcısı için kişisel, bağımsız medya listeleri oluşturulabilir.
-
-- #### Otomatik liste güncelleme
-Medya kitaplığındaki değişikliklere göre listeler otomatik olarak güncellenir.
-
-- #### Özelleştirilebilir Jellyfin API entegrasyonu
-İhtiyaca göre şekillendirilebilen esnek API entegrasyonu sayesinde gelişmiş kontrol imkanı.
-
-- #### Her temayla uyumlu manuel konumlandırma
-Arayüz öğeleri, farklı temalara uyum sağlayacak şekilde manuel olarak konumlandırılabilir.
-
-- #### GMMP Müzik Oynatıcı
-Zengin ve duyarlı bir müzik deneyimi sunan kapsamlı bir Jellyfin müzik oynatma eklentisidir.
-
-- #### Duraklatma Ekranı
-İçerik duraklatıldığında, medya bilgileri ve oynatma kontrollerini içeren bir karşılama ekranı gösterilir.
-
-- #### Avatar Oluşturucu
-Kullanıcı adına göre veya DiceBear desteği ile otomatik olarak avatar üreten ve uygulayan bir modüldür.
-
-- #### Gelişmiş ayar yönetimi
-Kullanıcı dostu ayar paneli ile tüm özellikler kolayca yapılandırılabilir.
-
-- #### Jellyfin Genelinde Kullanılabilir Kalite Etiketleri
-Jellyfin üzerinde görüntülenebilen tutarlı, platform genelinde kalite etiketleri (örneğin HD, 4K, HDR) sağlar ve kullanıcıların medyalarının kalitesini tek bakışta belirlemesini kolaylaştırır.
-
-- #### Netflix Benzeri Hover Video Önizlemeleri
-Netflix'e benzer etkileşimli video veya fragman önizlemeleri ekler: Bir öğenin üzerine gelindiğinde, kısa bir fragman veya önizleme otomatik olarak oynatılır ve kullanıcılara ayrıntılar sayfasını açmadan içeriğe hızlıca göz atma olanağı sağlar.
-
-- #### Yeni Eklenen İçerik ve Sistem Bildirimleri Modülü
-Yeni eklenen içerikler (filmler, diziler veya bölümler) için özel bir modül. Sistem bildirimleri ile (güncellemeler, uyarılar veya özel mesajlar gibi) birlikte çalışır ve kullanıcıların önemli güncellemeleri veya yeni medyayı asla kaçırmamasını sağlar.
-
-- #### StudioHubs
-Ana ekrana Disney+ tarzı stüdyo koleksiyon kartları ve izlediğiniz türlere göre açılan pencerede rastgele öneriler ekler.
-
-- #### Fragman Edinim Betikleri
-Bu scriptlerle fragmanları indirip jellyfin genelinde kullanabilir, isteğe bağlı olarak indirilen fragmanları tema videoları olarak kullanabilir veya alternatif olarak, fragmanları indirmeden fragman bilgilerini doğrudan içeriğin NFO dosyalarına yazabilirsiniz.
-
-### Kurulum / Installation
-<details>
-<summary> Türkçe Kurulum </summary>
-
-#### Eklenti olarak 
-
-- Jellyfin yönetici paneline giriş yapın. 
-- Eklentiler (Plugins) bölümüne gidin.
-- Katalog (Catalog) sekmesine tıklayın.
-- Üsteki ayar ikonuna tıklayarak + ikonu ile yeni kaynak ekle sayfasını açın ve aşağıdaki adresi ekleyin
-``` https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/manifest.json ```
-- Kaynağı kaydedin ve Katalog bölümünde JMSFusion eklentisini bulun ve yükleyin.
-- JMS-Fusion yüklendikten sonra değişikliklerin geçerli olması için Jellyfin’i tekrar yeniden başlatın.
-- Yeniden başlatma sonrası ana sayfaya dönüp bir kaç kez ctrl + f5 ile sayfayı yenileyin
-
-### Manuel Kurulum
-
-#### Windows için
-
-İndirdiğiniz sıkıştırılmış klasörü herhangi boş bir klasöre çıkarıp ``` install.bat ``` betiğini yönetici olarak çalıştırın ve tarayıcı çerezlerini birkaç kez temizleyin.
-
-#### Yüklemeyi Kaldırma
-
-``` uninstall.bat ``` betiğini yönetici olarak çalıştırın.
-
-
-#### Linux için
-
-``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
-
-``` cd Jellyfin-Media-Slider/Resources/slider/ ```
-
-#### Kurulum scriptini çalıştırın:
-
-``` sudo chmod +x install.sh && sudo ./install.sh ```
-
-#### Tarayıcı çerezlerini temizleyin.
-
-#### Liste Güncelleme Scripti
-
-listUpdate klasöründeki script belirli aralıklarla kullanıcı listelerini günceller.
-
-#### Gerekli Ayarlar
-.env dosyasını düzenleyerek gerekli bilgileri girin.
-
-#### Script Seçenekleri
-'updateList'	içerikleri rastgele listeler
-( değerleri değiştirmek için /modules/listConfig.json el ile yapılandırılmalı ve script yeniden başlatılmalıdır.
-
-Detaylı açıklamalar;
-
-``` itemLimit: ``` Slider'da gösterilecek maksimum öğe sayısı
-
-``` garantiLimit: ``` Her içerik türünden garanti edilecek minimum öğe sayısı
-
-``` listLimit: ``` Önceki listelerin saklanacağı maksimum sayı (tekrarları önlemek için)
-
-``` listRefresh": ``` "Listenin yenilenme aralığı (milisaniye - 300000ms = 5 dakika)
-
-``` listcustomQueryString: ``` Jellyfin API'si için özel sorgu parametreleri)
-
-# Script Çalıştırma
-
-#### list ve listUpdate klasörüne okuma yazma izni verin
-
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list && sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
-
-#### Gerekli bağımlılıkları yükleyin:
-
-``` cd /usr/share/jellyfin/web/slider/listUpdate && npm install dotenv node-fetch ```
-
-#### scripti çalıştırın:
-
-``` node updateList.mjs ```
-
-#### Yüklemeyi Kaldırma
-
-``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh && sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ```
-</details>
-
-<details>
-<summary> English Installation</summary>
-
-### Installation with a plugin
-
-Log in to your Jellyfin admin dashboard.
-
-Go to the Plugins section.
-
-Click on the Catalog tab.
-
-Click the settings icon at the top, then use the + button to open the “Add Repository” page and enter the following address:
-
-```https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/manifest.json```
-
-Save the repository, then go to the Catalog section, find the JMS-Fusion plugin, and install it.
-
-After installing JMS-Fusion, restart Jellyfin again to apply the changes.
-
-After restarting, go back to the home page and refresh the page with ctrl + f5 a few times.
-
-### Manual Installation
-
-#### For Windows
-Extract the downloaded compressed folder to any empty folder, then run the ``` install.bat ``` file as administrator and clear your browser cookies a few times.
-
-#### Uninstalling
-Run the script ``` uninstall.bat ``` as administrator.
-
-#### For Linux
-
-``` git clone https://github.com/G-grbz/Jellyfin-Media-Slider ```
-
-``` cd Jellyfin-Media-Slider/Resources/slider/ ```
-
-#### Run the installation script:
-
-``` sudo chmod +x install.sh && sudo ./install.sh ```
-
-#### Clear browser cookies to ensure the changes take effect.
-
-### List Update Script
-
-The script in the listUpdate folder updates user lists at specific intervals.
-
-#### Required Settings
-
-Edit the .env file and insert the necessary information.
-
-#### Script Options
-
-'updateList' lists the contents randomly
-( /modules/listConfig.json needs to be configured manually and the script needs to be restarted for the changes to take effect.
-
-Detailed explanations;
-
-``` itemLimit: ``` Maximum number of items to show in slider
-
-``` garantiLimit: ``` Minimum guaranteed items per content type (Movie/Series/BoxSet)
-
-``` listLimit: ``` Max number of previous lists to store (prevent duplicates)
-
-``` listRefresh: ``` Refresh interval in milliseconds (300000ms = 5 minutes)
-
-```  listcustomQueryString: ``` Custom query parameters for Jellyfin API )
-
-#### Running the Script
-
-#### Give read-write permission to the list and listUpdate folder
-
-``` sudo chmod -R a+rw /usr/share/jellyfin/web/slider/list && sudo chmod -R a+rw /usr/share/jellyfin/web/slider/listUpdate ```
-
-#### Install dependencies:
-
-``` cd /usr/share/jellyfin/web/slider/listUpdate && npm install dotenv node-fetch ```
-
-#### Run the script:
-
-``` node updateList.mjs ```
-
-#### Uninstallation
-
-#### To remove the installation, run:
-
-``` sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh && sudo sh /usr/share/jellyfin/web/slider/uninstall.sh ``` </details>
-
-<details>
-<summary> Senkronize Şarkı Sözleri Betiği / Synchronized Lyrics Script </summary>
-
-### Türkçe
-
-lrclib.net üzerinden şarkı sözlerini çekebilen bir betik ekledim(lrclib.sh). Bu betik eklentiden bağımsız olarak çalışmaktadır. (Linux)
-
-betiği çalıştırmak için gerekli bağımlılıklar: ```curl, jq, find```
-
-mevcut şarkı isim formatınız ``` "'ad soyad' -  'parça adı'" ``` şekilde olmalıdır örn.: ```Ali Kınık - Ali Ayşeyi Seviyor```
-
-Betiği çalıştırmak için gerekli izinleri verin ve
-
-``` sh lrclib.sh /Müzik/Dosya/Yolu ``` komutunu çalıştırın alt klasörler dahil arayarak eşleşen şarkı sözlerini indirecektir. ( Öncelik Senkronize şarkı sözleri mevcut değil ise normal)
-
-Mevcut şarkı sözlerinizin üzerine yazmak isterseniz, komut sonuna ```--overwrite``` ekleyin yani ```sh lrclib.sh /Müzik/Dosya/Yolu --overwrite```
-
-dosya yolunuz boşluk içeriyor ise ```""``` içerisine alın yani ```sh lrclib.sh "/Müzik/Dosya/Müzik Yolu" --overwrite``` (formatlar mp3 ve flac olmalıdır)
-
-### English
-
-A standalone script has been added to fetch synchronized lyrics from lrclib.net. This script operates independently of the plugin and is designed for Linux systems.
-
-Requirements:
-To run the script, make sure the following dependencies are installed: curl, jq, and find
-
-Track Filename Format:
-Your audio files should follow the naming convention:
-```'artist name' - 'track title'```
-For example: ```Ali Kınık - Ali Ayşeyi Seviyor```
-
-Usage:
-Grant the necessary execution permissions to the script.
-
-Run the command:
-
-```sh lrclib.sh /Path/To/Your/Music/Directory```
-
-This will recursively search all subdirectories and download matching lyrics.
-It prioritizes synchronized lyrics, and falls back to regular lyrics if none are available.
-
-To overwrite existing lyrics files, append the --overwrite flag:
-
-```sh lrclib.sh /Path/To/Your/Music/Directory --overwrite```
-
-If your file path contains spaces, enclose it in double quotes, e.g., ``` sh lrclib.sh "/Path/To/Your/Music Path" --overwrite ``` (Supported formats: mp3 and flac)
-
-</details>
-
-<details>
-<summary> Trailer Scripts / Fragman Betikleri – Setup Guide (EN & TR) </summary>
-
-<details>
-<summary>
-
-### English </summary>
-
-#### Overview
-
-This repository contains **two related scripts** for adding trailers to your Jellyfin media library:
-
-* `trailers.sh` → Downloads and saves **local MP4 trailers** using `yt-dlp`.
-* `trailersurl.sh` → Adds only a **trailer URL** into NFO metadata files (trailersurl.sh does not perform downloads. For it to work, you need to have NFO enabled in your Jellyfin library, and the content folders must already contain pre-generated NFO files.).
-
-Both use TMDb for trailer discovery and refresh Jellyfin metadata afterward.
-
-#### Which one should I use?
-
-* Use `trailers.sh` if you want **offline, locally stored MP4 trailers** (more disk usage, but reliable even without internet).
-* Use `trailersurl.sh` if you prefer **fast, lightweight setup with no downloads**, but note: trailers will stream online and need internet at playback.
-
-#### Features
-
-* Movie and TV (Series/Season/Episode) support
-* Multi‑language trailer discovery (preferred + fallback)
-* Metadata refresh after adding trailer (either file or URL)
-* Summary report with counts (downloaded/skipped/errors or NFO updated/skipped/errors)
-
-#### Requirements
-
-Common dependencies:
-
-* **Shell**: bash (Linux/macOS)
-* **Tools**: `curl`, `jq`
-
-Additional for `trailers.sh`:
-
-* `yt-dlp` (required)
-* `ffprobe` (optional, from `ffmpeg`)
-
-#### Installation
-
-Choose your distro and run:
-
-(Note: It is recommended to install yt-dlp via pip. Using pip instead of a package manager ensures you get the latest version and a smoother experience.)
-
-**Debian / Ubuntu**
-
-```bash
-sudo apt update
-sudo apt install -y curl jq ffmpeg yt-dlp
-```
-
-**Arch / Manjaro**
-
-```bash
-sudo pacman -S curl jq ffmpeg yt-dlp
-```
-
-**Fedora**
-
-```bash
-sudo dnf install -y curl jq ffmpeg yt-dlp
-```
-
-**openSUSE**
-
-```bash
-sudo zypper install -y curl jq ffmpeg yt-dlp
-```
-
-**Alpine**
-
-```bash
-sudo apk add curl jq ffmpeg yt-dlp
-```
-
-#### Get the scripts
-
-```bash
-curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailers.sh"
-curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailersurl.sh"
-chmod +x trailers.sh trailersurl.sh
-```
-
-#### Configuration
-
-Both scripts use environment variables. Common ones:
+* Her kullanıcı için ayrı liste oluşturma
+* Otomatik liste güncelleme
+* Özelleştirilebilir Jellyfin API entegrasyonu
+* Manuel konumlandırma (tema uyumluluğu)
+* GMMP Müzik Oynatıcı
+* Duraklatma Ekranı
+* Avatar Oluşturucu (DiceBear desteğiyle)
+* Gelişmiş ayar yönetimi
+* Jellyfin genelinde kalite etiketleri
+* Netflix benzeri hover video önizlemeleri
+* Yeni içerik ve sistem bildirim modülü
+* StudioHubs (Disney+ tarzı)
+* Fragman edinim betikleri
 
 ---
 
-## Environment Variables Reference
+## ⚙️ Installation / Kurulum
 
-| Variable                    | Default                                                            | Description / Allowed Values                                                                                                                        |
-| --------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JF_BASE`                   | `http://localhost:8096`                                            | Jellyfin server base URL.                                                                                                                           |
-| `JF_API_KEY`                | `CHANGE_ME`                                                        | **Required.** Jellyfin API key.                                                                                                                     |
-| `TMDB_API_KEY`              | `CHANGE_ME`                                                        | **Required.** TMDb API key.                                                                                                                         |
-| `PREFERRED_LANG`            | `tr-TR`                                                            | Preferred language code for TMDb lookups.                                                                                                           |
-| `FALLBACK_LANG`             | `en-US`                                                            | Fallback language code if preferred is unavailable.                                                                                                 |
-| `INCLUDE_TYPES`             | `Movie,Series,Season,Episode`                                      | Media types to scan from Jellyfin.                                                                                                                  |
-| `PAGE_SIZE`                 | `200`                                                              | Pagination size for Jellyfin `/Items` queries.                                                                                                      |
-| `JF_USER_ID`                | *(empty)*                                                          | Jellyfin user ID. If unset, the script auto-detects an administrator or first user.                                                                 |
-| `INCLUDE_LANGS_WIDE`        | `tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,nl,pl,sv,cs,uk,el,null` | Broad set of fallback languages for TMDb trailer search when preferred/fallback fails.                                                              |
-| `PREFERRED_ISO639`          | derived from `PREFERRED_LANG`                                      | Auto-extracted ISO 639-1 code from preferred language (e.g., `tr-TR` → `tr`). Not typically set manually.                                           |
-| `FALLBACK_ISO639`           | derived from `FALLBACK_LANG`                                       | Auto-extracted ISO 639-1 code from fallback language (e.g., `en-US` → `en`). Not typically set manually.                                            |
+### Türkçe Kurulum
+
+* Eklenti kurulumu → [Details](#)
+* Manuel Windows/Linux kurulumu → [Details](#)
+
+### English Installation
+
+* Plugin installation → [Details](#)
+* Manual Windows/Linux installation → [Details](#)
 
 ---
 
-Extra for `trailers.sh`:
+## 🎵 Synchronized Lyrics Script / Senkronize Şarkı Sözleri Betiği
 
-* `COOKIES_BROWSER` → Default `(empty)` : Browser to export cookies from for yt-dlp (e.g., firefox, chrome:Default, edge, safari). Useful for age-restricted or region-locked videos.
-* `MIN_FREE_MB`  → Default `1024` : Minimum required free space (MiB) in both destination and working directory before downloads are attempted.
-* `SLEEP_SECS` → Default `1` : Delay (seconds) after each successful download.
-* `MIN_FREE_MB` → Default `1024` : Minimum required free space (MiB) in both destination and working directory before downloads are attempted.
-* `CLEANUP_EXTRA_PATHS` → Default *(empty)* : Extra root paths (colon-separated) to clean temp files from.
-* `WORK_DIR` → Default `/tmp/trailers-dl` : Working directory for temporary downloads. 
-* `ENABLE_THEME_LINK` → Default `0` : If `1`, create `backdrops/theme.mp4` symlink/hardlink/copy pointing to trailer.
-* `THEME_LINK_MODE` → Default `symlink` : Mode for theme creation. Options: `symlink`, `hardlink`, `copy`.
-* `OVERWRITE_POLICY` → Default `skip` : Behavior when `trailer.mp4` already exists. Values: `skip`, `replace`, `if-better`.
-* `BETTER_MIN_SIZE_DELTA` → Default `1048576` : In `if-better` mode: new trailer must be at least this many bytes larger to count as better.
-* `BETTER_MIN_DURATION_DELTA` → Default `3` : In `if-better` mode: new trailer must be longer by at least this many seconds to count as better.
-
-## Notes
-
-* **`OVERWRITE_POLICY=if-better`** logic: the new trailer is kept only if it is longer (`BETTER_MIN_DURATION_DELTA`) **or** larger (`BETTER_MIN_SIZE_DELTA`) than the existing one.
-* **Theme file (`backdrops/theme.mp4`)**: Enabled with `ENABLE_THEME_LINK=1`, created using the chosen method in `THEME_LINK_MODE`.
-* **`COOKIES_BROWSER`** example: `COOKIES_BROWSER=firefox` or `COOKIES_BROWSER="chrome:Default"` to use yt-dlp with authenticated sessions.
----
-
-#### Usage
-
-**Download trailers (trailers.sh):**
-
-```bash
-JF_BASE="http://jellyfinserveraddress:8096" \
-JF_API_KEY="API-KEY-HERE" \
-TMDB_API_KEY="TMDB-API-KEY-HERE" \
-COOKIES_BROWSER=chrome \
-MIN_FREE_MB=2048 \
-OVERWRITE_POLICY= if-better \
-ENABLE_THEME_LINK=1 \
-PREFERRED_LANG=tr-TR \
-INCLUDE_LANGS_WIDE="tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null" \
-./trailers.sh
-```
-
-**Add only trailer URLs (trailersurl.sh):**
-
-```bash
-JF_BASE="http://jellyfinserveraddress:8096" \
-JF_API_KEY="API-KEY-HERE" \
-TMDB_API_KEY="TMDB-API-KEY-HERE" \
-PREFERRED_LANG=tr-TR \
-INCLUDE_LANGS_WIDE="tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null" \
-./trailersurl.sh
-```
-
-#### Systemd timer (optional)
-
-Create a service at `/etc/systemd/system/trailers.service`:
-
-```ini
-[Unit]
-Description=Download trailers for Jellyfin library
-
-[Service]
-Type=oneshot
-Environment=JF_BASE=http://localhost:8096
-Environment=JF_API_KEY=<JF_API-KEY>
-Environment=TMDB_API_KEY=<TMDB_API-KEY>
-Environment=PREFERRED_LANG=tr-TR
-Environment=COOKIES_BROWSER=chrome
-Environment=INCLUDE_LANGS_WIDE=tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null
-WorkingDirectory=/opt/trailers(replace this with the directory path where the scripts are located)
-ExecStart=/directory-path/trailers.sh
-```
-
-Timer `/etc/systemd/system/trailers.timer`:
-
-```ini
-[Unit]
-Description=Run trailers.sh daily
-
-[Timer]
-OnCalendar=03:30
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now trailers.timer
-```
-</details>
-
-<details>
-<summary>
-
-### Türkçe </summary>
-
-#### Genel Bakış
-
-Bu repo Jellyfin kütüphanenize fragman eklemek için **iki betik** içerir:
-
-* `trailers.sh` → `yt-dlp` ile **yerel MP4 fragmanları** indirir.
-* `trailersurl.sh` → Sadece **fragman URL’sini** `.nfo` dosyasına ekler (İndirme işlemi yapmaz. Bunun çalışabilmesi için Jellyfin kütüphanenizde NFO etkin olmalı ve içerik klasörlerinde önceden oluşturulmuş NFO dosyaları bulunmalıdır).
-
-Her ikisi de TMDb üzerinden fragman arar ve işlem sonrası Jellyfin meta verisini yeniler.
-
-#### Hangisini kullanmalı?
-
-* `trailers.sh` → **İnternetsiz çalışabilen yerel MP4 dosyaları** istiyorsanız kullanın (daha fazla disk kullanır).
-* `trailersurl.sh` → **Hafif ve hızlı** çözüm istiyorsanız kullanın (disk kullanmaz ama oynatma için internet gerekir).
-
-#### Özellikler
-
-* Film ve Dizi (Dizi/Sezon/Bölüm) desteği
-* Tercihli/yedek dil ile çoklu dil desteği
-* Fragman eklendikten sonra meta veri yenileme
-* Özet rapor (indirilen/atlanılan/hatalı ya da NFO güncellenen/atlanılan)
-
-#### Gerekli Araçlar
-
-Ortak bağımlılıklar:
-
-* **Kabuk**: bash
-* **Araçlar**: `curl`, `jq`
-
-Ek olarak `trailers.sh` için:
-
-* `yt-dlp` (zorunlu)
-* `ffprobe` (`ffmpeg` paketinden, opsiyonel)
-
-#### Kurulum
-
-Dağıtımınıza göre:
-
-(not: yt-dlp kurulumunu pip üzerinden yapmanız tavsiye edilir. Paket yöneticileriyle kurulum yerine pip kullanmanız daha güncel ve sorunsuz bir deneyim sağlayacaktır.)
-
-**Debian / Ubuntu**
-
-```bash
-sudo apt update
-sudo apt install -y curl jq ffmpeg yt-dlp
-```
-
-**Arch / Manjaro**
-
-```bash
-sudo pacman -S curl jq ffmpeg yt-dlp
-```
-
-**Fedora**
-
-```bash
-sudo dnf install -y curl jq ffmpeg yt-dlp
-```
-
-**openSUSE**
-
-```bash
-sudo zypper install -y curl jq ffmpeg yt-dlp
-```
-
-**Alpine**
-
-```bash
-sudo apk add curl jq ffmpeg yt-dlp
-```
-
-#### Betikleri indir
-
-```bash
-curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailers.sh"
-curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailersurl.sh"
-chmod +x trailers.sh trailersurl.sh
-```
-
-#### Yapılandırma
+* Türkçe kullanım → [Details](#)
+* English usage → [Details](#)
 
 ---
 
-## Ortam Değişkenleri Referansı
+## 🎬 Trailer Scripts / Fragman Betikleri
 
-| Değişken                    | Varsayılan                                                         | Açıklama / Geçerli Değerler                                                                                                                        |
-| --------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `JF_BASE`                   | `http://localhost:8096`                                            | Jellyfin sunucu adresi.                                                                                                                            |
-| `JF_API_KEY`                | `CHANGE_ME`                                                        | **Zorunlu.** Jellyfin API anahtarı.                                                                                                                |
-| `TMDB_API_KEY`              | `CHANGE_ME`                                                        | **Zorunlu.** TMDb API anahtarı.                                                                                                                    |
-| `PREFERRED_LANG`            | `tr-TR`                                                            | TMDb sorguları için tercih edilen dil kodu.                                                                                                        |
-| `FALLBACK_LANG`             | `en-US`                                                            | Tercih edilen dil bulunmazsa kullanılacak yedek dil.                                                                                               |
-| `INCLUDE_TYPES`             | `Movie,Series,Season,Episode`                                      | Jellyfin’de taranacak medya türleri.                                                                                                               |
-| `PAGE_SIZE`                 | `200`                                                              | Jellyfin `/Items` sayfalama boyutu.                                                                                                                |
-| `JF_USER_ID`                | *(boş)*                                                            | Jellyfin kullanıcı ID’si. Ayarlanmazsa script otomatik yönetici veya ilk kullanıcıyı çözer.                                                        |
-| `INCLUDE_LANGS_WIDE`        | `tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,nl,pl,sv,cs,uk,el,null` | TMDb trailer aramalarında geniş dil havuzu. Tercih/yedek dil sonuç vermezse devreye girer.                                                         |
-| `PREFERRED_ISO639`          | `PREFERRED_LANG`’den türetilir                                     | Otomatik çıkarılır (`tr-TR` → `tr`). Manuel ayarlamaya gerek yok.                                                                                  |
-| `FALLBACK_ISO639`           | `FALLBACK_LANG`’den türetilir                                      | Otomatik çıkarılır (`en-US` → `en`). Manuel ayarlamaya gerek yok.                                                                                  |
+* English Guide → [Details](#)
+* Türkçe Rehber → [Details](#)
 
 ---
 
-Ekstra `trailers.sh` için:
+## 📄 License
 
-* `COOKIES_BROWSER` → varsayılan `(boş)` : yt-dlp için çerezlerin alınacağı tarayıcı (örn. firefox, chrome:Default, edge, safari). Yaş kısıtlı veya bölge kilitli videolarda faydalı.
-* `MIN_FREE_MB` → varsayılan `1024` : Hem hedef hem de çalışma klasöründe olması gereken minimum boş alan (MiB). Altındaysa indirme yapılmaz.
-* `SLEEP_SECS ` → varsayılan `1` : Başarılı her indirmeden sonra beklenecek saniye.
-* `OVERWRITE_POLICY` → varsayılan `skip` : Var olan `trailer.mp4` dosyası için davranış. Değerler: `skip`, `replace`, `if-better`.                              
-* `WORK_DIR` → varsayılan`/tmp/trailers-dl` : Geçici indirme klasörü.                                                                                            
-* `ENABLE_THEME_LINK` → varsayılan `0` : `1` ise `backdrops/theme.mp4` dosyası trailer’a symlink/hardlink/kopya olarak oluşturulur.                              
-* `THEME_LINK_MODE` → varsayılan `symlink` : Tema dosyası oluşturma yöntemi: `symlink`, `hardlink`, `copy`.                                                      
-* `CLEANUP_EXTRA_PATHS` → *(boş)* : Ek temizlenecek klasör kökleri. Birden çok yol `:` ile ayrılabilir. 
-* `BETTER_MIN_SIZE_DELTA` → `1048576` : `if-better` modunda: yeni dosya en az bu kadar bayt daha büyükse “daha iyi” kabul edilir.
-* `BETTER_MIN_DURATION_DELTA` → `3` : `if-better` modunda: yeni dosya en az bu kadar saniye daha uzunsa “daha iyi” kabul edilir.             
-
-## Notlar
-
-* **`OVERWRITE_POLICY=if-better`** mantığı: Yeni trailer, süresi `BETTER_MIN_DURATION_DELTA` kadar daha uzunsa **veya** boyutu `BETTER_MIN_SIZE_DELTA` kadar daha büyükse kabul edilir.
-* **Tema dosyası (`backdrops/theme.mp4`)**: `ENABLE_THEME_LINK=1` ile etkinleştirilir, `THEME_LINK_MODE` yöntemine göre oluşturulur.
-* **`COOKIES_BROWSER`** örnek: `COOKIES_BROWSER=firefox` veya `COOKIES_BROWSER="chrome:Default"`.
-
----
-
-
-#### Örnek Kullanım
-
-**Fragman indir (trailers.sh):**
-
-```bash
-JF_BASE="http://jellyfinserveradres:8096" \
-JF_API_KEY="API-KEY-BURAYA" \
-TMDB_API_KEY="TMDB-API-KEY-BURAYA" \
-COOKIES_BROWSER=chrome \
-MIN_FREE_MB=2048 \
-ENABLE_THEME_LINK=1 \
-PREFERRED_LANG=tr-TR \
-OVERWRITE_POLICY=if-better \
-INCLUDE_LANGS_WIDE="tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null" \
-./trailers.sh
-```
-
-**Sadece URL ekle (trailersurl.sh):**
-
-```bash
-JF_BASE="http://jellyfinserveradres:8096" \
-JF_API_KEY="API-KEY-BURAYA" \
-TMDB_API_KEY="TMDB-API-KEY-BURAYA" \
-PREFERRED_LANG=tr-TR \
-INCLUDE_LANGS_WIDE="tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null" \
-./trailersurl.sh
-```
-
-#### Systemd zamanlayıcı (opsiyonel)
-
-`/usr/lib/systemd/system/trailers.service`:
-
-```ini
-[Unit]
-Description=Jellyfin kütüphanesi için fragman indirme
-
-[Service]
-Type=oneshot
-Environment=JF_BASE=http://localhost:8096
-Environment=JF_API_KEY=<JF_ANAHTAR>
-Environment=TMDB_API_KEY=<TMDB_ANAHTAR>
-Environment=PREFERRED_LANG=tr-TR
-Environment=COOKIES_BROWSER=chrome
-Environment=INCLUDE_LANGS_WIDE=tr,en,hi,de,ru,fr,it,es,ar,fa,pt,zh,ja,ko,null
-WorkingDirectory=/opt/trailers(burayı betiklerin bulunduğu dizin yolu ile değiştirin)
-ExecStart=/dizin-yolu/trailers.sh
-```
-
-`/usr/lib/systemd/system/trailers.timer`:
-
-```ini
-[Unit]
-Description=trailers.sh günlük çalıştırma
-
-[Timer]
-OnCalendar=03:30
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Etkinleştir:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now trailers.timer
-```
-</details>
-</details>
-
-#### 📄 License and Usage Notice
 This project is not allowed to be copied, redistributed, or published without explicit permission.
 
-If you intend to use, modify, or share any part of this project, you must:
-
-Credit the original author clearly.
-
-Provide a link to the original repository.
-
-Indicate any changes made if the project is modified or forked.
+* Credit the original author clearly
+* Provide a link to the repository
+* Indicate modifications
 
 Unauthorized use or redistribution is strictly prohibited.
-
-Thank you for respecting the work and effort behind this project.
