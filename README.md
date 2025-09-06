@@ -1,6 +1,6 @@
 ## Jellyfin Media Slider
 
-A customizable media slider component for Jellyfin.
+An all-in-one JavaScript toolkit for Jellyfin, featuring a customizable Media Slider builder, music player, Netflix-style pause screen, Netflix-like HoverVideo, quality labels on cards, DiceBear avatar generator, and a sleek notification panel.
 
 ## 📑 Table of Contents
 
