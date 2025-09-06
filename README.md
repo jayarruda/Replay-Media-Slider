@@ -683,7 +683,7 @@ Ekstra `trailers.sh` için:
 * `SLEEP_SECS ` → varsayılan `1` : Başarılı her indirmeden sonra beklenecek saniye.
 * `OVERWRITE_POLICY` → varsayılan `skip` : Var olan `trailer.mp4` dosyası için davranış. Değerler: `skip`, `replace`, `if-better`.                              
 * `WORK_DIR` → varsayılan`/tmp/trailers-dl` : Geçici indirme klasörü.                                                                                            
-* `ENABLE_THEME_LINK` → varsayılan `0` : Değer `1` ise, indirilen `trailer.mp4` dosyası, yeni oluşturulacak `backdrops/` dizininin içinde bir theme.mp4 eklemek için seçime göre sembolik bağlantı, sabit bağlantı veya kopya oluşturur.                              
+* `ENABLE_THEME_LINK` → varsayılan `0` : Değer `1` ise, indirilen `trailer.mp4` dosyası, yeni oluşturulacak `backdrops/` dizininin içine theme.mp4 eklemek için seçime göre sembolik bağlantı, sabit bağlantı veya kopya oluşturur.                              
 * `THEME_LINK_MODE` → varsayılan `symlink` : Tema dosyası oluşturma yöntemi: `symlink`, `hardlink`, `copy`.                                                      
 * `CLEANUP_EXTRA_PATHS` → *(boş)* : Ek temizlenecek klasör kökleri. Birden çok yol `:` ile ayrılabilir. 
 * `BETTER_MIN_SIZE_DELTA` → `1048576` : `if-better` modunda: yeni dosya en az bu kadar bayt daha büyükse “daha iyi” kabul edilir.
