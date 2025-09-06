@@ -37,7 +37,8 @@ A customizable media slider component for Jellyfin.
 
 ### Duraklatma Ekranı / Pause Screen
 
-![pause](https://github.com/user-attachments/assets/8e3ec49b-b7f2-406a-818d-064f6f64eac7)
+![pausescreen](https://github.com/user-attachments/assets/35b3a248-423b-4de9-987b-a633d72ba191)
+
 
 ### Kompakt Görünüm / Compact View
 
@@ -64,6 +65,18 @@ A customizable media slider component for Jellyfin.
 #### Fragman Modalı / Trailer Popup
 
 ![fm](https://github.com/user-attachments/assets/2636496c-4f9b-4a39-8516-8580d39b05fe)
+
+### HoverTrailers
+
+![hovertrailer](https://github.com/user-attachments/assets/13549ae1-6afc-42e3-a6bd-73efc902f5d2)
+
+### Popovers
+
+![popovers](https://github.com/user-attachments/assets/7247488f-0b2a-47e6-8972-3be7f7e7c992)
+
+### StudioHubs
+
+![studiohubs](https://github.com/user-attachments/assets/54689ce8-8866-4544-93b1-a51afc9a3d7f)
 
 ### Ayarlar Modalı / Settings Popup
 
