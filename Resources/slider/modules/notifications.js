@@ -1,4 +1,4 @@
-import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow, goToDetailsPage } from "./api.js";
+import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow, goToDetailsPage, isCurrentUserAdmin } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { getCurrentVersionFromEnv, compareSemver } from "./update.js";
@@ -1136,17 +1136,36 @@ function clampToNow(ts) {
   return Math.min(Number(ts) || 0, now);
 }
 
+const ADMIN_CAP_TTL_MS = 5 * 60 * 1000;
+async function canReadActivityLog() {
+  const now = Date.now();
+  if (!notifState._adminCapCache) {
+    notifState._adminCapCache = { value: null, ts: 0 };
+  }
+  const cached = notifState._adminCapCache;
+  if (cached.value !== null && (now - cached.ts) < ADMIN_CAP_TTL_MS) {
+    return cached.value;
+  }
+  const ok = await isCurrentUserAdmin().catch(() => false);
+  notifState._adminCapCache = { value: ok, ts: now };
+  return ok;
+}
+
 async function fetchActivityLog(limit = 30) {
+  const allowed = await canReadActivityLog();
+  if (!allowed) return [];
   try {
     const resp = await makeApiRequest(`/System/ActivityLog/Entries?StartIndex=0&Limit=${limit}`);
     const items = Array.isArray(resp?.Items) ? resp.Items : (Array.isArray(resp) ? resp : []);
     return items;
   } catch (e) {
-  if (e?.status !== 403 && e?.message && !String(e.message).includes("403")) {
-    console.error("[notif] ActivityLog isteği hata:", e);
+    const msg = String(e?.message || "");
+    const code = e?.status;
+    if (code !== 401 && code !== 403 && !msg.includes("401") && !msg.includes("403")) {
+      console.error("[notif] ActivityLog isteği hata:", e);
+    }
+    return [];
   }
-  return [];
-}
 }
 
 function renderActivities(activities = []) {
@@ -1201,84 +1220,95 @@ function isRemovalActivity(a) {
   );
 }
 
- async function pollActivities({ seedIfFirstRun = false } = {}) {
-   if (!notifState.activitySeenIds) notifState.activitySeenIds = new Set();
+ notifState._activityBackoffMs ??= 0;
+const BACKOFF_STEP_MS = 5_000;
+const BACKOFF_MAX_MS  = 60_000;
 
-   const acts = await fetchActivityLog(30);
-   if (!acts.length) {
-     notifState.activities = [];
-     updateBadge();
-     renderActivities([]);
-     return;
+async function pollActivities({ seedIfFirstRun = false } = {}) {
+    if (!notifState.activitySeenIds) notifState.activitySeenIds = new Set();
+   if (notifState._activityBackoffMs > 0) {
+     await new Promise(r => setTimeout(r, notifState._activityBackoffMs));
    }
 
-   const newestTs = clampToNow(
-     acts.reduce((acc, a) => Math.max(acc, Date.parse(a?.Date || "") || 0), 0)
-   );
-
-   if (seedIfFirstRun && (!notifState.activityLastSeen || notifState.activitySeenIds.size === 0)) {
-      acts.forEach(a => notifState.activitySeenIds.add(a.Id || `${a.Type}:${a.Date}`));
-      notifState.activityLastSeen = newestTs || Date.now();
-      notifState.activities = acts;
-      saveState();
+   const acts = await fetchActivityLog(30).catch(() => []);
+    if (!acts.length) {
+      notifState.activities = [];
       updateBadge();
-      renderActivities(acts);
+      renderActivities([]);
+     notifState._activityBackoffMs = Math.min(
+       (notifState._activityBackoffMs || 0) + BACKOFF_STEP_MS,
+       BACKOFF_MAX_MS
+     );
       return;
     }
+   notifState._activityBackoffMs = 0;
 
-  function safeParseTs(s) {
-  const t = Date.parse(s || "");
-  return Number.isFinite(t) ? t : 0;
-}
+    const newestTs = clampToNow(
+      acts.reduce((acc, a) => Math.max(acc, Date.parse(a?.Date || "") || 0), 0)
+    );
 
-const fresh =
-  acts
-    .map((a, idx) => {
-      const id = a.Id || `${a.Type}:${a.Date}`;
-      return { a, id, idx, ts: clampToNow(safeParseTs(a?.Date)) };
-    })
-    .filter(({ id }) => !notifState.activitySeenIds.has(id))
-    .sort((x, y) => (x.ts - y.ts) || (x.idx - y.idx))
-    .map(x => x.a);
-
-   const nonRemoval = [];
-  let newestFreshTs = 0;
-
-   for (const a of fresh) {
-     const id = a.Id || `${a.Type}:${a.Date}`;
-     notifState.activitySeenIds.add(id);
-
-    const ts = Date.parse(a?.Date || "") || 0;
-    if (ts > newestFreshTs) newestFreshTs = ts;
-
-     if (isRemovalActivity(a)) {
-       const itemId = a.ItemId || a.Item?.Id;
-       const title = a.Item?.Name || a.Name || a.Type || "İçerik";
-       pushNotification({
-         itemId,
-         title,
-         timestamp: Date.parse(a?.Date || "") || Date.now(),
-         status: "removed",
-       });
-       queueToast({ Id: itemId, Name: title }, { type: "content", status: "removed" });
-     } else {
-       nonRemoval.push(a);
+    if (seedIfFirstRun && (!notifState.activityLastSeen || notifState.activitySeenIds.size === 0)) {
+       acts.forEach(a => notifState.activitySeenIds.add(a.Id || `${a.Type}:${a.Date}`));
+       notifState.activityLastSeen = newestTs || Date.now();
+       notifState.activities = acts;
+       saveState();
+       updateBadge();
+       renderActivities(acts);
+       return;
      }
-   }
 
-   enqueueActivityToastBurst(nonRemoval);
-
-   notifState.activities = acts;
-   saveState();
-   updateBadge();
-   renderActivities(acts);
-
-   if (document.querySelector("#jfNotifModal.open")) {
-     renderNotifications();
-     updateBadge();
-   }
+   function safeParseTs(s) {
+   const t = Date.parse(s || "");
+   return Number.isFinite(t) ? t : 0;
  }
 
+ const fresh =
+   acts
+     .map((a, idx) => {
+       const id = a.Id || `${a.Type}:${a.Date}`;
+       return { a, id, idx, ts: clampToNow(safeParseTs(a?.Date)) };
+     })
+     .filter(({ id }) => !notifState.activitySeenIds.has(id))
+     .sort((x, y) => (x.ts - y.ts) || (x.idx - y.idx))
+     .map(x => x.a);
+
+    const nonRemoval = [];
+   let newestFreshTs = 0;
+
+    for (const a of fresh) {
+      const id = a.Id || `${a.Type}:${a.Date}`;
+      notifState.activitySeenIds.add(id);
+
+     const ts = Date.parse(a?.Date || "") || 0;
+     if (ts > newestFreshTs) newestFreshTs = ts;
+
+      if (isRemovalActivity(a)) {
+        const itemId = a.ItemId || a.Item?.Id;
+        const title = a.Item?.Name || a.Name || a.Type || "İçerik";
+        pushNotification({
+          itemId,
+          title,
+          timestamp: Date.parse(a?.Date || "") || Date.now(),
+          status: "removed",
+        });
+        queueToast({ Id: itemId, Name: title }, { type: "content", status: "removed" });
+      } else {
+        nonRemoval.push(a);
+      }
+    }
+
+    enqueueActivityToastBurst(nonRemoval);
+
+    notifState.activities = acts;
+    saveState();
+    updateBadge();
+    renderActivities(acts);
+
+    if (document.querySelector("#jfNotifModal.open")) {
+      renderNotifications();
+      updateBadge();
+    }
+  }
 
 function activityKey(a) {
   if (a?.Id) return `activity:${a.Id}`;

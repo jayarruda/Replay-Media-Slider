@@ -34,8 +34,13 @@ export function ensureProgressBarExists() {
 export function resetProgressBar() {
   const progressBar = ensureProgressBarExists();
   if (!progressBar) return;
+
   progressBar.style.transition = "none";
+  progressBar.style.animation = "none";
   progressBar.style.width = "0%";
+  void progressBar.offsetWidth;
+  // const clone = progressBar.cloneNode(true);
+  // progressBar.replaceWith(clone);
   pausedProgress = 0;
 }
 

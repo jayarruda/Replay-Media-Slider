@@ -158,10 +158,10 @@ async function safeFetch(url, opts = {}) {
   return res.json();
 }
 
-export function getAuthHeader() {
+ export function getAuthHeader() {
   const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
   return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
-}
+ }
 
 export function getSessionInfo() {
   const raw =
@@ -265,11 +265,28 @@ export function getSessionInfo() {
 
 async function makeApiRequest(url, options = {}) {
   try {
-    options.headers = { ...(options.headers || {}), Authorization: getAuthHeader() };
+    const { accessToken } = getSessionInfo();
+    const baseHeaders = {
+      'X-Emby-Authorization': getAuthHeader(),
+      'X-Emby-Token': accessToken || '',
+      'Authorization': getAuthHeader(),
+    };
+    options.headers = { ...baseHeaders, ...(options.headers || {}) };
 
     const response = await fetch(url, options);
     if (response.status === 404) {
       return null;
+    }
+    if (response.status === 401) {
+      clearCredentials?.();
+      const err = new Error("Oturum geçersiz, yeniden giriş yapın.");
+      err.status = 401;
+      throw err;
+    }
+    if (response.status === 403) {
+      const err = new Error(`Yetki yok (403): ${url}`);
+      err.status = 403;
+      throw err;
     }
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -293,10 +310,21 @@ async function makeApiRequest(url, options = {}) {
     const msg = String(error?.message || "");
     const is403 = error?.status === 403 || msg.includes("403");
     const is404 = error?.status === 404 || msg.includes("404");
-    if (!is403 && !is404) {
+    const is401 = error?.status === 401 || msg.includes("401");
+    if (!is403 && !is404 && !is401) {
       console.error(`${options?.method || "GET"} ${url} için API isteği hatası:`, error);
     }
     throw error;
+  }
+}
+
+export async function isCurrentUserAdmin() {
+  try {
+    const { userId } = getSessionInfo();
+    const u = await makeApiRequest(`/Users/${userId}`);
+    return !!(u?.Policy?.IsAdministrator);
+  } catch {
+    return false;
   }
 }
 

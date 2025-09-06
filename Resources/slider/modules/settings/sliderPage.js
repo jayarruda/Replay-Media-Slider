@@ -454,15 +454,15 @@ videoPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
       sliderDiv.appendChild(dotPreviewDiv);
 
     document.addEventListener('DOMContentLoaded', () => {
-      if (preferTrailerInput.checked && onlyTrailerInput.checked) {
-    onlyTrailerInput.checked = false;
-  }
+    if (typeof updateModalRelatedFields === 'function') {
     updateModalRelatedFields();
-  });
+  }
+});
 
 
     const dotBgDiv = document.createElement('div');
     dotBgDiv.className = 'fsetting-item';
+    dotBgDiv.classList.add('dot-bg-container');
     const dotBgLabel = document.createElement('label');
     dotBgLabel.textContent = labels.dotBackgroundImageType || 'Dot Arka Plan Görsel Türü:';
     const dotBgSelect = createImageTypeSelect(

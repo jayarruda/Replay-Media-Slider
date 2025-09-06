@@ -1,8 +1,7 @@
-import { stopSlideTimer, startSlideTimer } from "./timer.js";
-import { SLIDE_DURATION } from "./timer.js";
+import { stopSlideTimer, startSlideTimer, SLIDE_DURATION, clearAllTimers } from "./timer.js";
+import { resetProgressBar } from "./progressBar.js";
 import { getConfig } from './config.js';
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
-import { resetProgressBar } from "./progressBar.js";
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js"
 import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, getCachedUserTopGenres, getGenresForDot, fetchLocalTrailers, pickBestLocalTrailer, goToDetailsPage } from "./api.js";
@@ -549,18 +548,29 @@ function hideTrailerIframe() {
   clearTransientOverlays(videoModal);
 }
 
+function hardResetProgressBarEl() {
+  const pb = document.querySelector(".slide-progress-bar");
+  if (!pb) return;
+  pb.style.transition = "none";
+  pb.style.animation  = "none";
+  pb.style.width      = "0%";
+  void pb.offsetWidth;
+  pb.style.transition = "";
+  pb.style.animation  = "";
+  // const clone = pb.cloneNode(true); pb.replaceWith(clone);
+}
+
 export function changeSlide(direction) {
   const slides = document.querySelectorAll(".slide");
   if (!slides.length) return;
 
+  clearAllTimers();
   stopSlideTimer();
-  resetProgressBar();
-
   const currentIndex = getCurrentIndex();
   const newIndex = (currentIndex + direction + slides.length) % slides.length;
   setCurrentIndex(newIndex);
   displaySlide(newIndex);
-
+  hardResetProgressBarEl();
   setRemainingTime(SLIDE_DURATION);
   startSlideTimer();
 }

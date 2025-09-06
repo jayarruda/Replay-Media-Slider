@@ -1,4 +1,4 @@
-import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex } from "./utils.js";
+import { getYoutubeEmbedUrl, getProviderUrl, isValidUrl, createTrailerIframe, debounce, getHighResImageUrls, prefetchImages, getHighestQualityBackdropIndex, createImageWarmQueue } from "./utils.js";
 import { updateFavoriteStatus, updatePlayedStatus, fetchItemDetails, goToDetailsPage } from "./api.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
@@ -7,6 +7,8 @@ import { createButtons, createProviderContainer } from './buttons.js';
 
 const config = getConfig();
 const settingsBackgroundSlides = [];
+const backdropWarmQueue = createImageWarmQueue({ concurrency: 3 });
+window.__backdropWarmQueue = backdropWarmQueue;
 
 function warmImageOnce(url, { timeout = 2500 } = {}) {
   if (!url) return Promise.resolve();
@@ -44,7 +46,6 @@ async function createSlide(item) {
   let parentId = item.Id;
 
   if ((item.Type === "Episode" || item.Type === "Season") && item.SeriesId) {
-    console.log(`Bölüm algılandı: ${item.Name}, dizi bilgileri alınıyor: ${item.SeriesId}`);
     try {
       const parentItem = await fetchItemDetails(item.SeriesId);
       parentId = parentItem.Id;
@@ -230,6 +231,7 @@ let isBackdropLoaded = false;
 backdropImg.addEventListener('load', () => { isBackdropLoaded = true; }, { once: true });
 
 const finalBackdropForWarm = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+backdropWarmQueue.enqueue(finalBackdropForWarm, { shortPreload: true });
 const warmObserver = new IntersectionObserver((entries, obs) => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
@@ -390,14 +392,10 @@ io.observe(backdropImg);
   if (statusContainer) metaContainer.appendChild(statusContainer);
   if (ratingExists) metaContainer.appendChild(ratingContainer);
   if (languageContainer) metaContainer.appendChild(languageContainer);
-
   const mainContentContainer = createMainContentContainer();
   mainContentContainer.append(logoContainer, titleContainer, plotContainer, providerContainer);
-
   slide.append(metaContainer, mainContentContainer, buttonContainer, actorSlider, infoContainer, directorContainer);
   slidesContainer.appendChild(slide);
-
-  console.log(`Item ${itemId} slide eklendi.`);
   if (slidesContainer.children.length === 1) {
     import("./navigation.js").then(mod => mod.displaySlide(0));
   }
