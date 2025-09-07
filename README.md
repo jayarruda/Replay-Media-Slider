@@ -318,11 +318,16 @@ sudo chmod +x /usr/share/jellyfin/web/slider/uninstall.sh && sudo sh /usr/share/
 
 `lrclib.net` üzerinden şarkı sözlerini çekebilen bir betik ekledim (`lrclib.sh`). Bu betik eklentiden bağımsız olarak çalışmaktadır. (Linux)
 
-**Gerekenler:** `curl`, `jq`, `find`
+**Bağımlılıklar:** `curl`, `jq`, `find`
 
 **Dosya adı formatı:** `'sanatçı' - 'parça adı'` (Örn: `Ali Kınık - Ali Ayşeyi Seviyor`)
 
 **Kullanım:**
+
+```bash
+curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/lrclib.sh"
+chmod +x lrclib.sh
+```
 
 ```bash
 sh lrclib.sh /Müzik/Dosya/Yolu
@@ -353,6 +358,11 @@ A standalone script to fetch synchronized lyrics from `lrclib.net` (`lrclib.sh`)
 **Track filename format:** `'artist' - 'track title'` (e.g., `Ali Kınık - Ali Ayşeyi Seviyor`)
 
 **Usage:**
+
+```bash
+curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/lrclib.sh"
+chmod +x lrclib.sh
+```
 
 ```bash
 sh lrclib.sh /Path/To/Your/Music/Directory
@@ -453,8 +463,8 @@ sudo apk add curl jq ffmpeg yt-dlp
 #### Get the scripts
 
 ```bash
-curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailers.sh"
-curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailersurl.sh"
+curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailers.sh"
+curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailersurl.sh"
 chmod +x trailers.sh trailersurl.sh
 ```
 
@@ -649,8 +659,8 @@ sudo apk add curl jq ffmpeg yt-dlp
 #### Betikleri indir
 
 ```bash
-curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailers.sh"
-curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/trailersurl.sh"
+curl -fsSL -o trailers.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailers.sh"
+curl -fsSL -o trailersurl.sh "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/Resources/slider/trailersurl.sh"
 chmod +x trailers.sh trailersurl.sh
 ```
 
