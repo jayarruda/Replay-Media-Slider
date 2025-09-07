@@ -79,6 +79,7 @@ export function getConfig() {
     showRuntimeInfo: localStorage.getItem('showRuntimeInfo') !== 'false',
     showQualityInfo: localStorage.getItem('showQualityInfo') !== 'false',
     showProgressBar: localStorage.getItem('showProgressBar') !== 'false',
+    showProgressAsSeconds: localStorage.getItem('showProgressAsSeconds') === 'true',
     showQualityDetail: localStorage.getItem('showQualityDetail') !== 'false',
     showActorInfo: localStorage.getItem('showActorInfo') !== 'false',
     showActorAll: localStorage.getItem('showActorAll') === 'true',
@@ -132,6 +133,7 @@ export function getConfig() {
     artistLimit: parseInt(localStorage.getItem('artistLimit'), 10) || 10,
     gecikmeSure: parseInt(localStorage.getItem('gecikmeSure'), 10) || 500,
     limit: parseInt(localStorage.getItem('limit'), 10) || 20,
+    onlyUnwatchedRandom: localStorage.getItem('onlyUnwatchedRandom') === 'true',
     maxShufflingLimit: parseInt(localStorage.getItem('maxShufflingLimit'), 10) || 10000,
     excludeEpisodesFromPlaying: localStorage.getItem('excludeEpisodesFromPlaying') !== 'false',
     showPlaybackProgress: localStorage.getItem('showPlaybackProgress') !== 'false',
@@ -207,6 +209,8 @@ export function getConfig() {
     toastGroupThreshold: parseInt(localStorage.getItem("toastGroupThreshold"), 10) || 5,
     enableCounterSystem: localStorage.getItem('enableCounterSystem') !== 'false',
 
+    enablePersonalRecommendations: localStorage.getItem('enablePersonalRecommendations') === 'true',
+    personalRecsCacheTtlMs: parseInt(localStorage.getItem('personalRecsCacheTtlMs'), 10) || 360,
     enableStudioHubs: localStorage.getItem('enableStudioHubs') !== 'false',
     studioMiniTrailerPopover: localStorage.getItem('studioMiniTrailerPopover') !== 'false',
     studioHubsHoverVideo: localStorage.getItem('studioHubsHoverVideo') !== 'false',
@@ -335,6 +339,9 @@ export function getConfig() {
     progressBarLeft: parseInt(localStorage.getItem('progressBarLeft'), 10) || 0,
     progressBarWidth: parseInt(localStorage.getItem('progressBarWidth'), 10) || 100,
     progressBarHeight: parseInt(localStorage.getItem('progressBarHeight'), 10) || 0,
+
+    progressSecondsTop:  parseFloat(localStorage.getItem('progressSecondsTop'))  || '',
+    progressSecondsLeft: parseFloat(localStorage.getItem('progressSecondsLeft')) || '',
 
     providerContainerTop: parseInt(localStorage.getItem('providerContainerTop'), 10) || 0,
     providerContainerLeft: parseInt(localStorage.getItem('providerContainerLeft'), 10) || 0,

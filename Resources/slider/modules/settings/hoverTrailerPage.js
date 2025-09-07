@@ -140,6 +140,11 @@ export function createHoverTrailerPanel(config, labels) {
       }
     };
 
+    const publishMode = () => {
+      const mode = modalRadio?.checked ? 'modal' : 'studioMini';
+      window.dispatchEvent(new CustomEvent('jms:globalPreviewModeChanged', { detail: { mode } }));
+    };
+
     const onPreferChange = () => {
       if (!modalRadio?.checked || !preferCb || !onlyCb) return;
 
@@ -157,9 +162,10 @@ export function createHoverTrailerPanel(config, labels) {
     };
 
     updateByMode();
+    publishMode();
 
-    modalRadio?.addEventListener('change', updateByMode);
-    studioRadio?.addEventListener('change', updateByMode);
+    modalRadio?.addEventListener('change', () => { updateByMode(); publishMode(); });
+    studioRadio?.addEventListener('change', () => { updateByMode(); publishMode(); });
     preferCb?.addEventListener('change', onPreferChange);
     onlyCb?.addEventListener('change', onOnlyChange);
   }, 100);

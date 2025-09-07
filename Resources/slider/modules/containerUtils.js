@@ -453,7 +453,6 @@ export function createLanguageContainer({ config, MediaStreams, itemType }) {
     MediaStreams.length === 0 ||
     itemType.toLowerCase() === "series"
   ) {
-    console.log("Dil - Ses ve Altyazı bilgileri gösterilmiyor veya bilgi mevcut değil.");
     return container;
   }
 

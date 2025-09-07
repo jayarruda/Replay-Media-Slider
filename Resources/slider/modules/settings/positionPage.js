@@ -347,7 +347,6 @@ export function createPositionEditor(config, labels, section) {
   });
 }
 
-
   function updateContainerStyle(target, containerType, cssProperty, newValue) {
   if (target === 'homeSections') {
     const elements = [
@@ -360,12 +359,13 @@ export function createPositionEditor(config, labels, section) {
         el.style[cssProperty] = newValue === '' ? '' : `${newValue}vh`;
       }
     });
-  } else {
+   } else {
     const selector = containerType
       ? (containerType === 'button' ? '.main-button-container'
         : containerType === 'slider' ? '.slider-wrapper'
         : containerType === 'existingDot' ? '.dot-navigation-container'
         : containerType === 'progress' ? '.slide-progress-bar'
+        : containerType === 'progressSeconds' ? '.slide-progress-seconds'
         : `.${containerType}-container`)
       : "#slides-container";
 
@@ -375,25 +375,25 @@ export function createPositionEditor(config, labels, section) {
   }
 }
 
-
   function updateFlexStyle(containerType, flexProperty, newValue) {
-    const selector =
-      containerType === 'button' ? '.main-button-container' :
-      containerType === 'slider' ? '.slider-wrapper' :
-      containerType === 'existingDot' ? '.dot-navigation-container' :
-      containerType === 'progress' ? '.slide-progress-bar' :
-      `.${containerType}-container`;
+  const selector =
+    containerType === 'button' ? '.main-button-container' :
+    containerType === 'slider' ? '.slider-wrapper' :
+    containerType === 'existingDot' ? '.dot-navigation-container' :
+    containerType === 'progress' ? '.slide-progress-bar' :
+    containerType === 'progressSeconds' ? '.slide-progress-seconds' :
+    `.${containerType}-container`;
 
-    document.querySelectorAll(selector).forEach(el => {
-      if (flexProperty.includes('Display')) {
-        el.style.display = newValue || '';
-      } else {
-        let camel = flexProperty.charAt(0).toLowerCase() + flexProperty.slice(1);
-        const cssProp = camel.replace(/([A-Z])/g, m => '-' + m.toLowerCase());
-        el.style[cssProp] = newValue || '';
-      }
-    });
-  }
+  document.querySelectorAll(selector).forEach(el => {
+    if (flexProperty.includes('Display')) {
+      el.style.display = newValue || '';
+    } else {
+      let camel = flexProperty.charAt(0).toLowerCase() + flexProperty.slice(1);
+      const cssProp = camel.replace(/([A-Z])/g, m => '-' + m.toLowerCase());
+      el.style[cssProp] = newValue || '';
+    }
+  });
+}
 
   function render() {
     section.appendChild(createGlobalResetButton());
@@ -702,6 +702,31 @@ export function createPositionEditor(config, labels, section) {
         'slider'
       )
     );
+
+const progressSecondsHeader = document.createElement('h3');
+progressSecondsHeader.textContent = config.languageLabels.progressSecondsHeader || 'Progress (Saniye) Konteyneri';
+section.appendChild(progressSecondsHeader);
+
+section.appendChild(
+  createSettingItem(
+    config.languageLabels.containerTop || 'Dikey Konum (%):',
+    'progressSecondsTop',
+    'top',
+    config.languageLabels.placeholderText,
+    'progress',
+    'progressSeconds'
+  )
+);
+section.appendChild(
+  createSettingItem(
+    config.languageLabels.containerLeft || 'Yatay Konum (%):',
+    'progressSecondsLeft',
+    'left',
+    config.languageLabels.placeholderText,
+    'progress',
+    'progressSeconds'
+  )
+);
 
     const progressBarHeader = document.createElement('h3');
     progressBarHeader.textContent = config.languageLabels.progressBarHeader || 'Progress Konteyneri';

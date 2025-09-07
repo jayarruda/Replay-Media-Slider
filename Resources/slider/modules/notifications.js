@@ -1,4 +1,4 @@
-import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow, goToDetailsPage, isCurrentUserAdmin } from "./api.js";
+import { makeApiRequest, getSessionInfo, fetchItemDetails, getVideoStreamUrl, playNow, goToDetailsPage, isCurrentUserAdmin, fetchItemsBulk } from "./api.js";
 import { getConfig, getServerAddress } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { getCurrentVersionFromEnv, compareSemver } from "./update.js";
@@ -27,7 +27,53 @@ let notifState = {
   activityLastSeen: 0,
   activities: [],
   isModalOpen: false,
+  _systemAllowed: false,
 };
+
+function findHeaderContainer() {
+  const selectors = [
+    ".skinHeader .headerRight",
+    ".headerRight",
+    ".headerButtons",
+    ".skinHeader .headerButtons",
+    ".skinHeader .paper-icon-buttons",
+    ".skinHeader"
+  ];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el) return el;
+  }
+  return null;
+}
+
+function ensureNotifButtonIn(el) {
+  if (!el) return false;
+  if (el.querySelector("#jfNotifBtn")) return true;
+
+  const btn = document.createElement("button");
+  btn.id = "jfNotifBtn";
+  btn.type = "button";
+  btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
+  btn.setAttribute("is", "paper-icon-button-light");
+  btn.innerHTML = `
+    <i class="material-icons notif" aria-hidden="true">notifications</i>
+    <span class="jf-notif-badge" hidden></span>
+  `;
+  btn.setAttribute("aria-label", config.languageLabels.recentNotifications);
+  btn.title = config.languageLabels.recentNotifications;
+  btn.addEventListener("click", openModal);
+  try { el.prepend(btn); } catch { el.appendChild(btn); }
+
+  btn.style.display = "inline-flex";
+  btn.style.opacity = "1";
+  btn.style.pointerEvents = "all";
+  btn.style.cursor = "pointer";
+  btn.style.border = "none";
+
+  return true;
+}
+
+
 
 function hasPrimaryImage(it) {
   if (it?.HasPrimaryImage || it?.ImageTags?.Primary || it?.Series?.ImageTags?.Primary) return true;
@@ -277,27 +323,13 @@ function getCreatedTs(item) {
 
 function ensureUI() {
   if (!config.enableNotifications) return;
-  let header = document.querySelector(".headerRight");
-  if (!header) return;
-  if (!header.querySelector("#jfNotifBtn")) {
-  const btn = document.createElement("button");
-  btn.id = "jfNotifBtn";
-  btn.type = "button";
-  btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
-  btn.setAttribute("is", "paper-icon-button-light");
-  btn.innerHTML = `
-  <i class="material-icons notif" aria-hidden="true">notifications</i>
-  <span class="jf-notif-badge" hidden></span>
-`;
-
-  btn.setAttribute("aria-label", config.languageLabels.recentNotifications);
-  btn.title = config.languageLabels.recentNotifications;
-  btn.addEventListener("click", openModal);
-
-  header.prepend(btn);
-}
+  const header = findHeaderContainer();
+  if (header) {
+    ensureNotifButtonIn(header);
+  }
 
   if (!document.querySelector("#jfNotifModal")) {
+    const showSystem = !!notifState._systemAllowed;
     const modal = document.createElement("div");
     modal.id = "jfNotifModal";
     modal.className = "jf-notif-modal";
@@ -322,7 +354,7 @@ function ensureUI() {
         </div>
         <div class="jf-notif-tabs">
           <button class="jf-notif-tab active" data-tab="new">${config.languageLabels.newAddedTab || "Yeni Eklenenler"}</button>
-          <button class="jf-notif-tab" data-tab="system">${config.languageLabels.systemNotifications || "Sistem Bildirimleri"}</button>
+          ${notifState._systemAllowed ? `<button class="jf-notif-tab" data-tab="system">${config.languageLabels.systemNotifications || "Sistem Bildirimleri"}</button>` : ""}
         </div>
         <div class="jf-notif-content">
           <div class="jf-notif-tab-content" data-tab="new">
@@ -337,9 +369,10 @@ function ensureUI() {
               </div>
             ` : ''}
           </div>
+          ${notifState._systemAllowed ? `
           <div class="jf-notif-tab-content" data-tab="system" style="display:none;">
             <ul class="jf-activity-list" id="jfActivityList"></ul>
-          </div>
+          </div>` : ``}
         </div>
       </div>
     `;
@@ -348,12 +381,6 @@ function ensureUI() {
       if (e.target.matches("[data-close]")) closeModal();
     });
   }
-
-  document.getElementById("jfNotifThemeToggle")
-    ?.addEventListener("click", toggleTheme);
-
-  document.getElementById("jfNotifClearAll")
-  ?.addEventListener("click", (e) => { e.stopPropagation(); clearAllNotifications(); closeModal(); });
 
   if (!document.querySelector("#jfToastContainer")) {
     const c = document.createElement("div");
@@ -370,19 +397,16 @@ function ensureUI() {
     link.href = "slider/src/notifications.css";
     document.head.appendChild(link);
   }
-  document.getElementById("jfNotifModeToggle")
-  ?.addEventListener("click", (e) => { e.stopPropagation(); toggleThemeMode(); });
 
-document.getElementById("jfNotifThemeToggle")
-  ?.addEventListener("click", toggleTheme);
+  document.getElementById("jfNotifModeToggle")?.addEventListener("click", (e) => { e.stopPropagation(); toggleThemeMode(); });
+  document.getElementById("jfNotifThemeToggle")?.addEventListener("click", toggleTheme);
+  document.getElementById("jfNotifClearAll")?.addEventListener("click", (e) => { e.stopPropagation(); clearAllNotifications(); closeModal(); });
+  document.getElementById("jfNotifMarkAllRead")?.addEventListener("click", (e) => { e.stopPropagation(); markAllNotificationsRead(); });
 
-  document.getElementById("jfNotifMarkAllRead")
-  ?.addEventListener("click", (e) => { e.stopPropagation(); markAllNotificationsRead(); });
-
-loadThemePreference();
-loadThemeModePreference();
-updateBadge();
-renderUpdateBanner();
+  loadThemePreference();
+  loadThemeModePreference();
+  updateBadge();
+  renderUpdateBanner();
 
   document.querySelectorAll(".jf-notif-tab").forEach(tabBtn => {
     tabBtn.addEventListener("click", () => {
@@ -394,6 +418,7 @@ renderUpdateBanner();
     });
   });
 }
+
 
 export function forcejfNotifBtnPointerEvents() {
   const apply = () => {
@@ -431,21 +456,19 @@ function openModal() {
   if (!m) return;
   m.classList.add("open");
   notifState.isModalOpen = true;
-
   renderNotifications();
-
-  if (config.enableRenderResume) {
-    renderResume();
+  if (config.enableRenderResume) renderResume();
+  if (notifState._systemAllowed) {
+    pollActivities();
   }
-
-  pollActivities();
 }
 
  function closeModal() {
-   const m = document.querySelector("#jfNotifModal");
+  const m = document.querySelector("#jfNotifModal");
   if (m) m.classList.remove("open");
   notifState.isModalOpen = false;
-  if (config.enableCounterSystem && Array.isArray(notifState.activities)) {
+
+  if (notifState._systemAllowed && config.enableCounterSystem && Array.isArray(notifState.activities)) {
     const newest = notifState.activities.reduce((acc, a) => {
       const ts = Date.parse(a?.Date || "") || 0;
       return Math.max(acc, ts);
@@ -456,7 +479,7 @@ function openModal() {
       updateBadge();
     }
   }
- }
+}
 
 function updateBadge() {
   const badges = document.querySelectorAll(".jf-notif-badge");
@@ -464,15 +487,15 @@ function updateBadge() {
   if (!badges.length && !btns.length) return;
 
   const contentUnread = notifState.list.reduce((acc, n) => acc + (n.read ? 0 : 1), 0);
-const lastSeenAct = Number(notifState.activityLastSeen || 0);
-const systemUnread = (config.enableCounterSystem && Array.isArray(notifState.activities))
-  ? notifState.activities.reduce((acc, a) => {
-      const ts = Date.parse(a?.Date || "") || 0;
-      return acc + (ts > lastSeenAct ? 1 : 0);
-    }, 0)
-  : 0;
+  const lastSeenAct = Number(notifState.activityLastSeen || 0);
+  const systemUnread = (notifState._systemAllowed && config.enableCounterSystem && Array.isArray(notifState.activities))
+    ? notifState.activities.reduce((acc, a) => {
+        const ts = Date.parse(a?.Date || "") || 0;
+        return acc + (ts > lastSeenAct ? 1 : 0);
+      }, 0)
+    : 0;
 
-const total = contentUnread + systemUnread;
+  const total = contentUnread + systemUnread;
   const count = total > 99 ? "99+" : String(total);
   const show = count > 0;
   const label = String(count);
@@ -521,15 +544,13 @@ items = [...updates, ...normals];
     return;
   }
 
-  const details = await Promise.all(items.map(async (n) => {
-    try {
-      if (n.itemId) {
-        const d = await fetchItemDetails(n.itemId);
-        return { ok: true, data: d };
-      }
-    } catch {}
-    return { ok: false, data: null };
-  }));
+  const idList = items.map(n => n.itemId).filter(Boolean);
+  const { found } = await fetchItemsBulk(idList);
+
+function getDetailFor(n) {
+  const d = n.itemId ? (found.get(n.itemId) || null) : null;
+  return { ok: !!d, data: d };
+}
 
   function pickVideoStream(ms) {
   return Array.isArray(ms) ? ms.find(s => s.Type === "Video") : null;
@@ -541,9 +562,9 @@ items = [...updates, ...normals];
   const frag = document.createDocumentFragment();
 
   items.forEach((n, i) => {
-    const li = document.createElement("li");
-    const isUpdate = (n.status === "update");
-if (isUpdate) {
+  const li = document.createElement("li");
+  const isUpdate = (n.status === "update");
+  if (isUpdate) {
   li.className = "jf-notif-item jf-notif-update";
   li.innerHTML = `
     <div class="meta">
@@ -585,83 +606,80 @@ if (isUpdate) {
 
     li.className = "jf-notif-item";
 
-    const d = details[i];
-    const status = n.status === "removed" ? "removed" : "added";
-    const statusLabel = status === "removed"
-      ? (config.languageLabels.removedLabel || "Kaldırıldı")
-      : (config.languageLabels.addedLabel || "Eklendi");
+  const d = getDetailFor(n);
+  const status = n.status === "removed" ? "removed" : "added";
+  const statusLabel = status === "removed"
+    ? (config.languageLabels.removedLabel || "Kaldırıldı")
+    : (config.languageLabels.addedLabel || "Eklendi");
 
-    let title = n.title || config.languageLabels.newContentDefault;
-    if (d.ok && d.data?.Type === "Episode") {
-  const seriesName  = d.data.SeriesName || "";
-  const seasonNum   = d.data.ParentIndexNumber || 0;
-  const episodeNum  = d.data.IndexNumber || 0;
-  const episodeName = d.data.Name || "";
+  let title = n.title || config.languageLabels.newContentDefault;
 
-  title = formatEpisodeHeading({
-    seriesName,
-    seasonNum,
-    episodeNum,
-    episodeTitle: episodeName,
-    locale: (config.defaultLanguage || "tur"),
-    labels: config.languageLabels || {}
-  });
-} else if (d.ok && d.data?.Type === "Episode" && d.data?.SeriesName) {
-      title = `${d.data.SeriesName} - ${title}`;
-    }
+  if (d.ok && d.data?.Type === "Episode") {
+    const seriesName  = d.data.SeriesName || "";
+    const seasonNum   = d.data.ParentIndexNumber || 0;
+    const episodeNum  = d.data.IndexNumber || 0;
+    const episodeName = d.data.Name || "";
+    title = formatEpisodeHeading({
+      seriesName,
+      seasonNum,
+      episodeNum,
+      episodeTitle: episodeName,
+      locale: (config.defaultLanguage || "tur"),
+      labels: config.languageLabels || {}
+    });
+  } else if (d.ok && d.data?.Type === "Episode" && d.data?.SeriesName) {
+    title = `${d.data.SeriesName} - ${title}`;
+  }
 
-    const imgSrc = (d.ok && hasPrimaryImage(d.data)) ? safePosterImageSrc(d.data, 80, 80) : "";
-    const vStream = d.ok ? pickVideoStream(d.data?.MediaStreams) : null;
-    const qualityHtml = vStream ? getVideoQualityText(vStream) : "";
+  const imgSrc = (d.ok && hasPrimaryImage(d.data)) ? safePosterImageSrc(d.data, 80, 80) : "";
+  const vStream = d.ok ? (Array.isArray(d.data?.MediaStreams) ? d.data.MediaStreams.find(s => s.Type === "Video") : null) : null;
+  const qualityHtml = vStream ? getVideoQualityText(vStream) : "";
 
-    const isUnread = !n.read;
-if (isUnread) li.classList.add("unread");
+  const isUnread = !n.read;
+  if (isUnread) li.classList.add("unread");
 
-li.innerHTML = `
-  ${imgSrc ? `<img class="thumb" src="${imgSrc}" alt="">` : ""}
-  <div class="meta">
-    <div class="title">
-      <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
-      ${escapeHtml(title)}
-      ${isUnread ? `<span class="jf-pill-unread">${escapeHtml(config.languageLabels?.unread || "Yeni")}</span>` : ""}
+  li.innerHTML = `
+    ${imgSrc ? `<img class="thumb" src="${imgSrc}" alt="">` : ""}
+    <div class="meta">
+      <div class="title">
+        <span class="jf-badge ${status === "removed" ? "jf-badge-removed" : "jf-badge-added"}">${escapeHtml(statusLabel)}</span>
+        ${escapeHtml(title)}
+        ${isUnread ? `<span class="jf-pill-unread">${escapeHtml(config.languageLabels?.unread || "Yeni")}</span>` : ""}
+      </div>
+      <div class="time">${formatTime(n.timestamp)}</div>
+      ${qualityHtml ? `<div class="quality">${qualityHtml}</div>` : ""}
     </div>
-    <div class="time">${formatTime(n.timestamp)}</div>
-    ${qualityHtml ? `<div class="quality">${qualityHtml}</div>` : ""}
-  </div>
-  <div class="actions">
-  ${isUnread ? `
-    <button class="mark-read"
-            title="${config.languageLabels?.markRead || 'Okundu say'}">
-      <i class="fa-solid fa-envelope-open"></i>
-    </button>` : ""}
-  <button class="del"
-          title="${config.languageLabels.removeTooltip}">
-    <i class="fa-solid fa-circle-xmark"></i></i>
-  </button>
-</div>
-`;
+    <div class="actions">
+      ${isUnread ? `
+        <button class="mark-read" title="${config.languageLabels?.markRead || 'Okundu say'}">
+          <i class="fa-solid fa-envelope-open"></i>
+        </button>` : ""}
+      <button class="del" title="${escapeHtml(config.languageLabels?.removeTooltip || 'Kaldır')}">
+        <i class="fa-solid fa-circle-xmark"></i>
+      </button>
+    </div>
+  `;
 
-li.querySelector(".mark-read")?.addEventListener("click", (ev) => {
-  ev.stopPropagation();
-  markNotificationRead(n.id);
-});
-
-if (status !== "removed" && n.itemId) {
-  li.addEventListener("click", () => {
-    markNotificationRead(n.id, { silent: true });
-    closeModal();
-    goToDetailsPage(n.itemId);
+  li.querySelector(".mark-read")?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    markNotificationRead(n.id);
   });
-}
 
-li.querySelector(".del").addEventListener("click", (ev) => {
-  ev.stopPropagation();
-  removeNotification(n.id);
-});
+  if (status !== "removed" && n.itemId) {
+    li.addEventListener("click", () => {
+      markNotificationRead(n.id, { silent: true });
+      closeModal();
+      goToDetailsPage(n.itemId);
+    });
+  }
 
-
-    frag.appendChild(li);
+  li.querySelector(".del").addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    removeNotification(n.id);
   });
+
+  frag.appendChild(li);
+});
 
   if (gen !== notifRenderGen) return;
   ul.appendChild(frag);
@@ -1075,6 +1093,7 @@ function escapeHtml(s) {
 export async function initNotifications() {
   await waitForSessionReady(7000);
   migrateNouserToUser();
+  notifState._systemAllowed = await canReadActivityLog();
 
   loadState();
   ensureUI();
@@ -1088,17 +1107,22 @@ export async function initNotifications() {
 
   await backfillFromLastSeen();
   await pollLatest({ seedIfFirstRun: true });
-  await pollActivities({ seedIfFirstRun: true });
+  if (notifState._systemAllowed) {
+    await pollActivities({ seedIfFirstRun: true });
+    setInterval(() => pollActivities(), POLL_INTERVAL_MS);
+  }
 
   setInterval(() => pollLatest(), POLL_INTERVAL_MS);
-  setInterval(() => pollActivities(), POLL_INTERVAL_MS);
 
-  window.forceCheckNotifications = () => { pollLatest(); pollActivities(); };
+  window.forceCheckNotifications = () => {
+    pollLatest();
+    if (notifState._systemAllowed) pollActivities();
+  };
 
   window.addEventListener("focus", () => {
     if (document.querySelector("#jfNotifModal.open")) {
       renderResume();
-      pollActivities();
+      if (notifState._systemAllowed) pollActivities();
     }
   });
 }

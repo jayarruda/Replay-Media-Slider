@@ -214,6 +214,23 @@ export function createQueryPanel(config, labels) {
     section.appendChild(balanceTypesDesc);
     section.appendChild(balanceTypesDiv);
 
+    const onlyUnwatchedDiv = document.createElement('div');
+    onlyUnwatchedDiv.className = 'setting-item only-unwatched-container';
+    const onlyUnwatchedCheckbox = createCheckbox(
+    'onlyUnwatchedRandom',
+    (labels.onlyUnwatchedRandom || 'Sadece izlenmeyenleri göster (Rastgele İçerik)'),
+    !!config.onlyUnwatchedRandom
+    );
+    onlyUnwatchedDiv.appendChild(onlyUnwatchedCheckbox);
+
+    const onlyUnwatchedDesc = document.createElement('div');
+    onlyUnwatchedDesc.className = 'description-text';
+    onlyUnwatchedDesc.textContent = labels.onlyUnwatchedRandomDesc ||
+    'Etkinse, Rastgele İçerik modunda yalnızca hiç oynatılmamış (IsPlayed=false) öğeler listelenir. list.txt ve Özel Liste etkilenmez.';
+
+    section.appendChild(onlyUnwatchedDesc);
+    section.appendChild(onlyUnwatchedDiv);
+
     const sortingLabel = document.createElement('label');
     sortingLabel.textContent = labels.sortingKeywords || 'Anahtar Kelimeler (virgül ile ayırınız)';
     sortingLabel.htmlFor = 'sortingLabel';
@@ -264,6 +281,9 @@ export function createQueryPanel(config, labels) {
     shuffleSeedLimitDesc.style.display = isRandom ? 'block' : 'none';
     balanceTypesDiv.style.display = isRandom ? 'block' : 'none';
     balanceTypesDesc.style.display = isRandom ? 'block' : 'none';
+    onlyUnwatchedDiv.style.display = isRandom ? 'block' : 'none';
+    onlyUnwatchedDesc.style.display = isRandom ? 'block' : 'none';
+    onlyUnwatchedCheckbox.querySelector('input').disabled = !isRandom;
 
     limitInput.disabled = !isRandom;
     playingLimitInput.disabled = !isRandom;

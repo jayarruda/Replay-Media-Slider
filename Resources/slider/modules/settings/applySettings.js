@@ -19,6 +19,7 @@ export function applySettings(reload = false) {
             dateLocale: formData.get('dateLocale') || 'tr-TR',
             sliderDuration: parseInt(formData.get('sliderDuration'), 10),
             limit: parseInt(formData.get('limit'), 10),
+            onlyUnwatchedRandom: formData.get('onlyUnwatchedRandom') === 'on',
             maxShufflingLimit: parseInt(formData.get('maxShufflingLimit'), 10),
             excludeEpisodesFromPlaying: formData.get('excludeEpisodesFromPlaying') === 'on',
             showPlaybackProgress: formData.get('showPlaybackProgress') === 'on',
@@ -32,6 +33,7 @@ export function applySettings(reload = false) {
             balanceItemTypes: formData.get('balanceItemTypes') === 'on',
             showCast: formData.get('showCast') === 'on',
             showProgressBar: formData.get('showProgressBar') === 'on',
+            showProgressAsSeconds: formData.get('showProgressAsSeconds') === 'on',
             enableTrailerPlayback: formData.get('enableTrailerPlayback') === 'on',
             enableVideoPlayback: formData.get('enableVideoPlayback') === 'on',
             gradientOverlayImageType: formData.get('gradientOverlayImageType'),
@@ -96,6 +98,8 @@ export function applySettings(reload = false) {
             enableCounterSystem: formData.get('enableCounterSystem') === 'on',
 
             enableStudioHubs: formData.get('enableStudioHubs') === 'on',
+            enablePersonalRecommendations: formData.get('enablePersonalRecommendations') === 'on',
+            personalRecsCacheTtlMs: parseInt(formData.get('personalRecsCacheTtlMs'), 10) || 360,
             studioHubsHoverVideo: formData.get('studioHubsHoverVideo') === 'on',
             studioMiniTrailerPopover: formData.get('studioMiniTrailerPopover') === 'on',
             studioHubsMinRating: parseFloat(formData.get('studioHubsMinRating')) || 6.5,
@@ -355,6 +359,9 @@ export function applySettings(reload = false) {
             progressBarLeft: parseInt(formData.get('progressBarLeft'), 10) || 0,
             progressBarWidth: parseInt(formData.get('progressBarWidth'), 10) || 100,
             progressBarHeight: parseInt(formData.get('progressBarHeight'), 10) || 0,
+
+            progressSecondsTop: parseInt(formData.get('progressSecondsTop'), 10) || 0,
+            progressSecondsLeft: parseInt(formData.get('progressSecondsLeft'), 10) || 0,
 
             pauseOverlay: {
             enabled: formData.get('pauseOverlay') === 'on',

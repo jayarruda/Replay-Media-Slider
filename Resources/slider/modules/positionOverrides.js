@@ -25,14 +25,14 @@ function getDefaultTopByVariant(variant) {
   if (mobile) {
     switch (variant) {
       case 'normalslider': return -20;
-      case 'fullslider': return 0;
+      case 'fullslider': return -16;
       case 'slider':
       default: return 0;
     }
   } else {
     switch (variant) {
       case 'normalslider': return -23;
-      case 'fullslider': return -12;
+      case 'fullslider': return 7;
       case 'slider':
       default: return 0;
     }

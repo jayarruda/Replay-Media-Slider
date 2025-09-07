@@ -184,6 +184,13 @@ export function createStudioHubsPanel(config, labels) {
   );
   section.appendChild(enableCheckbox);
 
+  const enableForYouCheckbox = createCheckbox(
+    'enablePersonalRecommendations',
+    labels?.enableForYou || config.languageLabels.enableForYou || 'Sana Özel Koleksiyonları Etkinleştir',
+    config.enablePersonalRecommendations
+  );
+  section.appendChild(enableForYouCheckbox);
+
   const enableHoverVideo = createCheckbox(
     'studioHubsHoverVideo',
     labels?.studioHubsHoverVideo || 'Hover’da video oynat',
@@ -208,7 +215,36 @@ export function createStudioHubsPanel(config, labels) {
    10,
    0.1
  );
-section.appendChild(ratingWrap);
+ section.appendChild(ratingWrap);
+
+  const defaultTtlMs = Number.isFinite(config.personalRecsCacheTtlMs)
+    ? config.personalRecsCacheTtlMs
+    : 6 * 60 * 60 * 1000;
+  const defaultTtlMin = Math.max(1, Math.round(defaultTtlMs / 60000));
+
+  const ttlWrap = createNumberInput(
+    'personalRecsCacheTtlMinutes',
+    labels?.personalRecsCacheTtlMinutes || 'Kişisel Öneri Önbellek Süresi (dakika)',
+    defaultTtlMin,
+    1,
+    10080,
+    1
+  );
+  section.appendChild(ttlWrap);
+
+  const ttlHidden = createHiddenInput('personalRecsCacheTtlMs', String(defaultTtlMin * 60000));
+  section.appendChild(ttlHidden);
+
+  const ttlInputEl = ttlWrap.querySelector('#personalRecsCacheTtlMinutes')
+    || document.getElementById('personalRecsCacheTtlMinutes');
+  const syncTtlHidden = () => {
+    const mins = Math.max(1, Number(ttlInputEl?.value || defaultTtlMin) || defaultTtlMin);
+    ttlHidden.value = String(Math.round(mins * 60000));
+  };
+  if (ttlInputEl) {
+    ttlInputEl.addEventListener('input', syncTtlHidden);
+    ttlInputEl.addEventListener('change', syncTtlHidden);
+  }
 
   const baseOrder = mergeOrder(
     DEFAULT_ORDER,

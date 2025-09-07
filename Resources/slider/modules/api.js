@@ -7,6 +7,24 @@ const dotGenreCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 const USER_ID_KEY = "jf_userId";
 const DEVICE_ID_KEY = "jf_api_deviceId";
+const notFoundTombstone = new Map();
+const NOTFOUND_TTL = 30 * 60 * 1000;
+
+function isTombstoned(id) {
+  const rec = notFoundTombstone.get(id);
+  return !!(rec && (Date.now() - rec) < NOTFOUND_TTL);
+}
+function markTombstone(id) {
+  notFoundTombstone.set(id, Date.now());
+}
+
+function isAbortError(err, signal) {
+  return (
+    err?.name === 'AbortError' ||
+    (typeof err?.message === 'string' && /aborted|user aborted/i.test(err.message)) ||
+    signal?.aborted === true
+  );
+}
 
 function safeGet(k) {
   try { return localStorage.getItem(k) || sessionStorage.getItem(k) || null; } catch { return null; }
@@ -120,32 +138,50 @@ export function pickBestLocalTrailer(trailers = []) {
   return byShort[0] || trailers[0];
 }
 
-export async function getCachedItemDetails(itemId) {
-  const now = Date.now();
+export async function fetchItemsBulk(ids = [], fields = [
+  "Type","Name","SeriesId","SeriesName","ParentId","ParentIndexNumber",
+  "IndexNumber","Overview","Genres","RunTimeTicks","OfficialRating","ProductionYear",
+  "CommunityRating","CriticRating","ImageTags","BackdropImageTags","UserData","MediaStreams"
+]) {
+  const clean = [...new Set(ids.filter(Boolean))];
+  if (!clean.length) return { found: new Map(), missing: new Set() };
+  const filtered = clean.filter(id => !isTombstoned(id));
+  if (!filtered.length) return { found: new Map(), missing: new Set(clean) };
 
-  if (itemCache.has(itemId)) {
-    const { data, timestamp } = itemCache.get(itemId);
-    if (now - timestamp < CACHE_TTL) {
-      return data;
-    }
-  }
+  const { userId } = getSessionInfo();
+  const url = `/Users/${userId}/Items?Ids=${encodeURIComponent(filtered.join(','))}&Fields=${fields.join(',')}`;
 
-  const data = await fetchItemDetails(itemId);
-  itemCache.set(itemId, { data, timestamp: now });
-  return data;
+  const res = await makeApiRequest(url).catch(err => {
+    if (err?.isAbort) return null;
+    throw err;
+  });
+  const items = res?.Items || [];
+
+  const found = new Map(items.map(it => [it.Id, it]));
+  const missing = new Set(filtered.filter(id => !found.has(id)));
+  missing.forEach(id => markTombstone(id));
+
+  return { found, missing };
 }
 
 async function safeFetch(url, opts = {}) {
   const headers = { ...(opts.headers || {}), Authorization: getAuthHeader() };
-  const res = await fetch(url, { ...opts, headers });
+
+  let res;
+  try {
+    res = await fetch(url, { ...opts, headers });
+  } catch (err) {
+    if (isAbortError(err, opts?.signal)) {
+      return null;
+    }
+    throw err;
+  }
 
   if (res.status === 401) {
     clearCredentials();
     throw new Error("Oturum geçersiz, yeniden giriş yapın.");
   }
-  if (res.status === 404) {
-    return null;
-  }
+  if (res.status === 404) return null;
   if (!res.ok) {
     const errJson = await res.json().catch(() => ({}));
     const err = new Error(errJson.message || `API hatası: ${res.status}`);
@@ -157,6 +193,7 @@ async function safeFetch(url, opts = {}) {
   if (res.status === 204 || !ct.includes("application/json")) return {};
   return res.json();
 }
+
 
  export function getAuthHeader() {
   const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
@@ -274,9 +311,8 @@ async function makeApiRequest(url, options = {}) {
     options.headers = { ...baseHeaders, ...(options.headers || {}) };
 
     const response = await fetch(url, options);
-    if (response.status === 404) {
-      return null;
-    }
+
+    if (response.status === 404) return null;
     if (response.status === 401) {
       clearCredentials?.();
       const err = new Error("Oturum geçersiz, yeniden giriş yapın.");
@@ -307,6 +343,11 @@ async function makeApiRequest(url, options = {}) {
     }
     return await response.json();
   } catch (error) {
+    if (isAbortError(error, options?.signal)) {
+      error.isAbort = true;
+      throw error;
+    }
+
     const msg = String(error?.message || "");
     const is403 = error?.status === 403 || msg.includes("403");
     const is404 = error?.status === 404 || msg.includes("404");
@@ -345,9 +386,31 @@ export function goToDetailsPage(itemId) {
 }
 
 export async function fetchItemDetails(itemId) {
+  if (!itemId || isTombstoned(itemId)) return null;
   const { userId } = getSessionInfo();
   const data = await safeFetch(`/Users/${userId}/Items/${itemId}`);
+  if (data === null) {
+    markTombstone(itemId);
+  }
   return data || null;
+}
+
+export async function getCachedItemDetails(itemId) {
+  if (!itemId || isTombstoned(itemId)) return null;
+
+  const now = Date.now();
+  if (itemCache.has(itemId)) {
+    const { data, timestamp } = itemCache.get(itemId);
+    if (now - timestamp < CACHE_TTL) return data;
+  }
+
+  const data = await fetchItemDetails(itemId);
+  if (data === null) {
+    itemCache.set(itemId, { data: null, timestamp: now });
+    return null;
+  }
+  itemCache.set(itemId, { data, timestamp: now });
+  return data;
 }
 export async function updateFavoriteStatus(itemId, isFavorite) {
   const { userId } = getSessionInfo();
@@ -966,8 +1029,6 @@ function extractGenresFromItems(items) {
     .sort((a, b) => b[1] - a[1])
     .map(([genre]) => genre);
 }
-
-
 
 function getCachedUserId() {
   try {

@@ -198,9 +198,9 @@ function setGlobalSound(on) {
   applyVolumePreference();
 }
 
-function applyVolumePreference() {
-  const volumeButton = videoModal?.querySelector?.('.preview-volume-button');
-  const trailerIframe = videoModal?.querySelector?.('.preview-trailer-iframe');
+function applyVolumePreference(modal = videoModal) {
+  const volumeButton = modal?.querySelector?.('.preview-volume-button');
+  const trailerIframe = modal?.querySelector?.('.preview-trailer-iframe');
   const trailerVisible = trailerIframe && trailerIframe.style.display !== 'none';
   if (trailerVisible) {
     const player = _ytPlayers.get(trailerIframe);
@@ -321,60 +321,61 @@ function ensureYTAPI() {
   });
 }
 
-function getYTPlayerForIframe(iframe) {
-  if (!iframe) return null;
+ function getYTPlayerForIframe(iframe) {
+   if (!iframe) return null;
 
-  let p = _ytPlayers.get(iframe);
-  if (p) return p;
+   let p = _ytPlayers.get(iframe);
+   if (p) return p;
 
-  if (typeof YT === 'undefined' || typeof YT.Player !== 'function') {
-    return null;
-  }
+   if (typeof YT === 'undefined' || typeof YT.Player !== 'function') {
+     return null;
+   }
+   try {
+     p = new YT.Player(iframe, {
+       events: {
+         onReady: (ev) => {
   try {
-    p = new YT.Player(iframe, {
-      events: {
-        onReady: (ev) => {
-  try {
-    if (_soundOn) {
-      if (typeof ev.target.unMute === 'function') ev.target.unMute();
-      if (typeof ev.target.setVolume === 'function') ev.target.setVolume(100);
-    } else {
-      if (typeof ev.target.mute === 'function') ev.target.mute();
-    }
+    const root = iframe?.closest?.('.video-preview-modal') || document.querySelector('.video-preview-modal');
+    const btn = root?.querySelector?.('.preview-volume-button');
+     if (_soundOn) {
+       if (typeof ev.target.unMute === 'function') ev.target.unMute();
+       if (typeof ev.target.setVolume === 'function') ev.target.setVolume(100);
+     } else {
+       if (typeof ev.target.mute === 'function') ev.target.mute();
+     }
+     if (btn) {
+       btn.innerHTML = _soundOn
+         ? '<i class="fa-solid fa-volume-high"></i>'
+         : '<i class="fa-solid fa-volume-xmark"></i>';
+     }
+   } catch (error) {}
+ },
+         onStateChange: (event) => {
+   if (event.data === YT.PlayerState.PLAYING) {
+     try { videoModal?.hideBackdrop?.(); } catch {}
+            const root = iframe?.closest?.('.video-preview-modal') || document.querySelector('.video-preview-modal');
+            const btn = root?.querySelector?.('.preview-volume-button');
+             if (btn && typeof event.target.getVolume === 'function') {
+               try {
+                 const volume = event.target.getVolume();
+                 btn.innerHTML = volume === 0
+                   ? '<i class="fa-solid fa-volume-xmark"></i>'
+                   : '<i class="fa-solid fa-volume-high"></i>';
+               } catch (error) {
+               }
+             }
+           }
+         }
+       }
+     });
 
-    const btn = videoModal?.querySelector?.('.preview-volume-button');
-    if (btn) {
-      btn.innerHTML = _soundOn
-        ? '<i class="fa-solid fa-volume-high"></i>'
-        : '<i class="fa-solid fa-volume-xmark"></i>';
-    }
-  } catch (error) {}
-},
-        onStateChange: (event) => {
-  if (event.data === YT.PlayerState.PLAYING) {
-    try { videoModal?.hideBackdrop?.(); } catch {}
-            const btn = videoModal?.querySelector?.('.preview-volume-button');
-            if (btn && typeof event.target.getVolume === 'function') {
-              try {
-                const volume = event.target.getVolume();
-                btn.innerHTML = volume === 0
-                  ? '<i class="fa-solid fa-volume-xmark"></i>'
-                  : '<i class="fa-solid fa-volume-high"></i>';
-              } catch (error) {
-              }
-            }
-          }
-        }
-      }
-    });
+     _ytPlayers.set(iframe, p);
+     return p;
 
-    _ytPlayers.set(iframe, p);
-    return p;
-
-  } catch (error) {
-    return null;
-  }
-}
+   } catch (error) {
+     return null;
+   }
+ }
 
 function now() { return Date.now(); }
 
@@ -474,7 +475,7 @@ function handleVisibilityChange() {
 
 function destroyVideoModal() {
   if (videoModal) {
-   hideTrailerIframe();
+   hideTrailerIframe(videoModal);
    clearTransientOverlays(videoModal);
     videoModal.removeEventListener('mouseenter', () => { isMouseInModal = true; });
     videoModal.removeEventListener('mouseleave', () => { isMouseInModal = false; });
@@ -493,60 +494,60 @@ function destroyVideoModal() {
   isMouseInModal = false;
 }
 
-function getOrCreateTrailerIframe() {
-   if (!videoModal) return null;
-  const container = videoModal.querySelector?.('.video-container');
-  if (!container) return null;
-   let iframe = videoModal.querySelector?.('.preview-trailer-iframe');
-   if (!iframe) {
-     iframe = document.createElement('iframe');
-     iframe.className = 'preview-trailer-iframe';
-     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-     iframe.referrerPolicy = 'origin-when-cross-origin';
-     iframe.allowFullscreen = true;
-     Object.assign(iframe.style, {
-       width: '100%',
-       height: '100%',
-       border: 'none',
-       display: 'none',
-       position: 'absolute',
-       inset: '0'
-     });
-     container.appendChild(iframe);
-   }
-   return iframe;
- }
-
-function hideTrailerIframe() {
-  if (!videoModal) return;
-  const iframe = videoModal.querySelector?.('.preview-trailer-iframe');
-  if (!iframe) return;
-
-  const p = _ytPlayers.get(iframe);
-  if (p) {
-  try {
-    if (p.stopVideo) p.stopVideo();
-    if (p.mute) p.mute();
-    if (p.destroy) p.destroy();
-  } catch {}
-  _ytPlayers.delete(iframe);
-  _ytReadyMap.delete(iframe);
-}
-  iframe.src = '';
-  iframe.style.display = 'none';
-  const volumeButton = videoModal.querySelector('.preview-volume-button');
-  if (volumeButton) {
-    if (modalVideo) {
-      volumeButton.innerHTML = modalVideo.muted
-        ? '<i class="fa-solid fa-volume-xmark"></i>'
-        : '<i class="fa-solid fa-volume-high"></i>';
-    } else {
-      volumeButton.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+function getOrCreateTrailerIframe(modal = videoModal) {
+  if (!modal) return null;
+  const container = modal.querySelector?.('.video-container');
+   if (!container) return null;
+  let iframe = modal.querySelector?.('.preview-trailer-iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.className = 'preview-trailer-iframe';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+      iframe.referrerPolicy = 'origin-when-cross-origin';
+      iframe.allowFullscreen = true;
+      Object.assign(iframe.style, {
+        width: '100%',
+        height: '100%',
+        border: 'none',
+        display: 'none',
+        position: 'absolute',
+        inset: '0'
+      });
+      container.appendChild(iframe);
     }
-    delete volumeButton.dataset.ytMuted;
+    return iframe;
   }
-  clearTransientOverlays(videoModal);
-}
+
+function hideTrailerIframe(modal = videoModal) {
+  if (!modal) return;
+  const iframe = modal.querySelector?.('.preview-trailer-iframe');
+   if (!iframe) return;
+
+   const p = _ytPlayers.get(iframe);
+   if (p) {
+   try {
+     if (p.stopVideo) p.stopVideo();
+     if (p.mute) p.mute();
+     if (p.destroy) p.destroy();
+   } catch {}
+   _ytPlayers.delete(iframe);
+   _ytReadyMap.delete(iframe);
+ }
+   iframe.src = '';
+   iframe.style.display = 'none';
+  const volumeButton = modal.querySelector?.('.preview-volume-button');
+   if (volumeButton) {
+     if (modalVideo) {
+       volumeButton.innerHTML = modalVideo.muted
+         ? '<i class="fa-solid fa-volume-xmark"></i>'
+         : '<i class="fa-solid fa-volume-high"></i>';
+     } else {
+       volumeButton.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+     }
+     delete volumeButton.dataset.ytMuted;
+   }
+  clearTransientOverlays(modal);
+ }
 
 function hardResetProgressBarEl() {
   const pb = document.querySelector(".slide-progress-bar");
@@ -1652,7 +1653,7 @@ modal.hideBackdrop = function() {
     video.load();
     video.style.opacity = '0';
     video.style.transition = 'opacity 0.3s ease-in-out';
-    hideTrailerIframe();
+    hideTrailerIframe(modal);
     video.style.display = 'block';
     if (showButtons) {
       modal.appendChild(buttonsContainer);
@@ -1721,7 +1722,7 @@ modal.hideBackdrop = function() {
         video._hls.destroy();
         delete video._hls;
       }
-      hideTrailerIframe();
+      hideTrailerIframe(modal);
     };
 
     document.body.appendChild(modal);
@@ -1898,11 +1899,13 @@ async function preloadGenreData(itemIds) {
 }
 
 async function updateModalContent(item, videoUrl) {
-  if (videoModal?.dataset?.itemId && item?.Id && String(item.Id) !== String(videoModal.dataset.itemId)) {
+  const modal = videoModal;
+  if (!modal || !document.body.contains(modal)) return;
+  if (modal?.dataset?.itemId && item?.Id && String(item.Id) !== String(modal.dataset.itemId)) {
     return;
   }
   const config = getConfig();
-  clearTransientOverlays(videoModal);
+  clearTransientOverlays(modal);
   if (modalVideo && modalVideo._hls) {
     modalVideo._hls.destroy();
     delete modalVideo._hls;
@@ -1937,111 +1940,111 @@ async function updateModalContent(item, videoUrl) {
   const isLocal = trailerInfo.level === 'local';
   const isYTValid = !!trailerUrl && (trailerInfo.level === 'item' || trailerInfo.level === 'series');
 
-  let noTrailerDiv = videoModal.querySelector('.no-trailer-message');
+  let noTrailerDiv = modal.querySelector?.('.no-trailer-message');
   if (noTrailerDiv) noTrailerDiv.remove();
 
   if (onlyTrailer) {
-    if (isLocal) {
-      hideTrailerIframe();
-      if (modalVideo) { modalVideo.style.display = 'block'; }
-      if (await gatePlaybackStart(item?.Id)) {
-      videoModal.initHlsPlayer(trailerUrl);
-  }
-      addTrailerTip(videoModal, config.languageLabels?.yerelFragman || 'Yerel fragman');
-    } else if (isYTValid) {
-      hideTrailerIframe();
-      if (modalVideo) { modalVideo.style.display = 'none'; modalVideo.src = ''; }
-      const iframe = getOrCreateTrailerIframe();
-      iframe.src = trailerUrl;
-      iframe.style.display = 'block';
-      applyVolumePreference();
-      ensureYTAPI().then(() => getYTPlayerForIframe(iframe));
-      addTrailerTip(videoModal, trailerInfo.level === 'series'
-        ? (config.languageLabels?.diziFragmani || 'Dizi fragmanı')
-        : (config.languageLabels?.fragman || 'Fragman'));
-    } else {
-      hideTrailerIframe();
-      if (modalVideo) { modalVideo.style.display = 'none'; modalVideo.src = ''; }
-      showNoTrailerMessage(videoModal, config.languageLabels?.trailerNotAvailable || 'Fragman bulunamadı');
-    }
-  }
-  else if (preferTrailer) {
-    if (isLocal) {
-      hideTrailerIframe();
-      if (modalVideo) { modalVideo.style.display = 'block'; }
-      if (await gatePlaybackStart(item?.Id)) {
-      videoModal.initHlsPlayer(trailerUrl);
-    }
-      addTrailerTip(videoModal, config.languageLabels?.yerelFragman || 'Yerel fragman');
-    } else if (isYTValid) {
-      if (modalVideo) {
-        try { modalVideo.pause(); } catch {}
-        modalVideo.style.opacity = '0';
-        modalVideo.style.display = 'none';
-        modalVideo.src = '';
-      }
-      const iframe = getOrCreateTrailerIframe();
-      if (iframe) {
-        iframe.src = trailerUrl;
-        iframe.style.display = 'block';
-        const volumeButton = videoModal?.querySelector?.('.preview-volume-button');
-        if (volumeButton) volumeButton.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
-        ensureYTAPI().then(() => { getYTPlayerForIframe(iframe); });
+     if (isLocal) {
+      hideTrailerIframe(modal);
+       if (modalVideo) { modalVideo.style.display = 'block'; }
+       if (await gatePlaybackStart(item?.Id)) {
+      modal.initHlsPlayer(trailerUrl);
+       }
+      addTrailerTip(modal, config.languageLabels?.yerelFragman || 'Yerel fragman');
+     } else if (isYTValid) {
+      hideTrailerIframe(modal);
+       if (modalVideo) { modalVideo.style.display = 'none'; modalVideo.src = ''; }
+      const iframe = getOrCreateTrailerIframe(modal);
+       iframe.src = trailerUrl;
+       iframe.style.display = 'block';
+      applyVolumePreference(modal);
+       ensureYTAPI().then(() => getYTPlayerForIframe(iframe));
+      addTrailerTip(modal, trailerInfo.level === 'series'
+         ? (config.languageLabels?.diziFragmani || 'Dizi fragmanı')
+         : (config.languageLabels?.fragman || 'Fragman'));
+     } else {
+      hideTrailerIframe(modal);
+       if (modalVideo) { modalVideo.style.display = 'none'; modalVideo.src = ''; }
+      showNoTrailerMessage(modal, config.languageLabels?.trailerNotAvailable || 'Fragman bulunamadı');
+     }
+   }
+   else if (preferTrailer) {
+     if (isLocal) {
+      hideTrailerIframe(modal);
+       if (modalVideo) { modalVideo.style.display = 'block'; }
+       if (await gatePlaybackStart(item?.Id)) {
+      modal.initHlsPlayer(trailerUrl);
+       }
+      addTrailerTip(modal, config.languageLabels?.yerelFragman || 'Yerel fragman');
+     } else if (isYTValid) {
+       if (modalVideo) {
+         try { modalVideo.pause(); } catch {}
+         modalVideo.style.opacity = '0';
+         modalVideo.style.display = 'none';
+         modalVideo.src = '';
+       }
+      const iframe = getOrCreateTrailerIframe(modal);
+       if (iframe) {
+         iframe.src = trailerUrl;
+         iframe.style.display = 'block';
+        const volumeButton = modal?.querySelector?.('.preview-volume-button');
+         if (volumeButton) volumeButton.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+         ensureYTAPI().then(() => { getYTPlayerForIframe(iframe); });
         addTrailerTip(
-         videoModal,
-         trailerInfo.level === 'series'
-           ? (config.languageLabels?.diziFragmani || 'Dizi fragmanı')
-           : (config.languageLabels?.fragman || 'Fragman')
-       );
-      } else if (videoUrl) {
-        if (await gatePlaybackStart(item?.Id)) {
-        videoModal.initHlsPlayer(videoUrl);
-        }
-      }
-    } else if (videoUrl) {
-      if (await gatePlaybackStart(item?.Id)) {
-      videoModal.initHlsPlayer(videoUrl);
-      }
-    } else {
-      hideTrailerIframe();
-      if (modalVideo) {
-        try { modalVideo.pause(); } catch {}
-        modalVideo.src = '';
-        modalVideo.style.display = 'none';
-      }
-    }
-  }
-  else {
-    if (videoUrl) {
-      if (await gatePlaybackStart(item?.Id)) {
-      videoModal.initHlsPlayer(videoUrl);
-      }
-    } else if (isLocal) {
-      hideTrailerIframe();
-      if (modalVideo) { modalVideo.style.display = 'block'; }
-      if (await gatePlaybackStart(item?.Id)) {
-      videoModal.initHlsPlayer(trailerUrl);
-      }
-      addTrailerTip(videoModal, config.languageLabels?.yerelFragman || 'Yerel fragman');
-    } else if (isYTValid) {
-      const iframe = getOrCreateTrailerIframe();
-      if (await gatePlaybackStart(item?.Id)) {
-      iframe.src = trailerUrl;
-      iframe.style.display = 'block';
-      ensureYTAPI().then(() => getYTPlayerForIframe(iframe));
-    }
-      addTrailerTip(videoModal, trailerInfo.level === 'series'
-        ? (config.languageLabels?.diziFragmani || 'Dizi fragmanı')
-        : (config.languageLabels?.fragman || 'Fragman'));
-    } else {
-      hideTrailerIframe();
-      if (modalVideo) {
-        try { modalVideo.pause(); } catch {}
-        modalVideo.src = '';
-        modalVideo.style.display = 'none';
-      }
-    }
-  }
+         modal,
+          trailerInfo.level === 'series'
+            ? (config.languageLabels?.diziFragmani || 'Dizi fragmanı')
+            : (config.languageLabels?.fragman || 'Fragman')
+        );
+       } else if (videoUrl) {
+         if (await gatePlaybackStart(item?.Id)) {
+        modal.initHlsPlayer(videoUrl);
+         }
+       }
+     } else if (videoUrl) {
+       if (await gatePlaybackStart(item?.Id)) {
+      modal.initHlsPlayer(videoUrl);
+       }
+     } else {
+      hideTrailerIframe(modal);
+       if (modalVideo) {
+         try { modalVideo.pause(); } catch {}
+         modalVideo.src = '';
+         modalVideo.style.display = 'none';
+       }
+     }
+   }
+   else {
+     if (videoUrl) {
+       if (await gatePlaybackStart(item?.Id)) {
+      modal.initHlsPlayer(videoUrl);
+       }
+     } else if (isLocal) {
+      hideTrailerIframe(modal);
+       if (modalVideo) { modalVideo.style.display = 'block'; }
+       if (await gatePlaybackStart(item?.Id)) {
+      modal.initHlsPlayer(trailerUrl);
+       }
+      addTrailerTip(modal, config.languageLabels?.yerelFragman || 'Yerel fragman');
+     } else if (isYTValid) {
+      const iframe = getOrCreateTrailerIframe(modal);
+       if (await gatePlaybackStart(item?.Id)) {
+       iframe.src = trailerUrl;
+       iframe.style.display = 'block';
+       ensureYTAPI().then(() => getYTPlayerForIframe(iframe));
+       }
+      addTrailerTip(modal, trailerInfo.level === 'series'
+         ? (config.languageLabels?.diziFragmani || 'Dizi fragmanı')
+         : (config.languageLabels?.fragman || 'Fragman'));
+     } else {
+      hideTrailerIframe(modal);
+       if (modalVideo) {
+         try { modalVideo.pause(); } catch {}
+         modalVideo.src = '';
+         modalVideo.style.display = 'none';
+       }
+     }
+   }
 
   if (item?.Type === 'Episode') {
   const seriesTitle =
@@ -2115,7 +2118,7 @@ async function updateModalContent(item, videoUrl) {
     modalButtonsContainer.style.opacity = '1';
     modalButtonsContainer.style.pointerEvents = 'auto';
   }
-  applyVolumePreference();
+  applyVolumePreference(modal);
 }
 
 function clearVideoPreloadCache(opts = {}) {
@@ -2146,56 +2149,58 @@ function clearVideoPreloadCache(opts = {}) {
   } catch {}
 }
 
-function addTrailerTip(videoModal, text) {
-  let tip = videoModal.querySelector('.trailer-tip');
-  if (!tip) {
-    tip = document.createElement('div');
-    tip.className = 'trailer-tip';
-    Object.assign(tip.style, {
-      position: 'absolute',
-      top: '11px',
-      left: '11px',
-      fontSize: '11px',
-      padding: '3px 8px',
-      borderRadius: '6px',
-      background: 'rgba(0,0,0,.45)',
-      color: '#eee',
-      zIndex: '1',
-      pointerEvents: 'none'
-    });
-    videoModal.querySelector('.video-container')?.appendChild(tip);
-  }
-  tip.textContent = text;
-}
+function addTrailerTip(modal, text) {
+  if (!modal) return;
+  let tip = modal.querySelector?.('.trailer-tip');
+   if (!tip) {
+     tip = document.createElement('div');
+     tip.className = 'trailer-tip';
+     Object.assign(tip.style, {
+       position: 'absolute',
+       top: '11px',
+       left: '11px',
+       fontSize: '11px',
+       padding: '3px 8px',
+       borderRadius: '6px',
+       background: 'rgba(0,0,0,.45)',
+       color: '#eee',
+       zIndex: '1',
+       pointerEvents: 'none'
+     });
+    modal.querySelector?.('.video-container')?.appendChild(tip);
+   }
+   tip.textContent = text;
+ }
 
-function showNoTrailerMessage(videoModal, text) {
-  clearTransientOverlays(videoModal);
-  let noTrailerDiv = videoModal.querySelector('.no-trailer-message');
-  if (!noTrailerDiv) {
-    noTrailerDiv = document.createElement('div');
-    noTrailerDiv.className = 'no-trailer-message';
-    noTrailerDiv.innerHTML = `
-      <i class="fa-solid fa-circle-exclamation" style="margin-right:8px;color:#f66;"></i>
-      ${text}
-    `;
-    Object.assign(noTrailerDiv.style, {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      color: '#ccc',
-      fontSize: '18px',
-      fontWeight: '500',
-      textAlign: 'center',
-      pointerEvents: 'none',
-      whiteSpace: 'nowrap',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    });
-    videoModal.querySelector('.video-container')?.appendChild(noTrailerDiv);
-  }
-}
+function showNoTrailerMessage(modal, text) {
+  if (!modal) return;
+  clearTransientOverlays(modal);
+  let noTrailerDiv = modal.querySelector?.('.no-trailer-message');
+   if (!noTrailerDiv) {
+     noTrailerDiv = document.createElement('div');
+     noTrailerDiv.className = 'no-trailer-message';
+     noTrailerDiv.innerHTML = `
+       <i class="fa-solid fa-circle-exclamation" style="margin-right:8px;color:#f66;"></i>
+       ${text}
+     `;
+     Object.assign(noTrailerDiv.style, {
+       position: 'absolute',
+       top: '50%',
+       left: '50%',
+       transform: 'translate(-50%, -50%)',
+       color: '#ccc',
+       fontSize: '18px',
+       fontWeight: '500',
+       textAlign: 'center',
+       pointerEvents: 'none',
+       whiteSpace: 'nowrap',
+       display: 'flex',
+       alignItems: 'center',
+       justifyContent: 'center'
+     });
+   modal.querySelector?.('.video-container')?.appendChild(noTrailerDiv);
+   }
+ }
 
 function getClosingRemaining() {
   return Math.max(0, _modalClosingUntil - Date.now());
@@ -2346,7 +2351,7 @@ export function setupHoverForAllItems() {
     videoModal.dataset.itemId = itemId;
     positionModalRelativeToItem(videoModal, item);
     animatedShow(videoModal);
-    applyVolumePreference();
+    applyVolumePreference(videoModal);
 
     let videoUrl = null;
     try { videoUrl = await preloadVideoPreview(itemId); } catch {}
@@ -2465,6 +2470,101 @@ function positionModalRelativeToItem(modal, item, options = {}) {
   }
 }
 
+export async function openPreviewModalForItem(itemId, anchorEl) {
+  try {
+    const cfg = getConfig();
+    const mode = (cfg?.globalPreviewMode || 'modal');
+    if (mode !== 'modal') return;
+    if (cfg?.allPreviewModal === false) return;
+    if (!itemId) return;
+
+    await ensureOverlaysClosed();
+    if (!videoModal || !document.body.contains(videoModal) || _modalContext !== 'global') {
+      try { destroyVideoModal(); } catch {}
+      const modalEls = createVideoModal({ showButtons: true, context: 'global' });
+      if (!modalEls) return;
+      videoModal = modalEls.modal;
+      modalVideo = modalEls.video;
+      modalTitle  = modalEls.title;
+      modalMeta = modalEls.meta;
+      modalMatchInfo = modalEls.matchInfo;
+      modalGenres = modalEls.genres;
+      modalPlayButton = modalEls.playButton;
+      modalFavoriteButton = modalEls.favoriteButton;
+      modalEpisodeLine = modalEls.episodeLine;
+      modalMatchButton = modalEls.matchButton;
+      modalButtonsContainer = modalEls.buttonsContainer;
+      bindModalEvents(videoModal);
+    }
+    const ac = new AbortController();
+    const { signal } = ac;
+    const item = await fetchItemDetails(itemId, { signal });
+    if (!item) return;
+    let domBackdrop = null;
+    try {
+      domBackdrop =
+        anchorEl?.dataset?.background ||
+        anchorEl?.dataset?.backdrop ||
+        anchorEl?.closest?.('[data-background]')?.dataset?.background ||
+        null;
+    } catch {}
+    const itemBackdrop = getBackdropFromItem(item);
+    if (typeof videoModal?.setBackdrop === 'function') {
+      videoModal.setBackdrop(domBackdrop || itemBackdrop || null);
+    }
+    videoModal.dataset.itemId = String(itemId);
+    if (anchorEl) {
+      positionModalRelativeToItem(videoModal, anchorEl);
+    }
+    if (videoModal.style.display !== 'block') {
+      animatedShow(videoModal);
+    } else {
+      videoModal.style.display = 'block';
+    }
+    isMouseInModal = true;
+    modalHoverState = true;
+    clearTimeout(modalHideTimeout);
+    if (modalButtonsContainer) {
+      modalButtonsContainer.style.pointerEvents = 'auto';
+      modalButtonsContainer.style.opacity = '1';
+    }
+    applyVolumePreference(videoModal);
+    let videoUrl = null;
+    try { videoUrl = await preloadVideoPreview(itemId); } catch {}
+    await updateModalContent(item, videoUrl);
+    {
+      const iframe = videoModal?.querySelector?.('.preview-trailer-iframe');
+      const hasIframe = !!(iframe && iframe.style.display !== 'none' && iframe.src);
+      const hasVideo  = !!(modalVideo && modalVideo.style.display !== 'none');
+      const hasPlayable = hasIframe || hasVideo;
+      if (!hasPlayable) {
+        closeVideoModal();
+        return;
+      }
+    }
+  } catch (e) {
+    console.error('openPreviewModalForItem hatası:', e);
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.tryOpenHoverModal = function(itemId, anchorEl) {
+    openPreviewModalForItem(itemId, anchorEl);
+  };
+}
+
+window.addEventListener('jms:hoverTrailer:open', (ev) => {
+  try {
+    const { itemId, anchor } = ev?.detail || {};
+    if (!itemId) return;
+    openPreviewModalForItem(itemId, anchor || null);
+  } catch {}
+}, { passive: true });
+
+window.addEventListener('jms:hoverTrailer:close', () => {
+  try { closeVideoModal(); } catch {}
+}, { passive: true });
+
 function formatSeasonEpisodeLine(ep) {
     const sWord = L('season', 'Season');
     const eWord = L('episode', 'Episode');
@@ -2506,9 +2606,9 @@ startCacheMaintenance();
 
  function clearTransientOverlays(modal = videoModal) {
    try {
-     const vc = modal?.querySelector?.('.video-container');
-     if (!vc) return;
-     vc.querySelectorAll('.trailer-tip, .no-trailer-message').forEach(n => n.remove());
+    const vc = modal?.querySelector?.('.video-container');
+    if (!vc) return;
+    vc.querySelectorAll?.('.trailer-tip, .no-trailer-message')?.forEach(n => n.remove());
    } catch {}
  }
 

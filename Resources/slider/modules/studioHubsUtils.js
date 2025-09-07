@@ -82,12 +82,73 @@ function scheduleHideMini(delay = 140) {
   __miniCloseTimer = setTimeout(() => hideMiniPopover(), delay);
 }
 
-export function hideMiniPopover() {
-  if (__miniCloseTimer) { clearTimeout(__miniCloseTimer); __miniCloseTimer = null; }
-  if (!__miniPop) return;
-  __miniPop.classList.remove("visible");
-  __miniPop.style.display = "none";
+function __resetFx(el) {
+  if (!el) return;
+  el.style.animation = "none";
+  el.style.transition = "none";
+  void el.offsetWidth;
+  el.style.animation = "";
+  el.style.transition = "";
 }
+
+function __getTotalAnimMs(el) {
+  const cs = getComputedStyle(el);
+  const toArr = (v) => (v || "0s").split(",").map(s => s.trim());
+  const toMs = (s) => {
+    const n = parseFloat(s) || 0;
+    return s.endsWith("ms") ? n : n * 1000;
+  };
+  const ad = toArr(cs.animationDuration).map(toMs);
+  const at = toArr(cs.animationDelay).map(toMs);
+  const td = toArr(cs.transitionDuration).map(toMs);
+  const tt = toArr(cs.transitionDelay).map(toMs);
+  const maxAnim = ad.reduce((m,v,i)=>Math.max(m, v+(at[i]||0)), 0);
+  const maxTran = td.reduce((m,v,i)=>Math.max(m, v+(tt[i]||0)), 0);
+  return Math.max(maxAnim, maxTran, 0);
+}
+
+export function hideMiniPopover() {
+   if (__miniCloseTimer) { clearTimeout(__miniCloseTimer); __miniCloseTimer = null; }
+   if (!__miniPop) return;
+  const el = __miniPop;
+  const wasVisible = el.classList.contains("visible");
+  el.classList.remove("visible");
+
+   if (!wasVisible) {
+    el.classList.remove("leaving");
+    el.style.display = "none";
+     return;
+   }
+
+  el.classList.remove("leaving");
+  __resetFx(el);
+  __resetFx(el.querySelector(".mini-bg"));
+  __resetFx(el.querySelector(".mini-overlay"));
+  void el.offsetWidth;
+  el.classList.add("leaving");
+  el.style.pointerEvents = "none";
+
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    el.classList.remove("leaving");
+    el.style.display = "none";
+    el.style.pointerEvents = "";
+    el.removeEventListener("animationend", onEnd, true);
+    el.removeEventListener("animationcancel", onEnd, true);
+    el.removeEventListener("transitionend", onEnd, true);
+    if (safety) clearTimeout(safety);
+  };
+  const onEnd = (evt) => {
+    cleanup();
+  };
+  el.addEventListener("animationend", onEnd, true);
+  el.addEventListener("animationcancel", onEnd, true);
+  el.addEventListener("transitionend", onEnd, true);
+  const total = Math.max(__getTotalAnimMs(el), 100);
+  const safety = setTimeout(cleanup, total + 0);
+ }
 
 function posNear(anchor, pop) {
   const margin = 8;
@@ -408,13 +469,12 @@ export function attachMiniPosterHover(cardEl, itemLike) {
       if (!document.contains(cardEl)) return;
 
       __miniPop.style.display = "block";
+      __miniPop.classList.remove("leaving");
       __miniPop.classList.add("visible");
     });
     try {
       const cfg = getConfig();
-      if (cfg?.studioMiniTrailerPopover === true) {
-        await tryOpenTrailerPopover(cardEl, itemLike.Id);
-      }
+      await tryOpenTrailerPopover(cardEl, itemLike.Id, { force: true });
     } catch {}
   };
 

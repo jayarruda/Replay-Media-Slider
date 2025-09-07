@@ -66,9 +66,13 @@ export function createSliderPanel(config, labels) {
         cssSelect.appendChild(option);
     });
 
+    const cssDesc = document.createElement('div');
+    cssDesc.className = 'description-text';
+    cssDesc.textContent = labels.cssDescription || 'Full Ekran Masaüstü Ortamlarda Aktifleştirilmiş Poster Dot için Düzenlenmiştir.';
+
     cssLabel.htmlFor = 'cssVariantSelect';
     cssSelect.id = 'cssVariantSelect';
-    cssDiv.append(cssLabel, cssSelect);
+    cssDiv.append(cssLabel, cssSelect, cssDesc);
 
     const sliderDiv = document.createElement('div');
     sliderDiv.className = 'fsetting-item';
@@ -87,8 +91,28 @@ export function createSliderPanel(config, labels) {
     sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
     sliderDiv.append(sliderLabel, sliderDesc, sliderInput);
 
-    const showProgressCheckbox = createCheckbox('showProgressBar', labels.progressBar || 'ProgressBar\'ı Göster', config.showProgressBar);
+    const showProgressCheckbox = createCheckbox(
+    'showProgressBar',
+    labels.progressBar || "ProgressBar'ı Göster",
+    config.showProgressBar
+  );
     sliderDiv.appendChild(showProgressCheckbox);
+    const showSecondsCheckbox = createCheckbox(
+    'showProgressAsSeconds',
+    (labels.showProgressAsSeconds || "İlerlemeyi Saniye Olarak Göster"),
+    config.showProgressAsSeconds || false
+  );
+    sliderDiv.appendChild(showSecondsCheckbox);
+    const spInput = showProgressCheckbox.querySelector('input');
+    const ssInput = showSecondsCheckbox.querySelector('input');
+
+    function syncSecondsAvailability() {
+    const enabled = !!spInput.checked;
+    ssInput.disabled = !enabled;
+    showSecondsCheckbox.style.opacity = enabled ? 1 : 0.6;
+  }
+    spInput.addEventListener('change', syncSecondsAvailability);
+    requestAnimationFrame(syncSecondsAvailability);
 
     const playbackOptionsDiv = document.createElement('div');
     playbackOptionsDiv.className = 'playback-options-container';
