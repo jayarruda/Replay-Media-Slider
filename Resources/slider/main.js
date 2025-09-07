@@ -15,6 +15,7 @@ import { initNotifications, forcejfNotifBtnPointerEvents } from "./modules/notif
 import { startUpdatePolling } from "./modules/update.js";
 import { renderStudioHubs } from "./modules/studioHubs.js";
 import { updateSlidePosition } from "./modules/positionUtils.js";
+import { renderPersonalRecommendations } from "./modules/personalRecommendations.js";
 
 const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
 window.__totalSlidesPlanned = 0;
@@ -232,6 +233,15 @@ let cleanupPauseOverlay = null;
 let pauseBooted = false;
 let navObsBooted = false;
 window.sliderResetInProgress = window.sliderResetInProgress || false;
+
+(function preloadPersonalRecsCSS() {
+    if (document.getElementById("personalRecsCss")) return;
+    const link = document.createElement("link");
+    link.id = "personalRecsCss";
+    link.rel = "stylesheet";
+    link.href = "slider/src/personalRecommendations.css";
+    document.head.appendChild(link);
+})();
 
 (function preloadNotifCSS() {
   if (document.getElementById("jfNotifCss")) return;
@@ -800,7 +810,12 @@ export async function slidesInit() {
         const details = await Promise.all(listItems.map((id) => fetchItemDetails(id)));
         items = details.filter((x) => x);
       } else {
-        const queryString = config.customQueryString;
+        const baseQS = (config.customQueryString || '').replace(/^[?&]+/, '');
+        const onlyUnwatched = !!config.onlyUnwatchedRandom;
+        const hasIsPlayed = /(?:^|[?&])IsPlayed=/i.test(baseQS);
+        const queryString = (onlyUnwatched && !hasIsPlayed)
+          ? (baseQS ? baseQS + '&IsPlayed=false' : 'IsPlayed=false')
+          : baseQS;
 
         const includeItemTypes = extractItemTypesFromQuery(queryString);
         const shouldBalanceTypes =
@@ -811,7 +826,7 @@ export async function slidesInit() {
         );
 
         let playingItems = [];
-        const playingLimit = parseInt(config.playingLimit || 0, 10);
+        const playingLimit = (onlyUnwatched ? 0 : parseInt(config.playingLimit || 0, 10));
 
         if (playingLimit > 0) {
           try {
@@ -1147,9 +1162,11 @@ function setupNavigationObserver() {
         cleanupSlider();
       }
       startPauseOverlayOnce();
-    }
-  };
-
+    setTimeout(() => {
+                renderPersonalRecommendations();
+            }, 1500);
+        }
+    };
   setTimeout(checkPageChange, 0);
   const observerInterval = setInterval(checkPageChange, 300);
 
@@ -1191,12 +1208,13 @@ function initializeSliderOnHome() {
   slidesInit();
 
   if (config.enableStudioHubs) {
-    renderStudioHubs();
-    setTimeout(() => {
-      const row = document.querySelector("#studio-hubs .hub-row");
-      if (!row) renderStudioHubs();
-    }, 700);
-  }
+  renderStudioHubs();
+  setTimeout(() => { renderPersonalRecommendations(); }, 300);
+  setTimeout(() => {
+    const row = document.querySelector("#studio-hubs .hub-row");
+    if (!row) renderStudioHubs();
+  }, 700);
+}
 }
 
 function cleanupSlider() {
