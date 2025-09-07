@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.5.3.0",
+        "changelog": "The Personalized Card has been removed from StudioHubs and added to the Home screen. / StudioHubs'dan Bana özel kartı kaldırılıp Ana ekrana eklendi.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.5.0/JMSFusion-1.5.3.0-server.zip",
+        "checksum": "cb1824332570ff7bbb78ad76aade1b50",
+        "timestamp": "2025-09-07T18:45:31.4663927Z"
+      },
+      {
         "version": "1.5.2.0",
         "changelog": "Stability Update / Kararlılık Güncellemesi",
         "targetAbi": "10.10.0.0",
