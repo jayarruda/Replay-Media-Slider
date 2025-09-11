@@ -13,8 +13,8 @@
         "changelog": "For details: https://github.com/G-grbz/Jellyfin-Media-Slider/releases/tag/v1.6.0",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.6.0/JMSFusion-1.6.0.0-server.zip",
-        "checksum": "4ad9dcefa0db17608d58b4724646739e",
-        "timestamp": "2025-09-11T13:14:36.3151960Z"
+        "checksum": "8f373dae502ce6e3908a979046fc5873",
+        "timestamp": "2025-09-11T15:24:55.8759731Z"
       },
       {
         "version": "1.5.3.0",
