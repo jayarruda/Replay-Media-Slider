@@ -15,6 +15,17 @@ let __navSeq  = 0;
 let __tombstoneUntil = 0;
 let __lastItemId = null;
 
+function killAndTombstone(ms = 1200) {
+  __tombstoneUntil = Date.now() + ms;
+  window.__studioTrailerKillToken = (window.__studioTrailerKillToken || 0) + 1;
+}
+
+function isMobileLike() {
+  return (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches)
+    || (typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
+    || (window.innerWidth <= 768);
+}
+
 function getBaseEl(anchor) {
   const mini = document.querySelector(".mini-poster-popover.visible");
   if (mini && document.contains(mini)) return mini;
@@ -61,8 +72,12 @@ function measure(pop) {
   pop.style.display = "block";
   pop.style.opacity = "0";
   pop.style.visibility = "hidden";
-  const pw = pop.offsetWidth || 420;
-  const ph = pop.offsetHeight || 236 + 16;
+  const vw = document.documentElement.clientWidth;
+  const vh = document.documentElement.clientHeight;
+  const mW = Math.min(vw - 16, 720);
+  const mH = Math.round(Math.min( Math.max(vh * 0.35, 220), 420 ));
+  const pw = pop.offsetWidth || (isMobileLike() ? mW : 420);
+  const ph = pop.offsetHeight || (isMobileLike() ? mH : 252);
   pop.style.display = prevDisplay || "";
   pop.style.opacity = prevOpacity || "";
   pop.style.visibility = prevVis || "";
@@ -83,7 +98,9 @@ function placeNear(anchor) {
   const spaceBottom = (vh - r.bottom) - margin;
   const spaceTop    = (r.top) - margin;
   let place;
-  if (spaceBottom >= ph) {
+  if (isMobileLike()) {
+    place = "mobile-bottom";
+  } else if (spaceBottom >= ph) {
     place = "bottom";
   } else if (spaceTop >= ph) {
     place = "top";
@@ -95,7 +112,13 @@ function placeNear(anchor) {
   left = Math.max(margin, Math.min(left, vw - pw - margin));
 
   let top;
-  if (place === "bottom") {
+  if (place === "mobile-bottom") {
+    left = margin;
+    top  = vh - ph - margin;
+    __pop.style.width  = `${vw - margin*2}px`;
+    __pop.style.maxWidth = "720px";
+    __pop.style.left   = `${Math.round((vw - Math.min(vw - margin*2, 720)) / 2)}px`;
+  } else if (place === "bottom") {
     top = r.bottom + vGap;
     if (top + ph + margin > vh) {
       place = "top";
@@ -170,7 +193,7 @@ function ytEmbed(url) {
 
     const params = new URLSearchParams({
       autoplay: "1",
-      mute: "0",
+      mute: isMobileLike() ? "1" : "0",
       controls: "0",
       playsinline: "1",
       rel: "0",
@@ -227,7 +250,7 @@ function renderPlayer(container, kind, src) {
   const video = document.createElement("video");
   video.src = src;
   video.autoplay = true;
-  video.muted = false;
+  video.muted = isMobileLike();
   video.controls = false;
   video.loop = true;
   video.playsInline = true;
@@ -267,6 +290,10 @@ function hardClose(destroy = false) {
   window.__studioTrailerNavGuardsInstalled = true;
 
   const markNav = () => {
+    if (window.__JMS_SUPPRESS_CARD_NAV && Date.now() < (window.__JMS_SUPPRESS_CARD_NAV_TS || 0)) {
+    window.__JMS_SUPPRESS_CARD_NAV_TS = 0;
+    return;
+  }
     __navSeq++;
     __tombstoneUntil = Date.now() + 1500;
     window.__studioTrailerKillToken = (window.__studioTrailerKillToken || 0) + 1;
@@ -283,48 +310,71 @@ function hardClose(destroy = false) {
       };
     }
   });
-
   window.addEventListener("popstate", markNav, true);
   window.addEventListener("hashchange", markNav, true);
   window.addEventListener("pagehide", () => markNav(), true);
   document.addEventListener("visibilitychange", () => { if (document.hidden) markNav(); }, true);
   window.addEventListener("studiohubs:navigated", markNav, true);
-  document.addEventListener("click", () => { setTimeout(markNav, 0); }, true);
+  document.addEventListener("click", (e) => {
+   const a = e.target?.closest?.("a,[data-link],[data-href]");
+   if (!a) return;
+   setTimeout(markNav, 0);
+ }, true);
 })();
 
+try {
+   window.addEventListener("studiohubs:miniHidden", () => {
+    killAndTombstone(1200);
+    hideTrailerPopover(0);
+    hardClose(true);
+   }, true);
+   window.addEventListener("studiohubs:miniDestroyed", () => {
+    killAndTombstone(1500);
+    hardClose(true);
+   }, true);
+   window.addEventListener("studiohubs:miniShown", () => {
+    __tombstoneUntil = 0;
+  }, true);
+ } catch {}
+
 export async function tryOpenTrailerPopover(anchorEl, itemId, opts = {}) {
-  const { force = false } = opts;
-  const cfg = getConfig();
-  if (!force && !cfg?.studioMiniTrailerPopover) return false;
-  if (!anchorEl || !document.contains(anchorEl)) return false;
-  if (Date.now() < __tombstoneUntil) return false;
+   const { force = false, requireMini = false } = opts;
+   const cfg = getConfig();
+   if (!force && !cfg?.studioMiniTrailerPopover) return false;
+   if (!anchorEl || !document.contains(anchorEl)) return false;
+   if (Date.now() < __tombstoneUntil) return false;
+   if (requireMini && !document.querySelector(".mini-poster-popover.visible")) return false;
 
-  const myOpenSeq = ++__openSeq;
-  const myNavSeq  = __navSeq;
-  const myKill    = window.__studioTrailerKillToken || 0;
+   const myOpenSeq = ++__openSeq;
+   const myNavSeq  = __navSeq;
+   const myKill    = window.__studioTrailerKillToken || 0;
 
-  const best = await resolveBestTrailerUrl(itemId);
-  if (!best) return false;
-  if (Date.now() < __tombstoneUntil) return false;
-  if (myOpenSeq !== __openSeq || myNavSeq !== __navSeq) return false;
-  if ((window.__studioTrailerKillToken || 0) !== myKill) return false;
-  if (!document.contains(anchorEl)) return false;
+   const best = await resolveBestTrailerUrl(itemId);
+   if (!best) return false;
+   if (Date.now() < __tombstoneUntil) return false;
+   if (myOpenSeq !== __openSeq || myNavSeq !== __navSeq) return false;
+   if ((window.__studioTrailerKillToken || 0) !== myKill) return false;
+   if (!document.contains(anchorEl)) return false;
+   if (requireMini && !document.querySelector(".mini-poster-popover.visible")) return false;
 
-  const pop = ensureEl();
-  const host = pop.querySelector(".mtp-player");
-  renderPlayer(host, best.type, best.src);
+   const pop = ensureEl();
+   const host = pop.querySelector(".mtp-player");
+   renderPlayer(host, best.type, best.src);
 
   const placed = placeNear(anchorEl);
   if (!placed) { hardClose(true); return false; }
 
   setupLiveSync(anchorEl);
-  settlePlacement(anchorEl, 6);
+  if (isMobileLike()) {
+    window.addEventListener('orientationchange', () => settlePlacement(anchorEl, 6), { passive: true });
+  }
   requestAnimationFrame(() => {
     if (!__pop) return;
     if (Date.now() < __tombstoneUntil) { hardClose(true); return; }
     if (myOpenSeq !== __openSeq || myNavSeq !== __navSeq) return;
     if ((window.__studioTrailerKillToken || 0) !== myKill) return;
     if (!document.contains(anchorEl)) { hardClose(true); return; }
+    if (requireMini && !document.querySelector(".mini-poster-popover.visible")) { hardClose(true); return; }
 
     __lastItemId = itemId || null;
     __pop.style.display = "block";

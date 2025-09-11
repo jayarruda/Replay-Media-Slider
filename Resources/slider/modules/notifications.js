@@ -14,8 +14,13 @@ const UPDATE_BANNER_KEY      = () => storageKey("updateBanner");
 const UPDATE_TOAST_SHOWN_KEY = () => storageKey("updateToastShown");
 const UPDATE_TOAST_INFO_KEY = () => storageKey("updateToastInfo");
 const UPDATE_LIST_ID = (latest) => `update:${latest}`;
+const HOVER_OPEN_DELAY  = 150;
+const HOVER_CLOSE_DELAY = 200;
+const CSS_READY_TIMEOUT_MS = 2000;
 
 let notifRenderGen = 0;
+let __hoverOpenTimer  = null;
+let __hoverCloseTimer = null;
 let recentToastMap = new Map();
 let notifState = {
   list: [],
@@ -30,50 +35,139 @@ let notifState = {
   _systemAllowed: false,
 };
 
+function isHoverCapable() {
+  try {
+    return window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  } catch { return false; }
+}
+
+function clearHoverTimers() {
+  if (__hoverOpenTimer)  { clearTimeout(__hoverOpenTimer);  __hoverOpenTimer = null; }
+  if (__hoverCloseTimer) { clearTimeout(__hoverCloseTimer); __hoverCloseTimer = null; }
+}
+
+function insideNotifArea(node) {
+  if (!node || !(node instanceof Node)) return false;
+  const panel = document.querySelector('#jfNotifModal .jf-notif-panel');
+  const btn   = document.getElementById('jfNotifBtn');
+  return !!(node.closest?.('#jfNotifBtn') || node.closest?.('#jfNotifModal .jf-notif-panel'));
+}
+
+function setupNotifHover() {
+  if (!isHoverCapable()) return;
+  const btn   = document.getElementById('jfNotifBtn');
+  const modal = document.getElementById('jfNotifModal');
+  const panel = modal?.querySelector('.jf-notif-panel');
+  if (!btn || !modal || !panel) return;
+  if (btn.__notifHoverBound) return;
+  btn.__notifHoverBound = true;
+
+  const openLater = () => {
+    clearHoverTimers();
+    __hoverOpenTimer = setTimeout(() => { openModal(); }, HOVER_OPEN_DELAY);
+  };
+  const closeLater = () => {
+    clearHoverTimers();
+    __hoverCloseTimer = setTimeout(() => { closeModal(); }, HOVER_CLOSE_DELAY);
+  };
+  const cancelClose = () => {
+    if (__hoverCloseTimer) { clearTimeout(__hoverCloseTimer); __hoverCloseTimer = null; }
+  };
+
+  btn.addEventListener('mouseenter', () => {
+    openLater();
+  });
+  const leaveHandler = (ev) => {
+    const to = ev.relatedTarget;
+    if (insideNotifArea(to)) {
+      cancelClose();
+    } else {
+      closeLater();
+    }
+  };
+
+  btn.addEventListener('mouseleave', leaveHandler);
+  panel.addEventListener('mouseleave', leaveHandler);
+  panel.addEventListener('mouseenter', cancelClose);
+}
+
+
 function findHeaderContainer() {
-  const selectors = [
-    ".skinHeader .headerRight",
-    ".headerRight",
-    ".headerButtons",
-    ".skinHeader .headerButtons",
-    ".skinHeader .paper-icon-buttons",
-    ".skinHeader"
-  ];
-  for (const sel of selectors) {
-    const el = document.querySelector(sel);
+  const roots = Array.from(document.querySelectorAll(".skinHeader"));
+  const pick = (root) =>
+    root.querySelector(".headerRight") ||
+    root.querySelector(".headerButtons") ||
+    root.querySelector(".paper-icon-buttons") ||
+    root;
+  for (const r of roots) {
+    const el = pick(r);
     if (el) return el;
   }
-  return null;
+  return (
+    document.querySelector(".skinHeader .headerRight") ||
+    document.querySelector(".skinHeader .headerButtons") ||
+    document.querySelector(".headerRight") ||
+    document.querySelector(".headerButtons") ||
+    document.querySelector(".skinHeader") ||
+    null
+  );
 }
+
+let __notifBtn = null;
+let __headerObs = null;
 
 function ensureNotifButtonIn(el) {
   if (!el) return false;
-  if (el.querySelector("#jfNotifBtn")) return true;
-
-  const btn = document.createElement("button");
-  btn.id = "jfNotifBtn";
-  btn.type = "button";
-  btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
-  btn.setAttribute("is", "paper-icon-button-light");
-  btn.innerHTML = `
-    <i class="material-icons notif" aria-hidden="true">notifications</i>
-    <span class="jf-notif-badge" hidden></span>
-  `;
-  btn.setAttribute("aria-label", config.languageLabels.recentNotifications);
-  btn.title = config.languageLabels.recentNotifications;
-  btn.addEventListener("click", openModal);
-  try { el.prepend(btn); } catch { el.appendChild(btn); }
-
-  btn.style.display = "inline-flex";
-  btn.style.opacity = "1";
-  btn.style.pointerEvents = "all";
-  btn.style.cursor = "pointer";
-  btn.style.border = "none";
-
+  if (!__notifBtn) {
+    const btn = document.createElement("button");
+    btn.id = "jfNotifBtn";
+    btn.type = "button";
+    btn.className = "headerSyncButton syncButton headerButton headerButtonRight paper-icon-button-light";
+    btn.setAttribute("is", "paper-icon-button-light");
+    btn.setAttribute("aria-label", config.languageLabels.recentNotifications);
+    btn.title = config.languageLabels.recentNotifications;
+    btn.innerHTML = `
+      <i class="material-icons" aria-hidden="true">notifications</i>
+      <span class="jf-notif-badge" hidden></span>
+    `;
+    btn.addEventListener("click", openModal);
+    __notifBtn = btn;
+  }
+  if (__notifBtn.parentElement === el) return true;
+  try { el.insertBefore(__notifBtn, el.firstChild); } catch { el.appendChild(__notifBtn); }
   return true;
 }
 
-
+function startHeaderIconSentinel() {
+  if (__headerObs) return;
+  const mount = () => {
+    const target = document.querySelector(".skinHeader") || document.body;
+    if (!target) return;
+    ensureNotifButtonIn(findHeaderContainer());
+    if (__headerObs) __headerObs.disconnect();
+    __headerObs = new MutationObserver(() => {
+      const host = findHeaderContainer();
+      if (!host) return;
+      if (!__notifBtn || !host.contains(__notifBtn)) {
+        ensureNotifButtonIn(host);
+        updateBadge();
+        setTimeout(setupNotifHover, 0);
+      }
+    });
+    __headerObs.observe(target, { childList: true, subtree: true });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", mount, { once: true });
+  } else {
+    mount();
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      ensureNotifButtonIn(findHeaderContainer());
+      updateBadge();
+    }
+  });
+}
 
 function hasPrimaryImage(it) {
   if (it?.HasPrimaryImage || it?.ImageTags?.Primary || it?.Series?.ImageTags?.Primary) return true;
@@ -323,16 +417,21 @@ function getCreatedTs(item) {
 
 function ensureUI() {
   if (!config.enableNotifications) return;
+  injectCriticalNotifCSS();
   const header = findHeaderContainer();
-  if (header) {
-    ensureNotifButtonIn(header);
-  }
+  if (header) ensureNotifButtonIn(header);
+  startHeaderIconSentinel();
 
   if (!document.querySelector("#jfNotifModal")) {
     const showSystem = !!notifState._systemAllowed;
     const modal = document.createElement("div");
     modal.id = "jfNotifModal";
     modal.className = "jf-notif-modal";
+     modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+    modal.style.position = "fixed";
+    modal.style.inset = "0";
+    modal.style.pointerEvents = "none";
     modal.innerHTML = `
       <div class="jf-notif-backdrop" data-close></div>
       <div class="jf-notif-panel">
@@ -380,6 +479,12 @@ function ensureUI() {
     modal.addEventListener("click", (e) => {
       if (e.target.matches("[data-close]")) closeModal();
     });
+      modal.addEventListener("transitionend", (ev) => {
+      if (ev.target === modal && !modal.classList.contains("open")) {
+        modal.hidden = true;
+        modal.setAttribute("aria-hidden", "true");
+      }
+    });
   }
 
   if (!document.querySelector("#jfToastContainer")) {
@@ -389,16 +494,10 @@ function ensureUI() {
     document.body.appendChild(c);
   }
 
-  if (!document.getElementById("jfNotifCss")) {
-    const link = document.createElement("link");
-    link.id = "jfNotifCss";
-    link.rel = "stylesheet";
-    link.type = "text/css";
-    link.href = "slider/src/notifications.css";
-    document.head.appendChild(link);
-  }
-
-  document.getElementById("jfNotifModeToggle")?.addEventListener("click", (e) => { e.stopPropagation(); toggleThemeMode(); });
+  document.getElementById("jfNotifModeToggle")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleThemeMode();
+  });
   document.getElementById("jfNotifThemeToggle")?.addEventListener("click", toggleTheme);
   document.getElementById("jfNotifClearAll")?.addEventListener("click", (e) => { e.stopPropagation(); clearAllNotifications(); closeModal(); });
   document.getElementById("jfNotifMarkAllRead")?.addEventListener("click", (e) => { e.stopPropagation(); markAllNotificationsRead(); });
@@ -407,6 +506,11 @@ function ensureUI() {
   loadThemeModePreference();
   updateBadge();
   renderUpdateBanner();
+  setTimeout(setupNotifHover, 0);
+  waitForNotifCss().then(() => {
+    const crt = document.getElementById("jfNotifCriticalHide");
+    if (crt) crt.remove();
+  }).catch(()=>{});
 
   document.querySelectorAll(".jf-notif-tab").forEach(tabBtn => {
     tabBtn.addEventListener("click", () => {
@@ -419,23 +523,56 @@ function ensureUI() {
   });
 }
 
+function injectCriticalNotifCSS() {
+  if (document.getElementById("jfNotifCriticalHide")) return;
+  const style = document.createElement("style");
+  style.id = "jfNotifCriticalHide";
+  style.textContent = `
+    #jfNotifModal { display: none !important; }
+    #jfNotifModal.open { display: block !important; }
+  `;
+  document.head.appendChild(style);
+}
+
+function waitForNotifCss() {
+  return new Promise((resolve, reject) => {
+    const link = document.getElementById("jfNotifCss");
+    if (!link) return setTimeout(resolve, 300);
+    if (link.sheet) return resolve();
+    const t = setTimeout(() => reject(new Error("css-timeout")), CSS_READY_TIMEOUT_MS);
+    link.addEventListener("load", () => { clearTimeout(t); resolve(); }, { once: true });
+    link.addEventListener("error", () => { clearTimeout(t); reject(new Error("css-error")); }, { once: true });
+  });
+}
+
+document.addEventListener(
+  "click",
+  (ev) => {
+    const btn = ev.target && (ev.target.id === "jfNotifModeToggle"
+                 ? ev.target
+                 : ev.target.closest?.("#jfNotifModeToggle"));
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    try { toggleThemeMode(); } catch {}
+  },
+  true
+);
 
 export function forcejfNotifBtnPointerEvents() {
-  const apply = () => {
-    document.querySelectorAll('html .skinHeader').forEach(el => {
-      el.style.setProperty('pointer-events', 'all', 'important');
-    });
+   const apply = () => {
+     document.querySelectorAll('html .skinHeader').forEach(el => {
+       el.style.setProperty('pointer-events', 'all', 'important');
+     });
 
-    const jfNotifBtnToggle = document.querySelector('#jfNotifBtn');
-    if (jfNotifBtnToggle) {
+     const jfNotifBtnToggle = document.querySelector('#jfNotifBtn');
+     if (jfNotifBtnToggle) {
       jfNotifBtnToggle.style.setProperty('display', 'inline-flex', 'important');
-      jfNotifBtnToggle.style.setProperty('opacity', '1', 'important');
       jfNotifBtnToggle.style.setProperty('pointer-events', 'all', 'important');
-      jfNotifBtnToggle.style.setProperty('text-shadow', 'rgb(255, 255, 255) 0px 0px 2px', 'important');
-      jfNotifBtnToggle.style.setProperty('cursor', 'pointer', 'important');
-      jfNotifBtnToggle.style.setProperty('border', 'none', 'important');
-    }
-  };
+      jfNotifBtnToggle.style.removeProperty('text-shadow');
+      jfNotifBtnToggle.style.removeProperty('color');
+     }
+   };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', apply);
@@ -452,9 +589,13 @@ export function forcejfNotifBtnPointerEvents() {
 }
 
 function openModal() {
+  clearHoverTimers();
   const m = document.querySelector("#jfNotifModal");
   if (!m) return;
-  m.classList.add("open");
+  m.hidden = false;
+  m.removeAttribute("aria-hidden");
+  m.style.pointerEvents = "";
+  requestAnimationFrame(() => m.classList.add("open"));
   notifState.isModalOpen = true;
   renderNotifications();
   if (config.enableRenderResume) renderResume();
@@ -464,8 +605,11 @@ function openModal() {
 }
 
  function closeModal() {
+   clearHoverTimers();
   const m = document.querySelector("#jfNotifModal");
-  if (m) m.classList.remove("open");
+  if (m) {
+    m.classList.remove("open");
+  }
   notifState.isModalOpen = false;
 
   if (notifState._systemAllowed && config.enableCounterSystem && Array.isArray(notifState.activities)) {
@@ -1098,6 +1242,9 @@ export async function initNotifications() {
   loadState();
   ensureUI();
 
+  setTimeout(() => ensureNotifButtonIn(findHeaderContainer()), 250);
+  setTimeout(() => ensureNotifButtonIn(findHeaderContainer()), 750);
+
   const retry = setInterval(() => {
     ensureUI();
     if (document.querySelector("#jfNotifBtn") && document.querySelector("#jfNotifModal")) {
@@ -1371,6 +1518,7 @@ function getThemeModeKey() {
 function setThemeMode(mode) {
   const m = (mode === "dark") ? "dark" : "light";
   document.documentElement.setAttribute("data-notif-theme", m);
+  document.body?.setAttribute?.("data-notif-theme", m);
   try { localStorage.setItem(getThemeModeKey(), m); } catch {}
   const btn = document.getElementById("jfNotifModeToggle");
   if (btn) {

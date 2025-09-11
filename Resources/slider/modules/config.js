@@ -58,6 +58,7 @@ export function getConfig() {
         return raw ? raw.split(',').map(k => k.trim()) : ["DateCreated","PremiereDate","ProductionYear","Random"];
       }
     })(),
+    enableSlider: localStorage.getItem('enableSlider') !== 'false',
     showLanguageInfo: localStorage.getItem('showLanguageInfo') !== 'false',
     balanceItemTypes: localStorage.getItem('balanceItemTypes') !== 'false',
     showRatingInfo: localStorage.getItem('showRatingInfo') !== 'false',
@@ -123,7 +124,7 @@ export function getConfig() {
     useRandomContent: localStorage.getItem('useRandomContent') !== 'false',
     fullscreenMode: localStorage.getItem('fullscreenMode') === 'true' ? true : false,
     listLimit: 20,
-    version: "v1.5.0",
+    version: "v1.6.0",
     historySize: 20,
     updateInterval: 300000,
     nextTracksSource: localStorage.getItem('nextTracksSource') || 'playlist',
@@ -212,8 +213,8 @@ export function getConfig() {
     enablePersonalRecommendations: localStorage.getItem('enablePersonalRecommendations') === 'true',
     personalRecsCacheTtlMs: parseInt(localStorage.getItem('personalRecsCacheTtlMs'), 10) || 360,
     enableStudioHubs: localStorage.getItem('enableStudioHubs') !== 'false',
-    studioMiniTrailerPopover: localStorage.getItem('studioMiniTrailerPopover') !== 'false',
     studioHubsHoverVideo: localStorage.getItem('studioHubsHoverVideo') !== 'false',
+    studioMiniTrailerPopover: (localStorage.getItem("studioMiniTrailerPopover") || "false") === "true",
     studioHubsMinRating: parseFloat(localStorage.getItem('studioHubsMinRating')) || 6.5,
     studioHubsCardCount: parseInt(localStorage.getItem('studioHubsCardCount'), 10) || 10,
     studioHubsOrder: (() => {
@@ -452,6 +453,23 @@ export function getConfig() {
     enableImageSizeFilter: localStorage.getItem("enableImageSizeFilter") === "true",
     minImageSizeKB: parseInt(localStorage.getItem("minImageSizeKB"), 10) || 800,
     maxImageSizeKB: parseInt(localStorage.getItem("maxImageSizeKB"), 10) || 1500,
+
+    enableGenreHubs: (localStorage.getItem("enableGenreHubs") || "false") === "true",
+    studioHubsGenreCardCount: parseInt(localStorage.getItem("studioHubsGenreCardCount"), 10) || 10,
+    studioHubsGenreRowsCount: parseInt(localStorage.getItem("studioHubsGenreRowsCount"), 10) || 4,
+    genreHubsOrder: (() => {
+      try {
+        const raw = localStorage.getItem('genreHubsOrder');
+        if (raw && raw !== '[object Object]') {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr) && arr.length) {
+            const blacklist = ['audio','podcast','audiobook','soundtrack','radio','talk','interview','music'];
+            return arr.filter(g => g && !blacklist.includes(String(g).toLowerCase()));
+          }
+        }
+      } catch {}
+      return null;
+    })(),
   };
 }
 

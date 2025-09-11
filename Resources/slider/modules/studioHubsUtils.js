@@ -35,6 +35,12 @@ function ensureCss() {
   __cssLoaded = true;
 }
 
+function isMobileLike() {
+  return (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches)
+    || (typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
+    || (window.innerWidth <= 768);
+}
+
  function ensureMiniPopover() {
    if (__miniPop) return __miniPop;
 
@@ -43,6 +49,7 @@ function ensureCss() {
    el.innerHTML = `
      <div class="mini-bg" aria-hidden="true"></div>
      <div class="mini-overlay">
+     <button class="mini-close" type="button" aria-label="Kapat" title="Kapat">✕</button>
      <div class="mini-title"></div>
       <div class="mini-meta">
         <div class="mini-topline">
@@ -68,11 +75,21 @@ function ensureCss() {
   host.appendChild(el);
 
    __miniPop = el;
+   const closeBtn = __miniPop.querySelector('.mini-close');
+   closeBtn?.addEventListener('click', (e) => {
+     e.preventDefault();
+     try { hideMiniPopover(); } catch {}
+     try { hideTrailerPopover(0); } catch {}
+   }, { passive: false });
    return el;
  }
 
  function destroyMiniPopover() {
   if (!__miniPop) return;
+  try { hideTrailerPopover(0); } catch {}
+  try {
+    window.dispatchEvent(new Event("studiohubs:miniDestroyed"));
+  } catch {}
   try { __miniPop.remove(); } catch {}
   __miniPop = null;
 }
@@ -80,6 +97,7 @@ function ensureCss() {
 function scheduleHideMini(delay = 140) {
   if (__miniCloseTimer) clearTimeout(__miniCloseTimer);
   __miniCloseTimer = setTimeout(() => hideMiniPopover(), delay);
+  try { hideTrailerPopover(delay); } catch {}
 }
 
 function __resetFx(el) {
@@ -107,48 +125,61 @@ function __getTotalAnimMs(el) {
   return Math.max(maxAnim, maxTran, 0);
 }
 
-export function hideMiniPopover() {
+export  function hideMiniPopover() {
    if (__miniCloseTimer) { clearTimeout(__miniCloseTimer); __miniCloseTimer = null; }
    if (!__miniPop) return;
-  const el = __miniPop;
-  const wasVisible = el.classList.contains("visible");
-  el.classList.remove("visible");
+   const el = __miniPop;
+   const wasVisible = el.classList.contains("visible");
+   el.classList.remove("visible");
 
    if (!wasVisible) {
-    el.classList.remove("leaving");
-    el.style.display = "none";
+     el.classList.remove("leaving");
+     el.style.display = "none";
      return;
    }
 
-  el.classList.remove("leaving");
-  __resetFx(el);
-  __resetFx(el.querySelector(".mini-bg"));
-  __resetFx(el.querySelector(".mini-overlay"));
-  void el.offsetWidth;
-  el.classList.add("leaving");
-  el.style.pointerEvents = "none";
+   el.classList.remove("leaving");
+   __resetFx(el);
+   __resetFx(el.querySelector(".mini-bg"));
+   __resetFx(el.querySelector(".mini-overlay"));
+   void el.offsetWidth;
+   el.classList.add("leaving");
+   el.style.pointerEvents = "none";
 
-  let done = false;
-  const cleanup = () => {
-    if (done) return;
-    done = true;
-    el.classList.remove("leaving");
-    el.style.display = "none";
-    el.style.pointerEvents = "";
-    el.removeEventListener("animationend", onEnd, true);
-    el.removeEventListener("animationcancel", onEnd, true);
-    el.removeEventListener("transitionend", onEnd, true);
-    if (safety) clearTimeout(safety);
-  };
-  const onEnd = (evt) => {
-    cleanup();
-  };
-  el.addEventListener("animationend", onEnd, true);
-  el.addEventListener("animationcancel", onEnd, true);
-  el.addEventListener("transitionend", onEnd, true);
-  const total = Math.max(__getTotalAnimMs(el), 100);
-  const safety = setTimeout(cleanup, total + 0);
+   let done = false;
+   const cleanup = () => {
+     if (done) return;
+     done = true;
+    if (el.classList.contains("visible")) {
+      el.classList.remove("leaving");
+      el.style.pointerEvents = "";
+      el.removeEventListener("animationend", onEnd, true);
+      el.removeEventListener("animationcancel", onEnd, true);
+      el.removeEventListener("transitionend", onEnd, true);
+      if (safety) clearTimeout(safety);
+      return;
+    }
+
+     el.classList.remove("leaving");
+     el.style.display = "none";
+     el.style.pointerEvents = "";
+     el.removeEventListener("animationend", onEnd, true);
+     el.removeEventListener("animationcancel", onEnd, true);
+     el.removeEventListener("transitionend", onEnd, true);
+     if (safety) clearTimeout(safety);
+     try { window.dispatchEvent(new Event("studiohubs:miniHidden")); } catch {}
+     try { hideTrailerPopover(0); } catch {}
+   };
+   const onEnd = (evt) => {
+     cleanup();
+   };
+   el.addEventListener("animationend", onEnd, true);
+   el.addEventListener("animationcancel", onEnd, true);
+   el.addEventListener("transitionend", onEnd, true);
+   const total = Math.max(__getTotalAnimMs(el), 100);
+   const safety = setTimeout(cleanup, total + 0);
  }
+
 
 function posNear(anchor, pop) {
   const margin = 8;
@@ -471,18 +502,20 @@ export function attachMiniPosterHover(cardEl, itemLike) {
       __miniPop.style.display = "block";
       __miniPop.classList.remove("leaving");
       __miniPop.classList.add("visible");
+     try { window.dispatchEvent(new Event("studiohubs:miniShown")); } catch {}
     });
+    await new Promise(requestAnimationFrame);
     try {
-      const cfg = getConfig();
-      await tryOpenTrailerPopover(cardEl, itemLike.Id, { force: true });
+      await tryOpenTrailerPopover(cardEl, itemLike.Id, { requireMini: true });
     } catch {}
   };
 
   const scheduleOpen = () => {
     cancelOpen();
     if (document.hidden || Date.now() < __miniTombstoneUntil) return;
-    if (Date.now() - (window.__studioLastHumanInputTs || 0) > 1000) return;
-    overTimer = setTimeout(open, 160);
+    const idleOk = Date.now() - (window.__studioLastHumanInputTs || 0) <= 1000;
+    if (!idleOk) return;
+    overTimer = setTimeout(open, isMobileLike() ? 0 : 160);
     __miniTimers.add(overTimer);
   };
 
@@ -492,6 +525,12 @@ export function attachMiniPosterHover(cardEl, itemLike) {
     scheduleHideMini(120);
     hideTrailerPopover(120);
   }, { passive: true });
+  if (isMobileLike()) {
+    cardEl.addEventListener('touchstart', (e) => {
+      __miniTombstoneUntil = Date.now() + 500;
+      scheduleOpen();
+    }, { passive: true });
+  }
 }
 
 (() => {
@@ -515,6 +554,10 @@ export function attachMiniPosterHover(cardEl, itemLike) {
   };
 
   const markNav = () => {
+    if (window.__studioMiniSuppressNextNavClose && Date.now() < window.__studioMiniSuppressNextNavClose) {
+    window.__studioMiniSuppressNextNavClose = 0;
+    return;
+  }
     __miniNavSeq++;
     __miniTombstoneUntil = Date.now() + 1500;
     window.__studioMiniKillToken = (window.__studioMiniKillToken || 0) + 1;
@@ -566,6 +609,7 @@ export function attachMiniPosterHover(cardEl, itemLike) {
 })();
 
 document.addEventListener('closeAllMiniPopovers', () => {
+  try { hideTrailerPopover(0); } catch {}
   try { destroyMiniPopover(); } catch {}
 });
 
@@ -573,4 +617,35 @@ if (typeof window !== 'undefined') {
   window.__closeMiniPopover = () => {
     try { destroyMiniPopover(); } catch {}
   };
+}
+
+export async function openMiniPopoverFor(cardEl, itemLikeOrId) {
+  ensureCss();
+  ensureMiniPopover();
+  const itemLike = (typeof itemLikeOrId === 'string') ? { Id: itemLikeOrId } : itemLikeOrId;
+  if (!cardEl || !itemLike?.Id || !document.contains(cardEl)) return;
+  const myKill = (window.__studioMiniKillToken || 0);
+  let details = null;
+  try { details = await getDetails(itemLike.Id); } catch {}
+  const pop = ensureMiniPopover();
+  const hasContent = fillMiniContent(pop, itemLike, details || {});
+  if (!hasContent) { hideMiniPopover(); return; }
+  try { posNear(cardEl, pop); } catch {}
+  requestAnimationFrame(() => {
+    if ((window.__studioMiniKillToken || 0) !== myKill) return;
+    if (!document.contains(cardEl)) return;
+    pop.style.display = "block";
+    pop.classList.remove("leaving");
+    pop.classList.add("visible");
+    try { window.dispatchEvent(new Event("studiohubs:miniShown")); } catch {}
+    requestAnimationFrame(async () => {
+      try {
+        await tryOpenTrailerPopover(cardEl, itemLike.Id, { requireMini: true });
+      } catch {}
+    });
+  });
+}
+
+if (typeof window !== 'undefined') {
+  window.openMiniPopoverFor = (el, it) => openMiniPopoverFor(el, it);
 }

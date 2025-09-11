@@ -128,10 +128,6 @@ const animationStyles = `
         backface-visibility: hidden;
     }
 
-    .dot-navigation-container {
-        position: relative;
-    }
-
     .poster-dot {
         transition: all 0.3s ease;
         position: relative;

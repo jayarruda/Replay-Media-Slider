@@ -4,18 +4,19 @@ import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
 import { startSlideTimer, stopSlideTimer } from "./modules/timer.js";
 import { ensureProgressBarExists, resetProgressBar } from "./modules/progressBar.js";
 import { createSlide } from "./modules/slideCreator.js";
-import { changeSlide, createDotNavigation, setupHoverForAllItems } from "./modules/navigation.js";
+import { changeSlide, createDotNavigation} from "./modules/navigation.js";
 import { attachMouseEvents } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from "./modules/positionOverrides.js";
 import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
-import { initializeQualityBadges } from "./modules/qualityBadges.js";
+import { initializeQualityBadges, primeQualityFromItems, annotateDomWithQualityHints } from "./modules/qualityBadges.js";
 import { initNotifications, forcejfNotifBtnPointerEvents } from "./modules/notifications.js";
 import { startUpdatePolling } from "./modules/update.js";
-import { renderStudioHubs } from "./modules/studioHubs.js";
+import { ensureStudioHubsMounted } from "./modules/studioHubs.js";
 import { updateSlidePosition } from "./modules/positionUtils.js";
 import { renderPersonalRecommendations } from "./modules/personalRecommendations.js";
+import { setupHoverForAllItems  } from "./modules/hoverTrailerModal.js";
 
 const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
 window.__totalSlidesPlanned = 0;
@@ -243,17 +244,58 @@ window.sliderResetInProgress = window.sliderResetInProgress || false;
     document.head.appendChild(link);
 })();
 
-(function preloadNotifCSS() {
-  if (document.getElementById("jfNotifCss")) return;
-  const link = document.createElement("link");
-  link.id = "jfNotifCss";
-  link.rel = "stylesheet";
-  link.type = "text/css";
-  link.href = "slider/src/notifications.css";
+(function injectNotifCriticalCSS() {
+  if (document.getElementById("jfNotifCritical")) return;
+  const style = document.createElement("style");
+  style.id = "jfNotifCritical";
+  style.textContent = `
+    :root[data-notif-theme=light]{--jf-notif-text:#2d3748;--jf-notif-accent:#e91e63;--jf-notif-border:rgba(45,55,72,.1);--jf-notif-up:#fff}
+    :root[data-notif-theme=dark]{--jf-notif-text:#fff;--jf-notif-accent:#e91e63;--jf-notif-border:hsla(0,0%,100%,.1);--jf-notif-up:rgba(0,0,0,.1)}
+    #jfNotifBtn{position:relative;overflow:visible}
+    #jfNotifBtn[data-has-notifs=true]{color:var(--jf-notif-accent)}
+    #jfNotifBtn[data-has-notifs=true]::after{
+      content:attr(data-count);position:absolute;right:1px;top:-2px;z-index:2;
+      display:inline-flex;align-items:center;justify-content:center;
+      width:12px;height:12px;border-radius:50px;font-size:10px;padding:3px;
+      background:var(--jf-notif-up);color:var(--jf-notif-accent);backdrop-filter:blur(10px)
+    }
+    .jf-notif-modal.open{right:0}
+    .jf-notif-backdrop{position:absolute;inset:0;opacity:0;transition:opacity .3s}
+    .jf-notif-modal.open .jf-notif-backdrop{opacity:1}
+    .jf-notif-panel{position:absolute;width:400px;height:100%;overflow:hidden}
+  `;
   const head = document.head || document.getElementsByTagName("head")[0];
-  const firstChild = head.firstElementChild;
-  if (firstChild) head.insertBefore(link, firstChild);
-  else head.appendChild(link);
+  head.prepend(style);
+})();
+
+(function preloadNotifCSSFast() {
+  if (document.getElementById("jfNotifCss")) return;
+  const preload = document.createElement("link");
+  preload.id = "jfNotifCssPreload";
+  preload.rel = "preload";
+  preload.as = "style";
+  preload.href = "slider/src/notifications.css";
+  try { preload.fetchPriority = "high"; } catch {}
+  preload.setAttribute("fetchpriority", "high");
+  preload.onload = function () {
+    const sheet = document.createElement("link");
+    sheet.id = "jfNotifCss";
+    sheet.rel = "stylesheet";
+    sheet.type = "text/css";
+    sheet.href = preload.href;
+    requestAnimationFrame(() => {
+      preload.replaceWith(sheet);
+    });
+  };
+  preload.onerror = function () {
+    const fallback = document.createElement("link");
+    fallback.id = "jfNotifCss";
+    fallback.rel = "stylesheet";
+    fallback.type = "text/css";
+    fallback.href = preload.href;
+    preload.replaceWith(fallback);
+  };
+  (document.head || document.documentElement).prepend(preload);
 })();
 
 (function ensurePauseCss() {
@@ -290,16 +332,26 @@ const shuffleArray = (array) => {
 };
 
 function loadExternalCSS(path) {
-  const link = document.createElement("link");
-  link.rel = "preload";
-  link.as = "style";
-  link.href = path;
-  link.onload = function () {
-    this.rel = "stylesheet";
-    this.onload = null;
+  const preload = document.createElement("link");
+  preload.rel = "preload";
+  preload.as = "style";
+  preload.href = path;
+  try { preload.fetchPriority = "high"; } catch {}
+  preload.setAttribute("fetchpriority", "high");
+  preload.onload = function () {
+    const sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = path;
+    requestAnimationFrame(() => preload.replaceWith(sheet));
   };
-  document.head.appendChild(link);
-}
+  preload.onerror = function () {
+    const sheet = document.createElement("link");
+    sheet.rel = "stylesheet";
+    sheet.href = path;
+    preload.replaceWith(sheet);
+  };
+  (document.head || document.documentElement).prepend(preload);
+ }
 
 const cssPath =
   config.cssVariant === "fullslider"
@@ -387,6 +439,7 @@ export async function loadHls() {
 
 function observeDOMChanges() {
   const observer = new MutationObserver((mutations) => {
+    if (document.documentElement.dataset.jmsSoftBlock === "1") return;
     mutations.forEach((mutation) => {
       if (!mutation.addedNodes.length) return;
       const relevantContainers = ["cardImageContainer"];
@@ -509,7 +562,7 @@ function isVisible(el) {
   return !!rect && rect.width >= 1 && rect.height >= 1;
 }
 
-function waitForAnyVisible(selectors, { timeout = 20000 } = {}) {
+export function waitForAnyVisible(selectors, { timeout = 20000 } = {}) {
   return new Promise((resolve) => {
     const check = () => {
       for (const sel of selectors) {
@@ -739,18 +792,48 @@ export async function slidesInit() {
     const rawCred = sessionStorage.getItem("json-credentials") || localStorage.getItem("json-credentials");
     const apiKey = sessionStorage.getItem("api-key") || localStorage.getItem("api-key");
 
+    function isQuotaErr(e){ return e && (e.name === 'QuotaExceededError' || e.code === 22); }
+    function safeLocalGet(key, fallback="[]"){
+      try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+    }
+    function safeLocalRemove(key){
+      try { localStorage.removeItem(key); } catch {}
+    }
+    function safeLocalSet(key, value){
+      try { localStorage.setItem(key, value); return true; }
+      catch(e){
+        if(!isQuotaErr(e)) return false;
+        try { sessionStorage.setItem(key, value); return true; } catch {}
+        try { localStorage.removeItem(key); } catch {}
+        return false;
+      }
+    }
+
     function getShuffleHistory(userId) {
+      const key = `slider-shuffle-history-${userId}`;
       try {
-        return JSON.parse(localStorage.getItem(`slider-shuffle-history-${userId}`) || "[]");
+        const raw = safeLocalGet(key, "[]");
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
       } catch {
         return [];
       }
     }
     function saveShuffleHistory(userId, ids) {
-      localStorage.setItem(`slider-shuffle-history-${userId}`, JSON.stringify(ids));
+      const key = `slider-shuffle-history-${userId}`;
+      const limit = Math.max(10, parseInt(config.shuffleSeedLimit || "100", 10));
+      let arr = Array.from(new Set(ids)).slice(-limit);
+      if (safeLocalSet(key, JSON.stringify(arr))) return;
+      const cuts = [Math.floor(limit*0.75), Math.floor(limit*0.5), 20, 10];
+      for (const n of cuts) {
+        arr = arr.slice(-n);
+        if (safeLocalSet(key, JSON.stringify(arr))) return;
+      }
+      safeLocalRemove(key);
     }
     function resetShuffleHistory(userId) {
-      localStorage.removeItem(`slider-shuffle-history-${userId}`);
+      const key = `slider-shuffle-history-${userId}`;
+      safeLocalRemove(key);
     }
 
     if (!rawCred || !apiKey) {
@@ -928,8 +1011,10 @@ export async function slidesInit() {
               const shuffled = shuffleArray(unseenIds);
               const newSelectionIds = shuffled.slice(0, remainingSlots);
               const selectedItemsFromShuffle = allItems.filter((item) => newSelectionIds.includes(item.Id));
-              const updatedHistory = [...history, ...newSelectionIds].slice(0, shuffleSeedLimit);
-              saveShuffleHistory(userId, updatedHistory);
+              const updatedHistory = Array.from(
+                new Set([...history, ...newSelectionIds])
+              ).slice(-shuffleSeedLimit);
+              try { saveShuffleHistory(userId, updatedHistory); } catch {}
               selectedItems.push(...selectedItemsFromShuffle);
             }
           } else {
@@ -952,6 +1037,7 @@ export async function slidesInit() {
       console.error("Slide verisi hazırlanırken hata:", err);
     }
 
+    try { primeQualityFromItems(items); } catch {}
     if (!items.length) {
     console.warn("Hiçbir slayt verisi elde edilemedi.");
     return;
@@ -961,6 +1047,7 @@ export async function slidesInit() {
 
     const first = items[0];
     await createSlide(first);
+    try { annotateDomWithQualityHints(document); } catch {}
     markSlideCreated();
 
     const idxPage = document.querySelector("#indexPage:not(.hide)") || document.querySelector("#homePage:not(.hide)");
@@ -976,6 +1063,7 @@ export async function slidesInit() {
         for (const it of rest) {
           try {
             await createSlide(it);
+            try { annotateDomWithQualityHints(document); } catch {}
             markSlideCreated();
           } catch (e) {
             console.warn("Arka plan slayt oluşturma hatası:", e);
@@ -1162,9 +1250,6 @@ function setupNavigationObserver() {
         cleanupSlider();
       }
       startPauseOverlayOnce();
-    setTimeout(() => {
-                renderPersonalRecommendations();
-            }, 1500);
         }
     };
   setTimeout(checkPageChange, 0);
@@ -1208,13 +1293,16 @@ function initializeSliderOnHome() {
   slidesInit();
 
   if (config.enableStudioHubs) {
-  renderStudioHubs();
-  setTimeout(() => { renderPersonalRecommendations(); }, 300);
-  setTimeout(() => {
-    const row = document.querySelector("#studio-hubs .hub-row");
-    if (!row) renderStudioHubs();
-  }, 700);
-}
+   ensureStudioHubsMounted({ eager:true });
+ }
+  const onAllReady = () => {
+    try { renderPersonalRecommendations(); } catch {}
+  };
+  if (window.__totalSlidesPlanned > 0 && window.__slidesCreated >= window.__totalSlidesPlanned) {
+    onAllReady();
+  } else {
+    document.addEventListener("jms:all-slides-ready", onAllReady, { once: true });
+  }
 }
 
 function cleanupSlider() {
@@ -1301,8 +1389,8 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
     }
     setupNavigationObserver();
     idle(() => {
-      if (config.enableStudioHubs) renderStudioHubs();
-    });
+    if (config.enableStudioHubs) ensureStudioHubsMounted();
+ });
   } catch (e) {
     console.warn("robustBoot (fast) hata:", e);
   }

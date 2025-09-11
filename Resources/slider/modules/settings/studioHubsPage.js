@@ -4,6 +4,7 @@ import { applySettings } from "./applySettings.js";
 import { getAuthHeader } from "../api.js";
 
 const cfg = getConfig();
+
 const DEFAULT_ORDER = [
   "Marvel Studios","Pixar","Walt Disney Pictures","Disney+","DC",
   "Warner Bros. Pictures","Lucasfilm Ltd.","Columbia Pictures",
@@ -64,7 +65,6 @@ function toCanonicalStudioName(name) {
 function mergeOrder(defaults, custom) {
   const out = [];
   const seen = new Set();
-
   for (const n of (custom || [])) {
     const canon = toCanonicalStudioName(n) || n;
     const k = String(canon).toLowerCase();
@@ -107,32 +107,7 @@ function createDraggableList(id, items, labels) {
   list.style.overflow = "auto";
 
   items.forEach(name => {
-    const li = document.createElement("li");
-    li.className = "dnd-item";
-    li.draggable = true;
-    li.dataset.name = name;
-    li.style.display = "flex";
-    li.style.alignItems = "center";
-    li.style.gap = "8px";
-    li.style.padding = "8px 10px";
-    li.style.borderBottom = "1px solid #0002";
-    li.style.background = "var(--theme-background, rgba(255,255,255,0.02))";
-
-    const handle = document.createElement("span");
-    handle.className = "dnd-handle";
-    handle.textContent = "↕";
-    handle.title = labels?.dragToReorder || "Sürükle-bırak";
-    handle.style.cursor = "grab";
-    handle.style.userSelect = "none";
-    handle.style.fontWeight = "700";
-
-    const txt = document.createElement("span");
-    txt.textContent = name;
-    txt.style.flex = "1";
-
-    li.appendChild(handle);
-    li.appendChild(txt);
-    list.appendChild(li);
+    list.appendChild(createDnDItem(name, labels));
   });
 
   let dragEl = null;
@@ -142,6 +117,7 @@ function createDraggableList(id, items, labels) {
     if (!li) return;
     dragEl = li;
     li.style.opacity = "0.6";
+    e.dataTransfer?.setData?.("text/plain", li.dataset.name || "");
     e.dataTransfer.effectAllowed = "move";
   });
 
@@ -161,9 +137,74 @@ function createDraggableList(id, items, labels) {
     list.insertBefore(dragEl, before ? over : over.nextSibling);
   });
 
-  wrap.appendChild(lab);
-  wrap.appendChild(list);
-  return { wrap, list };
+  list.addEventListener("click", (e) => {
+    const btnUp = e.target.closest?.(".dnd-btn-up");
+    const btnDown = e.target.closest?.(".dnd-btn-down");
+    if (!btnUp && !btnDown) return;
+    const li = e.target.closest(".dnd-item");
+    if (!li) return;
+    if (btnUp && li.previousElementSibling) {
+      li.parentElement.insertBefore(li, li.previousElementSibling);
+    } else if (btnDown && li.nextElementSibling) {
+      li.parentElement.insertBefore(li.nextElementSibling, li);
+    }
+  });
+
+  const wrapAll = document.createElement("div");
+  wrapAll.appendChild(lab);
+  wrapAll.appendChild(list);
+  return { wrap: wrapAll, list };
+}
+
+function createDnDItem(name, labels) {
+  const li = document.createElement("li");
+  li.className = "dnd-item";
+  li.draggable = true;
+  li.dataset.name = name;
+  li.style.display = "flex";
+  li.style.alignItems = "center";
+  li.style.gap = "8px";
+  li.style.padding = "8px 10px";
+  li.style.borderBottom = "1px solid #0002";
+  li.style.background = "var(--theme-background, rgba(255,255,255,0.02))";
+
+  const handle = document.createElement("span");
+  handle.className = "dnd-handle";
+  handle.textContent = "↕";
+  handle.title = labels?.dragToReorder || "Sürükle-bırak";
+  handle.style.cursor = "grab";
+  handle.style.userSelect = "none";
+  handle.style.fontWeight = "700";
+
+  const txt = document.createElement("span");
+  txt.textContent = name;
+  txt.style.flex = "1";
+
+  const btns = document.createElement("div");
+  btns.style.display = "flex";
+  btns.style.gap = "6px";
+
+  const up = document.createElement("button");
+  up.type = "button";
+  up.className = "dnd-btn-up";
+  up.textContent = "↑";
+  up.title = labels?.moveUp || "Yukarı taşı";
+  up.style.minWidth = "28px";
+
+  const down = document.createElement("button");
+  down.type = "button";
+  down.className = "dnd-btn-down";
+  down.textContent = "↓";
+  down.title = labels?.moveDown || "Aşağı taşı";
+  down.style.minWidth = "28px";
+
+  btns.appendChild(up);
+  btns.appendChild(down);
+
+  li.appendChild(handle);
+  li.appendChild(txt);
+  li.appendChild(btns);
+  return li;
 }
 
 export function createStudioHubsPanel(config, labels) {
@@ -214,8 +255,8 @@ export function createStudioHubsPanel(config, labels) {
    1,
    10,
    0.1
- );
- section.appendChild(ratingWrap);
+  );
+  section.appendChild(ratingWrap);
 
   const defaultTtlMs = Number.isFinite(config.personalRecsCacheTtlMs)
     ? config.personalRecsCacheTtlMs
@@ -289,32 +330,7 @@ export function createStudioHubsPanel(config, labels) {
         );
 
         for (const name of appendSorted) {
-          const li = document.createElement("li");
-          li.className = "dnd-item";
-          li.draggable = true;
-          li.dataset.name = name;
-          li.style.display = "flex";
-          li.style.alignItems = "center";
-          li.style.gap = "8px";
-          li.style.padding = "8px 10px";
-          li.style.borderBottom = "1px solid #0002";
-          li.style.background = "var(--theme-background, rgba(255,255,255,0.02))";
-
-          const handle = document.createElement("span");
-          handle.className = "dnd-handle";
-          handle.textContent = "↕";
-          handle.title = labels?.dragToReorder || "Sürükle-bırak";
-          handle.style.cursor = "grab";
-          handle.style.userSelect = "none";
-          handle.style.fontWeight = "700";
-
-          const txt = document.createElement("span");
-          txt.textContent = name;
-          txt.style.flex = "1";
-
-          li.appendChild(handle);
-          li.appendChild(txt);
-          list.appendChild(li);
+          list.appendChild(createDnDItem(name, labels));
         }
 
         const names = [...list.querySelectorAll(".dnd-item")].map(li => li.dataset.name);
@@ -331,7 +347,140 @@ export function createStudioHubsPanel(config, labels) {
   };
   list.addEventListener("dragend", refreshHidden);
   list.addEventListener("drop", refreshHidden);
+  list.addEventListener("click", (e) => {
+    if (e.target.closest(".dnd-btn-up") || e.target.closest(".dnd-btn-down")) refreshHidden();
+  });
+
+  const genreSection = createSection(
+    labels?.genreHubsSettings ||
+    config.languageLabels?.genreHubsSettings ||
+    'Tür Bazlı Koleksiyonlar (Haftalık önbellek)'
+  );
+
+  const enableGenreHubs = createCheckbox(
+    'enableGenreHubs',
+    labels?.enableGenreHubs || 'Tür Bazlı Koleksiyonları Etkinleştir',
+    !!config.enableGenreHubs
+  );
+  genreSection.appendChild(enableGenreHubs);
+
+  const rowsCountWrap = createNumberInput(
+    'studioHubsGenreRowsCount',
+    labels?.studioHubsGenreRowsCount || 'Ekranda gösterilecek Tür sırası sayısı',
+    Number.isFinite(config.studioHubsGenreRowsCount) ? config.studioHubsGenreRowsCount : 4,
+    1,
+    24
+  );
+  genreSection.appendChild(rowsCountWrap);
+
+  const perRowCountWrap = createNumberInput(
+    'studioHubsGenreCardCount',
+    labels?.studioHubsGenreCardCount || 'Her Tür sırası için kart sayısı',
+    Number.isFinite(config.studioHubsGenreCardCount) ? config.studioHubsGenreCardCount : 10,
+    1,
+    48
+  );
+  genreSection.appendChild(perRowCountWrap);
+
+  const genreHidden = createHiddenInput('genreHubsOrder', JSON.stringify(Array.isArray(config.genreHubsOrder) ? config.genreHubsOrder : []));
+  genreSection.appendChild(genreHidden);
+
+  const { wrap: genreDndWrap, list: genreList } = createDraggableList('genreHubsOrderList', Array.isArray(config.genreHubsOrder) && config.genreHubsOrder.length ? config.genreHubsOrder : [], labels);
+  genreSection.appendChild(genreDndWrap);
+
+  (async () => {
+    try {
+      const genres = await fetchGenresWeeklyForSettings();
+      const existing = new Set(
+        [...genreList.querySelectorAll(".dnd-item")].map(li => li.dataset.name.toLowerCase())
+      );
+      let appended = 0;
+      for (const g of genres) {
+        const k = String(g).toLowerCase();
+        if (!existing.has(k)) {
+          existing.add(k);
+          genreList.appendChild(createDnDItem(g, labels));
+          appended++;
+        }
+      }
+      if (appended > 0) {
+        const names = [...genreList.querySelectorAll(".dnd-item")].map(li => li.dataset.name);
+        genreHidden.value = JSON.stringify(names);
+      }
+    } catch (e) {
+      console.warn("Tür listesi ayarlara eklenemedi:", e);
+    }
+  })();
+
+  const refreshGenreHidden = () => {
+    const names = [...genreList.querySelectorAll(".dnd-item")].map(li => li.dataset.name);
+    genreHidden.value = JSON.stringify(names);
+  };
+  genreList.addEventListener("dragend", refreshGenreHidden);
+  genreList.addEventListener("drop", refreshGenreHidden);
+  genreList.addEventListener("click", (e) => {
+    if (e.target.closest(".dnd-btn-up") || e.target.closest(".dnd-btn-down")) refreshGenreHidden();
+  });
 
   panel.appendChild(section);
+  panel.appendChild(genreSection);
+
   return panel;
+}
+
+const SETTINGS_GENRE_KEY = "settings_genre_list_v1";
+const SETTINGS_GENRE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+async function fetchGenresWeeklyForSettings() {
+  const cached = loadSettingsGenres();
+  if (cached) return cached;
+
+  try {
+    let url = `/Genres?Recursive=true&SortBy=SortName&SortOrder=Ascending&IncludeItemTypes=Movie,Series`;
+    const r = await fetch(url, { headers: { "Accept": "application/json", "Authorization": getAuthHeader() } });
+    if (!r.ok) throw new Error(`Genres fetch failed: ${r.status}`);
+    const data = await r.json();
+    const items = Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
+    const names = [];
+    for (const it of items) {
+      const name = (it?.Name || "").trim();
+      if (name) names.push(name);
+    }
+    const uniq = uniqueCaseInsensitive(names);
+    saveSettingsGenres(uniq);
+    return uniq;
+  } catch (e) {
+    console.warn("fetchGenresWeeklyForSettings hatası:", e);
+    return loadSettingsGenres() || [];
+  }
+}
+
+function loadSettingsGenres() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_GENRE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !data.timestamp || !Array.isArray(data.genres)) return null;
+    if (Date.now() - data.timestamp > SETTINGS_GENRE_TTL) return null;
+    return data.genres;
+  } catch {
+    return null;
+  }
+}
+
+function saveSettingsGenres(genres) {
+  try {
+    const data = { genres, timestamp: Date.now() };
+    localStorage.setItem(SETTINGS_GENRE_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function uniqueCaseInsensitive(list) {
+  const seen = new Set();
+  const out = [];
+  for (const g of list) {
+    const k = String(g).toLowerCase();
+    if (!seen.has(k)) { seen.add(k); out.push(g); }
+  }
+  return out;
 }

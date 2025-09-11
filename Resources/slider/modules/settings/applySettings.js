@@ -115,6 +115,20 @@ export function applySettings(reload = false) {
               }
             })(),
 
+            enableGenreHubs: formData.get('enableGenreHubs') === 'on',
+            studioHubsGenreCardCount: parseInt(formData.get('studioHubsGenreCardCount'), 10) || 10,
+            studioHubsGenreRowsCount: parseInt(formData.get('studioHubsGenreRowsCount'), 10) || 3,
+            genreHubsOrder: (() => {
+              const raw = formData.get('genreHubsOrder');
+              if (!raw) return getConfig().genreHubsOrder;
+              try {
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) && arr.length ? arr : getConfig().genreHubsOrder;
+              } catch {
+                return getConfig().genreHubsOrder;
+              }
+            })(),
+
             showStatusInfo: formData.get('showStatusInfo') === 'on',
             showTypeInfo: formData.get('showTypeInfo') === 'on',
             showWatchedInfo: formData.get('showWatchedInfo') === 'on',

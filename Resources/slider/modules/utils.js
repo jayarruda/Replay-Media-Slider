@@ -13,6 +13,13 @@ const config = getConfig();
 export function getYoutubeEmbedUrl(input) {
   if (!input || typeof input !== "string") return input;
 
+  const isMobile = (() => {
+    try {
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+             (navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 1024);
+    } catch { return false; }
+  })();
+
   const parseYouTubeTime = (t) => {
     if (!t) return 0;
     if (/^\d+$/.test(t)) return parseInt(t, 10);
@@ -28,7 +35,7 @@ export function getYoutubeEmbedUrl(input) {
     if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
     const lower = raw.toLowerCase();
     const isYT = /\b(youtu\.be|youtube\.com)\b/.test(lower);
-    const scheme = isYT ? "https:" : (window.location?.protocol || "http:");
+    const scheme = isYT ? "https:" : (typeof window !== "undefined" && window.location?.protocol) || "http:";
     return `${scheme}//${raw}`;
   };
 
@@ -68,19 +75,21 @@ export function getYoutubeEmbedUrl(input) {
     iv_load_policy: "3",
     enablejsapi: "1",
     playsinline: "1",
-    mute: "0",
+    mute: isMobile ? "1" : "0",
     controls: "0",
     origin:
       typeof window !== "undefined" && window.location?.origin
         ? window.location.origin
         : "",
   });
+
   if (Number.isFinite(start) && start > 0) params.set("start", String(start));
 
   return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(
     videoId
   )}?${params.toString()}`;
 }
+
 
 export function getProviderUrl(provider, id, slug = "") {
   if (!provider || !id) return "#";
@@ -330,7 +339,8 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       ytIframe = document.createElement("iframe");
       ytIframe.title = trailer.Name || "Trailer";
       ytIframe.allow =
-        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+      "autoplay; encrypted-media; clipboard-write; accelerometer; gyroscope; picture-in-picture";
+      ytIframe.setAttribute("playsinline", "");
       ytIframe.allowFullscreen = true;
       Object.assign(ytIframe.style, {
         width: "70%",

@@ -2,6 +2,7 @@ import { getSessionInfo, getAuthHeader, makeApiRequest } from "./api.js";
 import { getConfig } from './config.js';
 import { getLanguageLabels } from "../language/index.js";
 import { attachMiniPosterHover } from "./studioHubsUtils.js";
+import { waitForAnyVisible } from "../main.js";
 
 const config = getConfig();
 
@@ -40,12 +41,6 @@ const LS_KEY    = "studioHub_cache_v5";
 const MAP_KEY   = "studioHub_nameIdMap_v5";
 const IMG_KEY   = "studioHub_backdropMap_v1";
 const STUDIO_ITEMS_LIMIT = 120;
-
-let __studioHubBusy = false;
-let __fetchAbort = null;
-
-const JUNK_WORDS = ["ltd","ltd.","llc","inc","inc.","company","co.","corp","corp.","the","pictures","studios","animation","film","films","pictures.","studios."];
-
 const nbase = s => (s||"").toLowerCase().replace(/[().,™©®\-:_+]/g," ").replace(/\s+/g," ").trim();
 const strip = s => {
   let out = " " + nbase(s) + " ";
@@ -53,14 +48,13 @@ const strip = s => {
   return out.trim();
 };
 const toks = s => strip(s).split(" ").filter(Boolean);
-
 const DEFAULT_ORDER = [
   "Marvel Studios","Pixar","Walt Disney Pictures","Disney+","DC",
   "Warner Bros. Pictures","Lucasfilm Ltd.","Columbia Pictures","Paramount Pictures",
   "Netflix","DreamWorks Animation"
 ];
-
 const CANONICALS = new Map(DEFAULT_ORDER.map(n => [n.toLowerCase(), n]));
+const JUNK_WORDS = ["ltd","ltd.","llc","inc","inc.","company","co.","corp","corp.","the","pictures","studios","animation","film","films","pictures.","studios."];
 const ALIAS_TO_CANON = (() => {
   const m = new Map();
   for (const [canon, aliases] of Object.entries(ALIASES)) {
@@ -69,6 +63,12 @@ const ALIAS_TO_CANON = (() => {
   }
   return m;
 })();
+
+let __studioHubBusy = false;
+let __fetchAbort = null;
+let __studioHubsMounting = false;
+let __studioHubsMountedOnce = false;
+let __studioHubsRetryTo = null;
 
 function toCanonicalStudioName(name) {
   if (!name) return null;
@@ -693,16 +693,21 @@ export async function renderStudioHubs() {
       (document.head || document.documentElement).appendChild(link);
     }
 
-    const indexPage = document.querySelector("#indexPage:not(.hide)");
-    if (!indexPage) return;
+    const indexPage =
+      document.querySelector("#indexPage:not(.hide)") ||
+      document.querySelector("#homePage:not(.hide)");
+    if (!indexPage) {
+      return;
+    }
+     const row = ensureContainer(indexPage);
+    if (!row) {
+      return;
+    }
+     setupScroller(row);
+     row.innerHTML = "";
 
-    const row = ensureContainer(indexPage);
-    if (!row) return;
-    setupScroller(row);
-    row.innerHTML = "";
-
-    const { serverId, userId } = getSessionInfo();
-    const shells = {};
+     const { serverId, userId } = getSessionInfo();
+     const shells = {};
 
     const maxCards = Number.isFinite(config.studioHubsCardCount) ? config.studioHubsCardCount : ORDER.length;
     const wanted = ORDER.slice(0, Math.max(1, maxCards));
@@ -780,7 +785,8 @@ export async function renderStudioHubs() {
       }
     }));
 
-    if (!resolved.length) row.parentElement.style.display = "none";
+    if (!resolved.length) {
+    }
   } catch (e) {
     console.warn("Studio hubs render hatası:", e);
   } finally {
@@ -880,3 +886,39 @@ async function searchStudiosByAliases(desired, signal) {
   if (!best || bestScore < 1.3) return null;
   return { Id: best.Id, Name: best.Name, ImageTags: best.ImageTags || {}, PrimaryImageTag: best.PrimaryImageTag || (best.ImageTags?.Primary) || null };
 }
+
+export function ensureStudioHubsMounted({ eager=false } = {}) {
+  if (!config.enableStudioHubs) return;
+
+  const kick = async () => {
+    if (__studioHubsMounting) return;
+    __studioHubsMounting = true;
+    try {
+      const ok = await waitForAnyVisible(
+        ["#indexPage:not(.hide)", "#homePage:not(.hide)", ".homeSectionsContainer"],
+        { timeout: eager ? 4000 : 12000 }
+      );
+      if (!ok) {
+        scheduleRetry(1200);
+        return;
+      }
+      const section = ensureContainer(document.querySelector("#indexPage:not(.hide)") || document.querySelector("#homePage:not(.hide)"));
+      if (!section) { scheduleRetry(800); return; }
+      await renderStudioHubs();
+      __studioHubsMountedOnce = true;
+      requestIdleCallback?.(() => {
+        try { renderStudioHubs(); } catch {}
+      });
+    } finally {
+      __studioHubsMounting = false;
+    }
+  };
+
+  const scheduleRetry = (ms=1000) => {
+    clearTimeout(__studioHubsRetryTo);
+    __studioHubsRetryTo = setTimeout(() => ensureStudioHubsMounted(), ms);
+  };
+
+  kick();
+}
+
