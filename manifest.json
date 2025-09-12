@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.6.0.1",
+        "changelog": "Pause Screen has been improved. Automatic pause is now included, along with a Netflix-style Maturity Level badge.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.6.0/JMSFusion-1.6.0.1-server.zip",
+        "checksum": "124887dedbd9048b1a249047c3978805",
+        "timestamp": "2025-09-12T19:12:41.5603914Z"
+      },
+      {
         "version": "1.6.0.0",
         "changelog": "For details: https://github.com/G-grbz/Jellyfin-Media-Slider/releases/tag/v1.6.0",
         "targetAbi": "10.10.0.0",
