@@ -250,6 +250,98 @@ function ensureTrailerBadgeCSS() {
   document.head.appendChild(s);
 }
 
+function getCardRoot(el) {
+  if (!el) return null;
+  if (el.classList?.contains('cardImageContainer')) return el;
+  return el.closest?.('.cardImageContainer') || null;
+}
+function getItemIdFromCard(card) {
+  return card?.dataset?.itemId
+      || card?.dataset?.id
+      || card?.closest?.('[data-id]')?.dataset?.id
+      || null;
+}
+
+let __badgeIO;
+function ensureBadgeIO() {
+  if (__badgeIO) return __badgeIO;
+  __badgeIO = new IntersectionObserver(async (entries) => {
+    for (const ent of entries) {
+      if (!ent.isIntersecting) continue;
+      const card = ent.target;
+      if (card.dataset.hastrailer === 'true' || card.dataset.hastrailer === 'false') continue;
+
+      const itemId = getItemIdFromCard(card);
+      if (!itemId) { card.dataset.hastrailer = 'false'; continue; }
+
+      try {
+        const has = await hasTrailerForItemId(itemId);
+        card.dataset.hastrailer = has ? 'true' : 'false';
+        if (has) {
+          const labels = (getConfig()?.languageLabels) || {};
+          mountTrailerBadge(card, labels.fragman || 'Fragman');
+        }
+      } catch {
+        card.dataset.hastrailer = 'false';
+      }
+    }
+  }, { rootMargin: '300px 0px', threshold: 0.01 });
+  return __badgeIO;
+}
+
+function observeCardForTrailer(card) {
+  if (!card || card.__jmsTrailerObserved) return;
+  card.__jmsTrailerObserved = true;
+  try { if (getComputedStyle(card).position === 'static') card.style.position = 'relative'; } catch {}
+  ensureTrailerBadgeCSS();
+  ensureBadgeIO().observe(card);
+}
+
+function rescanAllCardsForBadge(root = document) {
+  try {
+    const list = root.querySelectorAll?.('.cardImageContainer');
+    if (!list || !list.length) return;
+    list.forEach(observeCardForTrailer);
+  } catch {}
+}
+
+function installTrailerBadgeAutobind() {
+  if (window.__jmsTrailerBadgeObsInstalled) return;
+  window.__jmsTrailerBadgeObsInstalled = true;
+  rescanAllCardsForBadge();
+  const deb = (fn, ms=120) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
+  const rebind = deb(() => rescanAllCardsForBadge(document), 120);
+
+  window.addEventListener('hashchange', rebind, true);
+  window.addEventListener('popstate',   rebind, true);
+
+  const mo = new MutationObserver((mutList) => {
+    let need = false;
+    for (const m of mutList) {
+      for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.classList?.contains('cardImageContainer')) {
+          observeCardForTrailer(n);
+          need = false;
+        } else if (n.querySelector?.('.cardImageContainer')) {
+          need = true;
+        }
+      }
+    }
+    if (need) rescanAllCardsForBadge();
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+  window.__jmsTrailerBadgeMO = mo;
+  window.addEventListener('jms:globalPreviewModeChanged', () => rebind(), { passive: true });
+  document.addEventListener('dialogopen', () => rescanAllCardsForBadge(document), { passive: true });
+  document.addEventListener('dialogopened', () => rescanAllCardsForBadge(document), { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) rebind();
+  });
+}
+
+installTrailerBadgeAutobind();
+
 function mountTrailerBadge(card, text = 'Fragman') {
   if (!card || card.querySelector('.jms-trailer-badge')) return;
   if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
@@ -952,15 +1044,6 @@ function injectOrUpdateModalStyle() {
       .video-preview-modal .preview-volume-button:hover,
       .video-preview-modal .preview-match-button:hover { background: rgba(81,85,140,0.98); transform: scale(1.09); }
       @media (max-width: 750px){ .video-preview-modal .preview-close-mobile{ display:flex; } }
-      .jms-eye-open{
-        position:absolute; bottom:8px; left:8px; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-        background: rgba(20,22,35,0.65); color:#fff; border: 1px solid rgba(194, 194, 255, 0.17); box-shadow: 0 2px 8px rgba(0,0,0,0.25); z-index: 3; cursor: pointer; -webkit-tap-highlight-color: transparent;
-      }
-      .jms-eye-open:active{ transform: scale(0.96); }
-      @media (hover:hover){ .jms-eye-open{ display:none; } }
-      @media (max-width: 750px){
-        .video-preview-modal{ width: min(96vw, 420px); height:auto; }
-      }
   `;
   if (!style.isConnected) document.head.appendChild(style);
 }

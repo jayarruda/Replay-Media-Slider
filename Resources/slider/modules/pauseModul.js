@@ -7,10 +7,688 @@ const currentLang = config.defaultLanguage || getDefaultLanguage();
 const labels = getLanguageLabels(currentLang) || {};
 const imageBlobCache = new Map();
 
+function srcLooksLikeThemeVideo(videoEl){
+  try {
+    const s = String(videoEl?.currentSrc || videoEl?.src || '');
+    if (!s) return false;
+    return /(?:^|[\/_\-\?&=])theme(?:[\/_\-\.=&]|$)/i.test(s);
+  } catch { return false; }
+}
+
+function isThemeItemName(item){
+  if (!item) return false;
+  const name = String(item.Name || item.OriginalTitle || '').toLowerCase();
+  return name.includes('theme');
+}
+
+function shouldIgnoreTheme({ video=null, item=null }={}){
+  if (video && srcLooksLikeThemeVideo(video)) return true;
+  if (item && isThemeItemName(item)) return true;
+  return false;
+}
+
+async function fetchFiltersFor(type) {
+  const qs = new URLSearchParams({
+    IncludeItemTypes: type,
+    Recursive: 'true'
+  });
+  const res = await makeApiRequest(`/Items/Filters?${qs.toString()}`);
+  return res || {};
+}
+
+let _tagsMemCache = { stamp: null, savedAt: 0, tags: null };
+const TAG_MEM_TTL_MS = 0;
+
+function _computeStamp() {
+  return [getApiBase(), getUserIdSafe() || ''].join('|');
+}
+
+async function loadCatalogTagsWithCache() {
+  const stamp = _computeStamp();
+  const now = Date.now();
+  if (_tagsMemCache.tags &&
+      _tagsMemCache.stamp === stamp &&
+      (now - _tagsMemCache.savedAt) < TAG_MEM_TTL_MS) {
+    return _tagsMemCache.tags;
+  }
+
+  const [movie, series] = await Promise.all([
+    fetchFiltersFor('Movie'),
+    fetchFiltersFor('Series')
+  ]);
+
+  const allTags = new Set([
+    ...(movie?.Tags || []),
+    ...(series?.Tags || [])
+  ]);
+
+  _tagsMemCache = { stamp, savedAt: now, tags: allTags };
+
+  return allTags;
+}
+
+let ratingGenreTimeout = null;
+let ratingGenreElement = null;
+let currentMediaData = null;
+
+function normalizeAgeChip(rating) {
+  if (!rating) return null;
+  const r = String(rating).toUpperCase().trim().replace(/\s+/g,'').replace(/-/g,'');
+  if (/(18\+|R18|ADULT|NC17|NC\-?17|XRATED|XXX|ADULTSONLY|AO|TR18|DE18|FSK18)/.test(r)) return "18+";
+  if (/(17\+|^R$|TVMA|TR17)/.test(r)) return "17+";
+  if (/(16\+|R16|^M$|MATURE|TR16|DE16|FSK16)/.test(r)) return "16+";
+  if (/(15\+|TV15|TR15)/.test(r)) return "15+";
+  if (/(13\+|TV14|PG13|PG\-?13|TEEN|TR13|DE12A?)/.test(r)) return "13+";
+  if (/(12\+|TV12|TR12|DE12|FSK12)/.test(r)) return "12+";
+  if (/(11\+|TR11)/.test(r)) return "11+";
+  if (/(10\+|TVY10|TR10)/.test(r)) return "10+";
+  if (/(9\+|TR9)/.test(r)) return "9+";
+  if (/(7\+|TVY7|E10\+?|TR7|DE6|FSK6)/.test(r)) return "7+";
+  if (/(G|^PG$|TVG|TVPG|E$|EVERYONE|U$|UC|UNIVERSAL|TR6|DE0|FSK0)/.test(r)) return "7+";
+  if (/(ALLYEARS|ALLAGES|ALL|TVY|KIDS|^Y$|0\+|TR0)/.test(r)) return "0+";
+  const m = r.match(/^(\d{1,2})\+?$/);
+  if (m) return `${m[1]}+`;
+  return r;
+}
+
+function normalizeAgeRating(raw) {
+  if (!raw) return null;
+  const s = String(raw).toUpperCase().replace(/\s+/g,'').replace(/-/g,'');
+  if (/^TVMA$/.test(s)) return '18+';
+  if (/^TV14$/.test(s)) return '14+';
+  if (/^TVPG$/.test(s)) return '7+';
+  if (/^TVG$/.test(s)) return 'Genel';
+  if (s==='NC17') return '18+';
+  if (s==='R') return '18+';
+  if (s==='PG13') return '13+';
+  if (s==='PG') return '7+';
+  if (s==='G') return 'Genel';
+  if (s==='18') return '18+';
+  if (s==='15') return '15+';
+  if (s==='12' || s==='12A') return '12+';
+  if (s==='PG') return '7+';
+  if (s==='U') return 'Genel';
+  if (s==='FSK18') return '18+';
+  if (s==='FSK16') return '16+';
+  if (s==='FSK12') return '12+';
+  if (s==='FSK6')  return '6+';
+  if (s==='FSK0')  return 'Genel';
+  const m = s.match(/^(\d{1,2})\+?$/);
+  if (m) return `${m[1]}+`;
+  return s;
+}
+
+function localizedMaturityHeader() {
+  const lang = String(currentLang||'').toLowerCase();
+  if (labels.maturityHeader) return labels.maturityHeader;
+  if (lang.startsWith('eng')) return 'MATURITY RATING:';
+  if (lang.startsWith('deu')) return 'ALTERSFREIGABE:';
+  if (lang.startsWith('fre')) return 'CLASSIFICATION :';
+  if (lang.startsWith('rus')) return 'ВОЗРАСТНОЕ ОГРАНИЧЕНИЕ:';
+  return 'YETİŞKİNLİK DÜZEYİ:';
+}
+
+function localizedGenres(genres = []) {
+  if (!Array.isArray(genres) || !genres.length) return [];
+  const dict = labels?.turler || {};
+  const lc = Object.fromEntries(Object.entries(dict).map(([k,v]) => [k.toLowerCase(), v]));
+  return genres.map(g => dict[g] || lc[String(g).toLowerCase()] || g);
+}
+
+function descriptorLabel(code) {
+  const dict = labels?.descriptors || {};
+  const fallback = {
+    violence: 'violence', sex: 'sexual content', nudity: 'nudity',
+    horror: 'horror/thriller', drugs: 'drug use', profanity: 'strong language',
+    crime: 'crime', war: 'war', discrimination: 'discrimination', mature: 'mature themes'
+  };
+  return dict[code] || fallback[code] || code;
+}
+function _escapeRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function _buildRegex(words){
+  if(!Array.isArray(words)||!words.length) return null;
+  const pat = words.map(w=>_escapeRe(String(w))).join('|');
+  return new RegExp(`\\b(${pat})\\b`,'i');
+}
+
+function translateTag(tag) {
+  if (!tag) return '';
+  const t = String(tag).toLowerCase().trim();
+  const dict =
+    (labels && (labels.tagTranslations || labels.tags || labels.etiketler)) || {};
+  return dict[tag] || dict[t] || tag;
+}
+
+function _normTag(s){
+  return String(s||'').toLowerCase().trim();
+}
+
+function hasAny(tag, needles) {
+  const t = (tag || '').toLowerCase();
+  return needles.some(n => t.includes(n));
+}
+
+const BUCKETS = [
+  { key: 'superhero', needles: [
+    'superhero','super hero','superhuman','super human','super strength','super power','superpower',
+    'super soldier','supervillain','super villain','masked vigilante','masked superhero',
+    'symbiote','heroes','heroic','hero’s journey','hero\'s journey','teen superhero',
+    'superhero team','teamup','team up','justice league','avengers','x-men','spider-man',
+    'batman','superman','wonder woman','captain america','iron man','thor','venom',
+    'female superhero','aging superhero','masked supervillain','s.h.i.e.l.d','marvel cinematic universe (mcu)',
+    'dc universe (dcu)','dc extended universe (dceu)','sony’s spider-man universe','yrf spy universe'
+  ]},
+
+  { key: 'sci_fi_tech', needles: [
+    'science and technology','sci-fi','sci fi','sci-fi horror','spaceship','spacecraft','space station','space war',
+    'space battle','space opera','space western','space colony','space exploration','space mission','space travel',
+    'android','cyborg','robot','mecha','humanoid robot','synthetic android',
+    'artificial intelligence','artificial intelligence (a.i.)','a.i.','ai','nanotechnology','quantum mechanics',
+    'time travel','time loop','time machine','time paradox','time warp','time freeze','temporal agent',
+    'multiverse','alternate timeline','alternate universe','parallel universe','parallel world','wormhole',
+    'terraforming','cryonics','hologram','telekinesis','telepathy','invisibility','virtual reality','vr','simulator',
+    'simulation','simulated reality','mind control','mind reading','genetic engineering','genetic mutation','mutant','mutants',
+    'first contact','extraterrestrial technology','nuclear','post-apocalyptic','future war','future noir','near future',
+    'alien','alien invasion','alien race','alien planet','planet','planet mars','galaxy','cosmic','cosmology','spacewalk',
+    'space walk','space probe','space vessel','spacecraft accident','spaceship crash','asteroid','meteor'
+  ]},
+
+  { key: 'horror', needles: [
+    'horror','slasher','monster movie','creature feature','ghost','ghosts','haunted','haunting','haunted house','haunted mansion',
+    'possession','demonic','demon','exorcism','evil spirits','evil doll','killer doll','voodoo','folk horror','revenge horror',
+    'fear','nightmare','occult','ouija','religion and supernatural','supernatural horror','creepy doll','zombie','zombie apocalypse',
+    'vampire','werewolf','mummy','nosferatu','ghoulish','gruesome','gore','low-budget horror','revenge slasher'
+  ]},
+
+  { key: 'monster', needles: [
+    'monster','kaiju','godzilla','mothra','rodan','giant animal','giant ape','giant gorilla',
+    'giant crocodile','giant snake','giant spider','giant worm','dinosaur','tyrannosaurus rex',
+    'yeti','cyclops','giant insect','giant robot','monster island'
+  ]},
+
+  { key: 'war', needles: [
+    'war','world war','world war i','world war ii','ww1','ww2','great war','warfare','battle','battlefield','frontline',
+    'soldier','army','military','naval battle','naval warfare','air force','marine','u.s. marine','u.s. army','u.s. navy',
+    'vietnam war','korean war (1950-53)','afghanistan war (2001-2021)','spanish civil war (1936-39)','pacific war',
+    'civil war','american civil war','gallipoli campaign','battle of thermopylae','d-day','omaha beach','kamikaze',
+    'war crimes','warlord','armageddon','save the world','resistance','guerrilla warfare','royal navy','royal air force'
+  ]},
+
+  { key: 'crime', needles: [
+    'crime','criminal','crime boss','crime family','crime lord','underworld','organized crime','mafia','sicilian mafia',
+    'yakuza','triad','cartel','drug cartel','mob','mob boss','gang','gangster','gang war','gang violence',
+    'heist','bank heist','bank robbery','robbery','con artist','con man','scam','scammer','money laundering',
+    'kidnapped','kidnapping','copycat killer','homicide','murder','murder mystery','murder investigation',
+    'investigation','investigative journalism','investigative reporter','forensic','detective story',
+    'police corruption','crooked cop','crooked politician','cover-up','prison break','jailbreak','prison escape',
+    'hitman','assassin','vigilante justice','vigilantism','serial killer','sting operation'
+  ]},
+
+  { key: 'violence', needles: [
+    'violence','violent','fight','fighting','combat','brawl','beat','beating','hand to hand combat',
+    'gun','guns','gunfight','gun violence','shootout','shooting','sniper','sniper rifle','weapon','weapons',
+    'knife','stabbing','stabbed','sword','swordsman','swordswoman','sword fight','sword battle','axe','sledgehammer',
+    'explosion','explosions','blood','bloody','gore','decapitation','brutal','brutality',
+    'martial arts','kung fu','karate','wing chun','underground fighting','torture','killing spree','massacre',
+    'assault rifle','bomb','bombing','grenade','dynamite'
+  ]},
+
+  { key: 'sex', needles: [
+    'sex','sexual','sexuality','sexual identity','sex scandal','sex offender','forbidden sexuality','intimate',
+    'killed during sex','sex abuse','sexual abuse','sexual violence','pornographic video','orgy'
+  ]},
+
+  { key: 'nudity', needles: [
+    'nudity','nude','full frontal','topless','nude swimming'
+  ]},
+
+  { key: 'profanity', needles: [
+    'profanity','explicit language','strong language','vulgar'
+  ]},
+
+  { key: 'drugs', needles: [
+    'drugs','drug','drug abuse','drug addiction','drug dealer','drug lord','drug trafficking','narcotics',
+    'cocaine','heroin','meth','opium','marijuana','weed','nootropics','lsd'
+  ]},
+
+  { key: 'discrimination', needles: [
+    'racism','sexism','homophobia','discrimination','hate speech','slur','antisemitism','islamophobia',
+    'bigotry','class prejudice','caste system','apartheid'
+  ]},
+
+  { key: 'mature', needles: [
+    'adult themes','abuse','domestic violence','suicide','suicide attempt','self harm','self-harm','trauma',
+    'grief','intergenerational trauma','incest','rape','addiction','dysfunctional family',
+    'bereavement','loss of loved one','child abuse','child molestation','pedophilia','mental illness'
+  ]},
+
+  { key: 'supernatural', needles: [
+    'supernatural','supernatural power','supernatural phenomena','paranormal activity','spirit','spirits',
+    'evil spell','sorcery','sorcerer','sorceress','witch','witch hunter','djinn',
+    'demonic possession','curse','cursed','magical realism','magic spell'
+  ]},
+
+  { key: 'historical', needles: [
+    'historical','historical drama','victorian era','renaissance','medieval','ancient greece','ancient rome',
+    'ancient egypt','ottoman empire','byzantium','spanish second republic (1931-39)',
+    'franco regime (francoism)','nazi germany','holocaust (shoah)','cold war','mccarthyism','biblical epic',
+    'roman empire','greek mythology','egyptian mythology','italian renaissance','medieval france'
+  ]},
+
+  { key: 'fairytale', needles: [
+    'based on cartoon','based on childrens book','based on novel or book'
+  ]},
+
+  { key: 'fantasy_magic', needles: [
+    'fantasy','dark fantasy','high fantasy','sword and sorcery','sword and sandal','fairy','fairy tale','fairytale',
+    'modern fairy tale','myth','mythology','mythical creature','elves','dwarf','goblin','orc',
+    'wizard','witch','enchantress','magical creature','magical object','legend','legendary hero',
+    'dragons','griffin','mermaid','excalibur','arthurian mythology','talisman','spell','curse'
+  ]},
+
+  { key: 'thriller_suspense', needles: [
+    'thriller','suspense','suspenseful','psychological thriller','conspiracy','conspiracy theory',
+    'cat and mouse','stalker','stalking','home invasion','kidnapping','hostage','hostage situation','manhunt',
+    'surveillance','surveillance camera','spy thriller','espionage','covert operation',
+    'taunting','tension','tense'
+  ]},
+
+  { key: 'mystery_detective', needles: [
+    'mystery','detective','detective inspector','detective couple','whodunit','clues','clue','investigation',
+    'private detective','sherlock','sherlock holmes','noir','neo-noir','cold case','crime scene','locked room mystery'
+  ]},
+
+  { key: 'romance_love', needles: [
+    'romance','romantic','romantic drama','romantic fantasy','romcom','love','love affair','love at first sight',
+    'falling in love','tragic love','tragic romance','friends to lovers','forbidden love','everlasting love',
+    'new beginning','wedding','honeymoon','imminent wedding'
+  ]},
+
+  { key: 'comedy_humor', needles: [
+    'comedy','buddy comedy','satire','satirical','parody','spoof','mockumentary','slapstick comedy',
+    'hilarious','witty','wisecrack humor','breaking the fourth wall','comedy of situation','screenlife comedy'
+  ]},
+
+  { key: 'drama_family', needles: [
+    'drama','family','family drama','family relationships','family conflict',
+    'mother daughter relationship','mother son relationship','father son relationship','father daughter relationship',
+    'single mother','single father','coming of age','teenage life','teenage romance','grief','loss','friendship',
+    'found family','chosen family','kids','childhood','parenting','siblings'
+  ]},
+
+  { key: 'action_adventure', needles: [
+    'action','action adventure','action comedy','action thriller','adventure','expedition',
+    'treasure','treasure hunt','quest','race against time','chase','car chase','police chase','parkour',
+    'stunt','stuntman','free climbing','helicopter chase','scaling a building','one man army','one against many',
+    'wilderness','desert','jungle','island','lost at sea','runaway'
+  ]},
+
+  { key: 'animation_kids', needles: [
+    'animation','animated','cgi animation','3d animation','stop motion','claymation','pixar',
+    'children cartoon','children’s adventure','kids','tween','family comedy','horror for children',
+    'live action and animation','cgi-live action hybrid','cartoon','cartoon animal','talking animal','talking dog','talking cat'
+  ]},
+
+  { key: 'documentary_biopic', needles: [
+    'documentary','biography','biographical','docudrama','based on true story','based on memoir or autobiography',
+    'history and legacy','science documentary','behind the scenes'
+  ]},
+
+  { key: 'music_dance', needles: [
+    'music','musical','jukebox musical','jazz','singer','singing','songwriter','concert','ballet','dance','dance performance',
+    'flamenco','hip-hop','pop music','music critic'
+  ]},
+
+  { key: 'sports', needles: [
+    'sports','boxing','boxing champion','boxing trainer','basketball player','football (soccer)','ufc','mma','karate',
+    'martial arts tournament','sport climbing','race','grand prix','baseball'
+  ]},
+
+  { key: 'western', needles: [
+    'western','outlaw','gunslinger','cowboy','wild west','spaghetti western','frontier','stagecoach'
+  ]},
+
+  { key: 'political', needles: [
+    'political','politics','political thriller','political campaign','election','election campaign',
+    'political assassination','political crisis','political intrigue','authoritarianism','totalitarian regime',
+    'coup','resistance','senator','prime minister','president','the white house','washington dc, usa','usa politics'
+  ]},
+
+  { key: 'religion_myth', needles: [
+    'religion','religious allegory','religious cult','religious satire','religious symbolism','faith',
+    'christian','christianity','islam','judaism','hinduism','buddhism','shia','koran','bible','biblical epic',
+    'norse mythology','messiah','prophecy','prophet'
+  ]},
+
+  { key: 'survival_disaster', needles: [
+    'disaster','disaster movie','earthquake','flood','tsunami','hurricane','avalanche','volcano','pandemic',
+    'outbreak','apocalypse','post-apocalyptic future','doomsday','end of the world','plague','famine','evacuation',
+    'survival','survival at sea','trapped','trapped in space','trapped in an elevator','trying to avoid making noise'
+  ]},
+
+  { key: 'period_era', needles: [
+    'ancient','ancient world','18th century','19th century','20th century','5th century bc','6th century',
+    '10th century','12th century','15th century','1750s','1800s','1850s','1880s','1890s','1900s','1910s',
+    '1920s','1930s','1940s','1950s','1960s','1970s','1980s','1990s','2000s','2030s','2040s','2050s','2060s','2090s',
+    'near future','distant future','post world war ii','post war japan','eve of world war ii'
+  ]},
+
+  { key: 'travel_road', needles: [
+    'road movie','road trip','journey','trip','travel','tour','tourism','around the world',
+    'backpacker','explorer','expedition','trekking'
+  ]},
+
+  { key: 'animals_nature', needles: [
+    'animal','animals','animal attack','bear','wolf','wolves','tiger','lion','shark','shark attack','crocodile','crocodile attack',
+    'horse','dog','cat','elephant','dolphin','whale','humpback whale','seal (animal)','penguin','octopus','squid',
+    'giraffe','zebra','panda','monkey','chimpanzee','gorilla','hippopotamus',
+    'wildlife','endangered species','nature','forest','jungle','savannah'
+  ]},
+];
+
+
+function buildAutoDescriptorTagMap(catalogTags) {
+  const map = {};
+  for (const b of BUCKETS) map[b.key] = [];
+
+  for (const t of catalogTags) {
+    for (const b of BUCKETS) {
+      if (hasAny(t, b.needles)) {
+        map[b.key].push(t);
+      }
+    }
+  }
+  return map;
+}
+
+function getDescriptorTagMap() {
+  if (labels?.descriptorTagMap && typeof labels.descriptorTagMap === 'object') {
+    return labels.descriptorTagMap;
+  }
+
+  return {
+    superhero: [
+    'superhero','super hero','superhuman','super human','super strength','super power','superpower',
+    'super soldier','supervillain','super villain','masked vigilante','masked superhero',
+    'symbiote','heroes','heroic','hero’s journey','hero\'s journey','teen superhero',
+    'superhero team','teamup','team up','justice league','avengers','x-men','spider-man',
+    'batman','superman','wonder woman','captain america','iron man','thor','venom',
+    'female superhero','aging superhero','masked supervillain','s.h.i.e.l.d','marvel cinematic universe (mcu)',
+    'dc universe (dcu)','dc extended universe (dceu)','sony’s spider-man universe','yrf spy universe'
+  ],
+
+  sci_fi_tech: [
+    'science and technology','sci-fi','sci fi','sci-fi horror','spaceship','spacecraft','space station','space war',
+    'space battle','space opera','space western','space colony','space exploration','space mission','space travel',
+    'android','cyborg','robot','mecha','humanoid robot','synthetic android',
+    'artificial intelligence','artificial intelligence (a.i.)','a.i.','ai','nanotechnology','quantum mechanics',
+    'time travel','time loop','time machine','time paradox','time warp','time freeze','temporal agent',
+    'multiverse','alternate timeline','alternate universe','parallel universe','parallel world','wormhole',
+    'terraforming','cryonics','hologram','telekinesis','telepathy','invisibility','virtual reality','vr','simulator',
+    'simulation','simulated reality','mind control','mind reading','genetic engineering','genetic mutation','mutant','mutants',
+    'first contact','extraterrestrial technology','nuclear','post-apocalyptic','future war','future noir','near future',
+    'alien','alien invasion','alien race','alien planet','planet','planet mars','galaxy','cosmic','cosmology','spacewalk',
+    'space walk','space probe','space vessel','spacecraft accident','spaceship crash','asteroid','meteor'
+  ],
+
+  horror: [
+    'horror','slasher','monster movie','creature feature','ghost','ghosts','haunted','haunting','haunted house','haunted mansion',
+    'possession','demonic','demon','exorcism','evil spirits','evil doll','killer doll','voodoo','folk horror','revenge horror',
+    'fear','nightmare','occult','ouija','religion and supernatural','supernatural horror','creepy doll','zombie','zombie apocalypse',
+    'vampire','werewolf','mummy','nosferatu','ghoulish','gruesome','gore','low-budget horror','revenge slasher'
+  ],
+
+  monster: [
+    'monster','kaiju','godzilla','mothra','rodan','giant animal','giant ape','giant gorilla',
+    'giant crocodile','giant snake','giant spider','giant worm','dinosaur','tyrannosaurus rex',
+    'yeti','cyclops','giant insect','giant robot','monster island'
+  ],
+
+  war: [
+    'war','world war','world war i','world war ii','ww1','ww2','great war','warfare','battle','battlefield','frontline',
+    'soldier','army','military','naval battle','naval warfare','air force','marine','u.s. marine','u.s. army','u.s. navy',
+    'vietnam war','korean war (1950-53)','afghanistan war (2001-2021)','spanish civil war (1936-39)','pacific war',
+    'civil war','american civil war','gallipoli campaign','battle of thermopylae','d-day','omaha beach','kamikaze',
+    'war crimes','warlord','armageddon','save the world','resistance','guerrilla warfare','royal navy','royal air force'
+  ],
+
+  crime: [
+    'crime','criminal','crime boss','crime family','crime lord','underworld','organized crime','mafia','sicilian mafia',
+    'yakuza','triad','cartel','drug cartel','mob','mob boss','gang','gangster','gang war','gang violence',
+    'heist','bank heist','bank robbery','robbery','con artist','con man','scam','scammer','money laundering',
+    'kidnapped','kidnapping','copycat killer','homicide','murder','murder mystery','murder investigation',
+    'investigation','investigative journalism','investigative reporter','forensic','detective story',
+    'police corruption','crooked cop','crooked politician','cover-up','prison break','jailbreak','prison escape',
+    'hitman','assassin','vigilante justice','vigilantism','serial killer','sting operation'
+  ],
+
+  violence: [
+    'violence','violent','fight','fighting','combat','brawl','beat','beating','hand to hand combat',
+    'gun','guns','gunfight','gun violence','shootout','shooting','sniper','sniper rifle','weapon','weapons',
+    'knife','stabbing','stabbed','sword','swordsman','swordswoman','sword fight','sword battle','axe','sledgehammer',
+    'explosion','explosions','blood','bloody','gore','decapitation','brutal','brutality',
+    'martial arts','kung fu','karate','wing chun','underground fighting','torture','killing spree','massacre',
+    'assault rifle','bomb','bombing','grenade','dynamite'
+  ],
+
+  sex: [
+    'sex','sexual','sexuality','sexual identity','sex scandal','sex offender','forbidden sexuality','intimate',
+    'killed during sex','sex abuse','sexual abuse','sexual violence','pornographic video','orgy'
+  ],
+
+  nudity: [
+    'nudity','nude','full frontal','topless','nude swimming'
+  ],
+
+  profanity: [
+    'profanity','explicit language','strong language','vulgar'
+  ],
+
+  drugs: [
+    'drugs','drug','drug abuse','drug addiction','drug dealer','drug lord','drug trafficking','narcotics',
+    'cocaine','heroin','meth','opium','marijuana','weed','nootropics','lsd'
+  ],
+
+  discrimination: [
+    'racism','sexism','homophobia','discrimination','hate speech','slur','antisemitism','islamophobia',
+    'bigotry','class prejudice','caste system','apartheid'
+  ],
+
+  mature: [
+    'adult themes','abuse','domestic violence','suicide','suicide attempt','self harm','self-harm','trauma',
+    'grief','intergenerational trauma','incest','rape','addiction','dysfunctional family',
+    'bereavement','loss of loved one','child abuse','child molestation','pedophilia','mental illness'
+  ],
+
+  supernatural: [
+    'supernatural','supernatural power','supernatural phenomena','paranormal activity','spirit','spirits',
+    'evil spell','sorcery','sorcerer','sorceress','witch','witch hunter','djinn',
+    'demonic possession','curse','cursed','magical realism','magic spell'
+  ],
+
+  historical: [
+    'historical','historical drama','victorian era','renaissance','medieval','ancient greece','ancient rome',
+    'ancient egypt','ottoman empire','byzantium','spanish second republic (1931-39)',
+    'franco regime (francoism)','nazi germany','holocaust (shoah)','cold war','mccarthyism','biblical epic',
+    'roman empire','greek mythology','egyptian mythology','italian renaissance','medieval france'
+  ],
+
+  fantasy_magic: [
+    'fantasy','dark fantasy','high fantasy','sword and sorcery','sword and sandal','fairy','fairy tale','fairytale',
+    'modern fairy tale','myth','mythology','mythical creature','elves','dwarf','goblin','orc',
+    'wizard','witch','enchantress','magical creature','magical object','legend','legendary hero',
+    'dragons','griffin','mermaid','excalibur','arthurian mythology','talisman','spell','curse'
+  ],
+
+  thriller_suspense: [
+    'thriller','suspense','suspenseful','psychological thriller','conspiracy','conspiracy theory',
+    'cat and mouse','stalker','stalking','home invasion','kidnapping','hostage','hostage situation','manhunt',
+    'surveillance','surveillance camera','spy thriller','espionage','covert operation',
+    'taunting','tension','tense'
+  ],
+
+  mystery_detective: [
+    'mystery','detective','detective inspector','detective couple','whodunit','clues','clue','investigation',
+    'private detective','sherlock','sherlock holmes','noir','neo-noir','cold case','crime scene','locked room mystery'
+  ],
+
+  romance_love: [
+    'romance','romantic','romantic drama','romantic fantasy','romcom','love','love affair','love at first sight',
+    'falling in love','tragic love','tragic romance','friends to lovers','forbidden love','everlasting love',
+    'new beginning','wedding','honeymoon','imminent wedding'
+  ],
+
+  comedy_humor: [
+    'comedy','buddy comedy','satire','satirical','parody','spoof','mockumentary','slapstick comedy',
+    'hilarious','witty','wisecrack humor','breaking the fourth wall','comedy of situation','screenlife comedy'
+  ],
+
+  drama_family: [
+    'drama','family','family drama','family relationships','family conflict',
+    'mother daughter relationship','mother son relationship','father son relationship','father daughter relationship',
+    'single mother','single father','coming of age','teenage life','teenage romance','grief','loss','friendship',
+    'found family','chosen family','kids','childhood','parenting','siblings'
+  ],
+
+  fairytale: [
+    'based on cartoon','based on childrens book','based on novel or book'
+  ],
+
+  action_adventure: [
+    'action','action adventure','action comedy','action thriller','adventure','expedition',
+    'treasure','treasure hunt','quest','race against time','chase','car chase','police chase','parkour',
+    'stunt','stuntman','free climbing','helicopter chase','scaling a building','one man army','one against many',
+    'wilderness','desert','jungle','island','lost at sea','runaway'
+  ],
+
+  animation_kids: [
+    'animation','animated','cgi animation','3d animation','stop motion','claymation','pixar',
+    'children cartoon','children’s adventure','kids','tween','family comedy','horror for children',
+    'live action and animation','cgi-live action hybrid','cartoon','cartoon animal','talking animal','talking dog','talking cat'
+  ],
+
+  documentary_biopic: [
+    'documentary','biography','biographical','docudrama','based on true story','based on memoir or autobiography',
+    'history and legacy','science documentary','behind the scenes'
+  ],
+
+  music_dance: [
+    'music','musical','jukebox musical','jazz','singer','singing','songwriter','concert','ballet','dance','dance performance',
+    'flamenco','hip-hop','pop music','music critic'
+  ],
+
+  sports: [
+    'sports','boxing','boxing champion','boxing trainer','basketball player','football (soccer)','ufc','mma','karate',
+    'martial arts tournament','sport climbing','race','grand prix','baseball'
+  ],
+
+  western: [
+    'western','outlaw','gunslinger','cowboy','wild west','spaghetti western','frontier','stagecoach'
+  ],
+
+  political: [
+    'political','politics','political thriller','political campaign','election','election campaign',
+    'political assassination','political crisis','political intrigue','authoritarianism','totalitarian regime',
+    'coup','resistance','senator','prime minister','president','the white house','washington dc, usa','usa politics'
+  ],
+
+  religion_myth: [
+    'religion','religious allegory','religious cult','religious satire','religious symbolism','faith',
+    'christian','christianity','islam','judaism','hinduism','buddhism','shia','koran','bible','biblical epic',
+    'norse mythology','messiah','prophecy','prophet'
+  ],
+
+  survival_disaster: [
+    'disaster','disaster movie','earthquake','flood','tsunami','hurricane','avalanche','volcano','pandemic',
+    'outbreak','apocalypse','post-apocalyptic future','doomsday','end of the world','plague','famine','evacuation',
+    'survival','survival at sea','trapped','trapped in space','trapped in an elevator','trying to avoid making noise'
+  ],
+
+  period_era: [
+    'ancient','ancient world','18th century','19th century','20th century','5th century bc','6th century',
+    '10th century','12th century','15th century','1750s','1800s','1850s','1880s','1890s','1900s','1910s',
+    '1920s','1930s','1940s','1950s','1960s','1970s','1980s','1990s','2000s','2030s','2040s','2050s','2060s','2090s',
+    'near future','distant future','post world war ii','post war japan','eve of world war ii'
+  ],
+
+  travel_road: [
+    'road movie','road trip','journey','trip','travel','tour','tourism','around the world',
+    'backpacker','explorer','expedition','trekking'
+  ],
+
+  animals_nature: [
+    'animal','animals','animal attack','bear','wolf','wolves','tiger','lion','shark','shark attack','crocodile','crocodile attack',
+    'horse','dog','cat','elephant','dolphin','whale','humpback whale','seal (animal)','penguin','octopus','squid',
+    'giraffe','zebra','panda','monkey','chimpanzee','gorilla','hippopotamus',
+    'wildlife','endangered species','nature','forest','jungle','savannah'
+  ],
+  };
+}
+
+function deriveTagDescriptors(item = {}) {
+  const raw = (item.Tags || item.Keywords || []).filter(Boolean);
+  if (!raw.length) return [];
+  const tags = raw.map(_normTag);
+  const map = getDescriptorTagMap();
+  const found = [];
+  for (const [code, needles] of Object.entries(map)) {
+    const nls = (needles || []).map(_normTag);
+    const hit = tags.some(tag => nls.some(n => tag.includes(n)));
+    if (hit) found.push(descriptorLabel(code));
+    if (found.length >= 2) break;
+  }
+  return found;
+}
+
+function getDescriptorKeywordMap(){
+  const k = labels?.descriptorKeywords;
+  if (k && typeof k==='object') return k;
+  return {
+    violence: ['violence','violent','fight','combat','assault','brutal','blood','kavga','şiddet','savaş','silah','dövüş','gewalt','kampf','brutal'],
+    sex: ['sexual','sex','erotic','intimate','explicit sex','cinsel','erotik','sexuell'],
+    nudity: ['nudity','nude','çıplak','nacktheit'],
+    horror: ['horror','thriller','slasher','gore','supernatural','paranormal','korku','gerilim','dehşet','übernatürlich'],
+    drugs: ['drug','narcotic','cocaine','heroin','meth','substance abuse','uyuşturucu','esrar','eroin','kokain','drogen','rauschgift','alkol abuse'],
+    profanity: ['strong language','explicit language','profanity','swear','vulgar','küfür','argo','schimpf','vulgär'],
+    crime: ['crime','criminal','mafia','gang','heist','robbery','suç','mafya','soygun','krimi','verbrechen'],
+    war: ['war','battle','army','military','conflict','front','savaş','ordu','asker','krieg','schlacht'],
+    discrimination: ['racism','sexism','homophobia','discrimination','ayrımcılık','ırkçılık','cinsiyetçilik','diskriminierung'],
+    mature: ['adult themes','abuse','suicide','self harm','trauma','domestic violence','istismar','intihar','travma','missbrauch','suizid']
+  };
+}
+
+function deriveKeywordDescriptors(item = {}) {
+  const parts = [
+    item.Overview, item.Taglines?.join?.(' ') || '',
+    (item.Keywords || item.Tags || []).join?.(' ') || '',
+    (item.Studios || []).map(s=>s?.Name||s).join(' ')
+  ].filter(Boolean);
+  if (!parts.length) return [];
+  const hay = parts.join(' | ');
+  const dict = getDescriptorKeywordMap();
+  const found = [];
+  for (const [code, words] of Object.entries(dict)) {
+    const rx = _buildRegex(words);
+    if (rx && rx.test(hay)) found.push(descriptorLabel(code));
+    if (found.length >= 2) break;
+  }
+  return found;
+}
+
 export function setupPauseScreen() {
     const config = getConfig();
     const overlayConfig = config.pauseOverlay || { enabled: true };
     if (!overlayConfig.enabled) return () => {};
+
+    const AUTO_PAUSE = overlayConfig.autoPauseOnHide !== false;
+    const sap = Object.assign({
+     enabled: true,
+     idleThresholdMs: 45000,
+     unfocusedThresholdMs: 15000,
+     offscreenThresholdMs: 10000,
+     useIdleDetection: true,
+     respectPiP: true
+   }, (config.smartAutoPause || {}));
 
     let activeVideo = null;
     let currentMediaId = null;
@@ -19,6 +697,147 @@ export function setupPauseScreen() {
     let lastIdCheck = 0;
     let wasPaused = false;
     let pauseTimeout = null;
+    let lastUserActivityTs = Date.now();
+    let windowUnfocusedSince = null;
+    let videoOffscreenSince = null;
+    let intersectionObs = null;
+    let smartInterval = null;
+    let idleDetector = null;
+
+    async function initDescriptorTagsOnce() {
+  try {
+    if (labels && labels.descriptorTagMap && typeof labels.descriptorTagMap === 'object') {
+      return;
+    }
+    const catalogTags = await loadCatalogTagsWithCache();
+    const autoMap = buildAutoDescriptorTagMap(catalogTags);
+    labels.descriptorTagMap = autoMap;
+  } catch (e) {
+    console.warn('descriptor tag map init hata:', e);
+  }
+}
+
+  function isShortActiveVideo() {
+  const v = activeVideo;
+  if (!v) return false;
+  const d = Number(v.duration || 0);
+  return Number.isFinite(d) && d > 0 && d < 300;
+}
+
+    function pauseActiveVideo(reason = 'auto') {
+  try {
+    if (isShortActiveVideo()) return;
+    if (activeVideo && !activeVideo.paused && !activeVideo.ended) {
+      activeVideo.pause();
+    }
+  } catch {}
+}
+
+  function bumpActivity() { lastUserActivityTs = Date.now(); }
+  const activityEvents = ['pointerdown','pointermove','keydown','touchstart','wheel'];
+  function installActivityListeners() {
+    activityEvents.forEach(ev => document.addEventListener(ev, bumpActivity, { passive: true }));
+    window.addEventListener('focus', () => { windowUnfocusedSince = null; bumpActivity(); });
+    window.addEventListener('blur', () => {
+      if (document.hidden || !document.hasFocus()) windowUnfocusedSince = Date.now();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        windowUnfocusedSince = windowUnfocusedSince || Date.now();
+      } else {
+        windowUnfocusedSince = null;
+      }
+    });
+  }
+
+  function removeActivityListeners() {
+    activityEvents.forEach(ev => document.removeEventListener(ev, bumpActivity, { passive: true }));
+  }
+
+  function installIntersectionObserverFor(videoEl) {
+    cleanupIntersectionObserver();
+    if (!('IntersectionObserver' in window) || !videoEl) return;
+    intersectionObs = new IntersectionObserver((entries) => {
+      const e = entries[0];
+      const ratio = e?.intersectionRatio ?? 0;
+      if (ratio < 0.1) {
+        videoOffscreenSince = videoOffscreenSince || Date.now();
+      } else {
+        videoOffscreenSince = null;
+      }
+    }, { threshold: [0, 0.1, 0.5, 1] });
+    intersectionObs.observe(videoEl);
+  }
+  function cleanupIntersectionObserver() {
+    if (intersectionObs) {
+      try { intersectionObs.disconnect(); } catch {}
+      intersectionObs = null;
+    }
+    videoOffscreenSince = null;
+  }
+
+  function isInPiP(videoEl) {
+    try {
+      if (!videoEl) return false;
+      if (document.pictureInPictureElement === videoEl) return true;
+      if (videoEl.webkitPresentationMode === 'picture-in-picture') return true;
+      if (document.documentPictureInPicture?.window) {
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
+  async function tryStartIdleDetector() {
+    if (!sap.useIdleDetection) return;
+    const IdleDetector = window.IdleDetector || window.IdleDetection || window.IdleDetectorShim;
+    if (!IdleDetector) return;
+    try {
+      if (await IdleDetector.requestPermission?.() !== 'granted') return;
+      idleDetector = new IdleDetector({ threshold: Math.max(1000, sap.idleThresholdMs | 0) });
+      idleDetector.addEventListener('change', () => {
+  const userState = idleDetector.userState;
+  const screenState = idleDetector.screenState;
+  if (userState === 'idle' || screenState === 'locked') {
+    if (sap.respectPiP && isInPiP(activeVideo)) return;
+    if (isShortActiveVideo()) return;
+    pauseActiveVideo('idle-detector');
+  }
+});
+      await idleDetector.start();
+    } catch {
+      idleDetector = null;
+    }
+  }
+  function stopIdleDetector() {
+    try { idleDetector?.stop?.(); } catch {}
+    idleDetector = null;
+  }
+
+  function startSmartLoop() {
+    if (!sap.enabled) return;
+    installActivityListeners();
+    tryStartIdleDetector();
+    smartInterval = window.setInterval(() => {
+  if (!activeVideo) return;
+  if (sap.respectPiP && isInPiP(activeVideo)) return;
+  if (isShortActiveVideo()) return;
+
+  const now = Date.now();
+  const idleTooLong = (now - lastUserActivityTs) >= sap.idleThresholdMs;
+  const unfocusedTooLong = windowUnfocusedSince && ((now - windowUnfocusedSince) >= sap.unfocusedThresholdMs);
+  const offscreenTooLong = videoOffscreenSince && ((now - videoOffscreenSince) >= sap.offscreenThresholdMs);
+  if (idleTooLong || unfocusedTooLong || offscreenTooLong) {
+    pauseActiveVideo(idleTooLong ? 'idle' : unfocusedTooLong ? 'unfocused' : 'offscreen');
+  }
+}, 1000);
+  }
+
+  function stopSmartLoop() {
+    if (smartInterval) { clearInterval(smartInterval); smartInterval = null; }
+    removeActivityListeners();
+    stopIdleDetector();
+  }
 
     if (!document.getElementById('jms-pause-overlay')) {
         const overlay = document.createElement('div');
@@ -59,6 +878,162 @@ export function setupPauseScreen() {
         }
     }
 
+    function installAutoPauseOnHide() {
+  if (!AUTO_PAUSE) return;
+
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') {
+      if (isShortActiveVideo()) return;
+      pauseActiveVideo('visibility-hidden');
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  document.addEventListener('webkitvisibilitychange', onVisibility);
+
+  const onBlur = () => {
+    setTimeout(() => {
+      if (document.hidden) {
+        if (isShortActiveVideo()) return;
+        pauseActiveVideo('window-blur-hidden');
+      }
+    }, 150);
+  };
+  window.addEventListener('blur', onBlur);
+
+  const onPageHide = () => {
+    if (isShortActiveVideo()) return;
+    pauseActiveVideo('pagehide');
+  };
+  window.addEventListener('pagehide', onPageHide);
+}
+
+  function createRatingGenreElement() {
+        if (!document.getElementById('jms-rating-genre-overlay')) {
+            ratingGenreElement = document.createElement('div');
+            ratingGenreElement.id = 'jms-rating-genre-overlay';
+            ratingGenreElement.className = 'rating-genre-overlay';
+            document.body.appendChild(ratingGenreElement);
+            if (!document.getElementById('jms-rating-genre-css')) {
+                const style = document.createElement('style');
+                style.id = 'jms-rating-genre-css';
+                style.textContent = `
+                    .rating-genre-overlay {
+                    position: fixed;
+                    top: 75px;
+                    left: 24px;
+                    z-index: 9999;
+                    pointer-events: none;
+                   opacity: 0;
+                    transform: translateY(-14px);
+                    transition: transform .35s cubic-bezier(.2,.8,.4,1), opacity .35s ease;
+                  }
+                  .rating-genre-overlay.visible {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+                  .rating-genre-card {
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 12px;
+                    color: #fff;
+                    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+                  }
+                  .rating-genre-card .bar {
+                    width: 3px;
+                    height: 44px;
+                    background: #e10600;
+                    border-radius: 2px;
+                    flex: 0 0 3px;
+                    margin-top: 2px;
+                  }
+                  .rating-genre-card .texts { line-height: 1.15; }
+                  .rating-genre-card .line1 {
+                    font-size: 22px;
+                    font-weight: 800;
+                    letter-spacing: .3px;
+                    text-transform: uppercase;
+                    opacity: .95;
+                  }
+                  .rating-genre-card .line2 {
+                    margin-top: 4px;
+                   font-size: 16px;
+                    font-weight: 500;
+                    opacity: .9;
+                    text-transform: none;
+                  }
+                `;
+                document.head.appendChild(style);
+            }
+        } else {
+            ratingGenreElement = document.getElementById('jms-rating-genre-overlay');
+        }
+    }
+
+async function showRatingGenre(itemData, duration = 10000) {
+  if (!ratingGenreElement) createRatingGenreElement();
+  if (ratingGenreTimeout) { clearTimeout(ratingGenreTimeout); ratingGenreTimeout = null; }
+  let data = itemData;
+  try {
+    const isEpisode = data?.Type === 'Episode';
+    const noTags = !Array.isArray(data?.Tags) || data.Tags.length === 0;
+    const maybeSeriesId = data?.SeriesId || data?._episodeData?.SeriesId || null;
+
+    const genresMissing = !Array.isArray(data?.Genres) || data.Genres.length === 0;
+const ratingMissing = !data?.OfficialRating;
+if (isEpisode && maybeSeriesId && (noTags || genresMissing || ratingMissing)) {
+  const series = await fetchItemDetails(maybeSeriesId);
+  const mergedTags = [
+    ...(series?.Tags || []),
+    ...(data?.Tags || []),
+    ...(data?.Keywords || [])
+  ].filter(Boolean);
+
+  data = {
+    ...series,
+    ...data,
+    Tags: Array.from(new Set(mergedTags)),
+    Genres: genresMissing ? (series?.Genres || []) : data.Genres,
+    OfficialRating: ratingMissing ? (series?.OfficialRating || data.OfficialRating) : data.OfficialRating
+  };
+}
+  } catch (e) {  }
+
+  const age = normalizeAgeChip(data?.OfficialRating);
+  const locGenres = localizedGenres(data?.Genres || []);
+  const descFromTags = deriveTagDescriptors(data);
+  const descFromHeur = (!descFromTags.length && !locGenres.length)
+    ? deriveKeywordDescriptors(data)
+    : [];
+
+  if (!age && descFromTags.length === 0 && locGenres.length === 0 && descFromHeur.length === 0) {
+    hideRatingGenre(); return;
+  }
+  const line1 = age ? [localizedMaturityHeader(), age].join(' ') : '';
+  const line2Arr = (descFromTags.length ? descFromTags.slice(0,2)
+                    : (locGenres.length ? locGenres.slice(0,2)
+                    : descFromHeur.slice(0,2)));
+  const line2 = line2Arr.join(', ');
+
+  if (line1 || line2) {
+    ratingGenreElement.innerHTML = `
+      <div class="rating-genre-card">
+        <div class="bar"></div>
+        <div class="texts">
+          ${line1 ? `<div class="line1">${line1}</div>` : ''}
+          ${line2 ? `<div class="line2">${line2}</div>` : ''}
+        </div>
+      </div>
+    `;
+    ratingGenreElement.classList.add('visible');
+    ratingGenreTimeout = setTimeout(() => { hideRatingGenre(); }, duration);
+  }
+}
+
+function hideRatingGenre() {
+        if (ratingGenreElement) {
+            ratingGenreElement.classList.remove('visible');
+        }
+    }
     const overlayEl = document.getElementById('jms-pause-overlay');
     const titleEl = document.getElementById('jms-overlay-title');
     const metaEl = document.getElementById('jms-overlay-metadata');
@@ -191,6 +1166,7 @@ function hideOverlay() {
     }
 
     async function refreshData(data) {
+      currentMediaData = data;
         resetContent();
         const ep = data._episodeData || null;
         if (config.pauseOverlay.showBackdrop) {
@@ -251,6 +1227,14 @@ function hideOverlay() {
         renderRecommendations([]);
         }
     }
+
+    window.addEventListener('beforeunload', () => {
+        if (ratingGenreTimeout) {
+            clearTimeout(ratingGenreTimeout);
+            ratingGenreTimeout = null;
+        }
+        hideRatingGenre();
+    });
 
 async function setBackdrop(item) {
    const tags = item?.BackdropImageTags || [];
@@ -401,95 +1385,212 @@ async function setBackdrop(item) {
            (video.tagName === 'IFRAME' && video.classList.contains('studio-trailer-iframe'));
 }
 
-    function bindVideo(video) {
-    if (isStudioHubsVideo(video) || isStudioTrailerPopoverVideo(video)) {
-        return;
+function clearOverlayUi() {
+  hideOverlay();
+  resetContent();
+  currentMediaId = null;
+}
+
+function bindVideo(video) {
+  if (isStudioHubsVideo(video) || isStudioTrailerPopoverVideo(video)) return;
+  if (shouldIgnoreTheme({ video })) return;
+  if (removeHandlers) removeHandlers();
+  if (video.closest('.video-preview-modal, .intro-video-container')) return;
+
+  activeVideo = video;
+  const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
+  const BADGE_MIN_CT_SEC = 1.2;
+  const BADGE_MIN_DURATION_SEC = 300;
+
+  let playSeq = 0;
+  let lastShownItemId = null;
+  let armTimer = null;
+
+  function cancelArm() {
+    if (armTimer) { clearTimeout(armTimer); armTimer = null; }
+    try { video.removeEventListener('timeupdate', onTimeUpdateArm); } catch {}
+  }
+
+  function hardResetBadgeState() {
+    hideRatingGenre();
+    currentMediaData = null;
+    lastShownItemId = null;
+    ++playSeq;
+    cancelArm();
+  }
+
+  async function resolveBySrcPrefer() {
+  const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
+  let detFromSrc = null;
+  try {
+    const id = getPlayingItemIdFromVideo(activeVideo) || getCurrentMediaId(true);
+    if (id) {
+      detFromSrc = await fetchItemDetails(id);
+      if (detFromSrc?.Type && ALLOWED_TYPES.has(detFromSrc.Type)) {
+        return detFromSrc;
+      }
     }
+  } catch {}
+  for (let i = 0; i < 3; i++) {
+    try {
+      const session = await getSessionInfo();
+      const np = session?.NowPlayingItem;
+      if (np?.Id && ALLOWED_TYPES.has(np.Type)) {
+        const det = await fetchItemDetails(np.Id);
+        if (det) return det;
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 150));
+  }
 
-        if (removeHandlers) removeHandlers();
-        if (video.closest('.video-preview-modal, .intro-video-container')) {
-            return;
-        }
-        activeVideo = video;
-        const onPause = async () => {
-  if (video.ended) return;
-  if (pauseTimeout) clearTimeout(pauseTimeout);
+  return null;
+}
 
+  function shouldSuppressByDuration() {
+    const dur = Number(video.duration || 0);
+    if (!isFinite(dur) || dur === 0) return true;
+    return dur < BADGE_MIN_DURATION_SEC;
+  }
+
+  function onTimeUpdateArm() {
+    if ((video.currentTime || 0) < BADGE_MIN_CT_SEC) return;
+    if (shouldSuppressByDuration()) return;
+    cancelArm();
+    void showBadgeForCurrentIfFresh();
+  }
+
+  async function showBadgeForCurrentIfFresh() {
+    const seq = playSeq;
+    if (shouldSuppressByDuration()) return;
+
+    const data = await resolveBySrcPrefer();
+    if (!data) return;
+    if (shouldIgnoreTheme({ video: activeVideo, item: data })) return;
+    if (seq !== playSeq) return;
+    if (!data) return;
+
+    if (lastShownItemId === data.Id) return;
+
+    currentMediaData = data;
+    lastShownItemId = data.Id;
+    await showRatingGenre(currentMediaData, 4000);
+  }
+
+  const onPause = async () => {
+    hideRatingGenre();
+    if (video.ended) {
+      hideOverlay();
+      if (pausedLabel) { pausedLabel.style.opacity = '0'; pausedLabel.style.display = 'none'; }
+      return;
+    }
+    if (pauseTimeout) clearTimeout(pauseTimeout);
   pauseTimeout = setTimeout(async () => {
-    if (!video.paused || video.ended) return;
-    let ep = await resolveNowPlayingEpisode();
-    if (!ep) {
-      const nowId = document.querySelector('.nowPlayingInfo[data-id]')?.dataset?.id;
-      if (nowId) {
-        try {
-          const maybeEp = await fetchItemDetails(nowId);
-          if (maybeEp?.Type === 'Episode') ep = maybeEp;
-        } catch {}
+  const seqAtSchedule = playSeq;
+  if (!video.paused || video.ended) return;
+  if (shouldSuppressByDuration()) return;
+  let baseInfo = null;
+  const vidItemId = getPlayingItemIdFromVideo(activeVideo);
+  if (vidItemId) {
+    try { baseInfo = await fetchItemDetails(vidItemId); } catch {}
+  }
+
+  let ep = (baseInfo?.Type === 'Episode') ? baseInfo : null;
+  if (!ep) {
+    try {
+      const maybe = await resolveNowPlayingEpisode();
+      if (maybe?.Id) ep = maybe;
+    } catch {}
+  }
+
+  if (shouldIgnoreTheme({ video, item: ep || baseInfo })) return;
+
+  if (!baseInfo) {
+    const domId =
+      document.querySelector('.nowPlayingInfo[data-id]')?.dataset?.id ||
+      getCurrentMediaId(true);
+    if (domId) {
+      try { baseInfo = await fetchItemDetails(domId); } catch {}
+    }
+  }
+
+  let seriesId =
+    ep?.SeriesId ||
+    baseInfo?.SeriesId ||
+    baseInfo?.Id ||
+    null;
+
+  if (seqAtSchedule !== playSeq) return;
+  if (!seriesId) return;
+
+  currentMediaId = seriesId;
+  const series = await fetchItemDetails(seriesId);
+  if (seqAtSchedule !== playSeq || !video.paused || video.ended) return;
+
+  if (shouldIgnoreTheme({ video, item: series })) return;
+
+  await refreshData({ ...series, _episodeData: ep || null });
+  showOverlay();
+  if (!ep) {
+    let tries = 3;
+    while (tries-- > 0) {
+      await new Promise(r => setTimeout(r, 200));
+      const lateEp = await resolveNowPlayingEpisode();
+      if (lateEp?.SeriesId === seriesId) {
+        if (seqAtSchedule !== playSeq || !video.paused || video.ended) return;
+        await refreshData({ ...series, _episodeData: lateEp });
+        break;
       }
     }
+  }
+}, 1000);
+  };
 
-    if (!ep) {
-      const vidItemId = getPlayingItemIdFromVideo(activeVideo);
-      if (vidItemId) {
-        try {
-          const info = await fetchItemDetails(vidItemId);
-          if (info?.Type === 'Episode') ep = info;
-        } catch {}
-      }
-    }
+  const onPlay = async () => {
+  clearOverlayUi();
 
-    let seriesId = null;
-    if (ep?.SeriesId) {
-      seriesId = ep.SeriesId;
-    } else {
-      const rawId =
-        document.querySelector('.nowPlayingInfo[data-id]')?.dataset?.id ||
-        getCurrentMediaId(true);
-
-      if (rawId) {
-        const info = await fetchItemDetails(rawId);
-        if (info.Type === 'Episode' && info.SeriesId) {
-          seriesId = info.SeriesId;
-          ep = ep || info;
-        } else if (info.Type === 'Season' && info.SeriesId) {
-          seriesId = info.SeriesId;
-        } else {
-          seriesId = info.SeriesId || info.Id;
-        }
-      }
-    }
-
-    if (!seriesId) return;
-
-    currentMediaId = seriesId;
-    const series = await fetchItemDetails(seriesId);
-    await refreshData({ ...series, _episodeData: ep || null });
-    showOverlay();
-    if (!ep) {
-      let tries = 3;
-      while (tries-- > 0) {
-        await new Promise(r => setTimeout(r, 200));
-        const lateEp = await resolveNowPlayingEpisode();
-        if (lateEp?.SeriesId === seriesId) {
-          await refreshData({ ...series, _episodeData: lateEp });
-          break;
-        }
-      }
-    }
-  }, 1000);
+  if (pauseTimeout) clearTimeout(pauseTimeout);
+  hardResetBadgeState();
+  video.addEventListener('timeupdate', onTimeUpdateArm, { passive: true });
+  armTimer = setTimeout(onTimeUpdateArm, 800);
+};
+  const onLoadedMetadata = async () => {
+  hideRatingGenre();
+  currentMediaData = null;
+  clearOverlayUi();
+};
+  const onEnded = () => {
+    hardResetBadgeState();
+    hideOverlay();
+    if (pausedLabel) { pausedLabel.style.opacity = '0'; pausedLabel.style.display = 'none'; }
+  };
+  const onEmptiedLike = () => {
+  hardResetBadgeState();
+  clearOverlayUi();
+};
+  const onSeekingHide = () => {
+  hideRatingGenre();
 };
 
-        const onPlay = () => {
-            hideOverlay();
-            if (pauseTimeout) clearTimeout(pauseTimeout);
-        };
-        video.addEventListener('pause', onPause);
-        video.addEventListener('play', onPlay);
-        removeHandlers = () => {
-            video.removeEventListener('pause', onPause);
-            video.removeEventListener('play', onPlay);
-        };
-    }
+  video.addEventListener('pause', onPause);
+  video.addEventListener('play', onPlay);
+  video.addEventListener('loadedmetadata', onLoadedMetadata);
+  video.addEventListener('ended', onEnded);
+  video.addEventListener('emptied', onEmptiedLike);
+  video.addEventListener('abort', onEmptiedLike);
+  video.addEventListener('stalled', onEmptiedLike);
+  video.addEventListener('seeking', onSeekingHide);
+  removeHandlers = () => {
+    video.removeEventListener('pause', onPause);
+    video.removeEventListener('play', onPlay);
+    video.removeEventListener('loadedmetadata', onLoadedMetadata);
+    video.removeEventListener('ended', onEnded);
+    video.removeEventListener('emptied', onEmptiedLike);
+    video.removeEventListener('abort', onEmptiedLike);
+    video.removeEventListener('stalled', onEmptiedLike);
+    video.removeEventListener('seeking', onSeekingHide);
+    cancelArm();
+  };
+}
 
     const mo = new MutationObserver(muts => {
         muts.forEach(m => m.addedNodes.forEach(n => {
@@ -501,13 +1602,16 @@ async function setBackdrop(item) {
             if (n === activeVideo) {
                 if (removeHandlers) removeHandlers();
                 activeVideo = null;
-                hideOverlay();
+                clearOverlayUi();
             }
         }));
     });
     mo.observe(document.body, { childList: true, subtree: true });
     const initVid = document.querySelector('video');
     if (initVid) bindVideo(initVid);
+    startSmartLoop();
+    installAutoPauseOnHide();
+    if (initVid) installIntersectionObserverFor(initVid);
     function startOverlayLogic() {
         async function loop() {
             const onValidPage = isVideoVisible();
@@ -533,10 +1637,10 @@ async function setBackdrop(item) {
     window.addEventListener('popstate', hideOverlay);
     window.addEventListener('hashchange', hideOverlay);
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && !isVideoVisible()) {
-            hideOverlay();
-        }
-    });
+    if (document.visibilityState === 'visible' && !isVideoVisible()) {
+      hideOverlay();
+    }
+  });
     document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && overlayVisible) {
         e.preventDefault();
@@ -544,6 +1648,7 @@ async function setBackdrop(item) {
     }
 });
     startOverlayLogic();
+    initDescriptorTagsOnce();
     return () => {
         if (removeHandlers) removeHandlers();
         mo.disconnect();
@@ -553,6 +1658,10 @@ async function setBackdrop(item) {
         wasPaused = false;
         if (pauseTimeout) clearTimeout(pauseTimeout);
         pauseTimeout = null;
+        stopSmartLoop();
+        cleanupIntersectionObserver();
+        activeVideo = null;
+        windowUnfocusedSince = null;
     };
 }
 function isVideoVisible() {
@@ -636,7 +1745,6 @@ function formatEpisodeLineShort(ep) {
 
   return `${rawWord} ${eNum}${titlePart}`;
 }
-
 
 function getApiClientSafe() {
   return (window.ApiClient && typeof window.ApiClient.serverAddress === 'function') ? window.ApiClient : null;

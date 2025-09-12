@@ -47,6 +47,52 @@ export function getConfig() {
   try { localStorage.setItem('pauseOverlay', JSON.stringify(legacy)); } catch {}
   return legacy;
 }
+
+  function readSmartAutoPause() {
+    const DEFAULTS = {
+      enabled: true,
+      idleThresholdMs: 2700000,
+      unfocusedThresholdMs: 60000,
+      offscreenThresholdMs: 2000,
+      useIdleDetection: true,
+      respectPiP: true
+    };
+
+    const raw = localStorage.getItem('smartAutoPause');
+    if (raw && raw.trim().startsWith('{') && raw !== '[object Object]') {
+      try {
+        const j = JSON.parse(raw);
+        return {
+          enabled: j.enabled !== false,
+          idleThresholdMs: Number.isFinite(+j.idleThresholdMs) ? +j.idleThresholdMs : DEFAULTS.idleThresholdMs,
+          unfocusedThresholdMs: Number.isFinite(+j.unfocusedThresholdMs) ? +j.unfocusedThresholdMs : DEFAULTS.unfocusedThresholdMs,
+          offscreenThresholdMs: Number.isFinite(+j.offscreenThresholdMs) ? +j.offscreenThresholdMs : DEFAULTS.offscreenThresholdMs,
+          useIdleDetection: j.useIdleDetection !== false,
+          respectPiP: j.respectPiP !== false
+        };
+      } catch {}
+    }
+
+    const enabled = (localStorage.getItem('smartAutoPauseEnabled') ?? 'true') !== 'false';
+    const idleThresholdMs = parseInt(localStorage.getItem('smartIdleThresholdMs'), 10);
+    const unfocusedThresholdMs = parseInt(localStorage.getItem('smartUnfocusedThresholdMs'), 10);
+    const offscreenThresholdMs = parseInt(localStorage.getItem('smartOffscreenThresholdMs'), 10);
+    const useIdleDetectionRaw = localStorage.getItem('smartUseIdleDetection');
+    const respectPiPRaw = localStorage.getItem('smartRespectPiP');
+
+    const merged = {
+      enabled,
+      idleThresholdMs: Number.isFinite(idleThresholdMs) ? idleThresholdMs : DEFAULTS.idleThresholdMs,
+      unfocusedThresholdMs: Number.isFinite(unfocusedThresholdMs) ? unfocusedThresholdMs : DEFAULTS.unfocusedThresholdMs,
+      offscreenThresholdMs: Number.isFinite(offscreenThresholdMs) ? offscreenThresholdMs : DEFAULTS.offscreenThresholdMs,
+      useIdleDetection: useIdleDetectionRaw == null ? DEFAULTS.useIdleDetection : (useIdleDetectionRaw !== 'false'),
+      respectPiP:       respectPiPRaw == null       ? DEFAULTS.respectPiP       : (respectPiPRaw !== 'false')
+    };
+
+    try { localStorage.setItem('smartAutoPause', JSON.stringify(merged)); } catch {}
+    return merged;
+  }
+
   const defaultLanguage = getDefaultLanguage();
   return {
     customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
@@ -385,6 +431,7 @@ export function getConfig() {
     ratingContainerFlexWrap: localStorage.getItem('ratingContainerFlexWrap') || '',
 
     pauseOverlay: readPauseOverlay(),
+    smartAutoPause: readSmartAutoPause(),
 
     slideTransitionType: localStorage.getItem('slideTransitionType') || 'flip',
     dotPosterTransitionType: localStorage.getItem('dotPosterTransitionType') || 'scale',

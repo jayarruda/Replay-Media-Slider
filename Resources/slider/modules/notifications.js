@@ -228,27 +228,57 @@ function toastShouldEnqueue(key) {
   return true;
 }
 
+function ensureNotifStylesheet() {
+  document.querySelectorAll('link[rel="stylesheet"][href*="slider/src/notifications"]')
+    .forEach(l => { if (l.id !== 'jfNotifCss') l.parentElement?.removeChild(l); });
+  let link = document.getElementById('jfNotifCss');
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'jfNotifCss';
+    link.rel = 'stylesheet';
+    (document.head || document.documentElement).appendChild(link);
+  }
+  return link;
+}
+
+
 function getThemePreferenceKey() {
   const userId = getSafeUserId();
   return `jf:notifTheme:${userId || "nouser"}`;
 }
 
 function loadThemePreference() {
+  ensureNotifStylesheet();
   const theme = localStorage.getItem(getThemePreferenceKey()) || '1';
   setTheme(theme);
 }
 
 function setTheme(themeNumber) {
-  const link = document.getElementById("jfNotifCss");
-  if (!link) return;
-
+  const link = ensureNotifStylesheet();
   const href =
-    themeNumber === '1' ? 'slider/src/notifications.css' :
+    themeNumber === '1' ? 'slider/src/notifications.css'  :
     themeNumber === '2' ? 'slider/src/notifications2.css' :
                           'slider/src/notifications3.css';
-
-  link.href = href;
-  localStorage.setItem(getThemePreferenceKey(), themeNumber);
+  let settled = false;
+  const finish = () => {
+    if (settled) return;
+    settled = true;
+    link.disabled = false;
+    link.removeEventListener('load', finish);
+    link.removeEventListener('error', finish);
+  };
+  link.addEventListener('load', finish);
+  link.addEventListener('error', finish);
+  requestAnimationFrame(() => { if (!settled) link.disabled = false; });
+  setTimeout(() => { if (!settled) link.disabled = false; }, 50);
+  link.disabled = true;
+  const absHref = new URL(href, location.href).href;
+  if (link.href !== absHref) {
+    link.href = href;
+  } else {
+    finish();
+  }
+  try { localStorage.setItem(getThemePreferenceKey(), themeNumber); } catch {}
 }
 
 function toggleTheme() {
@@ -502,6 +532,7 @@ function ensureUI() {
   document.getElementById("jfNotifClearAll")?.addEventListener("click", (e) => { e.stopPropagation(); clearAllNotifications(); closeModal(); });
   document.getElementById("jfNotifMarkAllRead")?.addEventListener("click", (e) => { e.stopPropagation(); markAllNotificationsRead(); });
 
+  ensureNotifStylesheet();
   loadThemePreference();
   loadThemeModePreference();
   updateBadge();
@@ -536,8 +567,8 @@ function injectCriticalNotifCSS() {
 
 function waitForNotifCss() {
   return new Promise((resolve, reject) => {
-    const link = document.getElementById("jfNotifCss");
-    if (!link) return setTimeout(resolve, 300);
+    const link = ensureNotifStylesheet();
+    if (!link) return resolve();
     if (link.sheet) return resolve();
     const t = setTimeout(() => reject(new Error("css-timeout")), CSS_READY_TIMEOUT_MS);
     link.addEventListener("load", () => { clearTimeout(t); resolve(); }, { once: true });

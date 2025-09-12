@@ -268,36 +268,6 @@ window.sliderResetInProgress = window.sliderResetInProgress || false;
   head.prepend(style);
 })();
 
-(function preloadNotifCSSFast() {
-  if (document.getElementById("jfNotifCss")) return;
-  const preload = document.createElement("link");
-  preload.id = "jfNotifCssPreload";
-  preload.rel = "preload";
-  preload.as = "style";
-  preload.href = "slider/src/notifications.css";
-  try { preload.fetchPriority = "high"; } catch {}
-  preload.setAttribute("fetchpriority", "high");
-  preload.onload = function () {
-    const sheet = document.createElement("link");
-    sheet.id = "jfNotifCss";
-    sheet.rel = "stylesheet";
-    sheet.type = "text/css";
-    sheet.href = preload.href;
-    requestAnimationFrame(() => {
-      preload.replaceWith(sheet);
-    });
-  };
-  preload.onerror = function () {
-    const fallback = document.createElement("link");
-    fallback.id = "jfNotifCss";
-    fallback.rel = "stylesheet";
-    fallback.type = "text/css";
-    fallback.href = preload.href;
-    preload.replaceWith(fallback);
-  };
-  (document.head || document.documentElement).prepend(preload);
-})();
-
 (function ensurePauseCss() {
   if (!document.getElementById("jms-pause-css")) {
     const link = document.createElement("link");

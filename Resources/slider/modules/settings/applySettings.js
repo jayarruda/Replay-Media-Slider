@@ -4,6 +4,21 @@ import { updateSlidePosition } from '../positionUtils.js';
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol, updateConfig } from "../settings.js";
 import { updateHeaderUserAvatar, updateAvatarStyles, clearAvatarCache } from "../userAvatar.js";
 
+const _intOr = (v, def) => {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : def;
+};
+const _floatOr = (v, def) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : def;
+};
+const _clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+const _DEFAULT_IDLE_MS      = 45000;
+const _DEFAULT_UNFOCUS_MS   = 15000;
+const _DEFAULT_OFFSCREEN_MS = 10000;
+const _MIN_MIN = 0.1;
+const _MAX_MIN = 1000;
+
 export function applySettings(reload = false) {
         const form = document.querySelector('#settings-modal form');
         if (!form) return;
@@ -11,6 +26,23 @@ export function applySettings(reload = false) {
         const config = getConfig();
         const oldTheme = getConfig().playerTheme;
         const oldPlayerStyle = getConfig().playerStyle;
+        const _sapEnabled = formData.get('smartAutoPause') === 'on';
+        const _idleMin = _clamp(_floatOr(formData.get('smartIdleThresholdMs'),      _DEFAULT_IDLE_MS/60000),      _MIN_MIN, _MAX_MIN);
+        const _unfMin  = _clamp(_floatOr(formData.get('smartUnfocusedThresholdMs'), _DEFAULT_UNFOCUS_MS/60000),   _MIN_MIN, _MAX_MIN);
+        const _offMin  = _clamp(_floatOr(formData.get('smartOffscreenThresholdMs'), _DEFAULT_OFFSCREEN_MS/60000), _MIN_MIN, _MAX_MIN);
+        const _sapIdle = Math.round(_idleMin * 60000);
+        const _sapUnf  = Math.round(_unfMin  * 60000);
+        const _sapOff  = Math.round(_offMin  * 60000);
+        const _sapIdleDet = formData.get('smartUseIdleDetection') === 'on';
+        const _sapPiP     = formData.get('smartRespectPiP') === 'on';
+        const smartAutoPause = {
+          enabled: _sapEnabled,
+          idleThresholdMs: _sapIdle,
+          unfocusedThresholdMs: _sapUnf,
+          offscreenThresholdMs: _sapOff,
+          useIdleDetection: _sapIdleDet,
+          respectPiP: _sapPiP
+        };
         const updatedConfig = {
             ...config,
             playerTheme: formData.get('playerTheme'),
@@ -384,7 +416,9 @@ export function applySettings(reload = false) {
             showMetadata: formData.get('pauseOverlayShowMetadata') === 'on',
             showLogo: formData.get('pauseOverlayShowLogo') === 'on',
             showBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
-      },
+        },
+
+            smartAutoPause,
             slideTransitionType: formData.get('slideTransitionType'),
             dotPosterTransitionType: formData.get('dotPosterTransitionType'),
             enableSlideAnimations: formData.get('enableSlideAnimations') === 'on',
@@ -402,6 +436,15 @@ export function applySettings(reload = false) {
           localStorage.removeItem('sortingKeywords');
         } else {
           localStorage.setItem('sortingKeywords', JSON.stringify(updatedConfig.sortingKeywords));
+        }
+        try {
+          if (smartAutoPause && typeof smartAutoPause === 'object') {
+            localStorage.setItem('smartAutoPause', JSON.stringify(smartAutoPause));
+          } else {
+            localStorage.removeItem('smartAutoPause');
+          }
+        } catch (e) {
+          console.warn('smartAutoPause localStorage yazılamadı:', e);
         }
         if (oldTheme !== updatedConfig.playerTheme || oldPlayerStyle !== updatedConfig.playerStyle) {
         loadCSS();
