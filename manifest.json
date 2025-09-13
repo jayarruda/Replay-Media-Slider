@@ -10,7 +10,7 @@
     "versions": [
       {
         "version": "1.6.0.2",
-        "changelog": "Autoplay-related bugs have been fixed.",
+        "changelog": "Auto-pause-related bugs have been fixed.",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.6.0/JMSFusion-1.6.0.2-server.zip",
         "checksum": "16b57fa676ca0e95a7d38741b211a0a2",
