@@ -221,7 +221,7 @@ const BUCKETS = [
     'kidnapped','kidnapping','copycat killer','homicide','murder','murder mystery','murder investigation',
     'investigation','investigative journalism','investigative reporter','forensic','detective story',
     'police corruption','crooked cop','crooked politician','cover-up','prison break','jailbreak','prison escape',
-    'hitman','assassin','vigilante justice','vigilantism','serial killer','sting operation'
+    'hitman','assassin','vigilante justice','vigilantism','serial killer','sting operation', 'witness elimination'
   ]},
 
   { key: 'violence', needles: [
@@ -230,7 +230,7 @@ const BUCKETS = [
     'knife','stabbing','stabbed','sword','swordsman','swordswoman','sword fight','sword battle','axe','sledgehammer',
     'explosion','explosions','blood','bloody','gore','decapitation','brutal','brutality',
     'martial arts','kung fu','karate','wing chun','underground fighting','torture','killing spree','massacre',
-    'assault rifle','bomb','bombing','grenade','dynamite'
+    'assault rifle','bomb','bombing','grenade','dynamite', 'security guard'
   ]},
 
   { key: 'sex', needles: [
@@ -459,7 +459,7 @@ function getDescriptorTagMap() {
     'kidnapped','kidnapping','copycat killer','homicide','murder','murder mystery','murder investigation',
     'investigation','investigative journalism','investigative reporter','forensic','detective story',
     'police corruption','crooked cop','crooked politician','cover-up','prison break','jailbreak','prison escape',
-    'hitman','assassin','vigilante justice','vigilantism','serial killer','sting operation'
+    'hitman','assassin','vigilante justice','vigilantism','serial killer','sting operation','witness elimination'
   ],
 
   violence: [
@@ -468,7 +468,7 @@ function getDescriptorTagMap() {
     'knife','stabbing','stabbed','sword','swordsman','swordswoman','sword fight','sword battle','axe','sledgehammer',
     'explosion','explosions','blood','bloody','gore','decapitation','brutal','brutality',
     'martial arts','kung fu','karate','wing chun','underground fighting','torture','killing spree','massacre',
-    'assault rifle','bomb','bombing','grenade','dynamite'
+    'assault rifle','bomb','bombing','grenade','dynamite','security guard'
   ],
 
   sex: [
@@ -679,17 +679,6 @@ export function setupPauseScreen() {
     const config = getConfig();
     const overlayConfig = config.pauseOverlay || { enabled: true };
     if (!overlayConfig.enabled) return () => {};
-
-    const AUTO_PAUSE = overlayConfig.autoPauseOnHide !== false;
-    const sap = Object.assign({
-     enabled: true,
-     idleThresholdMs: 45000,
-     unfocusedThresholdMs: 15000,
-     offscreenThresholdMs: 10000,
-     useIdleDetection: true,
-     respectPiP: true
-   }, (config.smartAutoPause || {}));
-
     let activeVideo = null;
     let currentMediaId = null;
     let removeHandlers = null;
@@ -697,12 +686,6 @@ export function setupPauseScreen() {
     let lastIdCheck = 0;
     let wasPaused = false;
     let pauseTimeout = null;
-    let lastUserActivityTs = Date.now();
-    let windowUnfocusedSince = null;
-    let videoOffscreenSince = null;
-    let intersectionObs = null;
-    let smartInterval = null;
-    let idleDetector = null;
 
     async function initDescriptorTagsOnce() {
   try {
@@ -723,121 +706,6 @@ export function setupPauseScreen() {
   const d = Number(v.duration || 0);
   return Number.isFinite(d) && d > 0 && d < 300;
 }
-
-    function pauseActiveVideo(reason = 'auto') {
-  try {
-    if (isShortActiveVideo()) return;
-    if (activeVideo && !activeVideo.paused && !activeVideo.ended) {
-      activeVideo.pause();
-    }
-  } catch {}
-}
-
-  function bumpActivity() { lastUserActivityTs = Date.now(); }
-  const activityEvents = ['pointerdown','pointermove','keydown','touchstart','wheel'];
-  function installActivityListeners() {
-    activityEvents.forEach(ev => document.addEventListener(ev, bumpActivity, { passive: true }));
-    window.addEventListener('focus', () => { windowUnfocusedSince = null; bumpActivity(); });
-    window.addEventListener('blur', () => {
-      if (document.hidden || !document.hasFocus()) windowUnfocusedSince = Date.now();
-    });
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        windowUnfocusedSince = windowUnfocusedSince || Date.now();
-      } else {
-        windowUnfocusedSince = null;
-      }
-    });
-  }
-
-  function removeActivityListeners() {
-    activityEvents.forEach(ev => document.removeEventListener(ev, bumpActivity, { passive: true }));
-  }
-
-  function installIntersectionObserverFor(videoEl) {
-    cleanupIntersectionObserver();
-    if (!('IntersectionObserver' in window) || !videoEl) return;
-    intersectionObs = new IntersectionObserver((entries) => {
-      const e = entries[0];
-      const ratio = e?.intersectionRatio ?? 0;
-      if (ratio < 0.1) {
-        videoOffscreenSince = videoOffscreenSince || Date.now();
-      } else {
-        videoOffscreenSince = null;
-      }
-    }, { threshold: [0, 0.1, 0.5, 1] });
-    intersectionObs.observe(videoEl);
-  }
-  function cleanupIntersectionObserver() {
-    if (intersectionObs) {
-      try { intersectionObs.disconnect(); } catch {}
-      intersectionObs = null;
-    }
-    videoOffscreenSince = null;
-  }
-
-  function isInPiP(videoEl) {
-    try {
-      if (!videoEl) return false;
-      if (document.pictureInPictureElement === videoEl) return true;
-      if (videoEl.webkitPresentationMode === 'picture-in-picture') return true;
-      if (document.documentPictureInPicture?.window) {
-        return true;
-      }
-    } catch {}
-    return false;
-  }
-
-  async function tryStartIdleDetector() {
-    if (!sap.useIdleDetection) return;
-    const IdleDetector = window.IdleDetector || window.IdleDetection || window.IdleDetectorShim;
-    if (!IdleDetector) return;
-    try {
-      if (await IdleDetector.requestPermission?.() !== 'granted') return;
-      idleDetector = new IdleDetector({ threshold: Math.max(1000, sap.idleThresholdMs | 0) });
-      idleDetector.addEventListener('change', () => {
-  const userState = idleDetector.userState;
-  const screenState = idleDetector.screenState;
-  if (userState === 'idle' || screenState === 'locked') {
-    if (sap.respectPiP && isInPiP(activeVideo)) return;
-    if (isShortActiveVideo()) return;
-    pauseActiveVideo('idle-detector');
-  }
-});
-      await idleDetector.start();
-    } catch {
-      idleDetector = null;
-    }
-  }
-  function stopIdleDetector() {
-    try { idleDetector?.stop?.(); } catch {}
-    idleDetector = null;
-  }
-
-  function startSmartLoop() {
-    if (!sap.enabled) return;
-    installActivityListeners();
-    tryStartIdleDetector();
-    smartInterval = window.setInterval(() => {
-  if (!activeVideo) return;
-  if (sap.respectPiP && isInPiP(activeVideo)) return;
-  if (isShortActiveVideo()) return;
-
-  const now = Date.now();
-  const idleTooLong = (now - lastUserActivityTs) >= sap.idleThresholdMs;
-  const unfocusedTooLong = windowUnfocusedSince && ((now - windowUnfocusedSince) >= sap.unfocusedThresholdMs);
-  const offscreenTooLong = videoOffscreenSince && ((now - videoOffscreenSince) >= sap.offscreenThresholdMs);
-  if (idleTooLong || unfocusedTooLong || offscreenTooLong) {
-    pauseActiveVideo(idleTooLong ? 'idle' : unfocusedTooLong ? 'unfocused' : 'offscreen');
-  }
-}, 1000);
-  }
-
-  function stopSmartLoop() {
-    if (smartInterval) { clearInterval(smartInterval); smartInterval = null; }
-    removeActivityListeners();
-    stopIdleDetector();
-  }
 
     if (!document.getElementById('jms-pause-overlay')) {
         const overlay = document.createElement('div');
@@ -877,35 +745,6 @@ export function setupPauseScreen() {
             document.head.appendChild(style);
         }
     }
-
-    function installAutoPauseOnHide() {
-  if (!AUTO_PAUSE) return;
-
-  const onVisibility = () => {
-    if (document.visibilityState === 'hidden') {
-      if (isShortActiveVideo()) return;
-      pauseActiveVideo('visibility-hidden');
-    }
-  };
-  document.addEventListener('visibilitychange', onVisibility);
-  document.addEventListener('webkitvisibilitychange', onVisibility);
-
-  const onBlur = () => {
-    setTimeout(() => {
-      if (document.hidden) {
-        if (isShortActiveVideo()) return;
-        pauseActiveVideo('window-blur-hidden');
-      }
-    }, 150);
-  };
-  window.addEventListener('blur', onBlur);
-
-  const onPageHide = () => {
-    if (isShortActiveVideo()) return;
-    pauseActiveVideo('pagehide');
-  };
-  window.addEventListener('pagehide', onPageHide);
-}
 
   function createRatingGenreElement() {
         if (!document.getElementById('jms-rating-genre-overlay')) {
@@ -1342,7 +1181,6 @@ async function setBackdrop(item) {
     }
 }
 
-
     function getCurrentMediaId(force = false) {
     const now = Date.now();
     if (!force && now - lastIdCheck < 500) return currentMediaId;
@@ -1398,6 +1236,7 @@ function bindVideo(video) {
   if (video.closest('.video-preview-modal, .intro-video-container')) return;
 
   activeVideo = video;
+  let cleanupSmart = null;
   const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
   const BADGE_MIN_CT_SEC = 1.2;
   const BADGE_MIN_DURATION_SEC = 300;
@@ -1545,15 +1384,14 @@ function bindVideo(video) {
 }, 1000);
   };
 
-  const onPlay = async () => {
+const onPlay = async () => {
   clearOverlayUi();
-
   if (pauseTimeout) clearTimeout(pauseTimeout);
   hardResetBadgeState();
   video.addEventListener('timeupdate', onTimeUpdateArm, { passive: true });
   armTimer = setTimeout(onTimeUpdateArm, 800);
 };
-  const onLoadedMetadata = async () => {
+const onLoadedMetadata = async () => {
   hideRatingGenre();
   currentMediaData = null;
   clearOverlayUi();
@@ -1579,6 +1417,7 @@ function bindVideo(video) {
   video.addEventListener('abort', onEmptiedLike);
   video.addEventListener('stalled', onEmptiedLike);
   video.addEventListener('seeking', onSeekingHide);
+  try { cleanupSmart = createSmartAutoPause(video); } catch {}
   removeHandlers = () => {
     video.removeEventListener('pause', onPause);
     video.removeEventListener('play', onPlay);
@@ -1589,6 +1428,123 @@ function bindVideo(video) {
     video.removeEventListener('stalled', onEmptiedLike);
     video.removeEventListener('seeking', onSeekingHide);
     cancelArm();
+    if (cleanupSmart) { try { cleanupSmart(); } catch {} cleanupSmart = null; }
+  };
+}
+
+function createSmartAutoPause(video) {
+  const base = getConfig();
+  const def = {
+    enabled: true,
+    blurMinutes: 0.5,
+    hiddenMinutes: 0.2,
+    idleMinutes: 45,
+    useIdleDetection: true,
+    respectPiP: true,
+    ignoreShortUnderSec: 300
+  };
+  const sap = Object.assign({}, def, (base.smartAutoPause || {}));
+  if (sap.idleThresholdMs != null && sap.idleMinutes == null)      sap.idleMinutes   = Number(sap.idleThresholdMs) / 60000;
+  if (sap.unfocusedThresholdMs != null && sap.blurMinutes == null) sap.blurMinutes   = Number(sap.unfocusedThresholdMs) / 60000;
+  if (sap.offscreenThresholdMs != null && sap.hiddenMinutes == null) sap.hiddenMinutes = Number(sap.offscreenThresholdMs) / 60000;
+
+  function minToMs(x){ const n = Number(x||0); return (isFinite(n) && n>0) ? n*60000 : 0; }
+
+  const blurMs   = minToMs(sap.blurMinutes);
+  const hidMs    = minToMs(sap.hiddenMinutes);
+  const idleMs   = minToMs(sap.idleMinutes);
+  const useIdle  = !!sap.useIdleDetection;
+  const respectP = !!sap.respectPiP;
+
+  if (!sap.enabled) return () => {};
+  if (!video)       return () => {};
+  const dur = Number(video.duration || 0);
+  if (sap.ignoreShortUnderSec && dur > 0 && dur < Number(sap.ignoreShortUnderSec)) {
+    return () => {};
+  }
+
+  let lastActivityAt = Date.now();
+  let blurAt = document.hasFocus() ? null : Date.now();
+  let hiddenAt = (document.visibilityState === 'hidden') ? Date.now() : null;
+  let lastPauseReason = null;
+  let lastPauseAt = 0;
+
+  function inPiP(){
+    try {
+      return !!(document.pictureInPictureElement && (document.pictureInPictureElement === video));
+    } catch { return false; }
+  }
+
+  const actEvts = ['pointermove','pointerdown','mousedown','mouseup','keydown','wheel','touchstart','touchmove'];
+  const onActivity = () => { lastActivityAt = Date.now(); if (lastPauseReason === 'idle') lastPauseReason = null; };
+
+  actEvts.forEach(ev => document.addEventListener(ev, onActivity, { passive:true }));
+
+  function onFocus(){ blurAt = null; if (lastPauseReason === 'blur') lastPauseReason = null; }
+  function onBlur(){  blurAt = Date.now(); }
+  window.addEventListener('focus', onFocus);
+  window.addEventListener('blur', onBlur);
+
+  function onVis(){
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now();
+    } else {
+      hiddenAt = null;
+      if (lastPauseReason === 'hidden') lastPauseReason = null;
+    }
+  }
+  document.addEventListener('visibilitychange', onVis);
+  const tickMs = 1000;
+  const timer = setInterval(() => {
+    try {
+      if (!video || video.ended) return;
+      const now = Date.now();
+      if (respectP && inPiP()) return;
+      if (video.paused) return;
+      if (hiddenAt && hidMs > 0) {
+        if (now - hiddenAt >= hidMs) {
+          if (lastPauseReason !== 'hidden' || (now - lastPauseAt) > 3000) {
+            video.pause();
+            lastPauseReason = 'hidden';
+            lastPauseAt = now;
+            return;
+          }
+        }
+      }
+
+      if (blurAt && blurMs > 0) {
+        if (now - blurAt >= blurMs) {
+          if (lastPauseReason !== 'blur' || (now - lastPauseAt) > 3000) {
+            video.pause();
+            lastPauseReason = 'blur';
+            lastPauseAt = now;
+            return;
+          }
+        }
+      }
+      if (useIdle && idleMs > 0) {
+        if (now - lastActivityAt >= idleMs) {
+          if (lastPauseReason !== 'idle' || (now - lastPauseAt) > 3000) {
+            video.pause();
+            lastPauseReason = 'idle';
+            lastPauseAt = now;
+            return;
+          }
+        }
+      }
+    } catch {}
+  }, tickMs);
+
+  const onPlayReset = () => { lastPauseReason = null; };
+  video.addEventListener('play', onPlayReset);
+
+  return () => {
+    clearInterval(timer);
+    video.removeEventListener('play', onPlayReset);
+    actEvts.forEach(ev => document.removeEventListener(ev, onActivity, { passive:true }));
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onVis);
   };
 }
 
@@ -1609,9 +1565,6 @@ function bindVideo(video) {
     mo.observe(document.body, { childList: true, subtree: true });
     const initVid = document.querySelector('video');
     if (initVid) bindVideo(initVid);
-    startSmartLoop();
-    installAutoPauseOnHide();
-    if (initVid) installIntersectionObserverFor(initVid);
     function startOverlayLogic() {
         async function loop() {
             const onValidPage = isVideoVisible();
@@ -1658,10 +1611,7 @@ function bindVideo(video) {
         wasPaused = false;
         if (pauseTimeout) clearTimeout(pauseTimeout);
         pauseTimeout = null;
-        stopSmartLoop();
-        cleanupIntersectionObserver();
         activeVideo = null;
-        windowUnfocusedSince = null;
     };
 }
 function isVideoVisible() {

@@ -17,6 +17,7 @@ import { ensureStudioHubsMounted } from "./modules/studioHubs.js";
 import { updateSlidePosition } from "./modules/positionUtils.js";
 import { renderPersonalRecommendations } from "./modules/personalRecommendations.js";
 import { setupHoverForAllItems  } from "./modules/hoverTrailerModal.js";
+import { initSettings } from './modules/settings.js';
 
 const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 0));
 window.__totalSlidesPlanned = 0;
@@ -1366,6 +1367,60 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
   }
 })();
 
+(function bindSettingsHotkeyOnce(){
+  if (window.__settingsHotkeyBound) return;
+  window.__settingsHotkeyBound = true;
+
+  let _settingsCtl = null;
+  function getSettingsCtl() {
+    if (!_settingsCtl) _settingsCtl = initSettings('slider');
+    return _settingsCtl;
+  }
+
+  function isEditableTarget(t) {
+    if (!t) return false;
+    const tag = (t.tagName || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || t.isContentEditable === true;
+  }
+
+  function getHotkey() {
+    const v = (localStorage.getItem('settingsHotkey') || 'F2').toUpperCase().trim();
+    return /^F([1-9]|1[0-2])$/.test(v) ? v : 'F2';
+  }
+
+  function isSettingsOpen() {
+    const m = document.getElementById('settings-modal');
+    return !!m && m.style.display !== 'none';
+  }
+  let lastTab = 'slider';
+
+  window.addEventListener('keydown', (e) => {
+    if (isEditableTarget(e.target) || e.repeat) return;
+    if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+
+    if (e.key.toUpperCase() === getHotkey()) {
+      e.preventDefault();
+
+      const ctl = getSettingsCtl();
+      if (isSettingsOpen()) {
+        ctl.close();
+      } else {
+        ctl.open(lastTab);
+      }
+    }
+
+    if (e.key === 'Escape' && isSettingsOpen()) {
+      e.preventDefault();
+      getSettingsCtl().close();
+    }
+  });
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target?.closest?.('.settings-tab[data-tab]');
+    if (t) lastTab = t.getAttribute('data-tab') || lastTab;
+  }, true);
+})();
+
 window.addEventListener(
   "resize",
   debounce(() => {
@@ -1386,6 +1441,7 @@ window.addEventListener("unhandledrejection", (event) => {
     event.preventDefault();
   }
 });
+
 
 window.slidesInit = slidesInit;
 const cleanupAvatarSystem = initAvatarSystem();

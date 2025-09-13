@@ -89,6 +89,7 @@ async function createSlide(item) {
   }
 
   const slidesContainer = createSlidesContainer(indexPage);
+  const isFirstSlide = slidesContainer.children.length === 0;
   const itemId = item.Id;
 
   const {
@@ -134,14 +135,7 @@ async function createSlide(item) {
   const bannerUrl = `/Items/${parentId}/Images/Banner`;
   const artUrl = `/Items/${parentId}/Images/Art`;
   const discUrl = `/Items/${parentId}/Images/Disc`;
-
-  let logoExists = true;
-  try {
-    const logoResponse = await fetch(logoUrl, { method: "HEAD" });
-    logoExists = logoResponse.ok;
-  } catch {
-    logoExists = false;
-  }
+  const logoExists = true;
 
   storeBackdropUrl(parentId, autoBackdropUrl);
 
@@ -164,7 +158,6 @@ async function createSlide(item) {
   slide.style.display = "none";
   slide.dataset.detailUrl = `/web/#/details?id=${itemId}`;
   slide.dataset.itemId = itemId;
-  slide.dataset.played = (UserData?.PlaybackPositionTicks > 0) ? "true" : "false";
   slide.setAttribute('data-media-streams', JSON.stringify(MediaStreams || []));
   slide.dataset.played =
   (typeof UserData?.PlaybackPositionTicks === "number" && UserData.PlaybackPositionTicks > 0)
@@ -182,7 +175,7 @@ if (typeof RunTimeTicks === "number") {
     backdropUrl: autoBackdropUrl,
     landscapeUrl,
     primaryUrl,
-    logoUrl: logoExists ? logoUrl : autoBackdropUrl,
+    logoUrl,
     bannerUrl,
     artUrl,
     discUrl,
@@ -193,7 +186,7 @@ if (typeof RunTimeTicks === "number") {
   slide.dataset.backdropUrl = autoBackdropUrl;
   slide.dataset.landscapeUrl = landscapeUrl;
   slide.dataset.primaryUrl = primaryUrl;
-  slide.dataset.logoUrl = logoExists ? logoUrl : autoBackdropUrl;
+  slide.dataset.logoUrl = logoUrl;
   slide.dataset.bannerUrl = bannerUrl;
   slide.dataset.artUrl = artUrl;
   slide.dataset.discUrl = discUrl;
@@ -208,11 +201,10 @@ if (typeof RunTimeTicks === "number") {
   backdropImg.className = 'backdrop';
   backdropImg.sizes = '100vw';
   backdropImg.alt = 'Backdrop';
-  backdropImg.loading = 'lazy';
+  backdropImg.loading = isFirstSlide ? 'eager' : 'lazy';
+  backdropImg.decoding = 'async';
   backdropImg.style.opacity = '0';
   backdropImg.src = placeholderUrl;
-
-  const isFirstSlide = slidesContainer.children.length === 0;
 
 if (isFirstSlide) {
   const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
@@ -249,10 +241,9 @@ const warmObserver = new IntersectionObserver((entries, obs) => {
 warmObserver.observe(backdropImg);
 
 const warmOnHover = () => {
-  if (!isBackdropLoaded) {
-    shortPreload(finalBackdropForWarm, 1200);
-    warmImageOnce(finalBackdropForWarm).catch(() => {});
-  }
+   if (!isBackdropLoaded) {
+     warmImageOnce(finalBackdropForWarm).catch(() => {});
+   }
 };
   backdropImg.addEventListener('mouseenter', warmOnHover, { passive: true });
   backdropImg.addEventListener('pointerover', warmOnHover, { passive: true });
@@ -287,7 +278,6 @@ io.observe(backdropImg);
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
   slide.append(backdropImg, gradientOverlay, horizontalGradientOverlay);
-  slidesContainer.appendChild(slide);
 
   createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId });
 
@@ -306,10 +296,14 @@ io.observe(backdropImg);
     logoImg.src = logoUrl;
     logoImg.alt = "";
     logoImg.loading = "lazy";
+    logoImg.decoding = "async";
+   logoImg.addEventListener('error', () => {
+     logoImg.remove();
+     fallback?.();
+   }, { once:true });
     Object.assign(logoImg.style, {
       width: "100%", maxWidth: "90%", height: "100%", maxHeight: "40%", objectFit: "contain", aspectRatio: "1", display: "block"
     });
-    logoImg.onerror = fallback;
     return logoImg;
   }
 
@@ -395,7 +389,9 @@ io.observe(backdropImg);
   const mainContentContainer = createMainContentContainer();
   mainContentContainer.append(logoContainer, titleContainer, plotContainer, providerContainer);
   slide.append(metaContainer, mainContentContainer, buttonContainer, actorSlider, infoContainer, directorContainer);
-  slidesContainer.appendChild(slide);
+  const frag = document.createDocumentFragment();
+  frag.appendChild(slide);
+  slidesContainer.appendChild(frag);
   if (slidesContainer.children.length === 1) {
     import("./navigation.js").then(mod => mod.displaySlide(0));
   }

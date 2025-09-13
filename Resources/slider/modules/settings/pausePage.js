@@ -3,7 +3,15 @@ import { createCheckbox, createSection } from "../settings.js";
 
 export function createPausePanel(_config, labels) {
   const config = getConfig();
-  const sap = Object.assign({enabled:true,idleThresholdMs:45000,unfocusedThresholdMs:15000,offscreenThresholdMs:10000,useIdleDetection:true,respectPiP:true}, (config.smartAutoPause||{}));
+  const sap = Object.assign({
+    enabled: true,
+    blurMinutes: 0.5,
+    hiddenMinutes: 0.2,
+    idleMinutes: 45,
+    useIdleDetection: true,
+    respectPiP: true,
+    ignoreShortUnderSec: 300
+  }, (config.smartAutoPause || {}));
 
   const panel = document.createElement('div');
   panel.id = 'pause-panel';
@@ -75,100 +83,114 @@ export function createPausePanel(_config, labels) {
     config.pauseOverlay.showBackdrop !== false
   );
   section.appendChild(showBackdropCheckbox);
-  const smartSection = createSection(labels.smartPauseSettings || 'Akıllı Otomatik Duraklatma');
-  const smartEnable = createCheckbox(
-    'smartAutoPause',
-    labels.smartAutoPauseEnable || 'Akıllı Otomatik Duraklatmayı Etkinleştir',
+
+  const sapSec = createSection(labels.smartPauseSettings || 'Akıllı Otomatik Duraklatma');
+  const sapEnableCheckbox = createCheckbox(
+    'sapEnabled',
+    labels.smartAutoPauseEnable || 'Akıllı Otomatik Duraklatma Etkin',
     sap.enabled !== false
   );
-  smartSection.appendChild(smartEnable);
+  sapSec.appendChild(sapEnableCheckbox);
 
-  const smartDesc = document.createElement('div');
-  smartDesc.className = 'description-text';
-  smartDesc.textContent =
+  const sapDesc = document.createElement('div');
+  sapDesc.className = 'description-text';
+  sapDesc.textContent =
     labels.smartAutoPauseDescription ||
-    'Kullanıcı etkinliği, odak/sekme durumu ve içerik görünürlüğüne göre videoyu otomatik duraklatır.';
-  smartSection.appendChild(smartDesc);
-  function addMinuteRow({name, id, label, msValue, minMin=0.1, maxMin=100, stepMin=0.1}) {
-    const wrap = document.createElement('div');
-    wrap.className = 'fsetting-item';
+    'Odak kaybı, sekmenin gizlenmesi/minimize ve kullanıcı etkinliği yokluğunda videoyu belirtilen dakikalar sonra durdurur. Ondalıklı değerleri (örn. 0.2 dk) destekler.';
+  sapSec.appendChild(sapDesc);
 
-    const l = document.createElement('label');
-    l.className = 'settings-label';
-    l.htmlFor = id;
-    l.textContent = label;
+  function addNumberRow({name, label, value, min=0.1, max=1000, step=0.1, suffix=labels.dk})  {
+  const wrap = document.createElement('div');
+  wrap.className = 'fsetting-item';
+  const lab = document.createElement('label');
+  lab.textContent = label;
+  lab.className = 'settings-label';
+  lab.htmlFor = name;
+  const inputWrap = document.createElement('div');
+  inputWrap.className = 'settings-input';
+  const inp = document.createElement('input');
+  inp.type = 'number';
+  inp.name = name;
+  inp.id = name;
+  inp.min = String(min);
+  inp.max = String(max);
+  inp.step = String(step);
+  inp.value = (value ?? '').toString();
+  inp.style.width = '110px';
+  const suf = document.createElement('span');
+  suf.textContent = ' ' + suffix;
+  suf.style.marginLeft = '6px';
+  inputWrap.appendChild(inp);
+  inputWrap.appendChild(suf);
+  wrap.appendChild(lab);
+  wrap.appendChild(inputWrap);
+  return wrap;
+}
 
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.name = name;
-    input.id = id;
-    input.className = 'settings-input';
-    input.min = String(minMin);
-    input.max = String(maxMin);
-    input.step = String(stepMin);
-    const minutes = Math.max(minMin, Math.min(maxMin, (Number(msValue)||0) / 60000));
-    input.value = String(minutes);
-    const hint = document.createElement('div');
-    hint.className = 'description-text';
-    hint.textContent = (labels.minutesHint || '(0.1 – 100 dk arası )');
+  sapSec.appendChild(
+    addNumberRow({
+      name: 'sapBlurMinutes',
+      label: labels.smartUnfocusedThreshold || 'Odak dışı bekleme',
+      value: sap.blurMinutes
+    })
+  );
 
-    wrap.appendChild(l);
-    wrap.appendChild(input);
-    wrap.appendChild(hint);
-    smartSection.appendChild(wrap);
-  }
+  sapSec.appendChild(
+    addNumberRow({
+      name: 'sapHiddenMinutes',
+      label: labels.smartOffscreenThreshold || 'Sekme gizli/minimize bekleme',
+      value: sap.hiddenMinutes
+    })
+  );
 
-  addMinuteRow({
-    name: 'smartIdleThresholdMs',
-    id: 'smartIdleThresholdMs',
-    label: labels.smartIdleThresholdMs || 'Etkinlik Yoksa Duraklat (dk)',
-    msValue: sap.idleThresholdMs ?? 2700000
-  });
+  sapSec.appendChild(
+    addNumberRow({
+      name: 'sapIdleMinutes',
+      label: labels.smartIdleThreshold || 'Etkinlik yok bekleme',
+      value: sap.idleMinutes
+    })
+  );
 
-  addMinuteRow({
-    name: 'smartUnfocusedThresholdMs',
-    id: 'smartUnfocusedThresholdMs',
-    label: labels.smartUnfocusedThresholdMs || 'Pencere Odakta Değilse Duraklat (dk)',
-    msValue: sap.unfocusedThresholdMs ?? 60000
-  });
+  const shortWrap = document.createElement('div');
+  shortWrap.className = 'fsetting-item';
+  const shortLab = document.createElement('label');
+  shortLab.textContent = labels.sapIgnoreShortUnderSec || 'Kısa videolarda devre dışı (saniye altı)';
+  shortLab.className = 'settings-label';
+  shortLab.htmlFor = 'sapIgnoreShortUnderSec';
+  const shortInputWrap = document.createElement('div');
+  shortInputWrap.className = 'settings-input';
+  const shortInp = document.createElement('input');
+  shortInp.type = 'number';
+  shortInp.name = 'sapIgnoreShortUnderSec';
+  shortInp.id = 'sapIgnoreShortUnderSec';
+  shortInp.min = '0';
+  shortInp.step = '1';
+  shortInp.value = (sap.ignoreShortUnderSec ?? 300).toString();
+  shortInp.style.width = '110px';
+  const shortSuf = document.createElement('span');
+  shortSuf.textContent =  labels.sn;
+  shortSuf.style.marginLeft = '6px';
+  shortInputWrap.appendChild(shortInp);
+  shortInputWrap.appendChild(shortSuf);
+  shortWrap.appendChild(shortLab);
+  shortWrap.appendChild(shortInputWrap);
+  sapSec.appendChild(shortWrap);
 
-  addMinuteRow({
-    name: 'smartOffscreenThresholdMs',
-    id: 'smartOffscreenThresholdMs',
-    label: labels.smartOffscreenThresholdMs || 'Video Görünmüyorsa Duraklat (dk)',
-    msValue: sap.offscreenThresholdMs ?? 6000
-  });
-
-  const idleDetectCbx = createCheckbox(
-    'smartUseIdleDetection',
-    labels.smartUseIdleDetection || 'Idle Detection API kullan (mümkünse)',
+  const sapIdleDetectCheckbox = createCheckbox(
+    'sapUseIdleDetection',
+    labels.smartUseIdleDetection || 'Kullanıcı etkinliği (idle) algılamasını kullan',
     sap.useIdleDetection !== false
   );
-  smartSection.appendChild(idleDetectCbx);
-
-  const respectPiPCbx = createCheckbox(
-    'smartRespectPiP',
-    labels.smartRespectPiP || 'PiP açıkken duraklatma',
+  sapSec.appendChild(sapIdleDetectCheckbox);
+  const sapRespectPiPCheckbox = createCheckbox(
+    'sapRespectPiP',
+    labels.smartRespectPiP || 'Picture-in-Picture (PiP) açıkken durdurma',
     sap.respectPiP !== false
   );
-  smartSection.appendChild(respectPiPCbx);
-
-  function toggleSmartFields(enabled) {
-    const ids = ['smartIdleThresholdMs','smartUnfocusedThresholdMs','smartOffscreenThresholdMs','smartUseIdleDetection','smartRespectPiP'];
-    ids.forEach(i => {
-      const el = smartSection.querySelector('#'+i) || smartSection.querySelector(`[name="${i}"]`);
-      if (el) el.disabled = !enabled;
-    });
-  }
-
-  toggleSmartFields(sap.enabled !== false);
-
-  smartEnable.querySelector('input')?.addEventListener('change', (e) => {
-    toggleSmartFields(e.target.checked);
-  });
+  sapSec.appendChild(sapRespectPiPCheckbox);
 
   panel.appendChild(section);
-  panel.appendChild(smartSection);
+  panel.appendChild(sapSec);
 
   return panel;
 }

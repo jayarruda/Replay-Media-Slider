@@ -26,25 +26,24 @@ export function applySettings(reload = false) {
         const config = getConfig();
         const oldTheme = getConfig().playerTheme;
         const oldPlayerStyle = getConfig().playerStyle;
-        const _sapEnabled = formData.get('smartAutoPause') === 'on';
-        const _idleMin = _clamp(_floatOr(formData.get('smartIdleThresholdMs'),      _DEFAULT_IDLE_MS/60000),      _MIN_MIN, _MAX_MIN);
-        const _unfMin  = _clamp(_floatOr(formData.get('smartUnfocusedThresholdMs'), _DEFAULT_UNFOCUS_MS/60000),   _MIN_MIN, _MAX_MIN);
-        const _offMin  = _clamp(_floatOr(formData.get('smartOffscreenThresholdMs'), _DEFAULT_OFFSCREEN_MS/60000), _MIN_MIN, _MAX_MIN);
-        const _sapIdle = Math.round(_idleMin * 60000);
-        const _sapUnf  = Math.round(_unfMin  * 60000);
-        const _sapOff  = Math.round(_offMin  * 60000);
-        const _sapIdleDet = formData.get('smartUseIdleDetection') === 'on';
-        const _sapPiP     = formData.get('smartRespectPiP') === 'on';
-        const smartAutoPause = {
-          enabled: _sapEnabled,
-          idleThresholdMs: _sapIdle,
-          unfocusedThresholdMs: _sapUnf,
-          offscreenThresholdMs: _sapOff,
-          useIdleDetection: _sapIdleDet,
-          respectPiP: _sapPiP
-        };
+        const sapEnabled = formData.get('sapEnabled') === 'on';
+        const sapBlurMin = _clamp(_floatOr(formData.get('sapBlurMinutes'), _DEFAULT_UNFOCUS_MS/60000), _MIN_MIN, _MAX_MIN);
+        const sapHiddenMin = _clamp(_floatOr(formData.get('sapHiddenMinutes'), _DEFAULT_OFFSCREEN_MS/60000), _MIN_MIN, _MAX_MIN);
+        const sapIdleMin = _clamp(_floatOr(formData.get('sapIdleMinutes'), _DEFAULT_IDLE_MS/60000), _MIN_MIN, _MAX_MIN);
+        const sapUseIdle = formData.get('sapUseIdleDetection') === 'on';
+        const sapRespect = formData.get('sapRespectPiP') === 'on';
+        const sapIgnoreShort = _intOr(formData.get('sapIgnoreShortUnderSec'), 300);
         const updatedConfig = {
             ...config,
+            smartAutoPause: {
+              enabled: sapEnabled,
+              blurMinutes: sapBlurMin,
+              hiddenMinutes: sapHiddenMin,
+              idleMinutes: sapIdleMin,
+              useIdleDetection: sapUseIdle,
+              respectPiP: sapRespect,
+              ignoreShortUnderSec: sapIgnoreShort
+            },
             playerTheme: formData.get('playerTheme'),
             playerStyle: formData.get('playerStyle'),
             defaultLanguage: formData.get('defaultLanguage'),
@@ -417,8 +416,6 @@ export function applySettings(reload = false) {
             showLogo: formData.get('pauseOverlayShowLogo') === 'on',
             showBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
         },
-
-            smartAutoPause,
             slideTransitionType: formData.get('slideTransitionType'),
             dotPosterTransitionType: formData.get('dotPosterTransitionType'),
             enableSlideAnimations: formData.get('enableSlideAnimations') === 'on',
@@ -426,6 +423,10 @@ export function applySettings(reload = false) {
             slideAnimationDuration: parseInt(formData.get('slideAnimationDuration'), 10) || 800,
             dotPosterAnimationDuration: parseInt(formData.get('dotPosterAnimationDuration'), 10) || 500,
         };
+
+        try {
+          localStorage.setItem('smartAutoPause', JSON.stringify(updatedConfig.smartAutoPause));
+        } catch {}
 
         updateConfig(updatedConfig);
         updateSlidePosition();
@@ -436,15 +437,6 @@ export function applySettings(reload = false) {
           localStorage.removeItem('sortingKeywords');
         } else {
           localStorage.setItem('sortingKeywords', JSON.stringify(updatedConfig.sortingKeywords));
-        }
-        try {
-          if (smartAutoPause && typeof smartAutoPause === 'object') {
-            localStorage.setItem('smartAutoPause', JSON.stringify(smartAutoPause));
-          } else {
-            localStorage.removeItem('smartAutoPause');
-          }
-        } catch (e) {
-          console.warn('smartAutoPause localStorage yazılamadı:', e);
         }
         if (oldTheme !== updatedConfig.playerTheme || oldPlayerStyle !== updatedConfig.playerStyle) {
         loadCSS();

@@ -1,5 +1,44 @@
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 
+function _num(v, d=0){ const n = Number(v); return Number.isFinite(n) ? n : d; }
+function _bool(v, d=false){ return v === 'true' ? true : (v === 'false' ? false : d); }
+
+function readSmartAutoPause() {
+  const raw = localStorage.getItem('smartAutoPause');
+  if (raw && raw.trim().startsWith('{') && raw !== '[object Object]') {
+    try {
+      const j = JSON.parse(raw);
+      return {
+        enabled: j.enabled !== false,
+        blurMinutes: _num(j.blurMinutes, 0.5),
+        hiddenMinutes: _num(j.hiddenMinutes, 0.2),
+        idleMinutes: _num(j.idleMinutes, 45),
+        useIdleDetection: j.useIdleDetection !== false,
+        respectPiP: j.respectPiP !== false,
+        ignoreShortUnderSec: _num(j.ignoreShortUnderSec, 300)
+      };
+    } catch {}
+  }
+  const idleMs       = _num(localStorage.getItem('idleThresholdMs'), 0);
+  const unfocusMs    = _num(localStorage.getItem('unfocusedThresholdMs'), 0);
+  const offscreenMs  = _num(localStorage.getItem('offscreenThresholdMs'), 0);
+  const useIdle      = _bool(localStorage.getItem('useIdleDetection'), true);
+  const respectPiP   = _bool(localStorage.getItem('respectPiP'), true);
+  const ignoreShort  = _num(localStorage.getItem('ignoreShortUnderSec'), 300);
+
+  const sapLegacy = {
+    enabled: true,
+    blurMinutes: unfocusMs > 0 ? (unfocusMs / 60000) : 0.5,
+    hiddenMinutes: offscreenMs > 0 ? (offscreenMs / 60000) : 0.2,
+    idleMinutes: idleMs > 0 ? (idleMs / 60000) : 45,
+    useIdleDetection: useIdle,
+    respectPiP: respectPiP,
+    ignoreShortUnderSec: ignoreShort
+  };
+  try { localStorage.setItem('smartAutoPause', JSON.stringify(sapLegacy)); } catch {}
+  return sapLegacy;
+}
+
 export function getConfig() {
   function readDotPreviewMode() {
     try {
@@ -47,52 +86,6 @@ export function getConfig() {
   try { localStorage.setItem('pauseOverlay', JSON.stringify(legacy)); } catch {}
   return legacy;
 }
-
-  function readSmartAutoPause() {
-    const DEFAULTS = {
-      enabled: true,
-      idleThresholdMs: 2700000,
-      unfocusedThresholdMs: 60000,
-      offscreenThresholdMs: 2000,
-      useIdleDetection: true,
-      respectPiP: true
-    };
-
-    const raw = localStorage.getItem('smartAutoPause');
-    if (raw && raw.trim().startsWith('{') && raw !== '[object Object]') {
-      try {
-        const j = JSON.parse(raw);
-        return {
-          enabled: j.enabled !== false,
-          idleThresholdMs: Number.isFinite(+j.idleThresholdMs) ? +j.idleThresholdMs : DEFAULTS.idleThresholdMs,
-          unfocusedThresholdMs: Number.isFinite(+j.unfocusedThresholdMs) ? +j.unfocusedThresholdMs : DEFAULTS.unfocusedThresholdMs,
-          offscreenThresholdMs: Number.isFinite(+j.offscreenThresholdMs) ? +j.offscreenThresholdMs : DEFAULTS.offscreenThresholdMs,
-          useIdleDetection: j.useIdleDetection !== false,
-          respectPiP: j.respectPiP !== false
-        };
-      } catch {}
-    }
-
-    const enabled = (localStorage.getItem('smartAutoPauseEnabled') ?? 'true') !== 'false';
-    const idleThresholdMs = parseInt(localStorage.getItem('smartIdleThresholdMs'), 10);
-    const unfocusedThresholdMs = parseInt(localStorage.getItem('smartUnfocusedThresholdMs'), 10);
-    const offscreenThresholdMs = parseInt(localStorage.getItem('smartOffscreenThresholdMs'), 10);
-    const useIdleDetectionRaw = localStorage.getItem('smartUseIdleDetection');
-    const respectPiPRaw = localStorage.getItem('smartRespectPiP');
-
-    const merged = {
-      enabled,
-      idleThresholdMs: Number.isFinite(idleThresholdMs) ? idleThresholdMs : DEFAULTS.idleThresholdMs,
-      unfocusedThresholdMs: Number.isFinite(unfocusedThresholdMs) ? unfocusedThresholdMs : DEFAULTS.unfocusedThresholdMs,
-      offscreenThresholdMs: Number.isFinite(offscreenThresholdMs) ? offscreenThresholdMs : DEFAULTS.offscreenThresholdMs,
-      useIdleDetection: useIdleDetectionRaw == null ? DEFAULTS.useIdleDetection : (useIdleDetectionRaw !== 'false'),
-      respectPiP:       respectPiPRaw == null       ? DEFAULTS.respectPiP       : (respectPiPRaw !== 'false')
-    };
-
-    try { localStorage.setItem('smartAutoPause', JSON.stringify(merged)); } catch {}
-    return merged;
-  }
-
   const defaultLanguage = getDefaultLanguage();
   return {
     customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
