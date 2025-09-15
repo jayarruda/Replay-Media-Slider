@@ -307,7 +307,7 @@ private static bool TryFromRegistry(out string? path)
             }
         }
     }
-    catch { /* ignore */ }
+    catch {  }
     return false;
 }
 
