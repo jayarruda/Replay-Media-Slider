@@ -476,6 +476,7 @@ export function applyRawConfig(config) {
 
   Object.entries(config).forEach(([key, value]) => {
     try {
+      if (key === 'settings.allowedTabs.v1') return;
       if (typeof value === 'object') {
         localStorage.setItem(key, JSON.stringify(value));
       } else {

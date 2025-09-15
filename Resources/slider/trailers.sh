@@ -221,16 +221,14 @@ process_item() {
 
   local compare_after=0
 if [[ -e "$out" ]]; then
-  if [[ "$OVERWRITE_POLICY" != "replace" && "${ENABLE_THEME_LINK:-0}" -eq 1 ]]; then
-    ensure_backdrops_theme "$dir" "$out" || true
-    echo "[ATLA] Zaten var: $out  -> theme.mp4 kuruldu/korundu."
-    DL_SKIP+=1
-    return 0
-  fi
-
   case "$OVERWRITE_POLICY" in
     skip)
-      echo "[ATLA] Zaten var: $out  ->  $name ($year)"
+      if [[ "${ENABLE_THEME_LINK:-0}" -eq 1 ]]; then
+        ensure_backdrops_theme "$dir" "$out" || true
+        echo "[ATLA] Zaten var: $out  -> theme.mp4 kuruldu/korundu."
+      else
+        echo "[ATLA] Zaten var: $out  ->  $name ($year)"
+      fi
       DL_SKIP+=1
       return 0
       ;;
@@ -243,7 +241,6 @@ if [[ -e "$out" ]]; then
       ;;
   esac
 fi
-
 
   echo "[DEBUG] İşleniyor: $name (IMDb: ${imdb:-}, TMDb: ${tmdb:-}, Tür: $type)" >&2
   local tmdb_id="${tmdb:-}" season_no="" episode_no=""
@@ -392,18 +389,25 @@ if (( compare_after == 1 )) && [[ -e "$out" ]]; then
       }'
   if [[ $? -eq 0 ]]; then
     echo "[OK] Yeni trailer daha iyi bulundu (if-better): değiştiriliyor."
-    ensure_backdrops_theme "$dir" "$out" || true
     mv -f "$tmp" "$out"
+    ensure_backdrops_theme "$dir" "$out" || true
   else
     echo "[ATLA] Mevcut trailer daha iyi/eşdeğer: yenisi silindi."
     rm -f "$tmp"
     trap - EXIT INT TERM
+    if [[ "${ENABLE_THEME_LINK:-0}" -eq 1 ]]; then
+      ensure_backdrops_theme "$dir" "$out" || true
+    fi
     DL_SKIP+=1
     return 0
   fi
 else
   mv -f "$tmp" "$out"
+  if [[ "${ENABLE_THEME_LINK:-0}" -eq 1 ]]; then
+    ensure_backdrops_theme "$dir" "$out" || true
+  fi
 fi
+
 
 trap - EXIT INT TERM
 curl -sS -X POST -H "X-Emby-Token: $JF_API_KEY" \
@@ -430,6 +434,7 @@ while :; do
   url="${JF_BASE}/Items?IncludeItemTypes=${INCLUDE_TYPES}&Recursive=true&Fields=Path,ProviderIds,ProductionYear&StartIndex=${start}&Limit=${PAGE_SIZE}"
   page=$(api -H "X-Emby-Token: $JF_API_KEY" "$url")
   total=$(echo "$page" | jq -r '.TotalRecordCount // 0')
+  echo "JMSF::TOTAL=${total}"
   items=$(echo "$page" | jq -c '.Items[]?')
 
   while IFS= read -r it; do
@@ -443,6 +448,7 @@ while :; do
     [[ -z "$path" ]] && { echo "[ATLA] Yol yok: $name"; continue; }
     process_item "$id" "$type" "$name" "$year" "$path" "$tmdb" "$imdb" "$user_id" || true
     processed=$((processed+1))
+    echo "JMSF::DONE=${processed}"
   done <<< "$items"
 
   start=$((start + PAGE_SIZE))

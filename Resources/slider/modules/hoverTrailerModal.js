@@ -31,10 +31,10 @@ const _ytReadyMap = new Map();
 const _seriesTrailerCache = new Map();
 
 const MODAL_ANIM = {
-  openMs: 200,
-  closeMs: 100,
+  openMs: 300,
+  closeMs: 150,
   ease: 'cubic-bezier(.41,.4,.36,1.01)',
-  scaleFrom: 0.8,
+  scaleFrom: 0.5,
   scaleTo: 1,
   opacityFrom: 0,
   opacityTo: 1

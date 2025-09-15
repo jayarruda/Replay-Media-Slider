@@ -133,26 +133,34 @@ export async function renderPersonalRecommendations() {
       document.querySelector("#homePage:not(.hide)");
     if (!indexPage) return;
 
-    const { userId, serverId } = getSessionInfo();
+    const jobs = [];
+
     if (config.enablePersonalRecommendations) {
       const section = ensurePersonalRecsContainer(indexPage);
       if (section) {
         const row = section.querySelector(".personal-recs-row");
-        if (row) {
+        if (row && !row.dataset.mounted) {
+          row.dataset.mounted = "1";
           renderSkeletonCards(row, CARD_COUNT);
-          const recommendations = await fetchPersonalRecommendations(userId, CARD_COUNT, MIN_RATING);
-          renderRecommendationCards(row, recommendations, serverId);
           setupScroller(row);
         }
+        jobs.push((async () => {
+          const { userId, serverId } = getSessionInfo();
+          const recommendations = await fetchPersonalRecommendations(userId, CARD_COUNT, MIN_RATING);
+          renderRecommendationCards(row, recommendations, serverId);
+        })());
       }
     }
+
     if (ENABLE_GENRE_HUBS) {
-      await renderGenreHubs(indexPage);
+      jobs.push(renderGenreHubs(indexPage));
     }
+
+    await Promise.allSettled(jobs);
   } catch (error) {
     console.error("Kişisel öneriler / tür hub render hatası:", error);
   } finally {
-    document.documentElement.dataset.jmsSoftBlock = "1";
+    try { delete document.documentElement.dataset.jmsSoftBlock; } catch {}
     __personalRecsBusy = false;
   }
 }
@@ -164,12 +172,11 @@ function ensurePersonalRecsContainer(indexPage) {
     indexPage;
 
   const existing = homeSections.querySelector("#personal-recommendations");
-  if (existing) existing.remove();
+  if (existing) return existing;
 
   const section = document.createElement("div");
   section.id = "personal-recommendations";
   section.classList.add("homeSection", "personal-recs-section");
-
   section.innerHTML = `
     <div class="sectionTitleContainer sectionTitleContainer-cards">
       <h2 class="sectionTitle sectionTitle-cards">
@@ -187,14 +194,7 @@ function ensurePersonalRecsContainer(indexPage) {
       </button>
     </div>
   `;
-
-  const studioHubs = homeSections.querySelector("#studio-hubs");
-  if (studioHubs && studioHubs.nextElementSibling) {
-    homeSections.insertBefore(section, studioHubs.nextElementSibling);
-  } else {
-    homeSections.appendChild(section);
-  }
-
+  homeSections.appendChild(section);
   return section;
 }
 
@@ -257,7 +257,7 @@ async function fetchUnwatchedByGenres(userId, genres, targetCount = 20, minRatin
 
   const genresParam = encodeURIComponent(genres.join("|"));
   const fields = COMMON_FIELDS;
-  const requested = Math.max(targetCount * 3, 30);
+  const requested = Math.max(targetCount * 2, 20);
   const sort = "Random,CommunityRating,DateCreated";
 
   const url =
@@ -312,27 +312,23 @@ function filterAndTrimByRating(items, minRating, maxCount) {
 function renderRecommendationCards(row, items, serverId) {
   row.innerHTML = "";
   if (!items || !items.length) {
-    row.innerHTML = `<div class="no-recommendations">${
-      (config.languageLabels && config.languageLabels.noRecommendations) ||
-      labels.noRecommendations ||
-      "Öneri bulunamadı"
-    }</div>`;
+    row.innerHTML = `<div class="no-recommendations">${(config.languageLabels?.noRecommendations) || labels.noRecommendations || "Öneri bulunamadı"}</div>`;
     return;
   }
-  for (const it of items.slice(0, CARD_COUNT)) {
-    row.appendChild(createRecommendationCard(it, serverId));
+  const frag = document.createDocumentFragment();
+  const slice = items.slice(0, CARD_COUNT);
+  for (let i = 0; i < slice.length; i++) {
+    const card = createRecommendationCard(slice[i], serverId, i < 2);
+    frag.appendChild(card);
   }
+  row.appendChild(frag);
 }
 
 const COMMON_FIELDS = [
   "PrimaryImageAspectRatio",
   "ImageTags",
-  "BackdropImageTags",
   "CommunityRating",
-  "CriticRating",
   "Genres",
-  "UserData",
-  "MediaSources",
   "OfficialRating",
   "ProductionYear",
   "CumulativeRunTimeTicks",
@@ -374,19 +370,19 @@ function getDetailsUrl(itemId, serverId) {
   return `#/details?id=${itemId}&serverId=${encodeURIComponent(serverId)}`;
 }
 
-function buildPosterUrl(item, height = 900, quality = 90) {
+function buildPosterUrl(item, height = 540, quality = 72) {
   const tag = item.ImageTags?.Primary || item.PrimaryImageTag;
   if (!tag) return "/css/images/placeholder.png";
-  return `/Items/${item.Id}/Images/Primary?tag=${encodeURIComponent(tag)}&fillHeight=${height}&quality=${quality}`;
+  return `/Items/${item.Id}/Images/Primary?tag=${encodeURIComponent(tag)}&maxHeight=${height}&quality=${quality}&EnableImageEnhancers=false`;
 }
 
-function buildLogoUrl(item, width = 320, quality = 90) {
+function buildLogoUrl(item, width = 220, quality = 72) {
   const tag = item.ImageTags?.Logo || item.LogoImageTag;
   if (!tag) return null;
   return `/Items/${item.Id}/Images/Logo?tag=${encodeURIComponent(tag)}&width=${width}&quality=${quality}`;
 }
 
-function createRecommendationCard(item, serverId) {
+function createRecommendationCard(item, serverId, aboveFold = false) {
   const card = document.createElement("div");
   card.className = "card personal-recs-card";
   card.dataset.itemId = item.Id;
@@ -411,7 +407,12 @@ function createRecommendationCard(item, serverId) {
     <div class="cardBox">
       <a class="cardLink" href="${getDetailsUrl(item.Id, serverId)}">
         <div class="cardImageContainer">
-          <img class="cardImage" src="${posterUrl}" alt="${item.Name}" loading="lazy">
+          <img class="cardImage"
+           src="${posterUrl}"
+            alt="${item.Name}"
+            loading="lazy"
+            decoding="async"
+            fetchpriority="${aboveFold ? 'high' : 'low'}">
           <div class="prc-top-badges">
             ${community}
             <div class="prc-type-badge">
@@ -441,7 +442,8 @@ function createRecommendationCard(item, serverId) {
   `;
 
   const mode = (getConfig()?.globalPreviewMode === 'studioMini') ? 'studioMini' : 'modal';
-  attachPreviewByMode(card, item, mode);
+  const defer = window.requestIdleCallback || ((fn)=>setTimeout(fn, 0));
+  defer(() => attachPreviewByMode(card, item, mode));
   return card;
 }
 
@@ -455,12 +457,21 @@ function setupScroller(row) {
   const canScroll = () => row.scrollWidth > row.clientWidth + 2;
   const step = () => Math.max(240, Math.floor(row.clientWidth * 0.9));
 
-  const updateButtons = () => {
+    let _rafToken = null;
+    const updateButtonsNow = () => {
     const max = Math.max(0, row.scrollWidth - row.clientWidth);
     const atStart = !canScroll() || row.scrollLeft <= 1;
     const atEnd = !canScroll() || row.scrollLeft >= max - 1;
     if (btnL) btnL.setAttribute("aria-disabled", atStart ? "true" : "false");
     if (btnR) btnR.setAttribute("aria-disabled", atEnd ? "true" : "false");
+  };
+
+      const scheduleUpdate = () => {
+    if (_rafToken) return;
+    _rafToken = requestAnimationFrame(() => {
+      _rafToken = null;
+      updateButtonsNow();
+    });
   };
 
   const doScroll = (dir) => {
@@ -469,7 +480,7 @@ function setupScroller(row) {
     const target = row.scrollLeft + delta;
     try { row.scrollTo({ left: target, behavior: "smooth" }); }
     catch { row.scrollLeft = target; }
-    requestAnimationFrame(updateButtons);
+    scheduleUpdate();
   };
 
   if (btnL) btnL.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); doScroll(-1); });
@@ -481,17 +492,17 @@ function setupScroller(row) {
     const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
     row.scrollLeft += delta;
     e.preventDefault();
-    requestAnimationFrame(updateButtons);
+    scheduleUpdate();
   }, { passive: false });
 
   row.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
   row.addEventListener("touchmove", (e) => e.stopPropagation(), { passive: true });
 
-  row.addEventListener("scroll", updateButtons, { passive: true });
-  new ResizeObserver(updateButtons).observe(row);
+  row.addEventListener("scroll", scheduleUpdate, { passive: true });
+  new ResizeObserver(() => scheduleUpdate()).observe(row);
 
-  requestAnimationFrame(updateButtons);
-  setTimeout(updateButtons, 400);
+  requestAnimationFrame(() => updateButtonsNow());
+  setTimeout(() => updateButtonsNow(), 400);
 }
 
 async function renderGenreHubs(indexPage) {
@@ -557,7 +568,7 @@ async function renderGenreHubs(indexPage) {
         if (!unique.length) {
           row.innerHTML = `<div class="no-recommendations">${labels.noRecommendations || "Uygun içerik yok"}</div>`;
         } else {
-          for (const it of unique) row.appendChild(createRecommendationCard(it, serverId));
+          for (const it of unique) row.appendChild(createRecommendationCard(it, serverId, false));
         }
         setupScroller(row);
       } catch (err) {

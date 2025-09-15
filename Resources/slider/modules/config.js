@@ -510,6 +510,19 @@ export function getConfig() {
       } catch {}
       return null;
     })(),
+
+    currentUserIsAdmin: (() => {
+      try {
+        const ls = localStorage.getItem('currentUserIsAdmin');
+        if (ls === 'true' || ls === 'false') return ls === 'true';
+        const pol =
+          window.ApiClient?._currentUser?.Policy ||
+          window.ApiClient?._currentUser?.UserPolicy ||
+          null;
+        if (pol && (pol.IsAdministrator === true || pol.IsAdministrator === 'true')) return true;
+      } catch {}
+      return false;
+    })(),
   };
 }
 

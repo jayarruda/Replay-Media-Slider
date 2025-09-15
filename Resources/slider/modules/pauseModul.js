@@ -6,6 +6,42 @@ const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
 const labels = getLanguageLabels(currentLang) || {};
 const imageBlobCache = new Map();
+const TAG_MEM_TTL_MS = 0;
+
+let _tagsMemCache = { stamp: null, savedAt: 0, tags: null };
+let ratingGenreTimeout = null;
+let ratingGenreElement = null;
+let currentMediaData = null;
+let activeVideo = null;
+let currentMediaId = null;
+let removeHandlers = null;
+let overlayVisible = false;
+let lastIdCheck = 0;
+let wasPaused = false;
+let pauseTimeout = null;
+let lastActivityAt = Date.now();
+let blurAt = document.hasFocus() ? null : Date.now();
+let hiddenAt = (document.visibilityState === 'hidden') ? Date.now() : null;
+let lastPauseReason = null;
+let lastPauseAt = 0;
+
+function wipeBadgeStateAndDom() {
+  try { if (ratingGenreTimeout) clearTimeout(ratingGenreTimeout); } catch {}
+  ratingGenreTimeout = null;
+  currentMediaData = null;
+  if (ratingGenreElement && ratingGenreElement.parentNode) {
+    ratingGenreElement.parentNode.removeChild(ratingGenreElement);
+  }
+  ratingGenreElement = null;
+}
+
+function hideRatingGenre(reason) {
+  if (!ratingGenreElement) return;
+  ratingGenreElement.classList.remove('visible');
+  if (reason === 'auto' || reason === 'finished') {
+    setTimeout(() => { wipeBadgeStateAndDom(); }, 360);
+  }
+}
 
 function srcLooksLikeThemeVideo(videoEl){
   try {
@@ -36,9 +72,6 @@ async function fetchFiltersFor(type) {
   return res || {};
 }
 
-let _tagsMemCache = { stamp: null, savedAt: 0, tags: null };
-const TAG_MEM_TTL_MS = 0;
-
 function _computeStamp() {
   return [getApiBase(), getUserIdSafe() || ''].join('|');
 }
@@ -67,9 +100,6 @@ async function loadCatalogTagsWithCache() {
   return allTags;
 }
 
-let ratingGenreTimeout = null;
-let ratingGenreElement = null;
-let currentMediaData = null;
 
 function normalizeAgeChip(rating) {
   if (!rating) return null;
@@ -679,13 +709,12 @@ export function setupPauseScreen() {
     const config = getConfig();
     const overlayConfig = config.pauseOverlay || { enabled: true };
     if (!overlayConfig.enabled) return () => {};
-    let activeVideo = null;
-    let currentMediaId = null;
-    let removeHandlers = null;
-    let overlayVisible = false;
-    let lastIdCheck = 0;
-    let wasPaused = false;
-    let pauseTimeout = null;
+
+    function wipeOverlayState() {
+      resetContent();
+      currentMediaId = null;
+      currentMediaData = null;
+    }
 
     async function initDescriptorTagsOnce() {
   try {
@@ -864,15 +893,10 @@ if (isEpisode && maybeSeriesId && (noTags || genresMissing || ratingMissing)) {
       </div>
     `;
     ratingGenreElement.classList.add('visible');
-    ratingGenreTimeout = setTimeout(() => { hideRatingGenre(); }, duration);
+    ratingGenreTimeout = setTimeout(() => { hideRatingGenre('auto'); }, duration);
   }
 }
 
-function hideRatingGenre() {
-        if (ratingGenreElement) {
-            ratingGenreElement.classList.remove('visible');
-        }
-    }
     const overlayEl = document.getElementById('jms-pause-overlay');
     const titleEl = document.getElementById('jms-overlay-title');
     const metaEl = document.getElementById('jms-overlay-metadata');
@@ -934,35 +958,35 @@ function hideRatingGenre() {
 }
 
 function hideOverlay() {
-    const content = overlayEl.querySelector('.pause-overlay-content');
+  const content = overlayEl.querySelector('.pause-overlay-content');
+  if (content) {
+    content.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease';
+    content.style.transform = 'translateY(10px)';
+    content.style.opacity = '0';
+  }
+
+  if (pausedLabel) {
+    pausedLabel.style.opacity = '0';
+    setTimeout(() => { pausedLabel.style.display = 'none'; }, 300);
+  }
+
+  setTimeout(() => {
+    overlayEl.classList.remove('visible');
+    overlayVisible = false;
     if (content) {
-        content.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease';
-        content.style.transform = 'translateY(10px)';
-        content.style.opacity = '0';
+      content.style.transition = '';
+      content.style.transform = '';
+      content.style.opacity = '';
     }
+    wipeOverlayState();
+  }, 300);
 
-    if(pausedLabel) {
-        pausedLabel.style.opacity = '0';
-        setTimeout(() => {
-            pausedLabel.style.display = 'none';
-        }, 300);
-    }
-
-    setTimeout(() => {
-        overlayEl.classList.remove('visible');
-        overlayVisible = false;
-        if (content) {
-            content.style.transition = '';
-            content.style.transform = '';
-            content.style.opacity = '';
-        }
-    }, 300);
-
-    if (pauseTimeout) {
-        clearTimeout(pauseTimeout);
-        pauseTimeout = null;
-    }
+  if (pauseTimeout) {
+    clearTimeout(pauseTimeout);
+    pauseTimeout = null;
+  }
 }
+
 
     function resetContent() {
         if (config.pauseOverlay.showBackdrop) {
@@ -1143,7 +1167,9 @@ async function setBackdrop(item) {
   const m =
     src.match(/\/Videos\/([^/]+)\//) ||
     src.match(/[?&]ItemId=([^&]+)/) ||
-    src.match(/\/Items\/([^/]+)\//);
+    src.match(/\/Items\/([^/]+)\//) ||
+    src.match(/\/videos\/([^/]+)\/[^?]+\.m3u8/i) ||
+    src.match(/[?&](?:Id|ItemID)=([^&]+)/i);
 
   return m ? m[1] : null;
 }
@@ -1227,6 +1253,7 @@ function clearOverlayUi() {
   hideOverlay();
   resetContent();
   currentMediaId = null;
+  try { hideRatingGenre('finished'); } catch {}
 }
 
 function bindVideo(video) {
@@ -1236,14 +1263,46 @@ function bindVideo(video) {
   if (video.closest('.video-preview-modal, .intro-video-container')) return;
 
   activeVideo = video;
-  let cleanupSmart = null;
-  const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
-  const BADGE_MIN_CT_SEC = 1.2;
-  const BADGE_MIN_DURATION_SEC = 300;
 
   let playSeq = 0;
   let lastShownItemId = null;
+  let stableSrcId = null;
+  let lastSrcSig  = null;
   let armTimer = null;
+  let badgeAttempts = 0;
+  let srcAttrMo = null;
+  let cleanupSmart = null;
+
+  const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
+  const BADGE_MIN_CT_SEC = 1.2;
+  const BADGE_MIN_DURATION_SEC = 300;
+  const BADGE_MAX_ATTEMPTS = 10;
+
+  function computeSrcSig(el = video) {
+    try {
+      const cur = String(el.currentSrc || el.src || '');
+      const d = Number.isFinite(el.duration) ? (el.duration|0) : -1;
+      return `${cur}::${d}`;
+    } catch { return ''; }
+  }
+
+  function watchSrcAttr(el = video) {
+    if (srcAttrMo) { try { srcAttrMo.disconnect(); } catch {} }
+    srcAttrMo = new MutationObserver(() => {
+      const sigNow = computeSrcSig(el);
+      if (sigNow && sigNow !== lastSrcSig) {
+        hardResetBadgeState();
+        lastSrcSig  = sigNow;
+        stableSrcId = getPlayingItemIdFromVideo(el) || stableSrcId;
+        clearOverlayUi();
+      }
+    });
+    srcAttrMo.observe(el, { attributes: true, attributeFilter: ['src'], childList: true, subtree: false });
+    const source = el.querySelector('source');
+    if (source) {
+      srcAttrMo.observe(source, { attributes: true, attributeFilter: ['src'] });
+    }
+  }
 
   function cancelArm() {
     if (armTimer) { clearTimeout(armTimer); armTimer = null; }
@@ -1254,36 +1313,44 @@ function bindVideo(video) {
     hideRatingGenre();
     currentMediaData = null;
     lastShownItemId = null;
+    badgeAttempts = 0;
     ++playSeq;
     cancelArm();
   }
 
-  async function resolveBySrcPrefer() {
-  const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
-  let detFromSrc = null;
-  try {
-    const id = getPlayingItemIdFromVideo(activeVideo) || getCurrentMediaId(true);
-    if (id) {
-      detFromSrc = await fetchItemDetails(id);
-      if (detFromSrc?.Type && ALLOWED_TYPES.has(detFromSrc.Type)) {
-        return detFromSrc;
-      }
-    }
-  } catch {}
-  for (let i = 0; i < 3; i++) {
+async function resolveBySrcPrefer() {
+    const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
     try {
-      const session = await getSessionInfo();
-      const np = session?.NowPlayingItem;
-      if (np?.Id && ALLOWED_TYPES.has(np.Type)) {
-        const det = await fetchItemDetails(np.Id);
-        if (det) return det;
+      const srcId = getPlayingItemIdFromVideo(activeVideo);
+      if (srcId) {
+        const det = await fetchItemDetails(srcId);
+        if (det?.Type && ALLOWED_TYPES.has(det.Type)) {
+          return { item: det, source: 'src' };
+        }
       }
     } catch {}
-    await new Promise(r => setTimeout(r, 150));
+    try {
+      const domId = getCurrentMediaId(true);
+      if (domId) {
+        const det = await fetchItemDetails(domId);
+        if (det?.Type && ALLOWED_TYPES.has(det.Type)) {
+          return { item: det, source: 'dom' };
+        }
+      }
+    } catch {}
+    for (let i = 0; i < 6; i++) {
+      try {
+        const session = await getSessionInfo();
+        const np = session?.NowPlayingItem;
+        if (np?.Id && ALLOWED_TYPES.has(np.Type)) {
+          const det = await fetchItemDetails(np.Id);
+          if (det) return { item: det, source: 'session' };
+        }
+      } catch {}
+      await new Promise(r => setTimeout(r, 120));
+    }
+    return { item: null, source: 'none' };
   }
-
-  return null;
-}
 
   function shouldSuppressByDuration() {
     const dur = Number(video.duration || 0);
@@ -1291,28 +1358,37 @@ function bindVideo(video) {
     return dur < BADGE_MIN_DURATION_SEC;
   }
 
-  function onTimeUpdateArm() {
+  async function onTimeUpdateArm() {
     if ((video.currentTime || 0) < BADGE_MIN_CT_SEC) return;
     if (shouldSuppressByDuration()) return;
-    cancelArm();
-    void showBadgeForCurrentIfFresh();
-  }
+    const shown = await showBadgeForCurrentIfFresh();
+    if (shown || (++badgeAttempts >= BADGE_MAX_ATTEMPTS)) {
+      cancelArm();
+    }
+   }
 
   async function showBadgeForCurrentIfFresh() {
     const seq = playSeq;
     if (shouldSuppressByDuration()) return;
 
-    const data = await resolveBySrcPrefer();
-    if (!data) return;
-    if (shouldIgnoreTheme({ video: activeVideo, item: data })) return;
+   const { item, source } = await resolveBySrcPrefer();
+   const data = item;
+    if (!data) return false;
+    if (shouldIgnoreTheme({ video: activeVideo, item: data })) return false;
     if (seq !== playSeq) return;
-    if (!data) return;
+    if (!data) return false;
 
-    if (lastShownItemId === data.Id) return;
+    const vidId = getPlayingItemIdFromVideo(activeVideo);
+    if (vidId && data.Id !== vidId && source !== 'session') {
+      return false;
+    }
+
+    if (lastShownItemId === data.Id) return true;
 
     currentMediaData = data;
     lastShownItemId = data.Id;
     await showRatingGenre(currentMediaData, 4000);
+    return true;
   }
 
   const onPause = async () => {
@@ -1384,25 +1460,60 @@ function bindVideo(video) {
 }, 1000);
   };
 
-const onPlay = async () => {
-  clearOverlayUi();
-  if (pauseTimeout) clearTimeout(pauseTimeout);
-  hardResetBadgeState();
-  video.addEventListener('timeupdate', onTimeUpdateArm, { passive: true });
-  armTimer = setTimeout(onTimeUpdateArm, 800);
-};
-const onLoadedMetadata = async () => {
-  hideRatingGenre();
-  currentMediaData = null;
-  clearOverlayUi();
-};
+  const onPlay = async () => {
+    const vidIdNow = getPlayingItemIdFromVideo(video);
+    const sigNow   = computeSrcSig(video);
+    const looksNew =
+      (vidIdNow && stableSrcId && vidIdNow !== stableSrcId) ||
+      (sigNow && lastSrcSig && sigNow !== lastSrcSig) ||
+      (!stableSrcId && !!vidIdNow);
+
+    if (looksNew) {
+      hardResetBadgeState();
+      stableSrcId = vidIdNow || stableSrcId;
+      lastSrcSig  = sigNow   || lastSrcSig;
+    }
+
+    clearOverlayUi();
+    if (pauseTimeout) clearTimeout(pauseTimeout);
+    hardResetBadgeState();
+    video.addEventListener('timeupdate', onTimeUpdateArm, { passive: true });
+    armTimer = setTimeout(onTimeUpdateArm, 800);
+  };
+
+  const onLoadedMetadata = async () => {
+    hideRatingGenre('finished');
+    currentMediaData = null;
+    badgeAttempts = 0;
+
+    const vidIdNow = getPlayingItemIdFromVideo(video);
+    const sigNow   = computeSrcSig(video);
+
+    const isNewMedia =
+      (vidIdNow && stableSrcId && vidIdNow !== stableSrcId) ||
+      (sigNow && lastSrcSig && sigNow !== lastSrcSig) ||
+      (!stableSrcId && !!vidIdNow);
+
+    if (isNewMedia) {
+      hardResetBadgeState();
+    }
+
+    if (vidIdNow) stableSrcId = vidIdNow;
+    if (sigNow)   lastSrcSig  = sigNow;
+
+    clearOverlayUi();
+  };
+
   const onEnded = () => {
     hardResetBadgeState();
+    hideRatingGenre('finished');
     hideOverlay();
     if (pausedLabel) { pausedLabel.style.opacity = '0'; pausedLabel.style.display = 'none'; }
   };
   const onEmptiedLike = () => {
   hardResetBadgeState();
+  hideRatingGenre('finished');
+  badgeAttempts = 0;
   clearOverlayUi();
 };
   const onSeekingHide = () => {
@@ -1412,12 +1523,17 @@ const onLoadedMetadata = async () => {
   video.addEventListener('pause', onPause);
   video.addEventListener('play', onPlay);
   video.addEventListener('loadedmetadata', onLoadedMetadata);
+  video.addEventListener('loadstart', onLoadedMetadata);
+  video.addEventListener('durationchange', onLoadedMetadata);
+  video.addEventListener('playing', onPlay);
   video.addEventListener('ended', onEnded);
   video.addEventListener('emptied', onEmptiedLike);
   video.addEventListener('abort', onEmptiedLike);
   video.addEventListener('stalled', onEmptiedLike);
   video.addEventListener('seeking', onSeekingHide);
   try { cleanupSmart = createSmartAutoPause(video); } catch {}
+  try { watchSrcAttr(video); } catch {}
+
   removeHandlers = () => {
     video.removeEventListener('pause', onPause);
     video.removeEventListener('play', onPlay);
@@ -1429,6 +1545,7 @@ const onLoadedMetadata = async () => {
     video.removeEventListener('seeking', onSeekingHide);
     cancelArm();
     if (cleanupSmart) { try { cleanupSmart(); } catch {} cleanupSmart = null; }
+    if (srcAttrMo) { try { srcAttrMo.disconnect(); } catch {} srcAttrMo = null; }
   };
 }
 
@@ -1462,12 +1579,6 @@ function createSmartAutoPause(video) {
   if (sap.ignoreShortUnderSec && dur > 0 && dur < Number(sap.ignoreShortUnderSec)) {
     return () => {};
   }
-
-  let lastActivityAt = Date.now();
-  let blurAt = document.hasFocus() ? null : Date.now();
-  let hiddenAt = (document.visibilityState === 'hidden') ? Date.now() : null;
-  let lastPauseReason = null;
-  let lastPauseAt = 0;
 
   function inPiP(){
     try {

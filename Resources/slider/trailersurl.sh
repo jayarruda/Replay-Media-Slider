@@ -214,8 +214,6 @@ EOF
 process_item() {
   local id="$1" type="$2" name="$3" year="$4" path="$5" tmdb="$6" imdb="$7" user_id="$8"
   echo "[DEBUG] İşleniyor: $name ($type)" >&2
-
-  # Film
   if [[ "$type" == "Movie" ]]; then
     local tmdb_id="$tmdb"
     if [[ -z "$tmdb_id" && -n "$imdb" ]]; then
@@ -246,7 +244,7 @@ process_item() {
       else
         case "$?" in
           1) CNT_SKIP_HAS=$((CNT_SKIP_HAS+1)); return 0;;
-          2) CNT_FAIL_WRITE=$((CNT_FAIL_WRITE+1));; # başka URL varsa denemeye devam
+          2) CNT_FAIL_WRITE=$((CNT_FAIL_WRITE+1));;
           *) CNT_MISC=$((CNT_MISC+1));;
         esac
       fi
@@ -321,6 +319,9 @@ main() {
     local url="${JF_BASE}/Items?IncludeItemTypes=${INCLUDE_TYPES}&Recursive=true&Fields=Path,ProviderIds,ProductionYear&StartIndex=${start}&Limit=${PAGE_SIZE}"
     local page; page=$(api -H "X-Emby-Token: $JF_API_KEY" "$url")
     local total; total=$(echo "$page" | jq -r '.TotalRecordCount // 0')
+    if [[ ${start} -eq 0 ]]; then
+      echo "JMSF::TOTAL=${total}"
+    fi
     local items; items=$(echo "$page" | jq -c '.Items[]?')
 
     while IFS= read -r it; do
@@ -339,6 +340,7 @@ main() {
       fi
 
       CNT_TOTAL=$((CNT_TOTAL+1))
+      echo "JMSF::DONE=${CNT_TOTAL}"
       process_item "$id" "$type" "$name" "$year" "$path" "$tmdb" "$imdb" "$user_id" || true
     done <<< "$items"
 
