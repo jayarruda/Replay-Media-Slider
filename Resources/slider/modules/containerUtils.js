@@ -212,6 +212,7 @@ export async function createActorSlider(People, config, item) {
     if (config.showActorImg) {
       const actorImg = document.createElement("img");
       actorImg.className = "actor-image";
+      actorImg.loading = "lazy";
       if (actor.PrimaryImageTag) {
         actorImg.src = `/Items/${actor.Id}/Images/Primary?fillHeight=320&fillWidth=320&quality=96&tag=${actor.PrimaryImageTag}`;
         actorImg.alt = actor.Name;
@@ -352,8 +353,11 @@ export async function createDirectorContainer({ config, People, item }) {
 
     if (config.showWriter) {
       const writers = actualPeople.filter(p => p.Type?.toLowerCase() === "writer");
+      const allow = (config.allowedWriters || [])
+        .map(x => x?.toLowerCase?.())
+        .filter(Boolean);
       const matchingWriters = writers.filter(w =>
-        config.allowedWriters.includes(w.Name.toLowerCase())
+        w?.Name && allow.includes(w.Name.toLowerCase())
       );
       if (matchingWriters.length) {
         const writerNames = matchingWriters.map(w => w.Name).join(", ");
@@ -451,7 +455,7 @@ export function createLanguageContainer({ config, MediaStreams, itemType }) {
     !config.showLanguageInfo ||
     !MediaStreams ||
     MediaStreams.length === 0 ||
-    itemType.toLowerCase() === "series"
+    String(itemType || "").toLowerCase() === "series"
   ) {
     return container;
   }

@@ -2,10 +2,26 @@ import { getConfig } from "./config.js";
 import { getSessionInfo, makeApiRequest, getAuthHeader, playNow, fetchItemDetails } from "./api.js";
 import { initSettings } from './settings.js';
 import { loadAvailableDevices, getDeviceIcon, startPlayback, showNotification, hideNotification } from './castModule.js';
-import { getProviderUrl, getYoutubeEmbedUrl } from './utils.js';
+import { getProviderUrl } from './utils.js';
 import { applyContainerStyles } from './positionUtils.js';
 
-const config = getConfig();
+let _menuCloserAttached = false;
+function attachGlobalMenuCloser() {
+  if (_menuCloserAttached) return;
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.main-button-container.open')
+      .forEach(cont => {
+        if (!cont.contains(e.target)) {
+          const bc = cont.querySelector('.button-container');
+          if (bc) { bc.classList.remove('visible'); bc.classList.add('hidden'); }
+          cont.classList.remove('open');
+        }
+      });
+  }, { passive: true });
+  _menuCloserAttached = true;
+}
+attachGlobalMenuCloser();
+
 
 export function createButtons(slide, config, UserData, itemId, RemoteTrailers, updatePlayedStatus, updateFavoriteStatus, openTrailerModal, item) {
     const mainContainer = document.createElement('div');
@@ -45,33 +61,22 @@ export function createButtons(slide, config, UserData, itemId, RemoteTrailers, u
         }
     });
 
-    let touchTimer;
-    let isOpen = false;
-
     mainButton.addEventListener('click', (e) => {
         if (!isTouchDevice()) return;
 
         e.preventDefault();
         e.stopPropagation();
 
-        if (isOpen) {
-            buttonContainer.classList.remove('visible');
-            buttonContainer.classList.add('hidden');
+        const nowOpen = !mainContainer.classList.contains('open');
+        if (nowOpen) {
+          buttonContainer.classList.remove('hidden');
+          buttonContainer.classList.add('visible');
+          mainContainer.classList.add('open');
         } else {
-            buttonContainer.classList.remove('hidden');
-            buttonContainer.classList.add('visible');
-        }
-        isOpen = !isOpen;
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!isTouchDevice() || !isOpen) return;
-
-        if (!mainContainer.contains(e.target)) {
-            buttonContainer.classList.remove('visible');
-            buttonContainer.classList.add('hidden');
-            isOpen = false;
-        }
+          buttonContainer.classList.remove('visible');
+          buttonContainer.classList.add('hidden');
+          mainContainer.classList.remove('open');
+      }
     });
 
     function isTouchDevice() {
@@ -257,6 +262,7 @@ if (config.showFavoriteButton) {
 
 async function castToCurrentDevice(itemId) {
   try {
+    const config = getConfig();
     const success = await playNow(itemId);
     if (success) {
       showNotification(config.languageLabels.castbasarili, 'success');
@@ -265,14 +271,15 @@ async function castToCurrentDevice(itemId) {
     }
   } catch (error) {
     console.error('Cast işlemi sırasında hata:', error);
+    const config = getConfig();
     showNotification(`${config.languageLabels.casthata}: ${error.message}`, 'error');
   }
 }
 
 async function startNowPlayback(itemId, sessionId) {
   try {
+    const config = getConfig();
     const playUrl = `/Sessions/${sessionId}/Playing?playCommand=PlayNow&itemIds=${itemId}`;
-
     const response = await fetch(playUrl, {
       method: "POST",
       headers: {
@@ -288,6 +295,7 @@ async function startNowPlayback(itemId, sessionId) {
     return true;
   } catch (error) {
     console.error("Oynatma hatası:", error);
+    const config = getConfig();
     showNotification(`${config.languageLabels.castoynatmahata}: ${error.message}`, 'error');
     return false;
   }

@@ -191,6 +191,7 @@ function ensurePreviewPopover() {
 function hidePreviewPopover() {
   if (__hubPreviewCloseTimer) { clearTimeout(__hubPreviewCloseTimer); __hubPreviewCloseTimer = null; }
   if (!__hubPreviewPopover) return;
+  try { __hubPreviewPopover.__cleanup?.(); __hubPreviewPopover.__cleanup = null; } catch {}
   __hubPreviewPopover.classList.remove('visible');
   setTimeout(() => {
     if (!__hubPreviewPopover.classList.contains('visible')) {
@@ -389,18 +390,18 @@ function showPreviewPopover(anchorEl, studioName, items) {
     }
   };
   anchorEl.addEventListener('mouseleave', closeIfLeft, { passive: true });
-  pop.addEventListener('mouseleave', () => scheduleHidePopover(CLOSE_GRACE_MS), { passive: true });
+  const onPopLeave = () => scheduleHidePopover(CLOSE_GRACE_MS);
+  pop.addEventListener('mouseleave', onPopLeave, { passive: true });
 
   const cleanup = () => {
     window.removeEventListener('resize', onWin);
     window.removeEventListener('scroll', onWin);
     if (row) row.removeEventListener('scroll', onRow);
     anchorEl.removeEventListener('mouseleave', closeIfLeft);
-    pop.removeEventListener('mouseleave', () => scheduleHidePopover(CLOSE_GRACE_MS));
+    pop.removeEventListener('mouseleave', onPopLeave);
   };
 
-  const _hide = hidePreviewPopover;
-  hidePreviewPopover = function() { cleanup(); _hide(); };
+  pop.__cleanup = cleanup;
 }
 
 function createPreviewButton(card, studioName, studioId, userId) {
@@ -514,7 +515,15 @@ function withVer(url, v = "1") { return `${url}${url.includes("?") ? "&" : "?"}v
 function loadLogoCache() {
   try { const raw = localStorage.getItem(LOGO_CACHE_KEY); if (!raw) return {}; const { ts, data } = JSON.parse(raw); if (!ts || Date.now() - ts > LOGO_CACHE_TTL) return {}; return data || {}; } catch { return {}; }
 }
-function saveLogoCache(map) { try { localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: map })); } catch {} }
+function saveLogoCache(map) {
+  try {
+    const entries = Object.entries(map);
+    const MAX = 100;
+    const trimmed = entries.slice(-MAX);
+    const out = Object.fromEntries(trimmed);
+    localStorage.setItem(LOGO_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: out }));
+  } catch {}
+}
 function slugify(name) {
   return (name || "")
     .toLowerCase()
@@ -652,7 +661,17 @@ function loadCache(k, ttl) {
     return obj.data;
   } catch { return null; }
 }
-function saveCache(k, data) { try { localStorage.setItem(k, JSON.stringify({ ts: Date.now(), data })); } catch {} }
+function saveCache(k, data) {
+  try {
+    let d = data;
+    if (d && typeof d === 'object' && !Array.isArray(d)) {
+      const MAX = 300;
+      const ent = Object.entries(d);
+      if (ent.length > MAX) d = Object.fromEntries(ent.slice(-MAX));
+    }
+    localStorage.setItem(k, JSON.stringify({ ts: Date.now(), data: d }));
+  } catch {}
+}
 
 function buildStudioHref(studioId, serverId) {
   return `#/list.html?studioId=${encodeURIComponent(studioId)}${serverId ? `&serverId=${encodeURIComponent(serverId)}` : ""}`;
@@ -830,6 +849,13 @@ function ensureContainer(indexPage) {
 }
 
 function setupScroller(row) {
+  if (row.dataset.scrollerMounted === "1") {
+    requestAnimationFrame(() => {
+      row.dispatchEvent(new Event('scroll'));
+    });
+    return;
+  }
+  row.dataset.scrollerMounted = "1";
   const section = row.closest("#studio-hubs");
   if (!section) return;
   const btnL = section.querySelector(".hub-scroll-left");
@@ -848,6 +874,7 @@ function setupScroller(row) {
   row.addEventListener("scroll", updateButtons, { passive: true });
   const ro = new ResizeObserver(() => updateButtons());
   ro.observe(row);
+  row.__ro = ro;
 
   row.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
   row.addEventListener('touchmove',  (e) => { e.stopPropagation(); }, { passive: true });

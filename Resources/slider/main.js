@@ -1224,7 +1224,7 @@ function setupNavigationObserver() {
         }
     };
   setTimeout(checkPageChange, 0);
-  const observerInterval = setInterval(checkPageChange, 300);
+  let observerInterval = setInterval(checkPageChange, 300);
 
   const origPush = history.pushState;
   const origReplace = history.replaceState;
@@ -1241,7 +1241,19 @@ function setupNavigationObserver() {
     if (e.persisted) checkPageChange();
   });
 
-  return () => clearInterval(observerInterval);
+  const visHandler = () => {
+    if (document.hidden) {
+      if (observerInterval) { clearInterval(observerInterval); observerInterval = null; }
+    } else if (!observerInterval) {
+      observerInterval = setInterval(checkPageChange, 300);
+    }
+  };
+  document.addEventListener("visibilitychange", visHandler);
+
+  return () => {
+    if (observerInterval) clearInterval(observerInterval);
+    document.removeEventListener("visibilitychange", visHandler);
+  };
 }
 
 function initializeSliderOnHome() {
@@ -1358,7 +1370,8 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
         stop();
       }, 15000);
     }
-    setupNavigationObserver();
+    const cleanupNavObs = setupNavigationObserver();
+    window.addEventListener("beforeunload", () => { try { cleanupNavObs?.(); } catch {} });
     idle(() => {
     if (config.enableStudioHubs) ensureStudioHubsMounted();
  });

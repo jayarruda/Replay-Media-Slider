@@ -17,6 +17,19 @@ const UPDATE_LIST_ID = (latest) => `update:${latest}`;
 const HOVER_OPEN_DELAY  = 150;
 const HOVER_CLOSE_DELAY = 200;
 const CSS_READY_TIMEOUT_MS = 2000;
+const MAX_RECENT_TOAST_KEYS = 500;
+const CREATED_TS_CACHE_MAX = 2000;
+const TOAST_QUEUE_MAX = 60;
+let __uiReady = false;
+let __forcePEObs = null;
+const createdTsCache = new Map();
+const pollCtl = {
+  latestTimer: null,
+  actTimer: null,
+  latestRunning: false,
+  actRunning: false,
+  paused: false
+};
 
 let notifRenderGen = 0;
 let __hoverOpenTimer  = null;
@@ -225,6 +238,10 @@ function toastShouldEnqueue(key) {
   }
   if (recentToastMap.has(key)) return false;
   recentToastMap.set(key, now);
+  if (recentToastMap.size > MAX_RECENT_TOAST_KEYS) {
+    const first = recentToastMap.keys().next().value;
+    recentToastMap.delete(first);
+  }
   return true;
 }
 
@@ -302,23 +319,31 @@ async function fetchLatestAll() {
     throw e;
   }
 
-  const processedVideo = await Promise.all(latestVideo.map(async (item) => {
-  if (item.Type === 'Episode' && item.SeriesId) {
+  const seriesIds = Array.from(new Set(
+    latestVideo.filter(x => x?.Type === 'Episode' && x?.SeriesId).map(x => x.SeriesId)
+  ));
+  let seriesMap = new Map();
+  if (seriesIds.length) {
     try {
-      const seriesInfo = await makeApiRequest(`/Items/${item.SeriesId}`);
-      return {
-        ...item,
-        _seriesDateAdded: seriesInfo?.DateAdded || null,
-        ImageTags: seriesInfo.ImageTags,
-        ParentBackdropItemId: seriesInfo.Id,
-        ParentBackdropImageTags: seriesInfo.BackdropImageTags
-      };
-    } catch (e) {
-      return item;
-    }
+      const { found } = await fetchItemsBulk(seriesIds);
+      seriesMap = found || new Map();
+    } catch {}
   }
-  return item;
-}));
+  const processedVideo = latestVideo.map(item => {
+    if (item.Type === 'Episode' && item.SeriesId) {
+      const seriesInfo = seriesMap.get(item.SeriesId);
+      if (seriesInfo) {
+        return {
+          ...item,
+          _seriesDateAdded: seriesInfo?.DateAdded || null,
+          ImageTags: seriesInfo.ImageTags,
+          ParentBackdropItemId: seriesInfo.Id,
+          ParentBackdropImageTags: seriesInfo.BackdropImageTags
+        };
+      }
+    }
+    return item;
+  });
 
   let latestAudioResp;
   try {
@@ -433,8 +458,10 @@ function saveState() {
 }
 
 function getCreatedTs(item) {
+  const id = item?.Id || item?.ItemId || item?.id;
+  if (id && createdTsCache.has(id)) return createdTsCache.get(id);
   const seriesTs = Date.parse(item?._seriesDateAdded || "") || 0;
-  return (
+  const val = (
     seriesTs ||
     Date.parse(item?.DateCreated || "") ||
     Date.parse(item?.DateAdded || "") ||
@@ -443,6 +470,13 @@ function getCreatedTs(item) {
     Date.parse(item?.DateLastMediaAdded || "") ||
     0
   );
+  if (id) {
+    createdTsCache.set(id, val);
+    if (createdTsCache.size > CREATED_TS_CACHE_MAX) {
+      createdTsCache.delete(createdTsCache.keys().next().value);
+    }
+  }
+  return val;
 }
 
 function ensureUI() {
@@ -552,6 +586,7 @@ function ensureUI() {
       });
     });
   });
+  __uiReady = true;
 }
 
 function injectCriticalNotifCSS() {
@@ -611,12 +646,15 @@ export function forcejfNotifBtnPointerEvents() {
     apply();
   }
 
-  const obs = new MutationObserver(apply);
-  obs.observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    attributes: true
-  });
+  if (!__forcePEObs) {
+    __forcePEObs = new MutationObserver(apply);
+    __forcePEObs.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true
+    });
+    window.addEventListener('pagehide', () => { try { __forcePEObs.disconnect(); } catch {} __forcePEObs = null; }, { once: true });
+  }
 }
 
 function openModal() {
@@ -720,7 +758,7 @@ items = [...updates, ...normals];
   }
 
   const idList = items.map(n => n.itemId).filter(Boolean);
-  const { found } = await fetchItemsBulk(idList);
+  const { found } = idList.length ? await fetchItemsBulk(idList) : { found: new Map() };
 
 function getDetailFor(n) {
   const d = n.itemId ? (found.get(n.itemId) || null) : null;
@@ -1125,9 +1163,11 @@ function runToastQueue() {
      notifState.toastQueue.shift();
    }
 
+  if (notifState.toastQueue.length > TOAST_QUEUE_MAX) {
+    notifState.toastQueue = notifState.toastQueue.slice(-TOAST_QUEUE_MAX);
+  }
   const next = notifState.toastQueue.shift();
   if (!next) return;
-
 
   const { type, it, status = "added", items, total } = next;
   const c = document.querySelector("#jfToastContainer");
@@ -1276,33 +1316,69 @@ export async function initNotifications() {
   setTimeout(() => ensureNotifButtonIn(findHeaderContainer()), 250);
   setTimeout(() => ensureNotifButtonIn(findHeaderContainer()), 750);
 
-  const retry = setInterval(() => {
-    ensureUI();
-    if (document.querySelector("#jfNotifBtn") && document.querySelector("#jfNotifModal")) {
-      clearInterval(retry);
-    }
-  }, 500);
-
   await backfillFromLastSeen();
   await pollLatest({ seedIfFirstRun: true });
   if (notifState._systemAllowed) {
     await pollActivities({ seedIfFirstRun: true });
-    setInterval(() => pollActivities(), POLL_INTERVAL_MS);
+    schedulePollActivities(POLL_INTERVAL_MS);
   }
 
-  setInterval(() => pollLatest(), POLL_INTERVAL_MS);
+  schedulePollLatest(POLL_INTERVAL_MS);
 
   window.forceCheckNotifications = () => {
-    pollLatest();
-    if (notifState._systemAllowed) pollActivities();
-  };
+     pollLatest();
+     if (notifState._systemAllowed) pollActivities();
+   };
 
-  window.addEventListener("focus", () => {
-    if (document.querySelector("#jfNotifModal.open")) {
-      renderResume();
-      if (notifState._systemAllowed) pollActivities();
+   window.addEventListener("focus", () => {
+     if (document.querySelector("#jfNotifModal.open")) {
+       renderResume();
+       if (notifState._systemAllowed) pollActivities();
+     }
+   });
+
+  const onVis = () => {
+    const hidden = document.hidden;
+    pollCtl.paused = hidden;
+    if (hidden) {
+      clearTimeout(pollCtl.latestTimer); pollCtl.latestTimer = null;
+      clearTimeout(pollCtl.actTimer);    pollCtl.actTimer = null;
+    } else {
+      schedulePollLatest(500);
+      if (notifState._systemAllowed) schedulePollActivities(800);
     }
-  });
+  };
+  document.addEventListener('visibilitychange', onVis);
+ }
+
+function schedulePollLatest(delay = POLL_INTERVAL_MS) {
+  if (pollCtl.paused) return;
+  clearTimeout(pollCtl.latestTimer);
+  pollCtl.latestTimer = setTimeout(async () => {
+    if (pollCtl.latestRunning) return schedulePollLatest(1000);
+    pollCtl.latestRunning = true;
+    try { await pollLatest(); }
+    catch (e) {  }
+    finally {
+      pollCtl.latestRunning = false;
+      schedulePollLatest(POLL_INTERVAL_MS);
+    }
+  }, Math.max(300, delay));
+}
+
+function schedulePollActivities(delay = POLL_INTERVAL_MS) {
+  if (pollCtl.paused) return;
+  clearTimeout(pollCtl.actTimer);
+  pollCtl.actTimer = setTimeout(async () => {
+    if (pollCtl.actRunning) return schedulePollActivities(1000);
+    pollCtl.actRunning = true;
+    try { await pollActivities(); }
+    catch (e) {}
+    finally {
+      pollCtl.actRunning = false;
+      schedulePollActivities(POLL_INTERVAL_MS);
+    }
+  }, Math.max(500, delay));
 }
 
 async function waitForSessionReady(timeoutMs = 7000) {

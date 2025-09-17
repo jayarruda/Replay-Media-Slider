@@ -4,15 +4,17 @@ import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, goT
 import { getYoutubeEmbedUrl, isValidUrl } from './utils.js';
 import { getVideoQualityText } from './containerUtils.js';
 import { attachMiniPosterHover, openMiniPopoverFor } from "./studioHubsUtils.js";
-import { positionModalRelativeToDot } from "./navigation.js";
+import { positionModalRelativeToDot, centerActiveDot } from "./navigation.js";
 import { modalState, set, get, resetModalRefs } from './modalState.js';
+import { applyDotPosterAnimation } from "./animations.js";
+import { getCurrentIndex } from "./sliderState.js";
 
 const REOPEN_BLOCK_MS = 600;
 const IS_TOUCH = (typeof window !== 'undefined') && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
 const HARD_CLOSE_BUFFER_MS = 30;
 const REOPEN_COOLDOWN_MS    = 150;
 const CROSS_ITEM_SETTLE_MS  = 180;
-const OPEN_HOVER_DELAY_MS   = 300;
+const OPEN_HOVER_DELAY_MS   = 400;
 
 const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
@@ -31,14 +33,12 @@ const _ytReadyMap = new Map();
 const _seriesTrailerCache = new Map();
 
 const MODAL_ANIM = {
-  openMs: 300,
-  closeMs: 150,
-  ease: 'cubic-bezier(.41,.4,.36,1.01)',
-  scaleFrom: 0.5,
-  scaleTo: 1,
-  opacityFrom: 0,
-  opacityTo: 1
-};
+  openMs: 340, closeMs: 220,
+    ease: 'cubic-bezier(.33,1,.68,1)',
+    scaleFrom: 0.8, scaleTo: 1,
+    opacityFrom: 0, opacityTo: 1,
+    translateFromY: 18, translateToY: 0
+ };
 
 const hasTrailerCache = new Map();
 const pendingHasTrailer = new Map();
@@ -289,6 +289,12 @@ function ensureBadgeIO() {
   return __badgeIO;
 }
 
+function disconnectObservers() {
+  try { window.__studioMiniObs?.disconnect?.(); } catch {}
+  try { window.__jmsTrailerBadgeMO?.disconnect?.(); } catch {}
+  try { __badgeIO?.disconnect?.(); } catch {}
+}
+
 function observeCardForTrailer(card) {
   if (!card || card.__jmsTrailerObserved) return;
   card.__jmsTrailerObserved = true;
@@ -392,7 +398,7 @@ function scanAndMarkCardsForTrailers() {
       card.dataset.hastrailer = has ? 'true' : 'false';
       if (has) mountTrailerBadge(card, LTRAILER);
     }
-  }, { rootMargin: '300px 0px', threshold: 0.01 });
+  }, { rootMargin: '200px 0px', threshold: 0.01 });
   items.forEach(el => io.observe(el));
 }
 
@@ -682,12 +688,15 @@ function handleWindowBlur() {
   closeVideoModal();
 }
 
-window.addEventListener("blur", handleWindowBlur);
-document.addEventListener("visibilitychange", handleVisibilityChange);
+if (!window.__hoverTrailer_globalBound) {
+   window.addEventListener("blur", handleWindowBlur);
+   document.addEventListener("visibilitychange", handleVisibilityChange);
+   window.__hoverTrailer_globalBound = true;
+ }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', destroyVideoModal);
-  window.addEventListener('pagehide', destroyVideoModal);
+  window.addEventListener('beforeunload', () => { destroyVideoModal(); disconnectObservers(); });
+  window.addEventListener('pagehide', () => { destroyVideoModal(); disconnectObservers(); });
 }
 
 export function closeVideoModal() {
@@ -739,7 +748,7 @@ export function destroyVideoModal() {
     modalState.videoModal = null;
     modalState.modalVideo = null;
   }
-  modalState.isMouseInModal = false;
+  try { if (modalState._cacheMaintenanceTimer) { clearInterval(modalState._cacheMaintenanceTimer); modalState._cacheMaintenanceTimer = null; } } catch {}
 }
 
 function sizeYTToCover(iframe) {
@@ -965,9 +974,8 @@ function injectOrUpdateModalStyle() {
       overflow: hidden;
       transform: translateY(5px) scale(${MODAL_ANIM.scaleFrom});
       opacity: ${MODAL_ANIM.opacityFrom};
-      transition:
-      opacity ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease},
-      transform ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease};
+      transition: none;
+      will-change: transform, opacity;
       font-family: "Inter","Netflix Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
       pointer-events: auto;
       border: 1.5px solid rgba(255, 255, 255, 0.10);
@@ -1566,7 +1574,7 @@ export function setupHoverForAllItems() {
       const itemId = item.dataset.itemId || item.dataset.id || (item.closest('[data-id]')?.dataset?.id);
       if (!itemId) return;
       scheduleOpenForItem(item, itemId, signal, async () => {
-        if (!modalState.isMouseInItem && !isMouseInModal) return;
+        if (!modalState.isMouseInItem && !modalState.isMouseInModal) return;
         try {
           if (modalState.videoModal) {
             hardStopPlayback();
@@ -1598,7 +1606,7 @@ export function setupHoverForAllItems() {
           const domBackdrop = item.dataset?.background || item.dataset?.backdrop || null;
           const itemBackdrop = getBackdropFromItem(itemDetails);
           modalState.videoModal.setBackdrop(domBackdrop || itemBackdrop || null);
-          if (!modalState.isMouseInItem && !isMouseInModal) return;
+          if (!modalState.isMouseInItem && !modalState.isMouseInModal) return;
           modalState.videoModal.dataset.itemId = itemId;
           positionModalRelativeToItem(modalState.videoModal, item);
           animatedShow(modalState.videoModal);
@@ -1647,17 +1655,21 @@ function softStopPlayback() {
 
 export function animatedShow(modal) {
   if (!modal) return;
+  const { openMs, ease, scaleFrom, scaleTo, opacityFrom, opacityTo } = MODAL_ANIM;
   modal.style.display = 'block';
   modal.style.transition = 'none';
-  modal.style.opacity = String(MODAL_ANIM.opacityFrom);
-  modal.style.transform = `scale(${MODAL_ANIM.scaleFrom})`;
-
+  modal.style.opacity = String(opacityFrom);
+  modal.style.transform = `scale(${scaleFrom})`;
+  modal.style.willChange = 'transform, opacity';
+  void modal.offsetWidth;
   requestAnimationFrame(() => {
-    modal.style.transition =
-      `opacity ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease}, ` +
-      `transform ${MODAL_ANIM.openMs}ms ${MODAL_ANIM.ease}`;
-    modal.style.opacity = String(MODAL_ANIM.opacityTo);
-    modal.style.transform = `scale(${MODAL_ANIM.scaleTo})`;
+    requestAnimationFrame(() => {
+      modal.style.transition = `opacity ${openMs}ms ${ease}, transform ${openMs}ms ${ease}`;
+      modal.style.opacity = String(opacityTo);
+      modal.style.transform = `scale(${scaleTo})`;
+      const clear = () => { modal.style.willChange = ''; modal.removeEventListener('transitionend', clear); };
+      modal.addEventListener('transitionend', clear, { once: true });
+    });
   });
 }
 
@@ -1666,12 +1678,6 @@ export function positionModalRelativeToItem(modal, item, options = {}) {
     modalWidth: 400,
     modalHeight: 330,
     windowPadding: 16,
-    animationDuration: 400,
-    openAnimation: 'cubic-bezier(.33,1.3,.7,1)',
-    openTransform: 'scale(1)',
-    openOpacity: '1',
-    closedTransform: 'scale(0.7)',
-    closedOpacity: '1',
     preferredPosition: 'center',
     autoReposition: true
   };
@@ -1706,20 +1712,7 @@ export function positionModalRelativeToItem(modal, item, options = {}) {
     modalStyle.transformOrigin = 'center center';
   };
 
-  const animateModal = () => {
-    modalStyle.transition = 'none';
-    modalStyle.opacity = settings.closedOpacity;
-    modalStyle.transform = settings.closedTransform;
-    requestAnimationFrame(() => {
-      modalStyle.transition = `opacity ${settings.animationDuration}ms ${settings.openAnimation},
-                               transform ${settings.animationDuration}ms ${settings.openAnimation}`;
-      modalStyle.opacity = settings.openOpacity;
-      modalStyle.transform = settings.openTransform;
-    });
-  };
-
   positionModal();
-  animateModal();
   if (settings.autoReposition) {
     const handler = () => positionModal();
     window.addEventListener('resize', handler);
@@ -1846,7 +1839,7 @@ function startCacheMaintenance() {
   if (modalState._cacheMaintenanceStarted) return;
   modalState._cacheMaintenanceStarted = true;
 
-  setInterval(() => { pruneExpired(); }, 60_000);
+  modalState._cacheMaintenanceTimer = setInterval(() => { pruneExpired(); }, 60_000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pruneExpired(); });
 }
 startCacheMaintenance();
@@ -2166,8 +2159,8 @@ export async function openPreviewModalForItem(itemId, anchorEl) {
 
     const itemBackdrop = getBackdropFromItem(item);
     modal = ensureGlobalModal();
-if (!modal) return;
-if (typeof modal.setBackdrop === 'function') {
+    if (!modal) return;
+    if (typeof modal.setBackdrop === 'function') {
   modal.setBackdrop(domBackdrop || itemBackdrop || null);
 }
 
@@ -2175,8 +2168,7 @@ if (typeof modal.setBackdrop === 'function') {
     if (!modal) return;
     modal.dataset.itemId = String(itemId);
     if (anchorEl) positionModalRelativeToItem(modalState.videoModal, anchorEl);
-    if (modal.style.display !== 'block') animatedShow(modal);
-else modal.style.display = 'block';
+    animatedShow(modal);
 
     modalState.isMouseInModal = true;
     clearTimeout(modalState.modalHideTimeout);

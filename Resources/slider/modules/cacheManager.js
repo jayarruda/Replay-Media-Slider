@@ -86,8 +86,8 @@ function tryLocalStorageSet(key, value, evictBatch, getOldestKeys) {
 
 const videoQualityCache = {
   data: new Map(),
-  maxSize: 400,
-  softCeil: 350,
+  maxSize: 300,
+  softCeil: 260,
 
   load() {
     this.data.clear();
@@ -237,3 +237,9 @@ export function clearQualityCache() {
   } catch (e) {
   }
 }
+
+try {
+  window.addEventListener('pagehide', () => {
+    try { videoQualityCache.save(true); } catch {}
+  }, { once: true });
+} catch {}

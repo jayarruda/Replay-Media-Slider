@@ -6,6 +6,7 @@ import { tryOpenTrailerPopover, hideTrailerPopover } from "./studioTrailerPopove
 const config = getConfig();
 const DETAILS_TTL = 60 * 60 * 1000;
 const detailsCache = new Map();
+const DETAILS_LRU_MAX = 300;
 let __miniPop = null;
 let __miniCloseTimer = null;
 let __cssLoaded = false;
@@ -295,6 +296,10 @@ async function getDetails(itemId, abortSignal) {
     }
 
     detailsCache.set(itemId, { ts: Date.now(), data });
+    if (detailsCache.size > DETAILS_LRU_MAX) {
+      const oldest = detailsCache.keys().next().value;
+      detailsCache.delete(oldest);
+    }
     return data;
   } catch (e) {
     return null;
@@ -453,13 +458,19 @@ export function attachMiniPosterHover(cardEl, itemLike) {
   ensureCss();
   ensureMiniPopover();
 
+  if (cardEl.dataset.miniHoverBound === '1') return;
+  cardEl.dataset.miniHoverBound = '1';
+
   let overTimer = null;
   if (!window.__studioLastHumanInputTs) window.__studioLastHumanInputTs = 0;
   const markHuman = () => (window.__studioLastHumanInputTs = Date.now());
-  window.addEventListener("pointerdown", markHuman, { capture: true, passive: true });
-  window.addEventListener("mousemove",   markHuman, { capture: true, passive: true });
-  window.addEventListener("keydown",     markHuman, { capture: true, passive: true });
-  window.addEventListener("touchstart",  markHuman, { capture: true, passive: true });
+  if (!window.__miniHumanBound) {
+    window.__miniHumanBound = true;
+    window.addEventListener("pointerdown", markHuman, { capture: true, passive: true });
+    window.addEventListener("mousemove",   markHuman, { capture: true, passive: true });
+    window.addEventListener("keydown",     markHuman, { capture: true, passive: true });
+    window.addEventListener("touchstart",  markHuman, { capture: true, passive: true });
+  }
 
   const cancelOpen = () => {
     if (overTimer) { clearTimeout(overTimer); __miniTimers.delete(overTimer); overTimer = null; }

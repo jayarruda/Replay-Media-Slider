@@ -12,10 +12,17 @@ window.__backdropWarmQueue = backdropWarmQueue;
 
 function warmImageOnce(url, { timeout = 2500 } = {}) {
   if (!url) return Promise.resolve();
-  warmImageOnce._warmed ??= new Set();
-  if (warmImageOnce._warmed.has(url)) return Promise.resolve();
+  const LRU_MAX = 500;
+  warmImageOnce._set  ??= new Set();
+  warmImageOnce._list ??= [];
+  if (warmImageOnce._set.has(url)) return Promise.resolve();
+  warmImageOnce._set.add(url);
+  warmImageOnce._list.push(url);
+  if (warmImageOnce._list.length > LRU_MAX) {
+    const drop = warmImageOnce._list.splice(0, warmImageOnce._list.length - LRU_MAX);
+    for (const u of drop) warmImageOnce._set.delete(u);
+  }
 
-  warmImageOnce._warmed.add(url);
   return new Promise((res) => {
     const img = new Image();
     let done = false;
@@ -27,6 +34,7 @@ function warmImageOnce(url, { timeout = 2500 } = {}) {
   });
 }
 
+
 function shortPreload(url, ms = 1200) {
   if (!url) return;
   const sel = `link[rel="preload"][as="image"][href="${url}"]`;
@@ -36,14 +44,15 @@ function shortPreload(url, ms = 1200) {
   link.as = 'image';
   link.href = url;
   document.head.appendChild(link);
-  setTimeout(() => link.remove(), ms);
+  setTimeout(() => { try { link.remove(); } catch {} }, ms);
 }
 
 async function createSlide(item) {
-  const indexPage = document.querySelector("#indexPage:not(.hide)");
+  const indexPage = document.querySelector("#indexPage:not(.hide)") || document.querySelector("#homePage:not(.hide)");
   if (!indexPage) return;
 
   let parentId = item.Id;
+  const itemIdRaw = item.Id;
 
   if ((item.Type === "Episode" || item.Type === "Season") && item.SeriesId) {
     try {
@@ -88,7 +97,31 @@ async function createSlide(item) {
     }
   }
 
+  const ac = new AbortController();
+  const { signal } = ac;
+  const perSlideObservers = [];
   const slidesContainer = createSlidesContainer(indexPage);
+  const existing = slidesContainer.querySelector(`.slide[data-item-id="${itemIdRaw}"]`);
+ if (existing) {
+   try { existing.__cleanupSlide?.(); } catch {}
+   try { existing.remove(); } catch {}
+ }
+  if (!slidesContainer.__cleanupMO) {
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts) {
+        m.removedNodes?.forEach?.(node => {
+          if (node && node.__cleanupSlide) {
+            try { node.__cleanupSlide(); } catch {}
+          }
+          node?.querySelectorAll?.('.slide')?.forEach(el => {
+            if (el.__cleanupSlide) { try { el.__cleanupSlide(); } catch {} }
+          });
+        });
+      }
+    });
+    mo.observe(slidesContainer, { childList:true, subtree:true });
+    slidesContainer.__cleanupMO = mo;
+  }
   const isFirstSlide = slidesContainer.children.length === 0;
   const itemId = item.Id;
 
@@ -121,11 +154,15 @@ async function createSlide(item) {
   }
 
   function storeBackdropUrl(id, url) {
-    const storedUrls = JSON.parse(localStorage.getItem("backdropUrls")) || [];
-    if (!storedUrls.includes(url)) {
-      storedUrls.push(url);
-      localStorage.setItem("backdropUrls", JSON.stringify(storedUrls));
-    }
+    try {
+      const stored = JSON.parse(localStorage.getItem("backdropUrls")) || [];
+      if (!stored.includes(url)) {
+        stored.push(url);
+        const MAX = 500;
+        const trimmed = stored.slice(-MAX);
+        localStorage.setItem("backdropUrls", JSON.stringify(trimmed));
+      }
+    } catch {}
   }
 
   const autoBackdropUrl = `/Items/${parentId}/Images/Backdrop/${highestQualityBackdropIndex}`;
@@ -219,8 +256,8 @@ if (isFirstSlide) {
   prefetchImages([backdropUrl]);
 }
 
-let isBackdropLoaded = false;
-backdropImg.addEventListener('load', () => { isBackdropLoaded = true; }, { once: true });
+  let isBackdropLoaded = false;
+backdropImg.addEventListener('load', () => { isBackdropLoaded = true; }, { once: true, signal });
 
 const finalBackdropForWarm = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
 backdropWarmQueue.enqueue(finalBackdropForWarm, { shortPreload: true });
@@ -234,52 +271,75 @@ const warmObserver = new IntersectionObserver((entries, obs) => {
       obs.unobserve(entry.target);
     }
   });
-}, {
-  root: null,
-  rootMargin: '800px 0px',
-});
+}, { root: null, rootMargin: '600px 0px' });
 warmObserver.observe(backdropImg);
+perSlideObservers.push(warmObserver);
 
 const warmOnHover = () => {
    if (!isBackdropLoaded) {
      warmImageOnce(finalBackdropForWarm).catch(() => {});
    }
 };
-  backdropImg.addEventListener('mouseenter', warmOnHover, { passive: true });
-  backdropImg.addEventListener('pointerover', warmOnHover, { passive: true });
+  backdropImg.addEventListener('mouseenter', warmOnHover, { passive: true, signal });
+  backdropImg.addEventListener('pointerover', warmOnHover, { passive: true, signal });
 
   const io = new IntersectionObserver((entries, observer) => {
   entries.forEach(entry => {
     if (!entry.isIntersecting) return;
 
     const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
-    const preload = document.createElement('link');
-    preload.rel = 'preload';
-    preload.as = 'image';
-    preload.href = finalBackdrop;
-    document.head.appendChild(preload);
+    let preload = document.querySelector(`link[rel="preload"][as="image"][href="${finalBackdrop}"]`);
+     if (!preload) {
+       preload = document.createElement('link');
+       preload.rel = 'preload';
+       preload.as = 'image';
+       preload.href = finalBackdrop;
+       document.head.appendChild(preload);
+     }
 
     backdropImg.src = finalBackdrop;
     backdropImg.onload = () => {
       backdropImg.style.transition = 'opacity 0.5s ease';
       backdropImg.style.opacity = '1';
-      setTimeout(() => preload.remove(), 1500);
+      setTimeout(() => {
+         try {
+           if (preload && !preload.__pinned) preload.remove();
+         } catch {}
+       }, 1500);
+    };
+    backdropImg.onerror = () => {
+      setTimeout(() => { try { preload.remove(); } catch {} }, 0);
     };
 
     observer.unobserve(backdropImg);
   });
 });
 io.observe(backdropImg);
+perSlideObservers.push(io);
 
   backdropImg.addEventListener('click', () => {
     goToDetailsPage(itemId);
-  });
+  }, { signal });
+
+  const teardown = () => {
+    try { perSlideObservers.forEach(o => o.disconnect()); } catch {}
+    try { ac.abort(); } catch {}
+    try {
+     backdropImg.removeEventListener('mouseenter', warmOnHover);
+     backdropImg.removeEventListener('pointerover', warmOnHover);
+   } catch {}
+  };
+
+  slide.__cleanupSlide = teardown;
 
   const gradientOverlay = createGradientOverlay(selectedOverlayUrl);
   const horizontalGradientOverlay = createHorizontalGradientOverlay();
   slide.append(backdropImg, gradientOverlay, horizontalGradientOverlay);
 
-  createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId });
+  if (!slide.__trailerInit) {
+   slide.__trailerInit = true;
+   createTrailerIframe({ config, RemoteTrailers, slide, backdropImg, itemId });
+ }
 
   const logoContainer = createLogoContainer();
   const order = config.showDiscOnly
@@ -413,6 +473,7 @@ function addSlideToSettingsBackground(itemId, backdropUrl) {
       slide.parentNode.removeChild(slide);
     }
   };
+  img.onload = () => { img.onload = img.onerror = null; };
   settingsSlider.appendChild(slide);
   if (settingsSlider.children.length === 1) {
     slide.classList.add("active");
@@ -651,6 +712,7 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
     overlay.style.opacity = "0";
     setTimeout(() => {
       if (document.body.contains(overlay)) {
+        try { iframe.src = "about:blank"; } catch {}
         document.body.removeChild(overlay);
       }
       document.removeEventListener("keydown", escListener);

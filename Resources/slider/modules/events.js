@@ -32,13 +32,11 @@ export function attachMouseEvents() {
   const slidesContainer = indexPage.querySelector("#slides-container");
   if (slidesContainer) {
     slidesContainer.addEventListener("mouseenter", () => {
-      pauseSlideTimer();
-      pauseProgressBar();
-    });
+      pauseSlideTimer(); pauseProgressBar();
+    }, { passive: true });
     slidesContainer.addEventListener("mouseleave", () => {
-      resumeSlideTimer();
-      resumeProgressBar();
-    });
+      resumeSlideTimer(); resumeProgressBar();
+    }, { passive: true });
 
     if (slidesContainer.matches(":hover")) {
       pauseSlideTimer();
@@ -46,15 +44,10 @@ export function attachMouseEvents() {
     }
   }
 
-  const slides = indexPage.querySelectorAll(".slide");
-  slides.forEach((slide) => {
-    slide.addEventListener("mouseenter", () => {
-      pauseSlideTimer();
-      pauseProgressBar();
-    });
-    slide.addEventListener("mouseleave", () => {
-      resumeSlideTimer();
-      resumeProgressBar();
-    });
-  });
+  indexPage.addEventListener('mouseover', (e) => {
+    if (e.target?.closest?.('.slide')) { pauseSlideTimer(); pauseProgressBar(); }
+  }, { passive: true });
+  indexPage.addEventListener('mouseout', (e) => {
+    if (e.target?.closest?.('.slide')) { resumeSlideTimer(); resumeProgressBar(); }
+  }, { passive: true });
 }

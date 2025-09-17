@@ -36,15 +36,16 @@ export function clearAllTimers() {
 }
 
 
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") {
-    pauseSlideTimer();
-    pauseProgressBar();
-  } else {
-    resumeSlideTimer();
-    resumeProgressBar();
-  }
-});
+if (!window.__sliderVisibilityBound) {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      pauseSlideTimer(); pauseProgressBar();
+    } else {
+      resumeSlideTimer(); resumeProgressBar();
+    }
+  });
+  window.__sliderVisibilityBound = true;
+}
 
 export function startSlideTimer() {
   clearAllTimers();

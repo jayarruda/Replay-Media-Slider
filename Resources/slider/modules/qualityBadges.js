@@ -8,6 +8,7 @@ const config = getConfig();
 const BATCH_SIZE = 50;
 const STICKY_MODE = true;
 const QB_VER = '2';
+const MEMORY_HINTS_MAX = 1500;
 
 let processingQueue = [];
 let isProcessing = false;
@@ -19,6 +20,7 @@ const observerOptions = {
 };
 
 const memoryQualityHints = new Map();
+const observedCards = new WeakSet();
 
 export function primeQualityFromItems(items = []) {
   for (const it of items) {
@@ -31,6 +33,10 @@ export function primeQualityFromItems(items = []) {
       if (!q) continue;
       memoryQualityHints.set(it.Id, q);
       setCachedQuality(it.Id, q, it.Type);
+      if (memoryQualityHints.size > MEMORY_HINTS_MAX) {
+        const it = memoryQualityHints.keys().next().value;
+        memoryQualityHints.delete(it);
+      }
     } catch {}
   }
 }
@@ -78,10 +84,7 @@ async function processQueue() {
 
 async function processCard(card, itemId) {
   if (!card?.isConnected || !isValidItemType(card)) return;
-  if (card.querySelector('.quality-badge')) {
-    if (card.dataset.qbVer === QB_VER) return;
-    return;
-  }
+  if (card.querySelector('.quality-badge')) { return; }
 
   const hinted = card.dataset?.quality || memoryQualityHints.get(itemId) || snapshotMap?.get(itemId);
   if (hinted) return createBadge(card, hinted);
@@ -104,6 +107,8 @@ export async function addQualityBadge(card, itemId = null) {
   itemId = itemId || card.closest('[data-id]')?.getAttribute('data-id');
   if (!itemId) return;
   if (card.querySelector('.quality-badge')) return;
+  if (card.dataset.qbMounted === '1') return;
+  card.dataset.qbMounted = '1';
 
   processingQueue.push({ card, itemId });
   if (!isProcessing) processQueue();
@@ -192,28 +197,31 @@ function initObservers() {
   }, observerOptions);
 
   mutationObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.addedNodes.forEach(node => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-        const cards = node.querySelectorAll?.('.cardImageContainer, .cardOverlayContainer') || [];
+        const cards = node.matches?.('.cardImageContainer, .cardOverlayContainer')
+          ? [node]
+          : (node.querySelectorAll?.('.cardImageContainer, .cardOverlayContainer') || []);
         cards.forEach(card => {
           if (!isValidItemType(card)) return;
           annotateDomWithQualityHints(card);
-          if (!card.querySelector('.quality-badge')) observer.observe(card);
+          if (!card.querySelector('.quality-badge') && !observedCards.has(card)) {
+            observedCards.add(card);
+            observer.observe(card);
+          }
         });
-
-        if (node.matches?.('.cardImageContainer, .cardOverlayContainer') && isValidItemType(node)) {
-          annotateDomWithQualityHints(node);
-          if (!node.querySelector('.quality-badge')) observer.observe(node);
-        }
-      });
-    });
+      }
+    }
   });
   document.querySelectorAll('.cardImageContainer, .cardOverlayContainer').forEach(card => {
     if (!isValidItemType(card)) return;
     annotateDomWithQualityHints(card);
-    if (!card.querySelector('.quality-badge')) observer.observe(card);
+    if (!card.querySelector('.quality-badge') && !observedCards.has(card)) {
+      observedCards.add(card);
+      observer.observe(card);
+    }
   });
 
   mutationObserver.observe(document.body, {
@@ -250,6 +258,7 @@ export function cleanupQualityBadges() {
   processingQueue = [];
   isProcessing = false;
   window.qualityBadgesInitialized = false;
+  snapshotMap = null;
 }
 
 export function removeAllQualityBadgesFromDOM() {
@@ -273,8 +282,10 @@ export function clearQualityBadgesCacheAndRefresh() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (document.querySelector('.cardImageContainer, .cardOverlayContainer')) {
-    initializeQualityBadges();
-  }
-});
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('.cardImageContainer, .cardOverlayContainer')) initializeQualityBadges();
+  }, { once: true });
+} else {
+  if (document.querySelector('.cardImageContainer, .cardOverlayContainer')) initializeQualityBadges();
+}

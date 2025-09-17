@@ -1,8 +1,3 @@
-/**
- * The use of this file without proper attribution to the original author (G-grbz - https://github.com/G-grbz)
- * and without obtaining permission is considered unethical and is not permitted.
- */
-
 import { makeApiRequest } from "./api.js";
 import { getServerAddress, getConfig } from "./config.js";
 import { addStyleSpecificParams } from "./dicebearSpecificParams.js";
@@ -13,6 +8,7 @@ let avatarObserver = null;
 let currentAvatarElement = null;
 let avatarRotationInterval = null;
 const AVATAR_ROTATION_INTERVAL = 10000;
+let _updatingAvatar = false;
 
 const userCache = {
   data: null,
@@ -94,9 +90,12 @@ function getValidParamsForStyle(style) {
 
 export async function updateHeaderUserAvatar() {
   try {
+    if (_updatingAvatar) return;
+    _updatingAvatar = true;
     const config = getConfig?.();
     if (config && config.createAvatar === false) {
       cleanAvatars();
+      _updatingAvatar = false;
       return;
     }
 
@@ -105,21 +104,24 @@ export async function updateHeaderUserAvatar() {
       ensureUserData()
     ]);
 
-    if (!headerButton || !user) return;
+    if (!headerButton || !user) { _updatingAvatar = false; return; }
 
     if (hasJellyfinAvatar(headerButton)) {
       if (customAvatarAdded) {
         cleanAvatars();
         customAvatarAdded = false;
       }
-      return;
+      _updatingAvatar = false; return;
     }
 
     const avatarElement = await createAvatar(user);
-    if (!avatarElement) return;
+    if (!avatarElement) { _updatingAvatar = false; return; }
 
     cleanAvatars(headerButton);
     avatarElement.classList.add("custom-user-avatar");
+    const label = (user?.Name || "User") + " avatar";
+    avatarElement.setAttribute('role','img');
+    avatarElement.setAttribute('aria-label', label);
     headerButton.appendChild(avatarElement);
     currentAvatarElement = avatarElement;
     customAvatarAdded = true;
@@ -128,6 +130,8 @@ export async function updateHeaderUserAvatar() {
     setupAvatarProtection(headerButton, user);
   } catch (err) {
     console.error("Avatar güncelleme hatası:", err);
+    } finally {
+    _updatingAvatar = false;
   }
 }
 
@@ -147,7 +151,9 @@ async function createAvatar(user) {
   if (cached) {
     const div = document.createElement('div');
     div.innerHTML = cached;
-    return div.firstChild;
+    const node = div.firstElementChild || div.firstChild;
+    if (node) node.classList.add('custom-user-avatar');
+    return node || null;
   }
 
   const avatar = config.avatarStyle === 'dicebear' && config.dicebearStyle
@@ -212,6 +218,8 @@ async function createDicebearAvatar(user) {
     svgElement.style.borderRadius = `${config.dicebearRadius || 50}%`;
     svgElement.style.transform = `scale(${scale})`;
     svgElement.style.position = config.dicebearPosition ? 'fixed' : 'relative';
+    svgElement.setAttribute('role','img');
+    svgElement.setAttribute('aria-label', (user?.Name || 'User') + ' avatar');
 
     if (config.dicebearBackgroundEnabled && config.dicebearBackgroundColor && config.dicebearBackgroundColor !== 'transparent') {
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -234,6 +242,8 @@ function createInitialsAvatar(user) {
   const initialsDiv = document.createElement("div");
   initialsDiv.textContent = initials;
   initialsDiv.dataset.userId = user.Id;
+  initialsDiv.setAttribute('role','img');
+  initialsDiv.setAttribute('aria-label', (user?.Name || 'User') + ' avatar');
 
   const config = getConfig();
   const scale = config.avatarScale || 1;
@@ -341,6 +351,7 @@ function updateAvatarElement(avatarElement, user) {
 
 
 export function cleanAvatars(container = document) {
+  if (!(container && container.querySelectorAll)) return;
   const elementsToRemove = container.querySelectorAll(`
     .material-icons.person,
     .user-avatar,
@@ -427,7 +438,7 @@ function setupAvatarProtection(headerButton, user) {
     const currentAvatar = headerButton.querySelector(".custom-user-avatar");
     const materialIcon = headerButton.querySelector(".material-icons.person");
 
-    if (!currentAvatar || materialIcon) {
+    if ((!currentAvatar && !materialIcon) || materialIcon) {
       avatarObserver.disconnect();
       updateHeaderUserAvatar();
     }

@@ -9,6 +9,17 @@ const USER_ID_KEY = "jf_userId";
 const DEVICE_ID_KEY = "jf_api_deviceId";
 const notFoundTombstone = new Map();
 const NOTFOUND_TTL = 30 * 60 * 1000;
+const MAX_ITEM_CACHE = 600;
+const MAX_DOT_GENRE_CACHE = 1200;
+const MAX_PREVIEW_CACHE = 200;
+const MAX_TOMBSTONES = 2000;
+
+function pruneMapBySize(map, max) {
+  while (map.size > max) {
+    const k = map.keys().next().value;
+    map.delete(k);
+  }
+}
 
 function isTombstoned(id) {
   const rec = notFoundTombstone.get(id);
@@ -16,6 +27,7 @@ function isTombstoned(id) {
 }
 function markTombstone(id) {
   notFoundTombstone.set(id, Date.now());
+  if (notFoundTombstone.size > MAX_TOMBSTONES) pruneMapBySize(notFoundTombstone, MAX_TOMBSTONES);
 }
 
 function isAbortError(err, signal) {
@@ -395,7 +407,7 @@ export async function fetchItemDetails(itemId) {
   return data || null;
 }
 
-export async function getCachedItemDetails(itemId) {
+async function getCachedItemDetailsInternal(itemId) {
   if (!itemId || isTombstoned(itemId)) return null;
 
   const now = Date.now();
@@ -407,9 +419,11 @@ export async function getCachedItemDetails(itemId) {
   const data = await fetchItemDetails(itemId);
   if (data === null) {
     itemCache.set(itemId, { data: null, timestamp: now });
+    pruneMapBySize(itemCache, MAX_ITEM_CACHE);
     return null;
   }
   itemCache.set(itemId, { data, timestamp: now });
+  pruneMapBySize(itemCache, MAX_ITEM_CACHE);
   return data;
 }
 export async function updateFavoriteStatus(itemId, isFavorite) {
@@ -916,6 +930,7 @@ export async function getCachedVideoPreview(itemId) {
   if (url) {
     videoPreviewCache.set(itemId, url);
     setTimeout(() => videoPreviewCache.delete(itemId), 300000);
+    if (videoPreviewCache.size > MAX_PREVIEW_CACHE) pruneMapBySize(videoPreviewCache, MAX_PREVIEW_CACHE);
   }
 
   return url;
@@ -1053,6 +1068,31 @@ function checkAndClearCacheOnUserChange(cacheKey, currentUserId) {
   }
 }
 
+let __lastUserForCaches = null;
+function clearAllInMemoryCaches() {
+  itemCache.clear();
+  dotGenreCache.clear();
+  notFoundTombstone.clear();
+  videoPreviewCache.clear();
+}
+function ensureUserCacheIsolation() {
+  const uid = getCachedUserId();
+  if (!uid) return;
+  if (__lastUserForCaches && __lastUserForCaches !== uid) {
+    clearAllInMemoryCaches();
+  }
+  __lastUserForCaches = uid;
+}
+
+export async function getCachedItemDetails(itemId) {
+  ensureUserCacheIsolation();
+  return getCachedItemDetailsInternal(itemId);
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', clearAllInMemoryCaches, { once: true });
+}
+
 export async function getCachedUserTopGenres(limit = 50, itemType = null) {
   const cacheKey = "userTopGenresCache";
   const cacheTTL = 1000 * 60 * 60 * 24;
@@ -1095,6 +1135,7 @@ export async function getGenresForDot(itemId) {
     const details = await fetchItemDetails(itemId);
     const genres = details ? extractGenresFromItem(details) : [];
     dotGenreCache.set(itemId, { timestamp: Date.now(), genres });
+    pruneMapBySize(dotGenreCache, MAX_DOT_GENRE_CACHE);
     return genres;
   } catch {
     return [];

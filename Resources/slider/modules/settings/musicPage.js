@@ -2,6 +2,349 @@ import { getConfig } from "../config.js";
 import { createCheckbox, createImageTypeSelect, bindCheckboxKontrol, bindTersCheckboxKontrol, createSection } from "../settings.js";
 import { applySettings, applyRawConfig } from "./applySettings.js";
 
+const LYRICS_JOB_KEY = 'jmsf_lyrics_job_running';
+
+let __lyricsLabels = {};
+
+function createLyricsSummaryModal(labels) {
+    if (document.getElementById('lyrics-summary-modal')) return;
+
+    const modal = document.createElement('div');
+    modal.id = 'lyrics-summary-modal';
+    modal.className = 'settings-modal';
+    modal.style.display = 'none';
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+
+    const content = document.createElement('div');
+    content.className = 'settings-modal-content';
+    content.style.maxWidth = '500px';
+
+    const close = document.createElement('span');
+    close.className = 'settings-close';
+    close.innerHTML = '&times;';
+    close.onclick = () => modal.style.display = 'none';
+
+    const h2 = document.createElement('h2');
+    h2.textContent = labels.lyricsSummaryTitle || "Şarkı Sözleri Özeti";
+
+    const summaryContent = document.createElement('div');
+    summaryContent.id = 'lyricsSummaryContent';
+    summaryContent.style.lineHeight = '1.6';
+    summaryContent.style.margin = '15px 0';
+
+    const note = document.createElement('div');
+    note.className = 'setting-item';
+    note.style.marginTop = '20px';
+    note.style.padding = '10px';
+    note.style.background = 'rgba(255, 193, 7, 0.1)';
+    note.style.borderLeft = '4px solid #ffc107';
+    note.innerHTML = labels.lyricsSyncNote || '<strong>Not:</strong> Şarkı sözlerini senkronize etmeyi unutmayın!';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = labels.close || 'Kapat';
+    closeBtn.style.marginTop = '15px';
+    closeBtn.onclick = () => modal.style.display = 'none';
+
+    content.append(close, h2, summaryContent, note, closeBtn);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+}
+
+function showLyricsSummaryModal(summary, labels) {
+    createLyricsSummaryModal(labels);
+    const modal = document.getElementById('lyrics-summary-modal');
+    const content = document.getElementById('lyricsSummaryContent');
+
+    if (!modal || !content) return;
+
+    const L = labels || {};
+    const tOk = L.lyricsSummaryOk || "Başarılı";
+    const tSyn = L.lyricsSummarySynced || "Senkronize";
+    const tPln = L.lyricsSummaryPlain || "Düz";
+    const tFail = L.lyricsSummaryFail || "Başarısız";
+
+    const ok = (summary.ok ?? ((summary.synced || 0) + (summary.plain || 0)));
+    const synced = summary.synced || 0;
+    const plain = summary.plain || 0;
+    const fail = summary.fail || 0;
+
+    content.innerHTML = `
+        <div style="margin-bottom: 10px;">
+            ${tOk}: <b style="color: #27ae60;">${ok}</b>
+        </div>
+        <div style="margin-bottom: 10px;">
+            ${tSyn}: <b>${synced}</b>
+        </div>
+        <div style="margin-bottom: 10px;">
+            ${tPln}: <b>${plain}</b>
+        </div>
+        <div style="margin-bottom: 10px;">
+            ${tFail}: <b style="color: #e74c3c;">${fail}</b>
+        </div>
+    `;
+
+    modal.style.display = 'block';
+}
+
+function getJFHeaders() {
+  let token = null, userId = null;
+  try { token = window.ApiClient?._serverInfo?.AccessToken || window.ApiClient?.accessToken?.(); } catch (e) {}
+  try { userId = window.ApiClient?._serverInfo?.UserId || window.ApiClient?._currentUserId; } catch (e) {}
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'X-Emby-Token': token } : {}),
+    ...(userId ? { 'X-Emby-UserId': userId, 'X-MediaBrowser-UserId': userId } : {}),
+  };
+}
+
+async function detectIsAdmin() {
+  try {
+    if (!window.ApiClient) return true;
+    const user = await window.ApiClient.getCurrentUser();
+    return !!user?.Policy?.IsAdministrator;
+  } catch (e) { return true; }
+}
+
+function attachLyricsModal(labels) {
+  if (document.getElementById('lyrics-modal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'lyrics-modal';
+  modal.className = 'settings-modal';
+  modal.style.display = 'none';
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  const content = document.createElement('div');
+  content.className = 'settings-modal-content';
+  content.style.maxWidth = '680px';
+
+  const close = document.createElement('span');
+  close.className = 'settings-close';
+  close.innerHTML = '&times;';
+  close.onclick = () => modal.style.display = 'none';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = labels.lyricsHeader || "Şarkı Sözleri";
+
+  const progWrap = document.createElement('div');
+  progWrap.className = 'setting-item';
+  const progLbl = document.createElement('div');
+  progLbl.textContent = (labels.lyricsProgress || "İlerleme") + ": ";
+  const progBarOuter = document.createElement('div');
+  progBarOuter.style.height = '10px';
+  progBarOuter.style.background = 'rgba(255,255,255,0.15)';
+  progBarOuter.style.borderRadius = '6px';
+  const progBar = document.createElement('div');
+  progBar.id = 'lyricsProgressBar';
+  progBar.style.height = '10px';
+  progBar.style.width = '0%';
+  progBar.style.borderRadius = '6px';
+  progBar.style.transition = 'width 0.3s ease';
+  progBarOuter.appendChild(progBar);
+  const progTxt = document.createElement('div');
+  progTxt.id = 'lyricsProgressText';
+  progTxt.style.marginTop = '6px';
+  progWrap.append(progLbl, progBarOuter, progTxt);
+
+  const status = document.createElement('div');
+  status.id = 'lyricsStatus';
+  status.className = 'setting-item';
+  status.textContent = labels.lyricsIdle || "Hazır";
+
+  const btnRow = document.createElement('div');
+  btnRow.className = 'btn-item';
+  const startBtn = document.createElement('button');
+  startBtn.id = 'lyricsStart';
+  startBtn.textContent = labels.lyricsStart || "Başlat";
+  const cancelBtn = document.createElement('button');
+  cancelBtn.id = 'lyricsCancel';
+  cancelBtn.textContent = labels.lyricsCancel || "İptal";
+  cancelBtn.disabled = true;
+  btnRow.append(startBtn, cancelBtn);
+
+  const logWrap = document.createElement('div');
+  logWrap.className = 'setting-item';
+  const logLabel = document.createElement('div');
+  logLabel.textContent = labels.lyricsLog || "Log";
+  const logBox = document.createElement('pre');
+  logBox.id = 'lyricsLog';
+  logBox.style.maxHeight = '400px';
+  logBox.style.overflow = 'auto';
+  logBox.style.whiteSpace = 'pre-wrap';
+  logWrap.append(logLabel, logBox);
+
+  content.append(close, h2, status, progWrap, btnRow, logWrap);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  startBtn.addEventListener('click', () => startLyricsJob(labels, { startBtn, cancelBtn, status, progBar, progTxt, logBox }));
+  cancelBtn.addEventListener('click', () => cancelLyricsJob(labels));
+}
+
+function openLyricsModal(labels, opts = {}) {
+  __lyricsLabels = labels || {};
+  const { autoStart = false } = opts;
+
+  const modal = document.getElementById('lyrics-modal');
+  if (!modal) return;
+  modal.style.display = 'block';
+
+  const { startBtn, cancelBtn, status, progBar, progTxt, logBox } = grabLyricsModalRefs();
+  (async () => {
+    try {
+      const r = await fetch('/JMSFusion/lyrics/status', { headers: getJFHeaders() });
+      const j = await r.json();
+
+      if (j?.running) {
+        status.textContent = (labels.lyricsRunning || "Çalışıyor") + (j.currentStep ? ` • ${j.currentStep}` : '');
+        if (cancelBtn) cancelBtn.disabled = false;
+        if (startBtn)  startBtn.disabled  = true;
+
+        if (typeof j.progress === 'number') {
+          const p = Math.max(0, Math.min(100, j.progress));
+          progBar.style.width = p + '%';
+          progTxt.textContent = p.toFixed(1) + '%';
+        }
+        if (Array.isArray(j.log)) {
+          logBox.textContent = j.log.join('\n');
+          logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        pollLyricsStatus({ startBtn, cancelBtn, status, progBar, progTxt, logBox });
+      } else {
+        if (autoStart) {
+          await startLyricsJob(labels, { startBtn, cancelBtn, status, progBar, progTxt, logBox });
+        } else {
+          if (cancelBtn) cancelBtn.disabled = true;
+          if (startBtn)  startBtn.disabled  = false;
+          status.textContent = labels.lyricsIdle || "Hazır";
+        }
+      }
+    } catch {
+      if (cancelBtn) cancelBtn.disabled = true;
+      if (startBtn)  startBtn.disabled  = false;
+      if (autoStart) {
+        await startLyricsJob(labels, { startBtn, cancelBtn, status, progBar, progTxt, logBox });
+      }
+    }
+  })();
+
+  const jobStamp = getLyricsJobFlag();
+  if (jobStamp) {
+    status.textContent = (labels.lyricsRunning || "Çalışıyor") + " • " + (labels.lyricsResumeHint || "Devam eden bir iş var, modal açıldı.");
+  }
+}
+
+function grabLyricsModalRefs() {
+  return {
+    startBtn: document.getElementById('lyricsStart'),
+    cancelBtn: document.getElementById('lyricsCancel'),
+    status: document.getElementById('lyricsStatus'),
+    progBar: document.getElementById('lyricsProgressBar'),
+    progTxt: document.getElementById('lyricsProgressText'),
+    logBox: document.getElementById('lyricsLog')
+  };
+}
+
+function setLyricsJobFlag(on) {
+  try { on ? localStorage.setItem(LYRICS_JOB_KEY, String(Date.now())) : localStorage.removeItem(LYRICS_JOB_KEY); } catch {}
+}
+function getLyricsJobFlag() {
+  try { return localStorage.getItem(LYRICS_JOB_KEY); } catch { return null; }
+}
+
+async function startLyricsJob(labels, refs) {
+  const { startBtn, cancelBtn, status, progBar, progTxt, logBox } = refs;
+  startBtn.disabled = true;
+  cancelBtn.disabled = false;
+  status.textContent = labels.lyricsRunning || "Çalışıyor";
+
+  const body = {
+    mode: localStorage.getItem('lyricsMode') || 'prefer-synced',
+    overwrite: localStorage.getItem('lyricsOverwrite') || 'skip'
+  };
+
+  try {
+    const r = await fetch('/JMSFusion/lyrics/run', {
+      method: 'POST',
+      headers: getJFHeaders(),
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      startBtn.disabled = false;
+      cancelBtn.disabled = true;
+      const j = await r.json().catch(()=>({}));
+      status.textContent = j?.error || `Hata: ${r.status}`;
+      return;
+    }
+    setLyricsJobFlag(true);
+    pollLyricsStatus({ startBtn, cancelBtn, status, progBar, progTxt, logBox });
+  } catch (e) {
+    startBtn.disabled = false;
+    cancelBtn.disabled = true;
+    status.textContent = 'Ağ hatası';
+  }
+}
+
+async function cancelLyricsJob(labels) {
+  const { startBtn, cancelBtn, status } = grabLyricsModalRefs();
+  try {
+    await fetch('/JMSFusion/lyrics/cancel', { method: 'POST', headers: getJFHeaders() });
+  } catch {}
+  status.textContent = labels.lyricsCancel || 'İptal';
+}
+
+let lyricsPollTimer = null;
+
+async function pollLyricsStatus(refs) {
+    const { startBtn, cancelBtn, status, progBar, progTxt, logBox } = refs;
+    const L = __lyricsLabels || {};
+
+    clearTimeout(lyricsPollTimer);
+
+    try {
+        const r = await fetch('/JMSFusion/lyrics/status', { headers: getJFHeaders() });
+        const j = await r.json();
+        if (!j?.ok) throw new Error('status not ok');
+
+        if (Array.isArray(j.log)) {
+            logBox.textContent = j.log.join('\n');
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        if (typeof j.progress === 'number') {
+            const p = Math.max(0, Math.min(100, j.progress));
+            progBar.style.width = p + '%';
+            progTxt.textContent = p.toFixed(1) + '%';
+        }
+
+        if (j.running) {
+            status.textContent = (L.lyricsRunning || "Çalışıyor") + (j.currentStep ? ` • ${j.currentStep}` : '');
+            if (cancelBtn) cancelBtn.disabled = false;
+            if (startBtn) startBtn.disabled = true;
+            lyricsPollTimer = setTimeout(() => pollLyricsStatus(refs), 1500);
+        } else {
+            setLyricsJobFlag(false);
+            if (cancelBtn) cancelBtn.disabled = true;
+            if (startBtn) startBtn.disabled = false;
+            status.textContent = (L.lyricsCompleted || "Bitti");
+
+            const S = j.summary || null;
+            if (S) {
+                showLyricsSummaryModal(S, L);
+            }
+        }
+    } catch (e) {
+        lyricsPollTimer = setTimeout(() => pollLyricsStatus(refs), 2000);
+    }
+}
+
 export function createMusicPanel(config, labels) {
     const panel = document.createElement('div');
     panel.id = 'music-panel';
@@ -372,5 +715,85 @@ export function createMusicPanel(config, labels) {
     section.appendChild(topTrackDiv);
 
     panel.appendChild(section);
+
+    const lyricsSection = createSection(labels.lyricsHeader || "Şarkı Sözleri");
+    const adminWarn = document.createElement('div');
+    adminWarn.className = 'setting-item';
+    adminWarn.style.display = 'none';
+    adminWarn.style.color = '#c0392b';
+    adminWarn.textContent = labels.lyricsAdminOnly || "Sadece yöneticiler kullanabilir";
+    lyricsSection.appendChild(adminWarn);
+
+    const modeDiv = document.createElement('div');
+    modeDiv.className = 'setting-item';
+    const modeLabel = document.createElement('label');
+    modeLabel.textContent = labels.lyricsType || "İndirme Türü";
+    modeLabel.htmlFor = 'lyricsMode';
+    const modeSelect = document.createElement('select');
+    modeSelect.name = 'lyricsMode';
+    modeSelect.id = 'lyricsMode';
+
+    [
+      { v: 'synced', t: labels.lyricsSynced || 'Senkronize (.lrc)' },
+      { v: 'plain', t: labels.lyricsPlain || 'Düz Metin (.txt)' },
+      { v: 'prefer-synced', t: labels.lyricsPreferSynced || 'Önce Senkronize, yoksa Düz' },
+      { v: 'prefer-plain', t: labels.lyricsPreferPlain || 'Önce Düz, yoksa Senkronize' },
+    ].forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.v;
+      opt.textContent = o.t;
+      if ((localStorage.getItem('lyricsMode') || 'prefer-synced') === o.v) opt.selected = true;
+      modeSelect.appendChild(opt);
+    });
+    modeSelect.addEventListener('change', e => localStorage.setItem('lyricsMode', e.target.value));
+    modeDiv.append(modeLabel, modeSelect);
+    lyricsSection.appendChild(modeDiv);
+
+    const owDiv = document.createElement('div');
+    owDiv.className = 'setting-item';
+    const owLabel = document.createElement('label');
+    owLabel.textContent = labels.lyricsOverwrite || "Eğer dosya varsa";
+    owLabel.htmlFor = 'lyricsOverwrite';
+    const owSelect = document.createElement('select');
+    owSelect.name = 'lyricsOverwrite';
+    owSelect.id = 'lyricsOverwrite';
+
+    [
+      { v: 'skip', t: labels.lyricsOverwriteSkip || 'Atla (önerilen)' },
+      { v: 'replace', t: labels.lyricsOverwriteReplace || 'Üzerine yaz' },
+    ].forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.v;
+      opt.textContent = o.t;
+      if ((localStorage.getItem('lyricsOverwrite') || 'skip') === o.v) opt.selected = true;
+      owSelect.appendChild(opt);
+    });
+    owSelect.addEventListener('change', e => localStorage.setItem('lyricsOverwrite', e.target.value));
+    owDiv.append(owLabel, owSelect);
+    lyricsSection.appendChild(owDiv);
+
+    const runDiv = document.createElement('div');
+    runDiv.className = 'setting-item';
+    const runBtn = document.createElement('button');
+    runBtn.type = 'button';
+    runBtn.id = 'lyricsRunBtn';
+    runBtn.textContent = labels.lyricsFindButton || "Şarkı sözlerini indir";
+    runDiv.appendChild(runBtn);
+    lyricsSection.appendChild(runDiv);
+
+    section.appendChild(lyricsSection);
+    attachLyricsModal(labels);
+    detectIsAdmin().then(isAdmin => {
+      if (!isAdmin) {
+        adminWarn.style.display = 'block';
+        runBtn.disabled = true;
+        runBtn.style.opacity = '0.5';
+      }
+    });
+
+    runBtn.addEventListener('click', () => {
+      openLyricsModal(labels, { autoStart: true });
+    });
+
     return panel;
-}
+    }

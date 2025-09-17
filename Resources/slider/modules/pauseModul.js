@@ -6,7 +6,10 @@ const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
 const labels = getLanguageLabels(currentLang) || {};
 const imageBlobCache = new Map();
-const TAG_MEM_TTL_MS = 0;
+const TAG_MEM_TTL_MS = Math.max(
+  0,
+  Number(getConfig()?.pauseOverlay?.tagsCacheTtlMs ?? 6 * 60 * 60 * 1000)
+);
 
 let _tagsMemCache = { stamp: null, savedAt: 0, tags: null };
 let ratingGenreTimeout = null;
@@ -24,6 +27,42 @@ let blurAt = document.hasFocus() ? null : Date.now();
 let hiddenAt = (document.visibilityState === 'hidden') ? Date.now() : null;
 let lastPauseReason = null;
 let lastPauseAt = 0;
+
+if (!window.__jmsPauseOverlay) {
+  window.__jmsPauseOverlay = { destroy: null, active: false };
+}
+
+function _mkLifecycle() {
+  const lc = {
+    abort: new AbortController(),
+    timers: new Set(),
+    rafId: null,
+    observers: new Set(),
+    cleans: new Set(),
+  };
+  const { signal } = lc.abort;
+  lc.addTimeout  = (fn, ms) => { const id = setTimeout(fn, ms);  lc.timers.add({id,t:'t'}); return id; };
+  lc.addInterval = (fn, ms) => { const id = setInterval(fn, ms); lc.timers.add({id,t:'i'}); return id; };
+  lc.addRaf      = (fn)     => {
+   if (lc.rafId != null) cancelAnimationFrame(lc.rafId);
+   lc.rafId = requestAnimationFrame(fn);
+   return lc.rafId;
+ };
+  lc.trackMo     = (mo)     => { lc.observers.add(mo); return mo; };
+  lc.trackClean  = (fn)     => { if (typeof fn==='function') lc.cleans.add(fn); };
+  lc.cleanupAll  = () => {
+    try { lc.abort.abort(); } catch {}
+    for (const x of lc.timers) x.t==='i' ? clearInterval(x.id) : clearTimeout(x.id);
+    lc.timers.clear();
+    if (lc.rafId != null) { cancelAnimationFrame(lc.rafId); lc.rafId = null; }
+    for (const mo of lc.observers) { try { mo.disconnect(); } catch {} }
+    lc.observers.clear();
+    for (const fn of lc.cleans) { try { fn(); } catch {} }
+    lc.cleans.clear();
+  };
+  lc.signal = signal;
+  return lc;
+}
 
 function wipeBadgeStateAndDom() {
   try { if (ratingGenreTimeout) clearTimeout(ratingGenreTimeout); } catch {}
@@ -99,7 +138,6 @@ async function loadCatalogTagsWithCache() {
 
   return allTags;
 }
-
 
 function normalizeAgeChip(rating) {
   if (!rating) return null;
@@ -181,6 +219,27 @@ function _buildRegex(words){
   return new RegExp(`\\b(${pat})\\b`,'i');
 }
 
+function _buildWordRx(words){
+  if(!Array.isArray(words)||!words.length) return null;
+  const pat = words.map(w=>_escapeRe(String(w.trim()))).join('|');
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}_])(?:${pat})(?=$|[^\\p{L}\\p{N}_])`,'iu');
+}
+
+function tokenIncludes(text, needles){
+  if(!text) return false;
+  const rx = _buildWordRx(needles);
+  return !!(rx && rx.test(String(text)));
+}
+
+function countMatches(text, words){
+  if(!text || !words?.length) return 0;
+  const rx = _buildWordRx(words);
+  if(!rx) return 0;
+  let s = String(text), c = 0, m;
+  while ((m = rx.exec(s))){ c++; s = s.slice(m.index + m[0].length); }
+  return c;
+}
+
 function translateTag(tag) {
   if (!tag) return '';
   const t = String(tag).toLowerCase().trim();
@@ -194,8 +253,7 @@ function _normTag(s){
 }
 
 function hasAny(tag, needles) {
-  const t = (tag || '').toLowerCase();
-  return needles.some(n => t.includes(n));
+  return tokenIncludes(tag || '', needles || []);
 }
 
 const BUCKETS = [
@@ -306,7 +364,8 @@ const BUCKETS = [
   ]},
 
   { key: 'fairytale', needles: [
-    'based on cartoon','based on childrens book','based on novel or book'
+    'fairy','fairy tale','fairytale','folk tale','folktale','fable',
+    'princess','prince','kingdom','witch','enchantress','fairy godmother'
   ]},
 
   { key: 'fantasy_magic', needles: [
@@ -416,20 +475,38 @@ const BUCKETS = [
   ]},
 ];
 
+const NEGATIVE_WORDS = {
+  fairytale: ['war','battle','soldier','army','frontline','sniper','bomb','grenade','blood','gore','massacre'],
+  romance_love: ['battlefield','massacre','genocide'],
+  animation_kids: ['explicit','gore','slasher','torture'],
+  music_dance: ['massacre','battlefield'],
+  documentary_biopic: ['space battle','wizard','dragon'],
+};
+
+const BUCKET_PRIORITY = [
+  'war','crime','violence','horror','thriller_suspense','mystery_detective',
+  'sci_fi_tech','fantasy_magic','supernatural',
+  'historical','political','survival_disaster',
+  'action_adventure','drama_family','romance_love','comedy_humor',
+  'documentary_biopic','sports','music_dance','western',
+  'animation_kids','animals_nature','travel_road','period_era','monster',
+  'superhero','fairytale'
+];
+
 
 function buildAutoDescriptorTagMap(catalogTags) {
-  const map = {};
-  for (const b of BUCKETS) map[b.key] = [];
+   const map = {};
+   for (const b of BUCKETS) map[b.key] = [];
 
-  for (const t of catalogTags) {
-    for (const b of BUCKETS) {
+   for (const t of catalogTags) {
+     for (const b of BUCKETS) {
       if (hasAny(t, b.needles)) {
-        map[b.key].push(t);
-      }
-    }
-  }
-  return map;
-}
+         map[b.key].push(t);
+       }
+     }
+   }
+   return map;
+ }
 
 function getDescriptorTagMap() {
   if (labels?.descriptorTagMap && typeof labels.descriptorTagMap === 'object') {
@@ -660,14 +737,23 @@ function deriveTagDescriptors(item = {}) {
   if (!raw.length) return [];
   const tags = raw.map(_normTag);
   const map = getDescriptorTagMap();
-  const found = [];
+
+  const scores = [];
   for (const [code, needles] of Object.entries(map)) {
-    const nls = (needles || []).map(_normTag);
-    const hit = tags.some(tag => nls.some(n => tag.includes(n)));
-    if (hit) found.push(descriptorLabel(code));
-    if (found.length >= 2) break;
+    const inc = (needles || []).map(_normTag);
+    let s = 0;
+    for (const tg of tags) if (tokenIncludes(tg, inc)) s += 1;
+    const neg = NEGATIVE_WORDS[code] || [];
+    for (const tg of tags) if (tokenIncludes(tg, neg)) s -= 1.5;
+    if (s>0) scores.push({ code, s });
   }
-  return found;
+
+  if (!scores.length) return [];
+  scores.sort((a,b)=>{
+    if (b.s!==a.s) return b.s - a.s;
+    return BUCKET_PRIORITY.indexOf(a.code) - BUCKET_PRIORITY.indexOf(b.code);
+  });
+  return scores.slice(0,2).map(x=>descriptorLabel(x.code));
 }
 
 function getDescriptorKeywordMap(){
@@ -688,27 +774,42 @@ function getDescriptorKeywordMap(){
 }
 
 function deriveKeywordDescriptors(item = {}) {
-  const parts = [
-    item.Overview, item.Taglines?.join?.(' ') || '',
-    (item.Keywords || item.Tags || []).join?.(' ') || '',
-    (item.Studios || []).map(s=>s?.Name||s).join(' ')
-  ].filter(Boolean);
-  if (!parts.length) return [];
-  const hay = parts.join(' | ');
+  const overview = item.Overview || '';
+  const taglines = (item.Taglines || []).join(' ') || '';
+  const keysTags = (item.Keywords || item.Tags || []).join(' ') || '';
+  const studios  = (item.Studios || []).map(s=>s?.Name||s).join(' ');
+  const WEIGHTS = { overview:1.0, taglines:0.6, keystags:1.0, studios:0.3 };
   const dict = getDescriptorKeywordMap();
-  const found = [];
+
+  const scores = [];
   for (const [code, words] of Object.entries(dict)) {
-    const rx = _buildRegex(words);
-    if (rx && rx.test(hay)) found.push(descriptorLabel(code));
-    if (found.length >= 2) break;
+    let s = 0;
+    s += WEIGHTS.overview * countMatches(overview, words);
+    s += WEIGHTS.taglines * countMatches(taglines, words);
+    s += WEIGHTS.keystags * countMatches(keysTags, words);
+    s += WEIGHTS.studios  * countMatches(studios,  words);
+    const neg = NEGATIVE_WORDS[code] || [];
+    s -= 1.2 * countMatches(overview+' '+keysTags, neg);
+    if (s>0.9) scores.push({ code, s });
   }
-  return found;
+  if (!scores.length) return [];
+  scores.sort((a,b)=>{
+    if (b.s!==a.s) return b.s - a.s;
+    return BUCKET_PRIORITY.indexOf(a.code) - BUCKET_PRIORITY.indexOf(b.code);
+  });
+  return scores.slice(0,2).map(x=>descriptorLabel(x.code));
 }
 
 export function setupPauseScreen() {
     const config = getConfig();
     const overlayConfig = config.pauseOverlay || { enabled: true };
     if (!overlayConfig.enabled) return () => {};
+
+    try { if (window.__jmsPauseOverlay.destroy) window.__jmsPauseOverlay.destroy(); } catch {}
+    if (window.__jmsPauseOverlay.active) return () => {};
+    window.__jmsPauseOverlay.active = true;
+    const LC = _mkLifecycle();
+    const { signal } = LC;
 
     function wipeOverlayState() {
       resetContent();
@@ -906,11 +1007,12 @@ if (isEpisode && maybeSeriesId && (noTags || genresMissing || ratingMissing)) {
     const recosHeaderEl = document.getElementById('jms-recos-header');
     const pausedLabel = document.getElementById('pause-status-bottom-right');
 
-    overlayEl.addEventListener('click', e => {
-        if (overlayVisible && activeVideo && (e.target === overlayEl || overlayEl.contains(e.target))) {
-            activeVideo.play();
-            hideOverlay();
-        }
+    overlayEl.addEventListener('click', (e) => {
+      if (!overlayVisible || !activeVideo) return;
+      const content = overlayEl.querySelector('.pause-overlay-content');
+      if (content && content.contains(e.target)) return;
+      activeVideo.play();
+      hideOverlay();
     });
 
     function renderIconOrEmoji(iconValue) {
@@ -1091,19 +1193,18 @@ function hideOverlay() {
         }
     }
 
-    window.addEventListener('beforeunload', () => {
-        if (ratingGenreTimeout) {
-            clearTimeout(ratingGenreTimeout);
-            ratingGenreTimeout = null;
-        }
-        hideRatingGenre();
-    });
+    if (!window.__jmsPauseOverlay._boundBeforeUnload) {
+      window.addEventListener('beforeunload', () => {
+        try { destroy(); } catch {}
+      }, { signal });
+      window.__jmsPauseOverlay._boundBeforeUnload = true;
+    }
 
 async function setBackdrop(item) {
    const tags = item?.BackdropImageTags || [];
    if (tags.length > 0) {
      const { accessToken } = getSessionInfo();
-     const url = `/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tags[0])}&api_key=${encodeURIComponent(accessToken || '')}`;
+     const url = `/Items/${item.Id}/Images/Backdrop/0?tag=${encodeURIComponent(tags[0])}&maxWidth=1920&quality=90&api_key=${encodeURIComponent(accessToken || '')}`;
      backdropEl.style.backgroundImage = `url('${url}')`;
      backdropEl.style.opacity = '0.7';
    } else {
@@ -1287,22 +1388,22 @@ function bindVideo(video) {
   }
 
   function watchSrcAttr(el = video) {
-    if (srcAttrMo) { try { srcAttrMo.disconnect(); } catch {} }
-    srcAttrMo = new MutationObserver(() => {
-      const sigNow = computeSrcSig(el);
-      if (sigNow && sigNow !== lastSrcSig) {
-        hardResetBadgeState();
-        lastSrcSig  = sigNow;
-        stableSrcId = getPlayingItemIdFromVideo(el) || stableSrcId;
-        clearOverlayUi();
-      }
-    });
-    srcAttrMo.observe(el, { attributes: true, attributeFilter: ['src'], childList: true, subtree: false });
-    const source = el.querySelector('source');
-    if (source) {
-      srcAttrMo.observe(source, { attributes: true, attributeFilter: ['src'] });
+  if (srcAttrMo) { try { srcAttrMo.disconnect(); } catch {} }
+  srcAttrMo = new MutationObserver(() => {
+    const sigNow = computeSrcSig(el);
+    if (sigNow && sigNow !== lastSrcSig) {
+      hardResetBadgeState();
+      lastSrcSig  = sigNow;
+      stableSrcId = getPlayingItemIdFromVideo(el) || stableSrcId;
+      clearOverlayUi();
     }
+  });
+  srcAttrMo.observe(el, { attributes: true, attributeFilter: ['src'], childList: true, subtree: false });
+  const source = el.querySelector('source');
+  if (source) {
+    srcAttrMo.observe(source, { attributes: true, attributeFilter: ['src'] });
   }
+}
 
   function cancelArm() {
     if (armTimer) { clearTimeout(armTimer); armTimer = null; }
@@ -1310,13 +1411,14 @@ function bindVideo(video) {
   }
 
   function hardResetBadgeState() {
-    hideRatingGenre();
-    currentMediaData = null;
-    lastShownItemId = null;
-    badgeAttempts = 0;
-    ++playSeq;
-    cancelArm();
-  }
+  hideRatingGenre();
+  currentMediaData = null;
+  lastShownItemId = null;
+  badgeAttempts = 0;
+  ++playSeq;
+  cancelArm();
+  wipeOverlayState();
+}
 
 async function resolveBySrcPrefer() {
     const ALLOWED_TYPES = new Set(['Movie', 'Episode']);
@@ -1461,48 +1563,49 @@ async function resolveBySrcPrefer() {
   };
 
   const onPlay = async () => {
-    const vidIdNow = getPlayingItemIdFromVideo(video);
-    const sigNow   = computeSrcSig(video);
-    const looksNew =
-      (vidIdNow && stableSrcId && vidIdNow !== stableSrcId) ||
-      (sigNow && lastSrcSig && sigNow !== lastSrcSig) ||
-      (!stableSrcId && !!vidIdNow);
+  const vidIdNow = getPlayingItemIdFromVideo(video);
+  const sigNow   = computeSrcSig(video);
+  const looksNew =
+    (vidIdNow && stableSrcId && vidIdNow !== stableSrcId) ||
+    (sigNow && lastSrcSig && sigNow !== lastSrcSig) ||
+    (!stableSrcId && !!vidIdNow);
 
-    if (looksNew) {
-      hardResetBadgeState();
-      stableSrcId = vidIdNow || stableSrcId;
-      lastSrcSig  = sigNow   || lastSrcSig;
-    }
-
-    clearOverlayUi();
-    if (pauseTimeout) clearTimeout(pauseTimeout);
+  if (looksNew) {
     hardResetBadgeState();
-    video.addEventListener('timeupdate', onTimeUpdateArm, { passive: true });
-    armTimer = setTimeout(onTimeUpdateArm, 800);
-  };
+    stableSrcId = vidIdNow || stableSrcId;
+    lastSrcSig  = sigNow   || lastSrcSig;
+  }
+
+  clearOverlayUi();
+
+  if (pauseTimeout) clearTimeout(pauseTimeout);
+  hardResetBadgeState();
+  video.addEventListener('timeupdate', onTimeUpdateArm, { passive: true });
+  armTimer = setTimeout(onTimeUpdateArm, 800);
+};
 
   const onLoadedMetadata = async () => {
-    hideRatingGenre('finished');
-    currentMediaData = null;
-    badgeAttempts = 0;
+  hideRatingGenre('finished');
+  currentMediaData = null;
+  badgeAttempts = 0;
 
-    const vidIdNow = getPlayingItemIdFromVideo(video);
-    const sigNow   = computeSrcSig(video);
+  const vidIdNow = getPlayingItemIdFromVideo(video);
+  const sigNow   = computeSrcSig(video);
 
-    const isNewMedia =
-      (vidIdNow && stableSrcId && vidIdNow !== stableSrcId) ||
-      (sigNow && lastSrcSig && sigNow !== lastSrcSig) ||
-      (!stableSrcId && !!vidIdNow);
+  const isNewMedia =
+    (vidIdNow && stableSrcId && vidIdNow !== stableSrcId) ||
+    (sigNow && lastSrcSig && sigNow !== lastSrcSig) ||
+    (!stableSrcId && !!vidIdNow);
 
-    if (isNewMedia) {
-      hardResetBadgeState();
-    }
+  if (isNewMedia) {
+    hardResetBadgeState();
+  }
 
-    if (vidIdNow) stableSrcId = vidIdNow;
-    if (sigNow)   lastSrcSig  = sigNow;
+  if (vidIdNow) stableSrcId = vidIdNow;
+  if (sigNow)   lastSrcSig  = sigNow;
 
-    clearOverlayUi();
-  };
+  clearOverlayUi();
+};
 
   const onEnded = () => {
     hardResetBadgeState();
@@ -1520,17 +1623,17 @@ async function resolveBySrcPrefer() {
   hideRatingGenre();
 };
 
-  video.addEventListener('pause', onPause);
-  video.addEventListener('play', onPlay);
-  video.addEventListener('loadedmetadata', onLoadedMetadata);
-  video.addEventListener('loadstart', onLoadedMetadata);
-  video.addEventListener('durationchange', onLoadedMetadata);
-  video.addEventListener('playing', onPlay);
-  video.addEventListener('ended', onEnded);
-  video.addEventListener('emptied', onEmptiedLike);
-  video.addEventListener('abort', onEmptiedLike);
-  video.addEventListener('stalled', onEmptiedLike);
-  video.addEventListener('seeking', onSeekingHide);
+  video.addEventListener('pause', onPause, { signal });
+  video.addEventListener('play', onPlay, { signal });
+  video.addEventListener('loadedmetadata', onLoadedMetadata, { signal });
+  video.addEventListener('loadstart', onLoadedMetadata, { signal });
+  video.addEventListener('durationchange', onLoadedMetadata, { signal });
+  video.addEventListener('playing', onPlay, { signal });
+  video.addEventListener('ended', onEnded, { signal });
+  video.addEventListener('emptied', onEmptiedLike, { signal });
+  video.addEventListener('abort', onEmptiedLike, { signal });
+  video.addEventListener('stalled', onEmptiedLike, { signal });
+  video.addEventListener('seeking', onSeekingHide, { signal });
   try { cleanupSmart = createSmartAutoPause(video); } catch {}
   try { watchSrcAttr(video); } catch {}
 
@@ -1538,6 +1641,9 @@ async function resolveBySrcPrefer() {
     video.removeEventListener('pause', onPause);
     video.removeEventListener('play', onPlay);
     video.removeEventListener('loadedmetadata', onLoadedMetadata);
+    video.removeEventListener('loadstart', onLoadedMetadata);
+    video.removeEventListener('durationchange', onLoadedMetadata);
+    video.removeEventListener('playing', onPlay);
     video.removeEventListener('ended', onEnded);
     video.removeEventListener('emptied', onEmptiedLike);
     video.removeEventListener('abort', onEmptiedLike);
@@ -1547,6 +1653,7 @@ async function resolveBySrcPrefer() {
     if (cleanupSmart) { try { cleanupSmart(); } catch {} cleanupSmart = null; }
     if (srcAttrMo) { try { srcAttrMo.disconnect(); } catch {} srcAttrMo = null; }
   };
+  LC.trackClean(removeHandlers);
 }
 
 function createSmartAutoPause(video) {
@@ -1589,12 +1696,12 @@ function createSmartAutoPause(video) {
   const actEvts = ['pointermove','pointerdown','mousedown','mouseup','keydown','wheel','touchstart','touchmove'];
   const onActivity = () => { lastActivityAt = Date.now(); if (lastPauseReason === 'idle') lastPauseReason = null; };
 
-  actEvts.forEach(ev => document.addEventListener(ev, onActivity, { passive:true }));
+  actEvts.forEach((ev) => document.addEventListener(ev, onActivity, { passive: true }));
 
   function onFocus(){ blurAt = null; if (lastPauseReason === 'blur') lastPauseReason = null; }
   function onBlur(){  blurAt = Date.now(); }
-  window.addEventListener('focus', onFocus);
-  window.addEventListener('blur', onBlur);
+  window.addEventListener('focus', onFocus, { signal: undefined });
+  window.addEventListener('blur', onBlur, { signal: undefined });
 
   function onVis(){
     if (document.visibilityState === 'hidden') {
@@ -1604,7 +1711,7 @@ function createSmartAutoPause(video) {
       if (lastPauseReason === 'hidden') lastPauseReason = null;
     }
   }
-  document.addEventListener('visibilitychange', onVis);
+  document.addEventListener('visibilitychange', onVis, { signal: undefined });
   const tickMs = 1000;
   const timer = setInterval(() => {
     try {
@@ -1652,14 +1759,14 @@ function createSmartAutoPause(video) {
   return () => {
     clearInterval(timer);
     video.removeEventListener('play', onPlayReset);
-    actEvts.forEach(ev => document.removeEventListener(ev, onActivity, { passive:true }));
+    actEvts.forEach((ev) => document.removeEventListener(ev, onActivity));
     window.removeEventListener('focus', onFocus);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVis);
   };
 }
 
-    const mo = new MutationObserver(muts => {
+    const mo = LC.trackMo(new MutationObserver(muts => {
         muts.forEach(m => m.addedNodes.forEach(n => {
             if (n.nodeType === 1 && n.tagName === 'VIDEO') {
                 bindVideo(n);
@@ -1672,13 +1779,15 @@ function createSmartAutoPause(video) {
                 clearOverlayUi();
             }
         }));
-    });
+    }));
     mo.observe(document.body, { childList: true, subtree: true });
     const initVid = document.querySelector('video');
     if (initVid) bindVideo(initVid);
     function startOverlayLogic() {
+        let _rafRun = true;
         async function loop() {
-            const onValidPage = isVideoVisible();
+            if (!_rafRun) return;
+            const onValidPage = isVideoVisible(activeVideo);
             if (!onValidPage && overlayVisible) {
                 hideOverlay();
             }
@@ -1694,28 +1803,39 @@ function createSmartAutoPause(video) {
                 if (!isPaused && wasPaused) hideOverlay();
                 wasPaused = isPaused;
             }
-            requestAnimationFrame(loop);
+            LC.addRaf(loop);
         }
-        requestAnimationFrame(loop);
+        LC.addRaf(loop);
+        const stop = () => {
+          _rafRun = false;
+          if (LC.rafId != null) { cancelAnimationFrame(LC.rafId); LC.rafId = null; }
+        };
+        LC.trackClean(stop);
+        return stop;
     }
-    window.addEventListener('popstate', hideOverlay);
-    window.addEventListener('hashchange', hideOverlay);
-    document.addEventListener('visibilitychange', () => {
+    const _onPop = () => hideOverlay();
+    const _onHash = () => hideOverlay();
+    const _onVis = () => {
     if (document.visibilityState === 'visible' && !isVideoVisible()) {
       hideOverlay();
     }
-  });
-    document.addEventListener('keydown', (e) => {
+  };
+    const _onKey = (e) => {
     if (e.key === 'Escape' && overlayVisible) {
         e.preventDefault();
         hideOverlay();
     }
-});
-    startOverlayLogic();
+};
+    window.addEventListener('popstate', _onPop, { signal });
+    window.addEventListener('hashchange', _onHash, { signal });
+    document.addEventListener('visibilitychange', _onVis, { signal });
+    document.addEventListener('keydown', _onKey, { signal });
+
+    const stopLoop = startOverlayLogic();
     initDescriptorTagsOnce();
-    return () => {
-        if (removeHandlers) removeHandlers();
-        mo.disconnect();
+    function destroy() {
+        try { if (removeHandlers) removeHandlers(); } catch {}
+        try { mo.disconnect(); } catch {}
         hideOverlay();
         activeVideo = null;
         currentMediaId = null;
@@ -1723,10 +1843,19 @@ function createSmartAutoPause(video) {
         if (pauseTimeout) clearTimeout(pauseTimeout);
         pauseTimeout = null;
         activeVideo = null;
+        try { stopLoop?.(); } catch {}
+        try { LC.cleanupAll(); } catch {}
+        try { hideRatingGenre('finished'); } catch {}
+        window.__jmsPauseOverlay.active = false;
+        window.__jmsPauseOverlay.destroy = null;
+    }
+    window.__jmsPauseOverlay.destroy = destroy;
+
+    return () => {
+        destroy();
     };
 }
-function isVideoVisible() {
-    const vid = document.querySelector('video');
+function isVideoVisible(vid = activeVideo || document.querySelector('video')) {
     if (!vid) return false;
     return vid.offsetParent !== null &&
            !vid.hidden &&
@@ -1972,19 +2101,31 @@ function renderRecommendations(items) {
      const card = document.createElement('button');
      card.className = 'pause-reco-card';
      card.type = 'button';
-     const img = buildBackdropUrl(it, 360, 202);
+     const imgUrl = buildBackdropUrl(it, 360, 202);
      const primaryFallback = buildImgUrl(it, 'Primary', 360, 202);
      const titleText = (it.Type === 'Episode')
      ? formatEpisodeLineShort(it)
      : (it.Name || it.OriginalTitle || '');
-     card.innerHTML = `
-      <div class="pause-reco-thumb-wrap">
-        ${img
-          ? `<img class="pause-reco-thumb" loading="lazy" src="${img}" alt="" onerror="this.onerror=null; this.src='${primaryFallback}'">`
-          : `<div class="pause-reco-thumb"></div>`}
-      </div>
-       <div class="pause-reco-title">${titleText}</div>
-     `;
+     const wrap = document.createElement('div');
+     wrap.className = 'pause-reco-thumb-wrap';
+     if (imgUrl) {
+       const img = document.createElement('img');
+       img.className = 'pause-reco-thumb';
+       img.loading = 'lazy';
+       img.alt = '';
+       img.src = imgUrl;
+       img.onerror = () => { img.onerror = null; img.src = primaryFallback; };
+       wrap.appendChild(img);
+     } else {
+       const ph = document.createElement('div');
+       ph.className = 'pause-reco-thumb';
+       wrap.appendChild(ph);
+     }
+     const title = document.createElement('div');
+     title.className = 'pause-reco-title';
+     title.textContent = titleText;
+     card.appendChild(wrap);
+     card.appendChild(title);
     card.addEventListener('click', (e) => {
       e.stopPropagation();
       goToItem(it);
@@ -1994,7 +2135,10 @@ function renderRecommendations(items) {
   recos.classList.add('visible');
 }
 
-window.addEventListener('beforeunload', () => {
-  for (const v of imageBlobCache.values()) { if (v) URL.revokeObjectURL(v); }
-  imageBlobCache.clear();
-});
+if (!window.__jmsPauseOverlay._boundUnload2) {
+  window.addEventListener('beforeunload', () => {
+    for (const v of imageBlobCache.values()) { if (v) URL.revokeObjectURL(v); }
+    imageBlobCache.clear();
+  });
+  window.__jmsPauseOverlay._boundUnload2 = true;
+}

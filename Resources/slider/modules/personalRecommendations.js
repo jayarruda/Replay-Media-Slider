@@ -448,6 +448,11 @@ function createRecommendationCard(item, serverId, aboveFold = false) {
 }
 
 function setupScroller(row) {
+  if (row.dataset.scrollerMounted === "1") {
+    requestAnimationFrame(() => row.dispatchEvent(new Event('scroll')));
+    return;
+  }
+  row.dataset.scrollerMounted = "1";
   const section = row.closest(".genre-hub-section") || row.closest("#personal-recommendations");
   if (!section) return;
 
@@ -499,7 +504,10 @@ function setupScroller(row) {
   row.addEventListener("touchmove", (e) => e.stopPropagation(), { passive: true });
 
   row.addEventListener("scroll", scheduleUpdate, { passive: true });
-  new ResizeObserver(() => scheduleUpdate()).observe(row);
+  const ro = new ResizeObserver(() => scheduleUpdate());
+  ro.observe(row);
+  row.__ro = ro;
+  row.addEventListener('jms:cleanup', () => { try { ro.disconnect(); } catch {} }, { once:true });
 
   requestAnimationFrame(() => updateButtonsNow());
   setTimeout(() => updateButtonsNow(), 400);
@@ -512,7 +520,14 @@ async function renderGenreHubs(indexPage) {
     indexPage;
 
   const existing = homeSections.querySelector("#genre-hubs");
-  if (existing) existing.remove();
+  if (existing) {
+    try {
+      existing.querySelectorAll('.genre-row').forEach(r => {
+        if (r.__ro) { try { r.__ro.disconnect(); } catch {} delete r.__ro; }
+      });
+    } catch {}
+    existing.remove();
+  }
 
   const wrap = document.createElement("div");
   wrap.id = "genre-hubs";
@@ -654,6 +669,31 @@ function saveGenreItemsToCache(genre, items) {
   try {
     const data = { items, timestamp: Date.now() };
     localStorage.setItem(GENRE_ITEMS_LS_PREFIX + genre, JSON.stringify(data));
+    enforceGenreCacheLRU();
+  } catch {}
+}
+
+const GENRE_INDEX_KEY = "genreItems_index_v1";
+const GENRE_LRU_MAX = 80;
+function enforceGenreCacheLRU() {
+  try {
+    const now = Date.now();
+    const raw = localStorage.getItem(GENRE_INDEX_KEY);
+    const idx = raw ? JSON.parse(raw) : [];
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(GENRE_ITEMS_LS_PREFIX)) keys.push(k);
+    }
+    const pairs = keys.map(k => {
+      try { return [k, JSON.parse(localStorage.getItem(k))?.timestamp || 0]; }
+      catch { return [k, 0]; }
+    }).sort((a,b) => a[1]-b[1]);
+    while (pairs.length > GENRE_LRU_MAX) {
+      const [oldK] = pairs.shift();
+      try { localStorage.removeItem(oldK); } catch {}
+    }
+    localStorage.setItem(GENRE_INDEX_KEY, JSON.stringify({ t: now, keys: pairs.map(p=>p[0]) }));
   } catch {}
 }
 

@@ -35,7 +35,7 @@ export function getYoutubeEmbedUrl(input) {
     if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
     const lower = raw.toLowerCase();
     const isYT = /\b(youtu\.be|youtube\.com)\b/.test(lower);
-    const scheme = isYT ? "https:" : (typeof window !== "undefined" && window.location?.protocol) || "http:";
+    const scheme = "https:";
     return `${scheme}//${raw}`;
   };
 
@@ -77,10 +77,7 @@ export function getYoutubeEmbedUrl(input) {
     playsinline: "1",
     mute: isMobile ? "1" : "0",
     controls: "0",
-    origin:
-      typeof window !== "undefined" && window.location?.origin
-        ? window.location.origin
-        : "",
+    origin: (typeof window !== "undefined" && window.location?.origin) || "",
   });
 
   if (Number.isFinite(start) && start > 0) params.set("start", String(start));
@@ -104,8 +101,9 @@ export function getProviderUrl(provider, id, slug = "") {
     case "tmdb":
       return `https://www.themoviedb.org/movie/${cleanId}`;
     case "tvdb": {
-      const pathSegment = cleanSlug ? cleanSlug : cleanId;
-      return `https://www.thetvdb.com/movies/${pathSegment}`;
+      const pathSegment = cleanSlug || cleanId;
+      const isSeries = /series/i.test(pathSegment) || /^series[-_]/i.test(pathSegment);
+      return `https://www.thetvdb.com/${isSeries ? "series" : "movies"}/${pathSegment}`;
     }
     default:
       return "#";
@@ -188,6 +186,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   let latestHoverId = 0;
   let abortController = new AbortController();
   let enterTimeout = null;
+  let detachGuards = null;
 
   const enableHls = config.enableHls === true;
   const delayRaw = config && (config.gecikmeSure ?? config.gecikmesure);
@@ -337,8 +336,8 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
 
     if (!ytIframe) {
       ytIframe = document.createElement("iframe");
-      ytIframe.title = trailer.Name || "Trailer";
-      ytIframe.allow =
+      ytIframe.allow = "autoplay; encrypted-media; clipboard-write; accelerometer; gyroscope; picture-in-picture";
+      ytIframe.referrerPolicy = "origin-when-cross-origin";
       "autoplay; encrypted-media; clipboard-write; accelerometer; gyroscope; picture-in-picture";
       ytIframe.setAttribute("playsinline", "");
       ytIframe.allowFullscreen = true;
@@ -549,9 +548,19 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     return () => cleanups.forEach((fn) => { try { fn(); } catch {} });
   }
 
-  attachAutoCleanupGuards(slide);
-  backdropImg.addEventListener("mouseenter", handleEnter);
-  backdropImg.addEventListener("mouseleave", handleLeave);
+  detachGuards = attachAutoCleanupGuards(slide);
+  const hoverTarget = backdropImg || slide;
+  hoverTarget.addEventListener("mouseenter", handleEnter, { passive: true });
+  hoverTarget.addEventListener("mouseleave", handleLeave, { passive: true });
+  const mo = new MutationObserver(() => {
+    if (!document.body.contains(slide)) {
+      try { hoverTarget.removeEventListener("mouseenter", handleEnter); } catch {}
+      try { hoverTarget.removeEventListener("mouseleave", handleLeave); } catch {}
+      try { detachGuards?.(); } catch {}
+      mo.disconnect();
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
 }
 
 const _bestBackdropCache = new Map();
@@ -585,7 +594,7 @@ export function warmImageOnce(url) {
   link.rel = "preload";
   link.as = "image";
   link.href = url;
-  link.fetchPriority = "high";
+  try { link.fetchPriority = "high"; } catch {}
   document.head.appendChild(link);
 }
 
@@ -744,7 +753,7 @@ export function createImageWarmQueue({ concurrency = 3 } = {}) {
           const link = document.createElement('link');
           link.rel = 'preload';
           link.as = 'image';
-          link.fetchPriority = 'low';
+          try { link.fetchPriority = 'low'; } catch {}
           link.href = job.url;
           document.head.appendChild(link);
           setTimeout(() => link.remove(), 1500);

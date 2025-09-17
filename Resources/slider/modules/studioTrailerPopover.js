@@ -14,6 +14,8 @@ let __openSeq = 0;
 let __navSeq  = 0;
 let __tombstoneUntil = 0;
 let __lastItemId = null;
+const TRAILER_LRU_MAX = 200;
+const trailerUrlCache = new Map();
 
 function killAndTombstone(ms = 1200) {
   __tombstoneUntil = Date.now() + ms;
@@ -156,6 +158,8 @@ function setupLiveSync(anchor) {
 
   window.addEventListener("scroll", onReflow, true);
   window.addEventListener("resize", onReflow, true);
+  const onOrient = () => settlePlacement(anchor, 6);
+  window.addEventListener("orientationchange", onOrient, { passive: true });
   const ro = new ResizeObserver(onReflow);
   const base = getBaseEl(anchor);
   if (base) ro.observe(base);
@@ -169,6 +173,7 @@ function setupLiveSync(anchor) {
   __cleanup = () => {
     window.removeEventListener("scroll", onReflow, true);
     window.removeEventListener("resize", onReflow, true);
+    window.removeEventListener("orientationchange", onOrient);
     try { ro.disconnect(); } catch {}
     if (__presenceTimer) { clearInterval(__presenceTimer); __presenceTimer = null; }
     __cleanup = null;
@@ -210,12 +215,19 @@ function ytEmbed(url) {
 }
 
 async function resolveBestTrailerUrl(itemId) {
+  const cached = trailerUrlCache.get(itemId);
+  if (cached) return cached;
   try {
     const locals = await fetchLocalTrailers(itemId);
     const best = pickBestLocalTrailer(locals);
     if (best?.Id) {
       const url = await getVideoStreamUrl(best.Id, 360, 0);
-      if (url) return { type: "video", src: url };
+      if (url) {
+        const out = { type: "video", src: url };
+        trailerUrlCache.set(itemId, out);
+        if (trailerUrlCache.size > TRAILER_LRU_MAX) trailerUrlCache.delete(trailerUrlCache.keys().next().value);
+        return out;
+      }
     }
   } catch {}
 
@@ -224,9 +236,19 @@ async function resolveBestTrailerUrl(itemId) {
     const remotes = Array.isArray(full?.RemoteTrailers) ? full.RemoteTrailers : [];
     if (remotes.length) {
       const yt = remotes.find(r => ytEmbed(r?.Url));
-      if (yt) return { type: "youtube", src: ytEmbed(yt.Url) };
+      if (yt) {
+        const out = { type: "youtube", src: ytEmbed(yt.Url) };
+        trailerUrlCache.set(itemId, out);
+        if (trailerUrlCache.size > TRAILER_LRU_MAX) trailerUrlCache.delete(trailerUrlCache.keys().next().value);
+        return out;
+      }
       const first = remotes.find(r => typeof r?.Url === "string");
-      if (first) return { type: "video", src: first.Url };
+      if (first) {
+        const out = { type: "video", src: first.Url };
+        trailerUrlCache.set(itemId, out);
+        if (trailerUrlCache.size > TRAILER_LRU_MAX) trailerUrlCache.delete(trailerUrlCache.keys().next().value);
+        return out;
+      }
     }
   } catch {}
 
@@ -365,9 +387,6 @@ export async function tryOpenTrailerPopover(anchorEl, itemId, opts = {}) {
   if (!placed) { hardClose(true); return false; }
 
   setupLiveSync(anchorEl);
-  if (isMobileLike()) {
-    window.addEventListener('orientationchange', () => settlePlacement(anchorEl, 6), { passive: true });
-  }
   requestAnimationFrame(() => {
     if (!__pop) return;
     if (Date.now() < __tombstoneUntil) { hardClose(true); return; }

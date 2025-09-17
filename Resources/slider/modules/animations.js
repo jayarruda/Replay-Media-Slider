@@ -1,5 +1,32 @@
 import { getConfig } from './config.js';
 
+const __animTimers = new WeakMap();
+const __globalTimers = new Set();
+function trackTimer(el, id) {
+  if (!el || !id) return;
+  let arr = __animTimers.get(el);
+  if (!arr) { arr = []; __animTimers.set(el, arr); }
+  arr.push(id);
+  __globalTimers.add(id);
+}
+function clearTimers(el) {
+  const arr = __animTimers.get(el);
+  if (arr) {
+    for (const id of arr) { clearTimeout(id); __globalTimers.delete(id); }
+    __animTimers.delete(el);
+  }
+}
+export function teardownAnimations() {
+  for (const id of __globalTimers) { clearTimeout(id); }
+  __globalTimers.clear();
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', teardownAnimations, { once: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) teardownAnimations();
+  });
+}
+
 const animationStyles = `
 
 @keyframes slideInFromTop {
@@ -295,9 +322,7 @@ const animationStyles = `
 `;
 
     const existingStyle = document.getElementById('slide-animation-styles');
-        if (existingStyle) {
-        existingStyle.remove();
-    }
+    if (existingStyle) existingStyle.remove();
 
     const styleElement = document.createElement('style');
     styleElement.id = 'slide-animation-styles';
@@ -306,6 +331,8 @@ const animationStyles = `
 
 export function applySlideAnimation(currentSlide, newSlide, direction) {
     if (!currentSlide || !newSlide) return;
+    clearTimers(currentSlide);
+    clearTimers(newSlide);
 
     const config = getConfig();
     if (!config.enableSlideAnimations) {
@@ -436,17 +463,19 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
         case 'jelly':
             currentSlide.style.animation = "none";
             newSlide.style.animation = "none";
-            setTimeout(() => {
+            const id1 = setTimeout(() => {
                 if (newSlide) {
                     newSlide.style.animation = "jelly 0.6s ease";
                 }
             }, 20);
-                setTimeout(() => {
-                    if (newSlide) {
-                        newSlide.style.animation = "";
-                        }
-                    }, 620);
-            break;
+              trackTimer(newSlide, id1);
+              const id2 = setTimeout(() => {
+                     if (newSlide) {
+                         newSlide.style.animation = "";
+                    }
+              }, 620);
+              trackTimer(newSlide, id2);
+             break;
 
         case 'flip':
             currentSlide.style.transform = `rotateY(${direction > 0 ? -180 : 180}deg)`;
@@ -484,7 +513,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
             newSlide.style.clipPath = "polygon(0 0, 100% 0, 100% 100%, 0 100%)";
 
             for (let i = 0; i < 5; i++) {
-                setTimeout(() => {
+                const tid = setTimeout(() => {
                     if (newSlide) {
                         newSlide.style.clipPath = `polygon(
                             0 ${Math.random() * 100}%,
@@ -494,15 +523,19 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
                         )`;
                     }
                 }, i * 50);
+                trackTimer(newSlide, tid);
             }
 
-            setTimeout(() => {
+            {
+              const id = setTimeout(() => {
                 if (newSlide) {
                     newSlide.style.filter = "blur(0)";
                     newSlide.style.opacity = "1";
                     newSlide.style.clipPath = "polygon(0 0, 100% 0, 100% 100%, 0 100%)";
                 }
             }, duration - 100);
+              trackTimer(newSlide, id);
+            }
             break;
 
         case 'morph':
@@ -625,13 +658,16 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
                 newSlide.style.opacity = "1";
             });
 
-            setTimeout(() => {
+            {
+              const id = setTimeout(() => {
                 currentSlide.style.transition = "";
                 currentSlide.style.transform = "";
                 currentSlide.style.opacity = "";
                 newSlide.style.transition = "";
                 newSlide.style.zIndex = "";
             }, slideDuration + 100);
+              trackTimer(newSlide, id);
+            }
             break;
 
         case 'blur-fade':
@@ -654,13 +690,15 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
                 newSlide.style.opacity = "1";
             }
     }
-    setTimeout(cleanupStyles, duration);
+    const endId = setTimeout(cleanupStyles, duration);
+    trackTimer(newSlide, endId);
 }
 
 
 export function applyDotPosterAnimation(dot, isActive) {
     const config = getConfig();
     if (!config.enableDotPosterAnimations || !config.dotPosterMode) return;
+    clearTimers(dot);
 
     const duration = config.dotPosterAnimationDuration;
     const transitionType = config.dotPosterTransitionType;
@@ -724,9 +762,8 @@ export function applyDotPosterAnimation(dot, isActive) {
         case 'rubberBand':
             if (isActive) {
                 dot.style.animation = `rubberBand ${duration}ms`;
-                setTimeout(() => {
-                    dot.style.animation = "";
-                }, duration);
+                const id = setTimeout(() => { dot.style.animation = ""; }, duration);
+                trackTimer(dot, id);
             }
             break;
 
@@ -734,36 +771,32 @@ export function applyDotPosterAnimation(dot, isActive) {
             if (isActive) {
                 dot.style.transformOrigin = "top center";
                 dot.style.animation = `swing ${duration}ms`;
-                setTimeout(() => {
-                    dot.style.animation = "";
-                }, duration);
+                const id = setTimeout(() => { dot.style.animation = ""; }, duration);
+                trackTimer(dot, id);
             }
             break;
 
         case 'flip':
             if (isActive) {
                 dot.style.animation = `flip ${duration}ms`;
-                setTimeout(() => {
-                    dot.style.animation = "";
-                }, duration);
+                const id = setTimeout(() => { dot.style.animation = ""; }, duration);
+                trackTimer(dot, id);
             }
             break;
 
         case 'flash':
             if (isActive) {
                 dot.style.animation = `flash ${duration}ms`;
-                setTimeout(() => {
-                    dot.style.animation = "";
-                }, duration);
+                const id = setTimeout(() => { dot.style.animation = ""; }, duration);
+                trackTimer(dot, id);
             }
             break;
 
         case 'wobble':
             if (isActive) {
                 dot.style.animation = `wobble ${duration}ms`;
-                setTimeout(() => {
-                    dot.style.animation = "";
-                }, duration);
+                const id = setTimeout(() => { dot.style.animation = ""; }, duration);
+                trackTimer(dot, id);
             }
             break;
     }
