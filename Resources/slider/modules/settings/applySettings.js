@@ -33,6 +33,10 @@ export function applySettings(reload = false) {
         const sapUseIdle = formData.get('sapUseIdleDetection') === 'on';
         const sapRespect = formData.get('sapRespectPiP') === 'on';
         const sapIgnoreShort = _intOr(formData.get('sapIgnoreShortUnderSec'), 300);
+        const pauseOverlayMinDurMin =
+          _clamp(_floatOr(formData.get('pauseOverlayMinVideoMinutes'), 5), _MIN_MIN, _MAX_MIN);
+        const boolFromFd = (name, fallback) =>
+          (formData.has(name) ? (formData.get(name) === 'on') : (fallback ?? false));
         const updatedConfig = {
             ...config,
             smartAutoPause: {
@@ -132,6 +136,8 @@ export function applySettings(reload = false) {
             enablePersonalRecommendations: formData.get('enablePersonalRecommendations') === 'on',
             personalRecsCacheTtlMs: parseInt(formData.get('personalRecsCacheTtlMs'), 10) || 360,
             studioHubsHoverVideo: formData.get('studioHubsHoverVideo') === 'on',
+            placePersonalRecsUnderStudioHubs: formData.get('placePersonalRecsUnderStudioHubs') === 'on',
+            placeGenreHubsUnderStudioHubs: formData.get('placeGenreHubsUnderStudioHubs') === 'on',
             studioMiniTrailerPopover: formData.get('studioMiniTrailerPopover') === 'on',
             studioHubsMinRating: parseFloat(formData.get('studioHubsMinRating')) || 6.5,
             studioHubsCardCount: parseInt(formData.get('studioHubsCardCount'), 10) || 10,
@@ -412,9 +418,11 @@ export function applySettings(reload = false) {
             enabled: formData.get('pauseOverlay') === 'on',
             imagePreference: formData.get('pauseOverlayImagePreference') || 'auto',
             showPlot: formData.get('pauseOverlayShowPlot') === 'on',
+            requireWebSocket: formData.get('pauseOverlayRequireWebSocket') === 'on',
             showMetadata: formData.get('pauseOverlayShowMetadata') === 'on',
             showLogo: formData.get('pauseOverlayShowLogo') === 'on',
             showBackdrop: formData.get('pauseOverlayShowBackdrop') === 'on',
+            minVideoMinutes: pauseOverlayMinDurMin,
         },
             slideTransitionType: formData.get('slideTransitionType'),
             dotPosterTransitionType: formData.get('dotPosterTransitionType'),
@@ -426,6 +434,7 @@ export function applySettings(reload = false) {
 
         try {
           localStorage.setItem('smartAutoPause', JSON.stringify(updatedConfig.smartAutoPause));
+          localStorage.setItem('pauseOverlay', JSON.stringify(updatedConfig.pauseOverlay));
         } catch {}
 
         updateConfig(updatedConfig);

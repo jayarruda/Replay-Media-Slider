@@ -1,6 +1,6 @@
 import { getConfig } from './config.js';
 import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
-import { playNow, getVideoStreamUrl, fetchItemDetails, updateFavoriteStatus, goToDetailsPage, fetchLocalTrailers, pickBestLocalTrailer, getCachedUserTopGenres } from './api.js';
+import { playNow, getVideoStreamUrl, fetchItemDetails, fetchPlayableItemDetails, updateFavoriteStatus, goToDetailsPage, fetchLocalTrailers, pickBestLocalTrailer, getCachedUserTopGenres } from './api.js';
 import { getYoutubeEmbedUrl, isValidUrl } from './utils.js';
 import { getVideoQualityText } from './containerUtils.js';
 import { attachMiniPosterHover, openMiniPopoverFor } from "./studioHubsUtils.js";
@@ -15,23 +15,19 @@ const HARD_CLOSE_BUFFER_MS = 30;
 const REOPEN_COOLDOWN_MS    = 150;
 const CROSS_ITEM_SETTLE_MS  = 180;
 const OPEN_HOVER_DELAY_MS   = 400;
-
 const config = getConfig();
 const currentLang = config.defaultLanguage || getDefaultLanguage();
 if (!config.languageLabels) {
   config.languageLabels = getLanguageLabels(currentLang) || {};
 }
-
 const DEVICE_MEM_GB = typeof navigator !== 'undefined' && navigator.deviceMemory ? navigator.deviceMemory : 4;
 export const PREVIEW_MAX_ENTRIES = Math.max(50, Math.min(200, Math.floor(DEVICE_MEM_GB * 60)));
 const PREVIEW_TTL_MS = 5 * 60 * 1000;
 const PREVIEW_EVICT_BATCH = Math.max(10, Math.floor(PREVIEW_MAX_ENTRIES * 0.15));
-
 export const previewPreloadCache = new Map();
 const _ytPlayers = new Map();
 const _ytReadyMap = new Map();
 const _seriesTrailerCache = new Map();
-
 const MODAL_ANIM = {
   openMs: 340, closeMs: 220,
     ease: 'cubic-bezier(.33,1,.68,1)',
@@ -39,12 +35,106 @@ const MODAL_ANIM = {
     opacityFrom: 0, opacityTo: 1,
     translateFromY: 18, translateToY: 0
  };
-
 const hasTrailerCache = new Map();
 const pendingHasTrailer = new Map();
 const _seriesIdCache = new Map();
-let inFlight = 0;
 const CONCURRENCY = Math.max(2, Math.min(6, (navigator.deviceMemory || 4) | 0));
+const rIC = window.requestIdleCallback || (cb => setTimeout(() => cb({ timeRemaining: () => 0, didTimeout: true }), 50));
+
+function suppressHoverOpens(ms = 1000) {
+  modalState.__suppressOpenUntil = Date.now() + ms;
+  try { if (modalState._hoverOpenTimer) { clearTimeout(modalState._hoverOpenTimer); modalState._hoverOpenTimer = null; } } catch {}
+  try { modalState.itemHoverAbortController?.abort?.(); } catch {}
+}
+
+let inFlight = 0;
+let __renderToken = 0;
+
+function newRenderToken() { return (++__renderToken); }
+
+function isTokenAlive(token) { return token === __renderToken; }
+
+function hardWipeModalDom(modal = modalState.videoModal) {
+  if (!modal) return;
+  try { modal.dataset.itemId = ''; } catch {}
+  const backdrop = modal.querySelector?.('.preview-backdrop');
+  if (backdrop) { try { backdrop.style.opacity = '0'; backdrop.removeAttribute('src'); backdrop.removeAttribute('srcset'); } catch {} }
+  const iframe = modal.querySelector?.('.preview-trailer-iframe');
+  if (iframe) { try { iframe.src = ''; iframe.style.display = 'none'; iframe.__wrapper && (iframe.__wrapper.style.display = 'none'); } catch {} }
+  const v = modalState.modalVideo;
+  if (v) {
+    try {
+      if (v._hls) { v._hls.destroy(); delete v._hls; }
+      v.pause(); v.removeAttribute('src'); v.load(); v.style.opacity = '0'; v.style.display = 'none';
+    } catch {}
+  }
+  try { resetModalInfo(modal); } catch {}
+  try { resetModalButtons(); } catch {}
+  try { clearTransientOverlays(modal); } catch {}
+  try {
+    const matchBtn = modal.querySelector('.preview-match-button');
+    if (matchBtn) {
+      matchBtn.textContent = '';
+      matchBtn.style.display = 'none';
+    }
+  } catch {}
+}
+
+
+function installHoverOpenSuppressors() {
+  if (window.__hoverOpenSuppressInstalled) return;
+  window.__hoverOpenSuppressInstalled = true;
+
+  const kill = () => suppressHoverOpens(1200);
+  const cardDown = (e) => {
+    if (e.target?.closest?.('.jms-trailer-badge, .yt-first-touch-shield')) return;
+    if (e.target?.closest?.('.cardImageContainer,[data-id]')) kill();
+  };
+  ['pointerdown','mousedown','touchstart','click'].forEach(t => {
+    document.addEventListener(t, cardDown, { capture: true, passive: false });
+  });
+  const linkDown = (e) => {
+    if (e.target?.closest?.('.jms-trailer-badge, .yt-first-touch-shield')) return;
+    if (e.target?.closest?.('a[href],button,[role="link"]')) kill();
+  };
+  ['pointerdown','mousedown','touchstart','click'].forEach(t => {
+    document.addEventListener(t, linkDown, { capture: true, passive: false });
+  });
+  const onNav = () => suppressHoverOpens(1200);
+  window.addEventListener('popstate',  onNav, true);
+  window.addEventListener('hashchange',onNav, true);
+  window.addEventListener('beforeunload', () => suppressHoverOpens(5000));
+  window.addEventListener('pagehide',     () => suppressHoverOpens(5000));
+}
+
+installHoverOpenSuppressors();
+
+function onFirstInteraction(cb, timeoutMs = 1500) {
+  let fired = false;
+  const fire = () => { if (fired) return; fired = true; cleanup(); cb(); };
+  const cleanup = () => {
+    ['mousedown','mousemove','touchstart','keydown','scroll']
+      .forEach(t => window.removeEventListener(t, fire, { capture:true }));
+  };
+  ['mousedown','mousemove','touchstart','keydown','scroll']
+    .forEach(t => window.addEventListener(t, fire, { capture:true, once:true }));
+  setTimeout(fire, timeoutMs);
+}
+
+function chunkIter(nodes, fn, { size = 50, delayMs = 16, useIdle = true } = {}) {
+  let i = 0, dead = false;
+  const tick = () => {
+    if (dead) return;
+    const end = Math.min(i + size, nodes.length);
+    for (; i < end; i++) fn(nodes[i], i);
+    if (i < nodes.length) {
+      if (useIdle) rIC(() => setTimeout(tick, delayMs));
+      else setTimeout(tick, delayMs);
+    }
+  };
+  tick();
+  return () => { dead = true; };
+}
 
 function ensureGlobalModal() {
   if (modalState.videoModal &&
@@ -65,26 +155,23 @@ function _debounce(fn, wait = 80) {
   };
 }
 
-function mountStudioMiniForAll() {
-  const cfg = getConfig();
-  if (!cfg || cfg.globalPreviewMode !== 'studioMini') return;
+ function mountStudioMiniForAll() {
+   const cfg = getConfig();
+   if (!cfg || cfg.globalPreviewMode !== 'studioMini') return;
 
   const items = document.querySelectorAll('.cardImageContainer');
   if (!items.length) return;
-
-  items.forEach(item => {
+  chunkIter(items, (item) => {
     if (item.__miniBound) return;
     const itemId =
       item.dataset.itemId ||
       item.dataset.id ||
       item.closest?.('[data-id]')?.dataset?.id;
-
     if (!itemId) return;
-
     item.__miniBound = true;
     attachMiniPosterHover(item, { Id: itemId });
-  });
-}
+  }, { size: 60, delayMs: 12, useIdle: true });
+ }
 
 function installStudioMiniAutobind() {
   if (window.__studioMiniObsInstalled) return;
@@ -113,7 +200,7 @@ function installStudioMiniAutobind() {
     try { ensureOverlaysClosed(); } catch {}
     rebind();
   });
-  rebind();
+  onFirstInteraction(() => rebind(), 1200);
 }
 
 installStudioMiniAutobind();
@@ -130,7 +217,7 @@ async function hasTrailerForItemId(itemId, { signal } = {}) {
     }
     inFlight++;
     try {
-      const item = await fetchItemDetails(itemId, { signal });
+      const item = await fetchPlayableItemDetails(itemId, { signal });
       if (!item) { hasTrailerCache.set(itemId, false); return false; }
 
       try {
@@ -298,7 +385,6 @@ function disconnectObservers() {
 function observeCardForTrailer(card) {
   if (!card || card.__jmsTrailerObserved) return;
   card.__jmsTrailerObserved = true;
-  try { if (getComputedStyle(card).position === 'static') card.style.position = 'relative'; } catch {}
   ensureTrailerBadgeCSS();
   ensureBadgeIO().observe(card);
 }
@@ -314,7 +400,7 @@ function rescanAllCardsForBadge(root = document) {
 function installTrailerBadgeAutobind() {
   if (window.__jmsTrailerBadgeObsInstalled) return;
   window.__jmsTrailerBadgeObsInstalled = true;
-  rescanAllCardsForBadge();
+  onFirstInteraction(() => rescanAllCardsForBadge(), 1200);
   const deb = (fn, ms=120) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
   const rebind = deb(() => rescanAllCardsForBadge(document), 120);
 
@@ -350,7 +436,7 @@ installTrailerBadgeAutobind();
 
 function mountTrailerBadge(card, text = 'Fragman') {
   if (!card || card.querySelector('.jms-trailer-badge')) return;
-  if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
+  try { if (getComputedStyle(card).position === 'static') card.style.position = 'relative'; } catch {}
   const el = document.createElement('div');
   el.className = 'jms-trailer-badge';
   el.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`;
@@ -369,11 +455,13 @@ function mountTrailerBadge(card, text = 'Fragman') {
     try { navigator.vibrate?.(8); } catch {}
     const itemId = getId(card);
     if (!itemId) return;
-    openPreviewModalForItem(itemId, card);
+    modalState.__suppressOpenUntil = 0;
+   openPreviewModalForItem(itemId, card, { bypass: true });
   };
 
   el.addEventListener('click', openFromBadge, { passive: false });
   el.addEventListener('touchstart', openFromBadge, { passive: false });
+ el.addEventListener('touchend',   openFromBadge, { passive: false });
   el.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') openFromBadge(e);
@@ -521,6 +609,7 @@ async function gatePlaybackStart(expectedItemId) {
 }
 
 export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
+  if (Date.now() < (modalState.__suppressOpenUntil || 0)) return;
   if (modalState._hoverOpenTimer) {
     clearTimeout(modalState._hoverOpenTimer);
     modalState._hoverOpenTimer = null;
@@ -536,6 +625,7 @@ export function scheduleOpenForItem(itemEl, itemId, signal, openFn) {
   let delay = Math.max(OPEN_HOVER_DELAY_MS, needCooldown, settleLeft, closingLeft);
 
   const run = async () => {
+    if (Date.now() < (modalState.__suppressOpenUntil || 0)) return;
     const stillClosing = getClosingRemaining();
     if (stillClosing > 0) {
       modalState._hoverOpenTimer = setTimeout(run, stillClosing);
@@ -717,6 +807,7 @@ export function closeVideoModal() {
     if (modalState.videoModal) {
       clearTransientOverlays(modalState.videoModal);
       modalState.videoModal.style.display = 'none';
+      try { hardWipeModalDom(modalState.videoModal); } catch {}
     }
     modalState._lastModalHideAt = Date.now();
     modalState._isModalClosing = false;
@@ -1366,14 +1457,12 @@ export function startModalHideTimer() {
     if (shouldHideModal() && modalState.videoModal) {
       modalState._isModalClosing = true;
       modalState._modalClosingUntil = Date.now() + MODAL_ANIM.closeMs + HARD_CLOSE_BUFFER_MS;
-
       modalState.videoModal.style.transition =
         `opacity ${MODAL_ANIM.closeMs}ms ${MODAL_ANIM.ease}, ` +
         `transform ${MODAL_ANIM.closeMs}ms ${MODAL_ANIM.ease}`;
       modalState.videoModal.style.opacity = String(MODAL_ANIM.opacityFrom);
       modalState.videoModal.style.transform = `scale(${MODAL_ANIM.scaleFrom})`;
       softStopPlayback();
-
       setTimeout(() => {
         if (shouldHideModal() && modalState.videoModal) {
           hardStopPlayback();
@@ -1413,7 +1502,7 @@ const __typeCache = new Map();
 async function getItemTypeCached(itemId){
   if (__typeCache.has(itemId)) return __typeCache.get(itemId);
   try{
-    const it = await fetchItemDetails(itemId);
+    const it = await fetchPlayableItemDetails(itemId);
     const t  = it?.Type || null;
     if (t) __typeCache.set(itemId, t);
     return t || null;
@@ -1424,6 +1513,7 @@ async function getItemTypeCached(itemId){
 
 export function setupHoverForAllItems() {
   if (!config || config.allPreviewModal === false) return;
+  installHoverOpenSuppressors();
   scanAndMarkCardsForTrailers();
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   const mode = config.globalPreviewMode || 'modal';
@@ -1446,21 +1536,22 @@ export function setupHoverForAllItems() {
   function isSuppressionActive() {
     return (Date.now() - longPressFiredAt) < SUPPRESS_MS;
   }
-
   function fireLongPress() {
     longPressFiredAt = Date.now();
     try { navigator.vibrate?.(10); } catch {}
-    if (activeItem && activeId) openPreviewModalForItem(activeId, activeItem);
+    if (activeItem && activeId) {
+    modalState.__suppressOpenUntil = 0;
+    openPreviewModalForItem(activeId, activeItem, { bypass: true });
   }
-
+}
   function cancelLP() {
     clearTimeout(lpTimer);
     lpTimer = null;
     if (activeItem) activeItem.style.touchAction = '';
     activeItem = null; activeId = null;
   }
-
   const suppressIfNeeded = (e) => {
+   if (e.target?.closest?.('.jms-trailer-badge')) return;
     if (!isSuppressionActive()) return;
     if (e.cancelable) e.preventDefault();
     e.stopImmediatePropagation();
@@ -1468,33 +1559,57 @@ export function setupHoverForAllItems() {
   };
   ['click','mousedown','mouseup','pointerup','pointerdown','touchend','touchstart','contextmenu']
   .forEach(type => {
-    document.addEventListener(type, suppressIfNeeded, { capture:true, passive:false });
+    document.addEventListener(type, (e) => {
+     if (e.target?.closest?.('.jms-trailer-badge')) return;
+     suppressIfNeeded(e);
+   }, { capture:true, passive:false });
+    if (!window.__hoverOpenSuppressInstalled) {
+  window.__hoverOpenSuppressInstalled = true;
+
+  const killHover = () => suppressHoverOpens(1200);
+  const cardDown = (e) => {
+    const card = e.target?.closest?.('.cardImageContainer,[data-id]');
+    if (!card) return;
+    killHover();
+  };
+  document.addEventListener('pointerdown', cardDown, { capture: true, passive: false });
+  document.addEventListener('mousedown',   cardDown, { capture: true, passive: false });
+  document.addEventListener('touchstart',  cardDown, { capture: true, passive: false });
+  const linkDown = (e) => {
+    const a = e.target?.closest?.('a[href]');
+    if (!a) return;
+    killHover();
+  };
+  document.addEventListener('pointerdown', linkDown, { capture: true, passive: false });
+  document.addEventListener('mousedown',   linkDown, { capture: true, passive: false });
+  document.addEventListener('touchstart',  linkDown, { capture: true, passive: false });
+  const onNav = () => suppressHoverOpens(1200);
+  window.addEventListener('popstate',  onNav, true);
+  window.addEventListener('hashchange',onNav, true);
+  window.addEventListener('beforeunload', () => suppressHoverOpens(5000));
+  window.addEventListener('pagehide',     () => suppressHoverOpens(5000));
+}
   });
 
   const onTouchStart = async (e) => {
-    const card = e.target?.closest?.('.cardImageContainer');
+    if (e.target?.closest?.('.jms-trailer-badge')) return;
+   const card = e.target?.closest?.('.cardImageContainer');
     if (!card) return;
-
     const itemId = getId(card);
     if (!itemId) return;
-
     let type = getCardItemType(card);
     if (!type) type = await getItemTypeCached(itemId);
     if (!type || !ALLOWED_TYPES.has(type)) return;
-
     activeItem = card; activeId = itemId;
     activeItem.style.touchAction = 'none';
-
     const t = e.touches?.[0];
     startX = t?.clientX ?? 0;
     startY = t?.clientY ?? 0;
-
     clearTimeout(lpTimer);
     lpTimer = setTimeout(() => {
       fireLongPress();
     }, LONG_PRESS_MS);
   };
-
   const onTouchMove = (e) => {
     if (!lpTimer) return;
     const t = e.touches?.[0];
@@ -1507,7 +1622,6 @@ export function setupHoverForAllItems() {
       if (e.cancelable) e.preventDefault();
     }
   };
-
   const onTouchEnd = (e) => {
     if (isSuppressionActive()) {
       if (e.cancelable) e.preventDefault();
@@ -1516,7 +1630,6 @@ export function setupHoverForAllItems() {
     }
     cancelLP();
   };
-
   const onTouchCancel = () => cancelLP();
   document.addEventListener('touchstart',  onTouchStart,  { passive: false, capture: true });
   document.addEventListener('touchmove',   onTouchMove,   { passive: false, capture: true });
@@ -1529,16 +1642,13 @@ export function setupHoverForAllItems() {
   if (mode === 'studioMini') {
     installStudioMiniAutobind();
     destroyVideoModal();
-
     items.forEach(item => {
       if (item.__miniBound) return;
       item.__miniBound = true;
-
       const itemId =
         item.dataset.itemId ||
         item.dataset.id ||
         (item.closest('[data-id]') && item.closest('[data-id]').dataset.id);
-
       if (!itemId) return;
       attachMiniPosterHover(item, { Id: itemId });
     });
@@ -1546,43 +1656,38 @@ export function setupHoverForAllItems() {
   }
 
   if (typeof config !== 'undefined' && config.allPreviewModal !== false) {
-    const throttle = (fn, ms = 60) => {
-      let t, last = 0, a, c;
-      return function(...args) {
-        const n = Date.now(); a = args; c = this;
-        if (!t) {
-          const w = Math.max(0, ms - (n - last));
-          t = setTimeout(() => { last = n; t = null; fn.apply(c, a); }, w);
-        }
-      };
-    };
+    let __hoverInfraReady = false;
+    function ensureHoverInfra() {
+      if (__hoverInfraReady) return;
+      __hoverInfraReady = true;
+      try { injectOrUpdateModalStyle(); } catch {}
+    }
 
-    const isInsideDotArea = (node) => {
-      return !!(node?.closest?.('.dot-navigation-container') || node?.closest?.('.poster-dot'));
-    };
-
-    const onOver = throttle(async (e) => {
-     if (isInsideDotArea(e.target)) return;
-
+    const isInsideDotArea = (node) =>
+      !!(node?.closest?.('.dot-navigation-container') || node?.closest?.('.poster-dot'));
+     const onEnter = async (e) => {
+      if (Date.now() < (modalState.__suppressOpenUntil || 0)) return;
+      if (!__hoverInfraReady) ensureHoverInfra();
       const item = e.target?.closest?.('.cardImageContainer');
-      if (!item) return;
+      if (!item || isInsideDotArea(item)) return;
+      const itemId =
+        item.dataset.itemId || item.dataset.id || (item.closest('[data-id]')?.dataset?.id);
+      if (!itemId) return;
       modalState.isMouseInItem = true;
       clearTimeout(modalState.modalHideTimeout);
       if (modalState.itemHoverAbortController) modalState.itemHoverAbortController.abort();
       modalState.itemHoverAbortController = new AbortController();
       const { signal } = modalState.itemHoverAbortController;
-      const itemId = item.dataset.itemId || item.dataset.id || (item.closest('[data-id]')?.dataset?.id);
-      if (!itemId) return;
+
       scheduleOpenForItem(item, itemId, signal, async () => {
         if (!modalState.isMouseInItem && !modalState.isMouseInModal) return;
         try {
           if (modalState.videoModal) {
             hardStopPlayback();
-            resetModalInfo(modalState.videoModal);
-            resetModalButtons();
+            hardWipeModalDom(modalState.videoModal);
             modalState.videoModal.style.display = 'none';
           }
-          const itemDetails = await fetchItemDetails(itemId, { signal });
+          const itemDetails = await fetchPlayableItemDetails(itemId, { signal });
           if (signal.aborted || !itemDetails) { closeVideoModal(); return; }
           if (itemDetails.Genres && itemDetails.Genres.length > 3) itemDetails.Genres = itemDetails.Genres.slice(0,3);
           const videoTypes = ['Movie','Episode','Series','Season'];
@@ -1607,13 +1712,14 @@ export function setupHoverForAllItems() {
           const itemBackdrop = getBackdropFromItem(itemDetails);
           modalState.videoModal.setBackdrop(domBackdrop || itemBackdrop || null);
           if (!modalState.isMouseInItem && !modalState.isMouseInModal) return;
+          const myToken = newRenderToken();
           modalState.videoModal.dataset.itemId = itemId;
           positionModalRelativeToItem(modalState.videoModal, item);
           animatedShow(modalState.videoModal);
           applyVolumePreference(modalState.videoModal);
           let videoUrl = null;
           try { videoUrl = await preloadVideoPreview(itemId); } catch {}
-          if (signal.aborted || modalState.videoModal?.dataset?.itemId !== String(itemId)) return;
+          if (signal.aborted || !isTokenAlive(myToken) || modalState.videoModal?.dataset?.itemId !== String(itemId)) return;
           await updateModalContent(itemDetails, videoUrl);
         } catch (error) {
           if (error.name !== 'AbortError') {
@@ -1622,19 +1728,20 @@ export function setupHoverForAllItems() {
           }
         }
       });
-    }, 50);
+    };
 
-    const onOut = throttle((e) => {
-     const toModal = !!(e.relatedTarget && modalState.videoModal && modalState.videoModal.contains(e.relatedTarget));
+    const onLeave = (e) => {
+      const fromItem = e.target?.closest?.('.cardImageContainer');
+      if (!fromItem) return;
+      const toModal = !!(e.relatedTarget && modalState.videoModal && modalState.videoModal.contains(e.relatedTarget));
       if (toModal) return;
-      if (isInsideDotArea(e.target) || isInsideDotArea(e.relatedTarget)) return;
+      modalState.isMouseInItem = false;
       if (modalState._hoverOpenTimer) { clearTimeout(modalState._hoverOpenTimer); modalState._hoverOpenTimer = null; }
       if (modalState.itemHoverAbortController) modalState.itemHoverAbortController.abort();
       startModalHideTimer();
-    }, 0);
-
-    document.addEventListener('mouseover', onOver, { passive: true });
-    document.addEventListener('mouseout', onOut, { passive: true });
+    };
+    document.addEventListener('pointerenter', onEnter, { passive: true, capture: true });
+    document.addEventListener('pointerleave', onLeave,  { passive: true, capture: true });
   }
 }
 
@@ -1683,14 +1790,12 @@ export function positionModalRelativeToItem(modal, item, options = {}) {
   };
   const settings = {...defaults, ...options};
   const modalStyle = modal.style;
-
   const positionModal = () => {
     const itemRect = item.getBoundingClientRect();
     const scrollX = window.scrollX;
     const scrollY = window.scrollY;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
     let left = itemRect.left + scrollX + (itemRect.width - settings.modalWidth) / 2;
     let top = itemRect.top + scrollY + (itemRect.height - settings.modalHeight) / 2;
     switch(settings.preferredPosition) {
@@ -1701,7 +1806,6 @@ export function positionModalRelativeToItem(modal, item, options = {}) {
     }
     const maxLeft = viewportWidth + scrollX - settings.modalWidth - settings.windowPadding;
     const maxTop = viewportHeight + scrollY - settings.modalHeight - settings.windowPadding;
-
     left = Math.max(settings.windowPadding, Math.min(left, maxLeft));
     top  = Math.max(settings.windowPadding, Math.min(top,  maxTop));
     modalStyle.position = 'absolute';
@@ -1876,18 +1980,14 @@ export async function updateModalContent(item, videoUrl) {
   const modal = modalState.videoModal;
   if (!modal || !document.body.contains(modal)) return;
   if (modal?.dataset?.itemId && item?.Id && String(item.Id) !== String(modal.dataset.itemId)) return;
-
   const cfg = getConfig();
-
   clearTransientOverlays(modal);
   if (modalState.modalVideo && modalState.modalVideo._hls) { modalState.modalVideo._hls.destroy(); delete modalState.modalVideo._hls; }
-
   const contextIsDot = modalState._modalContext === 'dot';
   const dotMode = cfg.dotPreviewPlaybackMode || null;
   const onlyTrailerGlobal   = !!cfg.onlyTrailerInPreviewModal;
   const preferTrailerGlobal = !!cfg.preferTrailersInPreviewModal;
   let onlyTrailer = false, preferTrailer = false;
-
   if (contextIsDot) {
     if (dotMode === 'onlyTrailer')      { onlyTrailer = true;  preferTrailer = false; }
     else if (dotMode === 'trailer')     { onlyTrailer = false; preferTrailer = true;  }
@@ -1896,12 +1996,10 @@ export async function updateModalContent(item, videoUrl) {
   } else {
     onlyTrailer = onlyTrailerGlobal; preferTrailer = preferTrailerGlobal;
   }
-
   const trailerInfo = await resolveTrailerUrlFor(item);
   const trailerUrl = trailerInfo.url;
   const isLocal = trailerInfo.level === 'local';
   const isYTValid = !!trailerUrl && (trailerInfo.level === 'item' || trailerInfo.level === 'series');
-
   const showYT = (labelText) => {
     const iframe = getOrCreateTrailerIframe(modal);
     iframe.src = ensureYTParams(trailerUrl, { autoplay: true, muteInitial: true });
@@ -1995,7 +2093,6 @@ export async function updateModalContent(item, videoUrl) {
     if (modalState.modalTitle) modalState.modalTitle.textContent = item.Name || item.Title || '';
     if (modalState.modalEpisodeLine) { modalState.modalEpisodeLine.textContent = ''; modalState.modalEpisodeLine.style.display = 'none'; }
   }
-
   const positionTicks = Number(item.UserData?.PlaybackPositionTicks || 0);
   const runtimeTicks = Number(item.RunTimeTicks || 0);
   const hasPartialPlayback = positionTicks > 0 && positionTicks < runtimeTicks;
@@ -2003,17 +2100,17 @@ export async function updateModalContent(item, videoUrl) {
   const isFavorite = item.UserData?.IsFavorite || false;
   const videoStream = item.MediaStreams ? item.MediaStreams.find(s => s.Type === "Video") : null;
   const qualityText = videoStream ? getVideoQualityText(videoStream) : '';
-
   modalState.modalMeta.innerHTML = [
     qualityText,
     item.ProductionYear,
     item.CommunityRating ? parseFloat(item.CommunityRating).toFixed(1) : null,
     runtimeTicks ? `${Math.floor(runtimeTicks / 600000000)} ${config.languageLabels.dk}` : null
   ].filter(Boolean).join(' • ');
-
   const matchPercentage = await calculateMatchPercentage(item.UserData, item);
-  if (modalState.modalMatchButton) modalState.modalMatchButton.textContent = `${matchPercentage}%`;
-
+  if (modalState.modalMatchButton) {
+  modalState.modalMatchButton.textContent = `${matchPercentage}%`;
+  modalState.modalMatchButton.style.display = 'flex';
+}
   modalState.modalGenres.innerHTML = '';
   if (item.Genres && item.Genres.length > 0) {
     const limitedGenres = item.Genres.slice(0, 3);
@@ -2032,11 +2129,9 @@ export async function updateModalContent(item, videoUrl) {
       }
     });
   }
-
   modalState.modalPlayButton.innerHTML = `<i class="fa-solid fa-play"></i> ${getPlayButtonText({ isPlayed, hasPartialPlayback })}`;
   modalState.modalFavoriteButton.classList.toggle('favorited', isFavorite);
   modalState.modalFavoriteButton.innerHTML = isFavorite ? '<i class="fa-solid fa-check"></i>' : '<i class="fa-solid fa-plus"></i>';
-
   if (modalState.modalButtonsContainer) {
     modalState.modalButtonsContainer.style.opacity = '1';
     modalState.modalButtonsContainer.style.pointerEvents = 'auto';
@@ -2063,7 +2158,6 @@ function formatSeasonEpisodeLine(ep) {
     const mid = left && right ? ' • ' : '';
     return `${left}${mid}${right}${eTitle}`.trim();
 }
-
 
 export function getPlayButtonText({ isPlayed, hasPartialPlayback, labels }) {
   if (isPlayed && !hasPartialPlayback) return L('izlendi', 'İzlendi');
@@ -2105,12 +2199,14 @@ async function closeMiniPopoverSafely() {
     if (typeof window.__closeMiniPopover === 'function') window.__closeMiniPopover();
   } catch {}
 }
+
 async function closeVideoModalAndWait() {
   if (!modalIsVisible()) return;
   closeVideoModal();
   const wait = (MODAL_ANIM?.closeMs ?? 180) + (HARD_CLOSE_BUFFER_MS ?? 30) + 30;
   await sleep(wait);
 }
+
 export async function goToDetailsPageSafe(itemId) {
   await ensureOverlaysClosed();
   return goToDetailsPage(itemId);
@@ -2123,7 +2219,9 @@ export function animatedOpen(modal, anchorEl, pos = 'item') {
   animatedShow(modal);
 }
 
-export async function openPreviewModalForItem(itemId, anchorEl) {
+export async function openPreviewModalForItem(itemId, anchorEl, opts = {}) {
+   const bypass = !!opts.bypass;
+   if (!bypass && Date.now() < (modalState.__suppressOpenUntil || 0)) return;
   try {
     const cfg = getConfig();
     const mode = (cfg?.globalPreviewMode || 'modal');
@@ -2160,12 +2258,13 @@ export async function openPreviewModalForItem(itemId, anchorEl) {
     const itemBackdrop = getBackdropFromItem(item);
     modal = ensureGlobalModal();
     if (!modal) return;
-    if (typeof modal.setBackdrop === 'function') {
-  modal.setBackdrop(domBackdrop || itemBackdrop || null);
-}
-
     modal = ensureGlobalModal();
     if (!modal) return;
+    hardWipeModalDom(modal);
+    if (typeof modal.setBackdrop === 'function') {
+    modal.setBackdrop(domBackdrop || itemBackdrop || null);
+  }
+    const myToken = newRenderToken();
     modal.dataset.itemId = String(itemId);
     if (anchorEl) positionModalRelativeToItem(modalState.videoModal, anchorEl);
     animatedShow(modal);
@@ -2180,6 +2279,7 @@ export async function openPreviewModalForItem(itemId, anchorEl) {
 
     let videoUrl = null;
     try { videoUrl = await preloadVideoPreview(itemId); } catch {}
+    if (!isTokenAlive(myToken) || modal.dataset.itemId !== String(itemId)) return;
     await updateModalContent(item, videoUrl);
 
     const iframe = modal.querySelector('.preview-trailer-iframe');
@@ -2255,14 +2355,11 @@ export function updateActiveDot() {
   const currentIndex = getCurrentIndex();
   const dots = document.querySelectorAll(".dot");
   const config = getConfig();
-
   dots.forEach(dot => {
     const wasActive = dot.classList.contains("active");
     const dotIndex = Number(dot.dataset.index);
     const isActive = dotIndex === currentIndex;
-
     dot.classList.toggle("active", isActive);
-
     if (config.dotPosterMode && config.enableDotPosterAnimations) {
       if (wasActive !== isActive) {
         applyDotPosterAnimation(dot, isActive);
@@ -2276,23 +2373,22 @@ export function updateActiveDot() {
 }
 
 if (typeof window !== 'undefined') {
-  window.tryOpenHoverModal = function(itemId, anchorEl) {
-    openPreviewModalForItem(itemId, anchorEl);
-  };
-}
+   window.tryOpenHoverModal = function(itemId, anchorEl, opts = {}) {
+     openPreviewModalForItem(itemId, anchorEl, { bypass: true, ...opts });
+   };
+ }
 
 window.addEventListener('jms:hoverTrailer:open', (ev) => {
   try {
-    const { itemId, anchor } = ev?.detail || {};
+    const { itemId, anchor, bypass } = ev?.detail || {};
     if (!itemId) return;
-    openPreviewModalForItem(itemId, anchor || null);
+    openPreviewModalForItem(itemId, anchor || null, { bypass: bypass !== false });
   } catch {}
 }, { passive: true });
 
 window.addEventListener('jms:hoverTrailer:close', () => {
   try { closeVideoModal(); } catch {}
 }, { passive: true });
-
 
 window.addEventListener('jms:globalPreviewModeChanged', (ev) => {
   const mode = ev?.detail?.mode;

@@ -6,20 +6,34 @@ import { setupProgressControls } from "../player/progress.js";
 import { toggleLyrics } from "../lyrics/lyrics.js";
 import { toggleRepeatMode, toggleShuffle, toggleMute, toggleRemoveOnPlayMode } from "./controls.js";
 import { refreshPlaylist } from "../core/playlist.js";
-import { initSettings, isLocalStorageAvailable, updateConfig } from '../../settings.js';
+import { initSettings, updateConfig } from '../../settings.js';
 import { showJellyfinPlaylistsModal } from "../core/jellyfinPlaylists.js";
 import { togglePlayerVisibility } from "../utils/mainIndex.js";
-import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
-import { toggleArtistModal, setupArtistClickHandler, checkForNewMusic } from "./artistModal.js";
+import { readID3Tags } from "../lyrics/id3Reader.js";
+import { toggleArtistModal, setupArtistClickHandler } from "./artistModal.js";
 import { showGenreFilterModal } from "./genreFilterModal.js";
 import { showTopTracksModal } from "./topModal.js";
 import { getAuthToken } from "../core/auth.js";
 import { showNotification } from "./notification.js";
 import { loadCSS, isMobileDevice } from "../main.js";
+import { makeCleanupBag, addEvent, trackTimeout, trackObserver } from "../utils/cleanup.js";
 
 const config = getConfig();
 const DEFAULT_ARTWORK = "/web/slider/src/images/defaultArt.png";
 const DEFAULT_ARTWORK_CSS = `url('${DEFAULT_ARTWORK}')`;
+
+let __topTracksAborter = null;
+
+function trackGlobalTimeout(id) {
+  if (!musicPlayerState.__timeouts) musicPlayerState.__timeouts = new Set();
+  musicPlayerState.__timeouts.add(id);
+}
+function clearGlobalTimeouts() {
+  const set = musicPlayerState.__timeouts;
+  if (!set) return;
+  for (const id of set) { try { clearTimeout(id); } catch {} }
+  set.clear();
+}
 
 function createButton({ className, iconClass, title, onClick, id = "" }) {
   const btn = document.createElement("div");
@@ -32,12 +46,17 @@ function createButton({ className, iconClass, title, onClick, id = "" }) {
 }
 
 export function createModernPlayerUI() {
+  if (musicPlayerState.__teardownModern) {
+    try { musicPlayerState.__teardownModern(); } catch {}
+    musicPlayerState.__teardownModern = null;
+  }
   const player = Object.assign(document.createElement("div"), {
     id: "modern-music-player",
     role: "region",
     ariaLabel: "Music Player",
     ariaHidden: "true"
   });
+  const __bag = makeCleanupBag(player);
 
   if (isMobileDevice()) {
     player.classList.add('mobile-device');
@@ -47,64 +66,64 @@ export function createModernPlayerUI() {
   bgLayer.className = "player-bg-layer";
   player.appendChild(bgLayer);
 
-const { container: nextTracksContainer, name: nextTracksName, list: nextTracksList } = createNextTracksUI();
+  const { container: nextTracksContainer, name: nextTracksName, list: nextTracksList } = createNextTracksUI();
 
-if (config.nextTracksSource === 'playlist') {
-  nextTracksName.textContent = musicPlayerState.userSettings.shuffle
-    ? config.languageLabels.rastgele || "Rastgele"
-    : config.languageLabels.sirada || "Sıradakiler";
-} else {
-  nextTracksName.textContent = getSourceLabel(config.nextTracksSource);
-  nextTracksName.title = config.languageLabels.changeSource || "Kaynağı değiştirmek için tıklayın";
-  nextTracksName.onclick = async (e) => {
-    e.stopPropagation();
-    const cfg = getConfig();
-    const nextSource = getNextTrackSource(cfg.nextTracksSource);
-    const updatedConfig = { ...cfg, nextTracksSource: nextSource.value };
-    updateConfig(updatedConfig);
+  if (config.nextTracksSource === 'playlist') {
+    nextTracksName.textContent = musicPlayerState.userSettings.shuffle
+      ? config.languageLabels.rastgele || "Rastgele"
+      : config.languageLabels.sirada || "Sıradakiler";
+  } else {
+    nextTracksName.textContent = getSourceLabel(config.nextTracksSource);
+    nextTracksName.title = config.languageLabels.changeSource || "Kaynağı değiştirmek için tıklayın";
+    nextTracksName.onclick = async (e) => {
+      e.stopPropagation();
+      const cfg = getConfig();
+      const nextSource = getNextTrackSource(cfg.nextTracksSource);
+      const updatedConfig = { ...cfg, nextTracksSource: nextSource.value };
+      updateConfig(updatedConfig);
 
-    showNotification(
-      `<i class="fas fa-music"></i> ${nextSource.label}`,
-      2000,
-      'info'
-    );
+      showNotification(
+        `<i class="fas fa-music"></i> ${nextSource.label}`,
+        2000,
+        'info'
+      );
 
-    if (nextSource.value === 'playlist') {
-      await updateNextTracks();
-    } else {
-      await showTopTracksInMainView(nextSource.value);
-    }
-  };
-}
+      if (nextSource.value === 'playlist') {
+        await updateNextTracks();
+      } else {
+        await showTopTracksInMainView(nextSource.value);
+      }
+    };
+  }
 
-setTimeout(() => {
-  nextTracksName.classList.remove('hidden');
-}, 4000);
+  setTimeout(() => {
+    nextTracksName.classList.remove('hidden');
+  }, 4000);
 
   const topControlsContainer = document.createElement("div");
   topControlsContainer.className = "top-controls-container";
 
   const buttonsTop = [
     {
-        className: "theme-toggle-btn",
-        iconClass: config.playerTheme === 'light' ? "fas fa-moon" : "fas fa-sun",
-        title: config.playerTheme === 'light' ? config.languageLabels.darkTheme || 'Karanlık Tema' : config.languageLabels.lightTheme || 'Aydınlık Tema',
-        onClick: toggleTheme
+      className: "theme-toggle-btn",
+      iconClass: config.playerTheme === 'light' ? "fas fa-moon" : "fas fa-sun",
+      title: config.playerTheme === 'light' ? config.languageLabels.darkTheme || 'Karanlık Tema' : config.languageLabels.lightTheme || 'Aydınlık Tema',
+      onClick: toggleTheme
     },
     { className: "playlist-btn", iconClass: "fas fa-list", title: config.languageLabels.playlist, onClick: togglePlaylistModal },
     { className: "jplaylist-btn", iconClass: "fas fa-list-music", title: config.languageLabels.jellyfinPlaylists || "Jellyfin Oynatma Listesi", onClick: showJellyfinPlaylistsModal },
     {
-        className: "settingsLink",
-        iconClass: "fas fa-cog",
-        title: config.languageLabels.ayarlar || "Ayarlar",
-        onClick: (e) => {
-            e.preventDefault();
-            const settings = initSettings();
-            settings.open('music');
-        }
+      className: "settingsLink",
+      iconClass: "fas fa-cog",
+      title: config.languageLabels.ayarlar || "Ayarlar",
+      onClick: (e) => {
+        e.preventDefault();
+        const settings = initSettings();
+        settings.open('music');
+      }
     },
     { className: "kapat-btn", iconClass: "fas fa-times", title: config.languageLabels.close || "Close", onClick: togglePlayerVisibility },
-];
+  ];
 
   buttonsTop.forEach(btnInfo => {
     const div = document.createElement("div");
@@ -114,6 +133,21 @@ setTimeout(() => {
     div.onclick = btnInfo.onClick;
     topControlsContainer.appendChild(div);
   });
+
+  const onThemeChanged = (ev) => {
+    const theme = ev?.detail?.theme || getConfig().playerTheme || 'dark';
+    const themeBtn = player.querySelector('.theme-toggle-btn');
+    if (themeBtn) {
+      themeBtn.innerHTML = `<i class="fas fa-${theme === 'light' ? 'moon' : 'sun'}"></i>`;
+      const cfgNow = getConfig();
+      themeBtn.title = theme === 'light'
+        ? (cfgNow.languageLabels.darkTheme || 'Karanlık Tema')
+        : (cfgNow.languageLabels.lightTheme || 'Aydınlık Tema');
+    }
+    updatePlayerBackground();
+    initializePlayerStyle();
+  };
+  addEvent(__bag, window, 'app:theme-changed', onThemeChanged);
 
   const albumArt = document.createElement("div");
   albumArt.id = "player-album-art";
@@ -130,35 +164,30 @@ setTimeout(() => {
   const albumArtContainer = document.createElement("div");
   albumArtContainer.className = "album-art-container";
   albumArtContainer.append(albumArt, favoriteBtn);
-  albumArtContainer.addEventListener("mouseenter", () => {
+  const favEnter = () => {
     const currentTrack = musicPlayerState.playlist?.[musicPlayerState.currentIndex];
     if (currentTrack) {
       favoriteBtn.classList.remove("hidden");
     }
-  });
-
-  albumArtContainer.addEventListener("mouseleave", () => {
-    favoriteBtn.classList.add("hidden");
-  });
+  };
+  const favLeave = () => { favoriteBtn.classList.add("hidden"); };
+  addEvent(__bag, albumArtContainer, "mouseenter", favEnter, { passive:true });
+  addEvent(__bag, albumArtContainer, "mouseleave", favLeave, { passive:true });
 
   albumArtContainer.addEventListener("click", () => {
     const currentTrack = musicPlayerState.playlist?.[musicPlayerState.currentIndex];
     if (!currentTrack) return;
 
     const artistName = currentTrack.Artists?.join(", ") ||
-                     currentTrack.AlbumArtist ||
-                     config.languageLabels.unknownArtist;
+      currentTrack.AlbumArtist ||
+      config.languageLabels.unknownArtist;
 
     const artistId = currentTrack.ArtistItems?.[0]?.Id ||
-                   currentTrack.AlbumArtistId ||
-                   currentTrack.ArtistId ||
-                   null;
+      currentTrack.AlbumArtistId ||
+      currentTrack.ArtistId ||
+      null;
 
     toggleArtistModal(true, artistName, artistId);
-  });
-
-  albumArtContainer.addEventListener("mouseleave", () => {
-    favoriteBtn.classList.add("hidden");
   });
 
   const trackInfo = document.createElement("div");
@@ -173,24 +202,14 @@ setTimeout(() => {
   titleText.textContent = config.languageLabels.noSongSelected;
   titleContainer.appendChild(titleText);
 
-  const observer = new MutationObserver(() => {
-    checkMarqueeNeeded(titleText);
-  });
+  const observer = new MutationObserver(() => { checkMarqueeNeeded(titleText); });
+  observer.observe(titleText, { childList: true, characterData: true, subtree: true });
+  trackObserver(__bag, observer);
 
-  observer.observe(titleText, {
-    childList: true,
-    characterData: true,
-    subtree: true
-  });
+  const onResize = () => { checkMarqueeNeeded(titleText); };
+  addEvent(__bag, window, 'resize', onResize, { passive:true });
 
-
-  window.addEventListener('resize', () => {
-    checkMarqueeNeeded(titleText);
-  });
-
-setTimeout(() => {
-  checkMarqueeNeeded(titleText);
-}, 100);
+  trackTimeout(__bag, setTimeout(() => { checkMarqueeNeeded(titleText); }, 100));
 
   const artist = document.createElement("div");
   artist.id = "player-track-artist";
@@ -198,49 +217,47 @@ setTimeout(() => {
   artist.onclick = () => toggleArtistModal(true, config.languageLabels.artistUnknown, null);
 
   const topTracksBtn = createButton({
-  className: "top-tracks-btn",
-  iconClass: "fas fa-chart-line",
-  title: config.languageLabels.myMusic || "En Çok Dinlenenler",
-  onClick: () => {
-  showTopTracksModal();
-},
-});
+    className: "top-tracks-btn",
+    iconClass: "fas fa-chart-line",
+    title: config.languageLabels.myMusic || "En Çok Dinlenenler",
+    onClick: () => { showTopTracksModal(); },
+  });
 
   trackInfo.append(titleContainer, artist);
 
   const repeatBtn = createButton({ iconClass: "fas fa-repeat", title: config.languageLabels.repeatModOff, onClick: toggleRepeatMode });
   const shuffleBtn = createButton({ iconClass: "fas fa-random", title: `${config.languageLabels.shuffle}: ${config.languageLabels.shuffleOff}`, onClick: toggleShuffle });
   const removeOnPlayBtn = createButton({
-   className: "remove-on-play-btn",
-   iconClass: "fas fa-trash-list",
-   title: musicPlayerState.userSettings.removeOnPlay
-     ? config.languageLabels.removeOnPlayOn || "Çaldıktan sonra sil: Açık"
-     : config.languageLabels.removeOnPlayOff || "Çaldıktan sonra sil: Kapalı",
-   onClick: toggleRemoveOnPlayMode
- });
+    className: "remove-on-play-btn",
+    iconClass: "fas fa-trash-list",
+    title: musicPlayerState.userSettings.removeOnPlay
+      ? config.languageLabels.removeOnPlayOn || "Çaldıktan sonra sil: Açık"
+      : config.languageLabels.removeOnPlayOff || "Çaldıktan sonra sil: Kapalı",
+    onClick: toggleRemoveOnPlayMode
+  });
 
- if (musicPlayerState.userSettings.removeOnPlay) {
-   removeOnPlayBtn.innerHTML = '<i class="fas fa-trash-list" style="color:#e91e63"></i>';
- }
+  if (musicPlayerState.userSettings.removeOnPlay) {
+    removeOnPlayBtn.innerHTML = '<i class="fas fa-trash-list" style="color:#e91e63"></i>';
+  }
   const refreshBtn = createButton({ iconClass: "fas fa-sync-alt", title: config.languageLabels.refreshPlaylist, onClick: refreshPlaylist });
 
   const genreFilterBtn = createButton({
-  className: "genre-filter-btn",
-  iconClass: "fas fa-filter",
-  title: config.languageLabels.filterByGenre || "Türe göre filtrele",
-  onClick: showGenreFilterModal
+    className: "genre-filter-btn",
+    iconClass: "fas fa-filter",
+    title: config.languageLabels.filterByGenre || "Türe göre filtrele",
+    onClick: showGenreFilterModal
   });
   const prevBtn = createButton({ iconClass: "fas fa-step-backward", title: config.languageLabels.previousTrack, onClick: playPrevious });
   const playPauseBtn = createButton({ className: "main", iconClass: "fas fa-play", title: config.languageLabels.playPause, onClick: togglePlayPause, id: "play-pause-btn" });
   const nextBtn = createButton({ iconClass: "fas fa-step-forward", title: config.languageLabels.nextTrack, onClick: playNext });
   const lyricsBtn = createButton({
-  iconClass: "fas fa-align-left",
-  title: config.languageLabels.lyrics,
-  onClick: () => {
-    toggleLyrics();
-    musicPlayerState.lyricsDelay = parseFloat(localStorage.getItem("lyricsDelay")) || 0;
-  }
-});
+    iconClass: "fas fa-align-left",
+    title: config.languageLabels.lyrics,
+    onClick: () => {
+      toggleLyrics();
+      musicPlayerState.lyricsDelay = parseFloat(localStorage.getItem("lyricsDelay")) || 0;
+    }
+  });
   const volumeBtn = createButton({ iconClass: "fas fa-volume-up", title: config.languageLabels.volume, onClick: toggleMute });
 
   const volumeSlider = Object.assign(document.createElement("input"), {
@@ -278,21 +295,21 @@ setTimeout(() => {
     prevBtn, playPauseBtn, nextBtn, repeatBtn, shuffleBtn,
     removeOnPlayBtn, lyricsBtn, refreshBtn, genreFilterBtn,
     topTracksBtn, volumeBtn, createButton({
-        className: "fullscreen-btn",
-        iconClass: "fa-solid fa-maximize",
-        title: config.languageLabels.fullscreen || "Tam Ekran",
-        onClick: toggleFullscreenMode
+      className: "fullscreen-btn",
+      iconClass: "fa-solid fa-maximize",
+      title: config.languageLabels.fullscreen || "Tam Ekran",
+      onClick: toggleFullscreenMode
     }),
     createButton({
-        className: "style-toggle-btn",
-        iconClass: "fa-solid fa-up-down",
-        title: config.playerStyle === 'player' ? config.languageLabels.dikeyStil || 'Dikey Stil' : config.languageLabels.yatayStil || 'Yatay Stil',
-        onClick: togglePlayerStyle
+      className: "style-toggle-btn",
+      iconClass: "fa-solid fa-up-down",
+      title: config.playerStyle === 'player' ? config.languageLabels.dikeyStil || 'Dikey Stil' : config.languageLabels.yatayStil || 'Yatay Stil',
+      onClick: togglePlayerStyle
     }),
-];
+  ];
 
-window.addEventListener('load', initializeFullscreen);
-document.addEventListener('DOMContentLoaded', initializeFullscreen);
+  addEvent(__bag, window, 'load', initializeFullscreen, { once:true });
+  addEvent(__bag, document, 'DOMContentLoaded', initializeFullscreen, { once:true });
 
   controlElements.forEach(btn => controls.appendChild(btn));
   controls.appendChild(volumeSlider);
@@ -338,26 +355,26 @@ document.addEventListener('DOMContentLoaded', initializeFullscreen);
   createPlaylistModal();
 
   Object.assign(musicPlayerState, {
-  modernPlayer: player,
-  albumArtEl: albumArt,
-  modernTitleEl: titleText,
-  modernArtistEl: artist,
-  progressBar,
-  favoriteBtn,
-  progress,
-  progressHandle,
-  playPauseBtn,
-  progressContainer,
-  currentTimeEl,
-  durationEl,
-  lyricsContainer,
-  lyricsBtn,
-  volumeBtn,
-  volumeSlider,
-  nextTracksContainer,
-  nextTracksName,
-  nextTracksList,
-});
+    modernPlayer: player,
+    albumArtEl: albumArt,
+    modernTitleEl: titleText,
+    modernArtistEl: artist,
+    progressBar,
+    favoriteBtn,
+    progress,
+    progressHandle,
+    playPauseBtn,
+    progressContainer,
+    currentTimeEl,
+    durationEl,
+    lyricsContainer,
+    lyricsBtn,
+    volumeBtn,
+    volumeSlider,
+    nextTracksContainer,
+    nextTracksName,
+    nextTracksList,
+  });
 
   musicPlayerState.audio.volume = musicPlayerState.userSettings.volume || 0.7;
   setupProgressControls();
@@ -366,6 +383,43 @@ document.addEventListener('DOMContentLoaded', initializeFullscreen);
   updatePlayerBackground();
   initializeFullscreen();
   initializePlayerStyle();
+
+  const teardown = () => {
+    if (musicPlayerState.nextTracksObserver) {
+      try {
+        const list = musicPlayerState.nextTracksList;
+        if (list) for (const el of Array.from(list.children)) {
+          try { musicPlayerState.nextTracksObserver.unobserve(el); } catch {}
+        }
+      } catch {}
+      try { musicPlayerState.nextTracksObserver.disconnect(); } catch {}
+      musicPlayerState.nextTracksObserver = null;
+    }
+    try { __topTracksAborter?.abort?.(); } catch {}
+    __topTracksAborter = null;
+    clearGlobalTimeouts();
+
+    __bag.run();
+    try { player.remove(); } catch {}
+    musicPlayerState.albumArtEl =
+    musicPlayerState.modernTitleEl =
+    musicPlayerState.modernArtistEl =
+    musicPlayerState.progressBar =
+    musicPlayerState.progress =
+    musicPlayerState.progressHandle =
+    musicPlayerState.playPauseBtn =
+    musicPlayerState.progressContainer =
+    musicPlayerState.currentTimeEl =
+    musicPlayerState.durationEl =
+    musicPlayerState.lyricsContainer =
+    musicPlayerState.lyricsBtn =
+    musicPlayerState.volumeBtn =
+    musicPlayerState.volumeSlider =
+    musicPlayerState.nextTracksContainer =
+    musicPlayerState.nextTracksName =
+    musicPlayerState.nextTracksList = null;
+  };
+  musicPlayerState.__teardownModern = teardown;
 
   return { player, albumArt, title: titleContainer, artist, progressBar, progress, playPauseBtn, progressContainer, currentTimeEl, durationEl, volumeSlider, lyricsContainer, lyricsBtn };
 }
@@ -377,13 +431,19 @@ export async function updateNextTracks() {
     currentIndex,
     userSettings,
     nextTracksContainer,
-    id3ImageCache = {}
   } = musicPlayerState;
 
   if (!nextTracksContainer || !playlist) return;
 
   if (musicPlayerState.nextTracksObserver) {
-    musicPlayerState.nextTracksObserver.disconnect();
+    try {
+      const prevList = musicPlayerState.nextTracksList;
+      if (prevList) for (const el of Array.from(prevList.children)) {
+        try { musicPlayerState.nextTracksObserver.unobserve(el); } catch {}
+      }
+    } catch {}
+    try { musicPlayerState.nextTracksObserver.disconnect(); } catch {}
+    musicPlayerState.nextTracksObserver = null;
   }
 
   const uiElements = createNextTracksUI();
@@ -454,9 +514,7 @@ export async function updateNextTracks() {
   });
 
   musicPlayerState.nextTracksObserver = observer;
-
-  setupImageLoading(trackElements, id3ImageCache, observer);
-
+  setupImageLoading(trackElements, observer);
   setupScrollControls(
     trackElements,
     uiElements.list,
@@ -478,34 +536,27 @@ export async function updateNextTracks() {
     nextTracksContainer.append(uiElements.wrapper, uiElements.name);
   }
 
-  setTimeout(() => {
+  trackGlobalTimeout(setTimeout(() => {
     uiElements.name.classList.remove('hidden');
     uiElements.name.classList.add('visible');
-  }, 100);
+  }, 100));
 
   musicPlayerState.nextTracksList = uiElements.list;
   musicPlayerState.nextTracksName = uiElements.name;
-  musicPlayerState.id3ImageCache = id3ImageCache;
 }
 
-async function getTrackImage(track, cache) {
-  const trackId = track.Id;
-  if (cache[trackId]) return cache[trackId];
+async function getTrackImage(track) {
+  const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
+  const imageId = track.AlbumId || track.Id;
+  if (imageTag) {
+    return `/Items/${imageId}/Images/Primary?fillHeight=100&fillWidth=100&quality=70&tag=${imageTag}`;
+  }
 
   try {
-    const tags = await readID3Tags(trackId);
-
-    if (tags?.pictureUri) {
-      cache[trackId] = tags.pictureUri;
-      return tags.pictureUri;
-    }
+    const tags = await readID3Tags(track.Id);
+    if (tags?.pictureUri) return tags.pictureUri;
   } catch (e) {
-    console.warn(`ID3 etiketi okunamadı (ID: ${trackId})`, e);
-  }
-  const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
-  const imageId = track.AlbumId || trackId;
-  if (imageTag) {
-    return `/Items/${imageId}/Images/Primary?fillHeight=100&fillWidth=100&quality=99&tag=${imageTag}`;
+    console.warn(`ID3 etiketi okunamadı (ID: ${track.Id})`, e);
   }
 
   return null;
@@ -597,57 +648,54 @@ export function checkMarqueeNeeded(element) {
 }
 
 function toggleTheme() {
-    const config = getConfig();
-    const newTheme = config.playerTheme === 'light' ? 'dark' : 'light';
-    const updatedConfig = {
-        ...config,
-        playerTheme: newTheme
-    };
-    updateConfig(updatedConfig);
-    const themeBtn = document.querySelector('.theme-toggle-btn');
-    if (themeBtn) {
-        themeBtn.innerHTML = `<i class="fas fa-${newTheme === 'light' ? 'moon' : 'sun'}"></i>`;
-        themeBtn.title = newTheme === 'light' ? config.languageLabels.darkTheme || 'Karanlık Tema' : config.languageLabels.lightTheme || 'Aydınlık Tema';
-    }
-    loadCSS();
+  const config = getConfig();
+  const newTheme = config.playerTheme === 'light' ? 'dark' : 'light';
+  const updatedConfig = { ...config, playerTheme: newTheme };
+  updateConfig(updatedConfig);
+  const themeBtn = document.querySelector('.theme-toggle-btn');
+  if (themeBtn) {
+    themeBtn.innerHTML = `<i class="fas fa-${newTheme === 'light' ? 'moon' : 'sun'}"></i>`;
+    themeBtn.title = newTheme === 'light' ? config.languageLabels.darkTheme || 'Karanlık Tema' : config.languageLabels.lightTheme || 'Aydınlık Tema';
+  }
+  loadCSS();
 
-    showNotification(
-        `<i class="fas fa-${newTheme === 'light' ? 'sun' : 'moon'}"></i> ${newTheme === 'light' ? config.languageLabels.lightThemeEnabled || 'Aydınlık tema etkin' : config.languageLabels.darkThemeEnabled || 'Karanlık tema etkin'}`,
-        2000,
-        'info'
-    );
+  showNotification(
+    `<i class="fas fa-${newTheme === 'light' ? 'sun' : 'moon'}"></i> ${newTheme === 'light' ? config.languageLabels.lightThemeEnabled || 'Aydınlık tema etkin' : config.languageLabels.darkThemeEnabled || 'Karanlık tema etkin'}`,
+    2000,
+    'info'
+  );
+  try {
+    window.dispatchEvent(new CustomEvent('app:theme-changed', { detail: { theme: newTheme, source: 'playerUI' } }));
+  } catch {}
 }
 
 function togglePlayerStyle() {
-    const config = getConfig();
-    const newStyle = config.playerStyle === 'player' ? 'newplayer' : 'player';
-    const iconName = newStyle === 'player' ? 'up-down' : 'left-right';
-    const notifcationName = newStyle === 'player' ? 'left-right' : 'up-down';
-    const updatedConfig = {
-        ...config,
-        playerStyle: newStyle
-    };
+  const config = getConfig();
+  const newStyle = config.playerStyle === 'player' ? 'newplayer' : 'player';
+  const iconName = newStyle === 'player' ? 'up-down' : 'left-right';
+  const notifName = newStyle === 'player' ? 'left-right' : 'up-down';
+  const updatedConfig = { ...config, playerStyle: newStyle };
 
-    updateConfig(updatedConfig);
+  updateConfig(updatedConfig);
 
-    const styleBtn = document.querySelector('.style-toggle-btn');
-    if (styleBtn) {
-        styleBtn.innerHTML = `<i class="fas fa-${iconName}"></i>`;
-        styleBtn.title = newStyle === 'player'
-            ? config.languageLabels.dikeyStil || 'Dikey Stil'
-            : config.languageLabels.yatayStil || 'Yatay Stil';
-    }
+  const styleBtn = document.querySelector('.style-toggle-btn');
+  if (styleBtn) {
+    styleBtn.innerHTML = `<i class="fas fa-${iconName}"></i>`;
+    styleBtn.title = newStyle === 'player'
+      ? config.languageLabels.dikeyStil || 'Dikey Stil'
+      : config.languageLabels.yatayStil || 'Yatay Stil';
+  }
 
-    loadCSS();
-    showNotification(
-        `<i class="fas fa-${notifcationName}"></i> ${
-            newStyle === 'player'
-                ? config.languageLabels.yatayStilEnabled || 'Yatay stil etkin'
-                : config.languageLabels.dikeyStilEnabled || 'Dikey stil etkin'
-        }`,
-        2000,
-        'info'
-    );
+  loadCSS();
+  showNotification(
+    `<i class="fas fa-${notifName}"></i> ${
+      newStyle === 'player'
+        ? config.languageLabels.yatayStilEnabled || 'Yatay stil etkin'
+        : config.languageLabels.dikeyStilEnabled || 'Dikey stil etkin'
+    }`,
+    2000,
+    'info'
+  );
 }
 
 export function updatePlayerBackground() {
@@ -707,83 +755,80 @@ export async function updateAlbumArt(artUrl) {
 }
 
 function toggleFullscreenMode() {
-    const config = getConfig();
-    const newMode = !config.fullscreenMode;
-    localStorage.setItem('fullscreenMode', newMode);
+  const config = getConfig();
+  const newMode = !config.fullscreenMode;
+  localStorage.setItem('fullscreenMode', newMode);
 
-    const updatedConfig = {
-        ...config,
-        fullscreenMode: newMode
-    };
+  const updatedConfig = { ...config, fullscreenMode: newMode };
 
-    updateConfig(updatedConfig);
-    loadCSS();
+  updateConfig(updatedConfig);
+  loadCSS();
 
-    const player = document.getElementById('modern-music-player');
-    if (player) {
-        if (newMode) {
-            player.classList.add('fullscreen-mode');
-            document.body.style.overflow = 'hidden';
-        } else {
-            player.classList.remove('fullscreen-mode');
-            document.body.style.overflow = '';
-        }
+  const player = document.getElementById('modern-music-player');
+  if (player) {
+    if (newMode) {
+      player.classList.add('fullscreen-mode');
+      document.body.style.overflow = 'hidden';
+    } else {
+      player.classList.remove('fullscreen-mode');
+      document.body.style.overflow = '';
     }
+  }
 
-    const fullscreenBtn = document.querySelector('.fullscreen-btn i');
-    if (fullscreenBtn) {
-        fullscreenBtn.className = newMode
-            ? 'fa-solid fa-minimize'
-            : 'fa-solid fa-maximize';
-    }
+  const fullscreenBtn = document.querySelector('.fullscreen-btn i');
+  if (fullscreenBtn) {
+    fullscreenBtn.className = newMode
+      ? 'fa-solid fa-minimize'
+      : 'fa-solid fa-maximize';
+  }
 
-    showNotification(
-        `<i class="fa-solid fa-${newMode ? 'maximize' : 'minimize'}"></i> ${
-            newMode
-                ? config.languageLabels.fullscreenEnabled || 'Tam ekran modu etkin'
-                : config.languageLabels.fullscreenDisabled || 'Tam ekran modu devre dışı'
-        }`,
-        2000,
-        'info'
-    );
+  showNotification(
+    `<i class="fa-solid fa-${newMode ? 'maximize' : 'minimize'}"></i> ${
+      newMode
+        ? config.languageLabels.fullscreenEnabled || 'Tam ekran modu etkin'
+        : config.languageLabels.fullscreenDisabled || 'Tam ekran modu devre dışı'
+    }`,
+    2000,
+    'info'
+  );
 }
 
 function initializePlayerStyle() {
-    const config = getConfig();
-    const player = document.getElementById('modern-music-player');
-    const styleToggleBtn = document.querySelector('.style-toggle-btn i');
+  const config = getConfig();
+  const player = document.getElementById('modern-music-player');
+  const styleToggleBtn = document.querySelector('.style-toggle-btn i');
 
-    if (!player || !styleToggleBtn) return;
+  if (!player || !styleToggleBtn) return;
 
-    if (config.playerStyle === 'newplayer') {
-        player.classList.add('style-toggle');
-        styleToggleBtn.className = 'fas fa-left-right';
-        styleToggleBtn.title = config.languageLabels.dikeyStil || 'Dikey Stil';
-    } else {
-        player.classList.remove('style-toggle');
-        styleToggleBtn.className = 'fas fa-up-down';
-        styleToggleBtn.title = config.languageLabels.yatayStil || 'Yatay Stil';
-    }
+  if (config.playerStyle === 'newplayer') {
+    player.classList.add('style-toggle');
+    styleToggleBtn.className = 'fas fa-left-right';
+    styleToggleBtn.title = config.languageLabels.dikeyStil || 'Dikey Stil';
+  } else {
+    player.classList.remove('style-toggle');
+    styleToggleBtn.className = 'fas fa-up-down';
+    styleToggleBtn.title = config.languageLabels.yatayStil || 'Yatay Stil';
+  }
 }
 
 function initializeFullscreen() {
-    const config = getConfig();
-    const player = document.getElementById('modern-music-player');
-    const fullscreenBtn = document.querySelector('.fullscreen-btn i');
+  const config = getConfig();
+  const player = document.getElementById('modern-music-player');
+  const fullscreenBtn = document.querySelector('.fullscreen-btn i');
 
-    if (config.fullscreenMode) {
-        player?.classList.add('fullscreen-mode');
-        document.body.style.overflow = 'hidden';
-        if (fullscreenBtn) {
-            fullscreenBtn.className = 'fa-solid fa-minimize';
-        }
-    } else {
-        player?.classList.remove('fullscreen-mode');
-        document.body.style.overflow = '';
-        if (fullscreenBtn) {
-            fullscreenBtn.className = 'fa-solid fa-maximize';
-        }
+  if (config.fullscreenMode) {
+    player?.classList.add('fullscreen-mode');
+    document.body.style.overflow = 'hidden';
+    if (fullscreenBtn) {
+      fullscreenBtn.className = 'fa-solid fa-minimize';
     }
+  } else {
+    player?.classList.remove('fullscreen-mode');
+    document.body.style.overflow = '';
+    if (fullscreenBtn) {
+      fullscreenBtn.className = 'fa-solid fa-maximize';
+    }
+  }
 }
 
 async function showTopTracksInMainView(tab) {
@@ -792,8 +837,7 @@ async function showTopTracksInMainView(tab) {
     return;
   }
 
-  const config = getConfig();
-  const { nextTracksContainer, id3ImageCache = {} } = musicPlayerState;
+  const { nextTracksContainer } = musicPlayerState;
 
   const uiElements = createNextTracksUI();
   nextTracksContainer.innerHTML = '';
@@ -820,13 +864,17 @@ async function showTopTracksInMainView(tab) {
     }
   };
 
+  if (__topTracksAborter) { try { __topTracksAborter.abort(); } catch {} }
+  __topTracksAborter = new AbortController();
+
   try {
     const token = getAuthToken();
     const userId = await window.ApiClient.getCurrentUserId();
     const { apiUrl } = getApiUrlForTab(tab, userId);
 
     const response = await fetch(apiUrl, {
-      headers: { "X-Emby-Token": token }
+      headers: { "X-Emby-Token": token },
+      signal: __topTracksAborter.signal
     });
 
     if (!response.ok) throw new Error('Şarkılar yüklenemedi');
@@ -855,9 +903,7 @@ async function showTopTracksInMainView(tab) {
           index,
           () => addAndPlayTrack(track)
         );
-
-        loadInitialBatch([{track, trackElement, coverElement, index}], id3ImageCache)
-          .then(() => {})
+        loadInitialBatch([{ track, trackElement, coverElement, index }])
           .catch(err => console.error('Görsel yükleme hatası:', err));
 
         uiElements.list.appendChild(trackElement);
@@ -886,12 +932,13 @@ async function showTopTracksInMainView(tab) {
       nextTracksContainer.append(uiElements.wrapper, uiElements.name);
     }
 
-    setTimeout(() => {
+    trackGlobalTimeout(setTimeout(() => {
       uiElements.name.classList.remove('hidden');
       uiElements.name.classList.add('visible');
-    }, 100);
+    }, 100));
 
   } catch (error) {
+    if (error?.name === 'AbortError') return;
     console.error('Sıradaki şarkılar yüklenirken hata:', error);
     const errorElement = document.createElement('div');
     errorElement.className = 'error-message';
@@ -909,25 +956,25 @@ async function showTopTracksInMainView(tab) {
 }
 
 function isSameTrack(a, b) {
-    if (a.Id === b.Id) return true;
-    if (a.Name !== b.Name) return false;
-    const artistsA = (a.Artists || []).map(x => x.Name).sort().join(',');
-    const artistsB = (b.Artists || []).map(x => x.Name).sort().join(',');
-    return artistsA === artistsB;
+  if (a.Id === b.Id) return true;
+  if (a.Name !== b.Name) return false;
+  const artistsA = (a.Artists || []).map(x => x.Name).sort().join(',');
+  const artistsB = (b.Artists || []).map(x => x.Name).sort().join(',');
+  return artistsA === artistsB;
 }
 
 function addAndPlayTrack(track) {
-    const playlist = musicPlayerState.playlist;
-    const existingIndex = playlist.findIndex(t => isSameTrack(t, track));
+  const playlist = musicPlayerState.playlist;
+  const existingIndex = playlist.findIndex(t => isSameTrack(t, track));
 
-    if (existingIndex >= 0) {
-        musicPlayerState.currentIndex = existingIndex;
-    } else {
-        playlist.push(track);
-        musicPlayerState.originalPlaylist.push(track);
-        musicPlayerState.currentIndex = playlist.length - 1;
-    }
-    playTrack(musicPlayerState.currentIndex);
+  if (existingIndex >= 0) {
+    musicPlayerState.currentIndex = existingIndex;
+  } else {
+    playlist.push(track);
+    musicPlayerState.originalPlaylist.push(track);
+    musicPlayerState.currentIndex = playlist.length - 1;
+  }
+  playTrack(musicPlayerState.currentIndex);
 }
 
 function createNextTracksUI() {
@@ -983,6 +1030,13 @@ function setupScrollControls(trackElements, nextTracksList, scrollLeftBtn, scrol
   };
 }
 
+export function destroyModernPlayerUI() {
+  if (musicPlayerState.__teardownModern) {
+    musicPlayerState.__teardownModern();
+    musicPlayerState.__teardownModern = null;
+  }
+}
+
 function createTrackElement(track, index, onClickHandler) {
   const config = getConfig();
   const trackElement = document.createElement('div');
@@ -1034,7 +1088,7 @@ function getShuffledIndices(playlist, currentIndex, maxNextTracks) {
 
   musicPlayerState.playedHistory.push(...nextIndices);
   musicPlayerState.playedHistory = Array.from(new Set(musicPlayerState.playedHistory));
-  if (musicPlayerState.playedHistory.length > playlist.length * 2) {
+  if (musicPlayerState.playedHistory.length > playlist.length) {
     musicPlayerState.playedHistory = musicPlayerState.playedHistory.slice(-playlist.length);
   }
 
@@ -1127,9 +1181,9 @@ function getNextTrackSource(currentSource) {
   return sources[nextIndex];
 }
 
-async function setupImageLoading(trackElements, id3ImageCache, observer) {
+async function setupImageLoading(trackElements, observer) {
   const initialBatch = trackElements.slice(0, config.id3limit || 4);
-  await loadInitialBatch(initialBatch, id3ImageCache);
+  await loadInitialBatch(initialBatch);
 
   trackElements.slice(config.id3limit || 4).forEach(({ trackElement }) => {
     trackElement.classList.remove('hidden');
@@ -1137,7 +1191,7 @@ async function setupImageLoading(trackElements, id3ImageCache, observer) {
   });
 }
 
-async function loadInitialBatch(trackElements, id3ImageCache) {
+async function loadInitialBatch(trackElements) {
   if (!Array.isArray(trackElements)) {
     console.error('loadInitialBatch: trackElements bir dizi olmalı', trackElements);
     return;
@@ -1153,7 +1207,7 @@ async function loadInitialBatch(trackElements, id3ImageCache) {
       trackElement.classList.add('visible');
 
       try {
-        const imageUri = await getTrackImage(track, id3ImageCache);
+        const imageUri = await getTrackImage(track);
         if (imageUri) {
           coverElement.style.backgroundImage = `url('${imageUri}')`;
         }
@@ -1166,12 +1220,12 @@ async function loadInitialBatch(trackElements, id3ImageCache) {
 }
 
 async function loadTrackImageForElement(trackElement, trackIndex) {
-  const { playlist, id3ImageCache = {} } = musicPlayerState;
+  const { playlist } = musicPlayerState;
   const track = playlist[trackIndex];
   if (!track) return;
 
   try {
-    const imageUri = await getTrackImage(track, id3ImageCache);
+    const imageUri = await getTrackImage(track);
     if (imageUri) {
       const coverElement = trackElement.querySelector('.next-track-cover');
       if (coverElement) {
@@ -1183,16 +1237,17 @@ async function loadTrackImageForElement(trackElement, trackIndex) {
     console.error(`Track #${trackIndex} resmi yüklenirken hata:`, err);
   }
 }
+
 function getSourceLabel(source) {
-    const config = getConfig();
-    const labels = {
-        'top': config.languageLabels.topTracks || "En Çok Dinlenenler",
-        'recent': config.languageLabels.recentTracks || "Son Dinlenenler",
-        'latest': config.languageLabels.latestTracks || "Son Eklenenler",
-        'favorites': config.languageLabels.favorites || "Favorilerim",
-        'playlist': musicPlayerState.userSettings.shuffle
-            ? config.languageLabels.rastgele || "Rastgele"
-            : config.languageLabels.sirada || "Sıradakiler"
-    };
-    return labels[source] || source;
+  const config = getConfig();
+  const labels = {
+    'top': config.languageLabels.topTracks || "En Çok Dinlenenler",
+    'recent': config.languageLabels.recentTracks || "Son Dinlenenler",
+    'latest': config.languageLabels.latestTracks || "Son Eklenenler",
+    'favorites': config.languageLabels.favorites || "Favorilerim",
+    'playlist': musicPlayerState.userSettings.shuffle
+      ? config.languageLabels.rastgele || "Rastgele"
+      : config.languageLabels.sirada || "Sıradakiler"
+  };
+  return labels[source] || source;
 }

@@ -3,12 +3,13 @@ import { getConfig } from "../../config.js";
 import { musicPlayerState } from "../core/state.js";
 import { playTrack } from "../player/playback.js";
 import { showNotification } from "./notification.js";
-import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
+import { readID3Tags } from "../lyrics/id3Reader.js";
 import { saveCurrentPlaylistToJellyfin } from "../core/playlist.js";
 import { fetchJellyfinPlaylists } from "../core/jellyfinPlaylists.js";
 
 const config = getConfig();
 const DEFAULT_ARTWORK = "url('/web/slider/src/images/defaultArt.png')";
+const cleanupFns = [];
 
 let topTracksOverlay = null;
 let activeTab = 'top';
@@ -48,17 +49,21 @@ export function showTopTracksModal() {
     if (n === trackLimit) opt.selected = true;
     limitSelector.appendChild(opt);
   });
-  limitSelector.onchange = () => {
+  const onLimitChange = () => {
     trackLimit = parseInt(limitSelector.value, 10);
     loadTracks();
   };
+  limitSelector.addEventListener('change', onLimitChange);
+  cleanupFns.push(() => limitSelector.removeEventListener('change', onLimitChange));
   actionsContainer.appendChild(limitSelector);
 
   const selectAllBtn = document.createElement('button');
   selectAllBtn.className = 'top-tracks-action-btn';
   selectAllBtn.innerHTML = '<i class="fas fa-check-square"></i>';
   selectAllBtn.title = config.languageLabels.selectAll || 'Tümünü seç';
-  selectAllBtn.onclick = toggleSelectAll;
+  const onToggleAll = () => toggleSelectAll();
+  selectAllBtn.addEventListener('click', onToggleAll);
+  cleanupFns.push(() => selectAllBtn.removeEventListener('click', onToggleAll));
   actionsContainer.appendChild(selectAllBtn);
 
   const playSelectedBtn = document.createElement('button');
@@ -66,7 +71,9 @@ export function showTopTracksModal() {
   playSelectedBtn.innerHTML = '<i class="fas fa-play"></i>';
   playSelectedBtn.title = config.languageLabels.playSelected || 'Seçilenleri çal';
   playSelectedBtn.disabled = true;
-  playSelectedBtn.onclick = playSelectedTracks;
+  const onPlaySel = () => playSelectedTracks();
+  playSelectedBtn.addEventListener('click', onPlaySel);
+  cleanupFns.push(() => playSelectedBtn.removeEventListener('click', onPlaySel));
   actionsContainer.appendChild(playSelectedBtn);
 
   const addToQueueBtn = document.createElement('button');
@@ -74,7 +81,9 @@ export function showTopTracksModal() {
   addToQueueBtn.innerHTML = '<i class="fas fa-plus"></i>';
   addToQueueBtn.title = config.languageLabels.addToQueue || 'Sıraya ekle';
   addToQueueBtn.disabled = true;
-  addToQueueBtn.onclick = addSelectedToQueue;
+  const onAddQ = () => addSelectedToQueue();
+  addToQueueBtn.addEventListener('click', onAddQ);
+  cleanupFns.push(() => addToQueueBtn.removeEventListener('click', onAddQ));
   actionsContainer.appendChild(addToQueueBtn);
 
   const saveToPlaylistBtn = document.createElement('button');
@@ -82,13 +91,17 @@ export function showTopTracksModal() {
   saveToPlaylistBtn.innerHTML = '<i class="fas fa-save"></i>';
   saveToPlaylistBtn.title = config.languageLabels.saveToPlaylist || 'Listeye kaydet';
   saveToPlaylistBtn.disabled = true;
-  saveToPlaylistBtn.onclick = showSaveToPlaylistModal;
+  const onSavePL = () => showSaveToPlaylistModal();
+  saveToPlaylistBtn.addEventListener('click', onSavePL);
+  cleanupFns.push(() => saveToPlaylistBtn.removeEventListener('click', onSavePL));
   actionsContainer.appendChild(saveToPlaylistBtn);
 
   const closeBtn = document.createElement('div');
   closeBtn.className = 'top-tracks-close';
   closeBtn.innerHTML = '<i class="fas fa-times"></i>';
-  closeBtn.onclick = () => topTracksOverlay.classList.remove('visible');
+  const onClose = () => hideTopTracksModal();
+  closeBtn.addEventListener('click', onClose);
+  cleanupFns.push(() => closeBtn.removeEventListener('click', onClose));
 
   header.append(title, actionsContainer, closeBtn);
 
@@ -105,7 +118,9 @@ export function showTopTracksModal() {
       latest: config.languageLabels.latestTracks || 'Son Eklenenler',
       favorites: config.languageLabels.favorites || 'Favorilerim'
     }[tabKey];
-    tab.onclick = () => switchTab(tabKey);
+    const onTab = () => switchTab(tabKey);
+    tab.addEventListener('click', onTab);
+    cleanupFns.push(() => tab.removeEventListener('click', onTab));
     tabContainer.appendChild(tab);
   });
 
@@ -116,11 +131,16 @@ export function showTopTracksModal() {
   topTracksOverlay.appendChild(modal);
   document.body.appendChild(topTracksOverlay);
 
-  topTracksOverlay.addEventListener('click', e => {
+  const onOverlayClick = (e) => {
     if (e.target === topTracksOverlay) {
-      topTracksOverlay.classList.remove('visible');
+      hideTopTracksModal();
     }
-  });
+  };
+  topTracksOverlay.addEventListener('click', onOverlayClick);
+  cleanupFns.push(() => topTracksOverlay && topTracksOverlay.removeEventListener('click', onOverlayClick));
+  const onKeydown = (e) => { if (e.key === 'Escape') hideTopTracksModal(); };
+  document.addEventListener('keydown', onKeydown);
+  cleanupFns.push(() => document.removeEventListener('keydown', onKeydown));
 
   setTimeout(() => {
     topTracksOverlay.classList.add('visible');
@@ -128,6 +148,18 @@ export function showTopTracksModal() {
   }, 10);
 }
 
+function hideTopTracksModal() {
+  if (!topTracksOverlay) return;
+  topTracksOverlay.classList.remove('visible');
+  for (const fn of cleanupFns.splice(0)) {
+    try { fn(); } catch {}
+  }
+  try {
+    document.body.removeChild(topTracksOverlay);
+  } catch {}
+  topTracksOverlay = null;
+  selectedTrackIds.clear();
+}
 
 function toggleSelectAll() {
   const checkboxes = Array.from(document.querySelectorAll('.top-track-checkbox'));
@@ -148,16 +180,15 @@ function toggleSelectAll() {
   updateActionButtons();
 }
 
-
 function updateActionButtons() {
   const [selectAllBtn, playBtn, queueBtn, saveBtn] = Array.from(
     document.querySelectorAll('.top-tracks-action-btn')
   );
 
   const hasSelection = selectedTrackIds.size > 0;
-  playBtn.disabled = !hasSelection;
-  queueBtn.disabled = !hasSelection;
-  saveBtn.disabled = !hasSelection;
+  if (playBtn) playBtn.disabled = !hasSelection;
+  if (queueBtn) queueBtn.disabled = !hasSelection;
+  if (saveBtn) saveBtn.disabled = !hasSelection;
 }
 
 function playSelectedTracks() {
@@ -171,8 +202,7 @@ function playSelectedTracks() {
   musicPlayerState.currentIndex = 0;
 
   playTrack(0);
-  topTracksModal.classList.remove('visible');
-
+  hideTopTracksModal();
   showNotification(
     `<i class="fas fa-music"></i> ${selectedTracks.length} ${config.languageLabels.tracksPlaying}`,
     2000,
@@ -388,7 +418,7 @@ async function showSaveToPlaylistModal() {
 
   function closeModal() {
     document.removeEventListener("keydown", handleKeyDown);
-    document.body.removeChild(modal);
+    try { document.body.removeChild(modal); } catch {}
   }
 }
 
@@ -437,7 +467,8 @@ function switchTab(tab) {
 
   const tabs = document.querySelectorAll('.top-tracks-tab');
   tabs.forEach(t => t.classList.remove('active'));
-  document.querySelector(`.top-tracks-tab[data-tab="${tab}"]`).classList.add('active');
+  const activeEl = document.querySelector(`.top-tracks-tab[data-tab="${tab}"]`);
+  if (activeEl) activeEl.classList.add('active');
 
   loadTracks();
 }
@@ -498,7 +529,7 @@ async function loadTracks() {
       checkbox.className = 'top-track-checkbox';
       checkbox.dataset.trackId = track.Id;
       checkbox.checked = selectedTrackIds.has(track.Id);
-      checkbox.addEventListener('change', (e) => {
+      const onCheck = (e) => {
         const trackId = e.target.dataset.trackId;
         if (e.target.checked) {
           selectedTrackIds.add(trackId);
@@ -506,7 +537,9 @@ async function loadTracks() {
           selectedTrackIds.delete(trackId);
         }
         updateActionButtons();
-      });
+      };
+      checkbox.addEventListener('change', onCheck);
+      cleanupFns.push(() => checkbox.removeEventListener('change', onCheck));
 
       const coverElement = document.createElement('div');
       coverElement.className = 'top-track-cover';
@@ -562,11 +595,12 @@ async function loadTracks() {
 
       loadTrackImage(track, coverElement);
 
-      trackElement.addEventListener('click', (e) => {
+      const onItemClick = (e) => {
         if (e.target.tagName === 'INPUT') return;
-
         addAndPlayTrack(track);
-      });
+      };
+      trackElement.addEventListener('click', onItemClick);
+      cleanupFns.push(() => trackElement.removeEventListener('click', onItemClick));
     }
   } catch (error) {
     grid.innerHTML = `<div class="error-message">${
@@ -604,9 +638,19 @@ async function loadTrackImage(track, element) {
       const imageId = track.AlbumId || track.Id;
       const imageUrl = `/Items/${imageId}/Images/Primary?fillHeight=300&fillWidth=300&quality=80&tag=${imageTag}`;
       element.style.backgroundImage = `url('${imageUrl}')`;
+      return;
     }
+
+    const tags = await readID3Tags(track.Id);
+    if (tags?.pictureUri) {
+      element.style.backgroundImage = `url('${tags.pictureUri}')`;
+      return;
+    }
+
+    element.style.backgroundImage = DEFAULT_ARTWORK;
   } catch (error) {
     console.error('Şarkı görseli yüklenemedi:', error);
+    element.style.backgroundImage = DEFAULT_ARTWORK;
   }
 }
 

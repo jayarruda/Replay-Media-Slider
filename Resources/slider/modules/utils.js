@@ -730,11 +730,11 @@ export async function getHighResImageUrls(item, backdropIndex) {
   const backdropMaxWidth = (config.backdropMaxWidth || 1920) * pixelRatio;
   const backdropTag = item.ImageTags?.Backdrop?.[index] || "";
 
-  const backdropUrl = `/Items/${itemId}/Images/Backdrop/${index}?tag=${backdropTag}&quality=100&maxWidth=${Math.floor(
+  const backdropUrl = `/Items/${itemId}/Images/Backdrop/${index}?tag=${backdropTag}&quality=90&maxWidth=${Math.floor(
     backdropMaxWidth
   )}${fmt}`;
   const placeholderUrl = `/Items/${itemId}/Images/Primary?tag=${imageTag}&maxHeight=50&blur=15`;
-  const logoUrl = `/Items/${itemId}/Images/Logo?tag=${logoTag}&quality=100&maxHeight=${logoHeight}${fmt}`;
+  const logoUrl = `/Items/${itemId}/Images/Logo?tag=${logoTag}&quality=90&maxHeight=${logoHeight}${fmt}`;
 
   return { backdropUrl, placeholderUrl, logoUrl };
 }

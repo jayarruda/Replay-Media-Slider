@@ -50,145 +50,156 @@ export const musicPlayerState = {
   genreFilter: null,
   selectedGenres: [],
   audio: (() => {
-  const audio = new Audio();
-  audio.preload = 'metadata';
-  audio.crossOrigin = 'anonymous';
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audio.crossOrigin = "anonymous";
 
+    function fadeAudio(audioEl, fromVolume, toVolume, durationSec) {
+      const steps = 30;
+      const intervalSec = durationSec / steps;
+      let currentStep = 0;
 
-  function fadeAudio(audio, fromVolume, toVolume, duration) {
-  const steps = 30;
-  const interval = duration / steps;
-  let currentStep = 0;
+      const volumeStep = (toVolume - fromVolume) / steps;
+      audioEl.volume = fromVolume;
 
-  const volumeStep = (toVolume - fromVolume) / steps;
-  audio.volume = fromVolume;
+      return new Promise((resolve) => {
+        const fadeId = setInterval(() => {
+          currentStep++;
+          const nextVol = Math.min(Math.max((audioEl.volume ?? fromVolume) + volumeStep, 0), 1);
+          audioEl.volume = nextVol;
+          if (currentStep >= steps) {
+            clearInterval(fadeId);
+            resolve();
+          }
+        }, intervalSec * 1000);
+      });
+    }
 
-  return new Promise(resolve => {
-    const fade = setInterval(() => {
-      currentStep++;
-      audio.volume = Math.min(Math.max(audio.volume + volumeStep, 0), 1);
-      if (currentStep >= steps) {
-        clearInterval(fade);
-        resolve();
+    audio.addEventListener("play", () => {
+      if (musicPlayerState.playPauseBtn) {
+        musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
       }
-    }, interval * 1000);
-  });
-}
+    });
 
+    audio.addEventListener("pause", () => {
+      if (musicPlayerState.playPauseBtn) {
+        musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+      }
+    });
 
-  audio.addEventListener('play', () => {
-    if (musicPlayerState.playPauseBtn) {
-      musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-    }
-  });
+    audio.addEventListener("volumechange", () => {
+      if (musicPlayerState.volumeBtn && musicPlayerState.volumeSlider) {
+        const vol = audio.muted ? 0 : (audio.volume ?? 0);
+        try { musicPlayerState.volumeSlider.value = vol; } catch {}
+        updateVolumeIcon(vol);
+      }
+    });
 
-  audio.addEventListener('pause', () => {
-    if (musicPlayerState.playPauseBtn) {
-      musicPlayerState.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-    }
-  });
+    setTimeout(() => {
+      musicPlayerState.utils = musicPlayerState.utils || {};
+      musicPlayerState.utils.fadeAudio = (from, to, dur) => fadeAudio(audio, from, to, dur);
+    }, 0);
 
-  audio.addEventListener('volumechange', () => {
-    if (musicPlayerState.volumeBtn && musicPlayerState.volumeSlider) {
-      const volume = audio.muted ? 0 : audio.volume;
-      musicPlayerState.volumeSlider.value = volume;
-      updateVolumeIcon(volume);
-    }
-  });
+    return audio;
+  })(),
 
-  return audio;
-})(),
   userSettings: {
     volume: 0.7,
-    repeatMode: 'none',
+    repeatMode: "none",
     shuffle: false,
-    crossfade: false
+    crossfade: false,
   },
+
   syncedLyrics: {
     lines: [],
-    currentLine: -1
+    currentLine: -1,
   },
+
   offlineCache: {
-    enabled: true,
-    lyrics: {},
-    artwork: {}
+    enabled: true
   }
 };
 
 export function loadUserSettings() {
-  const savedSettings = localStorage.getItem('musicPlayerSettings');
+  const savedSettings = localStorage.getItem("musicPlayerSettings");
   if (savedSettings) {
     try {
-      const parsedSettings = JSON.parse(savedSettings);
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const parsed = JSON.parse(savedSettings);
 
-      if (typeof parsedSettings.shuffle === 'string') {
-        parsedSettings.shuffle = parsedSettings.shuffle === 'true';
+      if (typeof parsed.shuffle === "string") {
+        parsed.shuffle = parsed.shuffle === "true";
       }
 
       musicPlayerState.userSettings = {
         ...musicPlayerState.userSettings,
-        ...parsedSettings
+        ...parsed,
       };
 
-      if (!['none', 'one', 'all'].includes(musicPlayerState.userSettings.repeatMode)) {
-         musicPlayerState.userSettings.repeatMode = 'none';
-       }
+      if (!["none", "one", "all"].includes(musicPlayerState.userSettings.repeatMode)) {
+        musicPlayerState.userSettings.repeatMode = "none";
+      }
 
       musicPlayerState.audio.volume = musicPlayerState.userSettings.volume;
       if (musicPlayerState.volumeSlider) {
-        musicPlayerState.volumeSlider.value = musicPlayerState.userSettings.volume;
+        try { musicPlayerState.volumeSlider.value = musicPlayerState.userSettings.volume; } catch {}
       }
 
       musicPlayerState.userSettings.shuffle = false;
+
       updateShuffleButtonUI();
       updateRepeatButtonUI();
-      updateShuffleButtonUI();
 
     } catch (e) {
-      console.error('Ayarlar yüklenirken hata:', e);
+      console.error("Ayarlar yüklenirken hata:", e);
     }
   }
   saveUserSettings();
 }
 
 function updateRepeatButtonUI() {
-  const repeatBtn = document.querySelector('.player-btn .fa-repeat, .player-btn .fa-repeat-1')?.parentElement;
+  const repeatIconEl = document.querySelector(".player-btn .fa-repeat, .player-btn .fa-repeat-1");
+  const repeatBtn = repeatIconEl?.parentElement;
   if (!repeatBtn) return;
 
   const titles = {
-    'none': config.languageLabels?.repeatModOff || 'Tekrar kapalı',
-    'one': config.languageLabels?.repeatModOne || 'Tek şarkı tekrarı',
-    'all': config.languageLabels?.repeatModAll || 'Tüm liste tekrarı'
+    none:  (config.languageLabels?.repeatModOff || "Tekrar kapalı"),
+    one:   (config.languageLabels?.repeatModOne || "Tek şarkı tekrarı"),
+    all:   (config.languageLabels?.repeatModAll || "Tüm liste tekrarı"),
   };
 
-  let iconClass = 'fa-repeat';
-  if (musicPlayerState.userSettings.repeatMode === 'one') {
-    iconClass = 'fa-repeat-1';
+  let iconClass = "fa-repeat";
+  if (musicPlayerState.userSettings.repeatMode === "one") {
+    iconClass = "fa-repeat-1";
   }
 
-  const isActive = musicPlayerState.userSettings.repeatMode !== 'none';
+  const isActive = musicPlayerState.userSettings.repeatMode !== "none";
   repeatBtn.title = titles[musicPlayerState.userSettings.repeatMode];
-  repeatBtn.innerHTML = `<i class="fas ${iconClass}" style="${isActive ? 'color:#e91e63' : ''}"></i>`;
+  repeatBtn.innerHTML = `<i class="fas ${iconClass}"${isActive ? ' style="color:#e91e63"' : ""}></i>`;
 }
 
 function updateShuffleButtonUI() {
-  const shuffleBtn = document.querySelector('.player-btn .fa-random')?.parentElement;
+  const shuffleIconEl = document.querySelector(".player-btn .fa-random");
+  const shuffleBtn = shuffleIconEl?.parentElement;
   if (!shuffleBtn) return;
 
   const titles = {
-    true: config.languageLabels?.shuffleOn || 'Karıştırma açık',
-    false: config.languageLabels?.shuffleOff || 'Karıştırma kapalı'
+    true:  (config.languageLabels?.shuffleOn  || "Karıştırma açık"),
+    false: (config.languageLabels?.shuffleOff || "Karıştırma kapalı"),
   };
 
-  shuffleBtn.title = titles[musicPlayerState.userSettings.shuffle];
-  shuffleBtn.innerHTML = musicPlayerState.userSettings.shuffle ?
-    '<i class="fas fa-random" style="color:#e91e63"></i>' :
-    '<i class="fas fa-random"></i>';
+  const on = !!musicPlayerState.userSettings.shuffle;
+  shuffleBtn.title = titles[on];
+  shuffleBtn.innerHTML = on
+    ? '<i class="fas fa-random" style="color:#e91e63"></i>'
+    : '<i class="fas fa-random"></i>';
 }
 
 export function saveUserSettings() {
-  localStorage.setItem('musicPlayerSettings', JSON.stringify(musicPlayerState.userSettings));
+  try {
+    localStorage.setItem("musicPlayerSettings", JSON.stringify(musicPlayerState.userSettings));
+  } catch (e) {
+    console.error("Ayarlar kaydedilirken hata:", e);
+  }
 }
 
 export function resetShuffle() {

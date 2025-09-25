@@ -795,5 +795,20 @@ export function createMusicPanel(config, labels) {
       openLyricsModal(labels, { autoStart: true });
     });
 
+    const onThemeChanged = () => {
+      const cfgNow = getConfig();
+      const sel = panel.querySelector('#themeSelect');
+      if (sel) sel.value = cfgNow.playerTheme || 'dark';
+    };
+    window.addEventListener('app:theme-changed', onThemeChanged);
+
+    const obs = new MutationObserver(() => {
+      if (!document.body.contains(panel)) {
+        window.removeEventListener('app:theme-changed', onThemeChanged);
+        obs.disconnect();
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+
     return panel;
     }

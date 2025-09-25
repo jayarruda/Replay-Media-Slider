@@ -26,6 +26,13 @@ export function createPausePanel(_config, labels) {
   );
   section.appendChild(enableCheckbox);
 
+  const showRequireWebSocket = createCheckbox(
+    'pauseOverlayRequireWebSocket',
+    labels.requireWebSocket || 'Video Yakalamada Sadece Web Socket Kullan',
+    config.pauseOverlay.requireWebSocket !== false
+  );
+  section.appendChild(showRequireWebSocket);
+
   const description = document.createElement('div');
   description.className = 'description-text';
   description.textContent = labels.pauseOverlayDescription ||
@@ -83,6 +90,24 @@ export function createPausePanel(_config, labels) {
     config.pauseOverlay.showBackdrop !== false
   );
   section.appendChild(showBackdropCheckbox);
+
+  const minDurRow = addNumberRow({
+    name: 'pauseOverlayMinVideoMinutes',
+    label: labels.pauseOverlayMinVideoMinutes || 'Minimum video süresi (badge/overlay)',
+    value: (config.pauseOverlay?.minVideoMinutes ?? 5),
+    min: 0.1,
+    max: 1000,
+    step: 0.1,
+    suffix: labels.dk || 'dk'
+  });
+  section.appendChild(minDurRow);
+
+  const minDurDesc = document.createElement('div');
+  minDurDesc.className = 'description-text';
+  minDurDesc.textContent =
+    labels.pauseOverlayMinVideoMinutesDesc
+    || 'Bu değerden kısa (dk) videolarda üst-badge ve duraklatma ekranı gösterilmez.';
+  section.appendChild(minDurDesc);
 
   const sapSec = createSection(labels.smartPauseSettings || 'Akıllı Otomatik Duraklatma');
   const sapEnableCheckbox = createCheckbox(

@@ -18,6 +18,7 @@ const DEFAULT_ARTWORK_CSS = `url('${DEFAULT_ARTWORK}')`;
 
 let currentCanPlayHandler = null;
 let currentPlayErrorHandler = null;
+let _metaReqId = 0;
 
 const updatePlaybackUI = (isPlaying) => {
   if (musicPlayerState.playPauseBtn) {
@@ -45,6 +46,42 @@ const handlePlaybackError = (error, action = 'play') => {
 );
   setTimeout(playNext, SEEK_RETRY_DELAY);
 };
+
+const disposables = {
+  timeouts: new Set(),
+  images: new Set(),
+  aborters: new Set(),
+  listeners: new Set(),
+  clearAll() {
+    for (const id of this.timeouts) { clearTimeout(id); }
+    this.timeouts.clear();
+
+    for (const { target, type, fn, opts } of this.listeners) {
+      try { target.removeEventListener(type, fn, opts); } catch {}
+    }
+    this.listeners.clear();
+
+    for (const img of this.images) {
+      try { img.onload = img.onerror = null; img.src = ""; } catch {}
+    }
+    this.images.clear();
+
+    for (const a of this.aborters) { try { a.abort(); } catch {} }
+    this.aborters.clear();
+  },
+  addTimeout(id){ this.timeouts.add(id); return id; },
+  addImage(img){ this.images.add(img); return img; },
+  addAborter(a){ this.aborters.add(a); return a; },
+  addListener(target, type, fn, opts){
+    target.addEventListener(type, fn, opts);
+    this.listeners.add({ target, type, fn, opts });
+  }
+};
+
+let _lyricsRunning = false;
+let _marqueeT1 = null;
+let _loadedMetaRetryT = null;
+
 
  function handleCanPlay() {
   musicPlayerState.audio.play()
@@ -75,19 +112,25 @@ function handlePlayError() {
 
 function cleanupAudioListeners() {
   const audio = musicPlayerState.audio;
+  disposables.clearAll();
+  if (musicPlayerState.stopLyricsSync) {
+    try { musicPlayerState.stopLyricsSync(); } catch {}
+  }
+  _lyricsRunning = false;
+
   if (!audio) return;
 
-  audio.pause();
-  audio.removeEventListener('canplay', handleCanPlay);
-  audio.removeEventListener('error', handlePlayError);
-  audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+  try { audio.pause(); } catch {}
+  try { audio.removeEventListener('canplay', handleCanPlay); } catch {}
+  try { audio.removeEventListener('error', handlePlayError); } catch {}
+  try { audio.removeEventListener('loadedmetadata', handleLoadedMetadata); } catch {}
+  audio.onended = null;
   audio.src = '';
   audio.removeAttribute('src');
-  audio.load();
-  audio.onended = null;
+  try { audio.load(); } catch {}
 }
 
-function handleSongEnd() {
+export function handleSongEnd() {
    const { userSettings, playlist, audio } = musicPlayerState;
    const currentTrack = playlist[musicPlayerState.currentIndex];
   if (currentTrack && musicPlayerState.isPlayingReported) {
@@ -296,13 +339,14 @@ export async function updateModernTrackInfo(track) {
   musicPlayerState.modernTitleEl.textContent = title;
   musicPlayerState.modernArtistEl.textContent = artists.join(", ");
 
-  checkMarqueeNeeded(musicPlayerState.modernTitleEl);
-  setTimeout(() => checkMarqueeNeeded(musicPlayerState.modernTitleEl), 500);
+   checkMarqueeNeeded(musicPlayerState.modernTitleEl);
+  clearMarqueeTimers();
+  _marqueeT1 = disposables.addTimeout(setTimeout(() => {
+    checkMarqueeNeeded(musicPlayerState.modernTitleEl);
+  }, 500));
 
-  await Promise.all([
-    loadAlbumArt(track),
-    updateTrackMeta(track)
-  ]);
+  await Promise.all([ loadAlbumArt(track), updateTrackMeta(track) ]);
+  updatePlayerBackground();
 
   if (musicPlayerState.favoriteBtn) {
     const isFavorite = track?.UserData?.IsFavorite || false;
@@ -314,7 +358,6 @@ export async function updateModernTrackInfo(track) {
       : config.languageLabels.addToFavorites || "Favorilere ekle";
   }
 
-
   updateMediaMetadata(track);
 }
 
@@ -325,10 +368,14 @@ function resetTrackInfo() {
 }
 
 async function updateTrackMeta(track) {
-  if (!musicPlayerState.metaWrapper) {
-    createMetaWrapper();
-  }
+  const reqId = ++_metaReqId;
 
+  if (!musicPlayerState.metaWrapper) createMetaWrapper();
+  if (musicPlayerState.modernPlayer) {
+    musicPlayerState.modernPlayer
+      .querySelectorAll(".player-meta-container")
+      .forEach(el => { if (el !== musicPlayerState.metaContainer) el.remove(); });
+  }
   if (!musicPlayerState.metaContainer) {
     musicPlayerState.metaContainer = document.createElement("div");
     musicPlayerState.metaContainer.className = "player-meta-container";
@@ -345,6 +392,7 @@ async function updateTrackMeta(track) {
   musicPlayerState.metaContainer.innerHTML = '';
 
   const tags = await readID3Tags(track.Id);
+  if (reqId !== _metaReqId) return;
   const metaItems = [
     { key: 'tracknumber', show: track?.IndexNumber != null, icon: 'fas fa-list-ol', text: track.IndexNumber },
     { key: 'year', show: track?.ProductionYear != null, icon: 'fas fa-calendar-alt', text: track.ProductionYear },
@@ -474,11 +522,15 @@ async function getArtworkFromSources(track) {
 
 function checkImageExists(url) {
   return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve(true);
-    img.onerror = () => resolve(false);
+    const img = disposables.addImage(new Image());
+    img.onload = () => { resolve(true); img.onload = img.onerror = null; img.src = ""; disposables.images.delete(img); };
+    img.onerror = () => { resolve(false); img.onload = img.onerror = null; img.src = ""; disposables.images.delete(img); };
     img.src = url;
   });
+}
+
+function clearMarqueeTimers() {
+  if (_marqueeT1) { clearTimeout(_marqueeT1); _marqueeT1 = null; }
 }
 
 async function getEmbeddedImage(trackId) {
@@ -487,6 +539,10 @@ async function getEmbeddedImage(trackId) {
 }
 
 export function playTrack(index) {
+  if (index === musicPlayerState.currentIndex &&
+      musicPlayerState.playlist[index]?.Id ===
+      musicPlayerState.playlist[musicPlayerState.currentIndex]?.Id) {
+  }
   cleanupAudioListeners();
   const prevIndex = musicPlayerState.currentIndex;
   const hadTime = Number.isFinite(musicPlayerState?.audio?.currentTime) && musicPlayerState.audio.currentTime > 0.25;
@@ -499,10 +555,11 @@ export function playTrack(index) {
     musicPlayerState.mediaSessionInitialized = true;
   }
 
-  const track = musicPlayerState.isUserModified ?
-    musicPlayerState.combinedPlaylist[index] :
-    musicPlayerState.playlist[index];
-    if (prevTrack && musicPlayerState.isPlayingReported) {
+  const track = musicPlayerState.isUserModified
+    ? musicPlayerState.combinedPlaylist[index]
+    : musicPlayerState.playlist[index];
+
+  if (prevTrack && musicPlayerState.isPlayingReported) {
     const switchingToDifferent = prevTrack.Id !== track?.Id;
     if (switchingToDifferent || hadTime) {
       reportPlaybackStopped(
@@ -512,9 +569,10 @@ export function playTrack(index) {
     }
     musicPlayerState.isPlayingReported = false;
   }
-    musicPlayerState.currentIndex = index;
-    musicPlayerState.currentTrackName = track.Name || config.languageLabels.unknownTrack;
-    musicPlayerState.currentAlbumName = track.Album || config.languageLabels.unknownAlbum;
+
+  musicPlayerState.currentIndex = index;
+  musicPlayerState.currentTrackName = track.Name || config.languageLabels.unknownTrack;
+  musicPlayerState.currentAlbumName = track.Album || config.languageLabels.unknownAlbum;
 
   showNotification(
     `<i class="fas fa-music" style="margin-right: 8px;"></i>${config.languageLabels.simdioynat}: ${musicPlayerState.currentTrackName}`,
@@ -524,29 +582,34 @@ export function playTrack(index) {
 
   updateModernTrackInfo(track);
   updatePlaylistModal();
-  startLyricsSync();
-  loadAlbumArt(track).then(() => {
-  updatePlayerBackground();
-  });
+
+  if (musicPlayerState.stopLyricsSync) {
+    try { musicPlayerState.stopLyricsSync(); } catch {}
+  }
+  _lyricsRunning = false;
+
+  if (musicPlayerState.lyricsActive && !_lyricsRunning) {
+    fetchLyrics();
+    startLyricsSync();
+    _lyricsRunning = true;
+  }
 
   checkMarqueeNeeded(musicPlayerState.modernTitleEl);
-  setTimeout(() => checkMarqueeNeeded(musicPlayerState.modernTitleEl), 500);
+  clearMarqueeTimers();
+  _marqueeT1 = disposables.addTimeout(setTimeout(() => {
+    checkMarqueeNeeded(musicPlayerState.modernTitleEl);
+  }, 500));
 
   const audio = musicPlayerState.audio;
-  audio.onended = handleSongEnd;
-  audio.addEventListener('canplay', handleCanPlay, { once: true });
-  audio.addEventListener('error', handlePlayError, { once: true });
-  audio.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+  disposables.addListener(audio, 'canplay', handleCanPlay, { once: true });
+  disposables.addListener(audio, 'error', handlePlayError, { once: true });
+  disposables.addListener(audio, 'loadedmetadata', handleLoadedMetadata, { once: true });
   setupAudioListeners();
 
   const audioUrl = `/Audio/${track.Id}/stream.mp3?Static=true`;
   audio.src = audioUrl;
   audio.load();
 
-  if (musicPlayerState.lyricsActive) {
-    fetchLyrics();
-    startLyricsSync();
-  }
   updateNextTracks();
 }
 
@@ -590,10 +653,11 @@ function handleLoadedMetadata() {
   updateProgress();
 
   if (!isFinite(effectiveDuration)) {
-    setTimeout(() => {
+    if (_loadedMetaRetryT) { clearTimeout(_loadedMetaRetryT); _loadedMetaRetryT = null; }
+    _loadedMetaRetryT = disposables.addTimeout(setTimeout(() => {
       updateDuration();
       updateProgress();
-    }, 1000);
+    }, 1000));
   }
 }
 

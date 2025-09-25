@@ -5,7 +5,7 @@ import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js";
 import { playNow, fetchItemDetails, getCachedUserTopGenres, getGenresForDot, goToDetailsPage } from "./api.js";
-import { applySlideAnimation, applyDotPosterAnimation } from "./animations.js";
+import { applySlideAnimation, applyDotPosterAnimation, teardownAnimations } from "./animations.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { previewPreloadCache } from "./hoverTrailerModal.js";
 import { attachMiniPosterHover, openMiniPopoverFor } from "./studioHubsUtils.js";
@@ -64,6 +64,28 @@ function hardResetProgressBarEl() {
   pb.style.animation  = "";
 }
 
+function microFadeSwap(oldSlide, newSlide, durMs = Math.min(300, Math.max(100, (getConfig()?.slideAnimationDuration || 280)))) {
+  if (!newSlide) return;
+  newSlide.style.display = "block";
+  newSlide.style.opacity = "0";
+  newSlide.style.willChange = "opacity, transform";
+  newSlide.style.transition = `opacity ${durMs}ms ease`;
+  requestAnimationFrame(() => { newSlide.style.opacity = "1"; });
+  const onEnd = () => {
+    newSlide.removeEventListener('transitionend', onEnd);
+    newSlide.style.transition = "";
+    newSlide.style.willChange = "";
+    if (oldSlide && oldSlide !== newSlide) {
+      oldSlide.style.display = "none";
+      oldSlide.style.opacity = "0";
+      oldSlide.style.transition = "";
+      oldSlide.style.transform = "";
+      oldSlide.style.willChange = "";
+    }
+  };
+  newSlide.addEventListener('transitionend', onEnd, { once: true });
+}
+
 function getBackdropFromDot(dot) {
   const img = dot?.querySelector?.('.dot-poster-image');
   if (img?.src) return img.src;
@@ -111,7 +133,10 @@ export function createDotNavigation() {
   const config = getConfig();
   if (!config.showDotNavigation) {
     const existingDotContainer = document.querySelector(".dot-navigation-container");
-    if (existingDotContainer) existingDotContainer.remove();
+    if (existingDotContainer) {
+      teardownAnimations();
+      existingDotContainer.remove();
+    }
     return;
   }
 
@@ -597,7 +622,11 @@ export function displaySlide(index) {
   const activeSlide = indexPage.querySelector(".slide.active");
 
   if (activeSlide) {
-    applySlideAnimation(activeSlide, currentSlide, direction);
+    if (!getConfig()?.enableSlideAnimations) {
+      microFadeSwap(activeSlide, currentSlide);
+    } else {
+      applySlideAnimation(activeSlide, currentSlide, direction);
+    }
   } else {
     currentSlide.style.display = "block";
     currentSlide.style.opacity = "1";

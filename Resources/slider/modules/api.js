@@ -14,6 +14,30 @@ const MAX_DOT_GENRE_CACHE = 1200;
 const MAX_PREVIEW_CACHE = 200;
 const MAX_TOMBSTONES = 2000;
 
+function isLikelyGuid(id) {
+  if (typeof id !== 'string') return false;
+  const s = id.trim();
+  const guid = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+  const hex32 = /^[0-9a-f]{32}$/i;
+  return guid.test(s) || hex32.test(s);
+}
+function looksBase64(s) { return typeof s === 'string' && /^[A-Za-z0-9+/=]+$/.test(s); }
+function isSuspiciousId(id) {
+  if (typeof id !== 'string') return true;
+  const s = id.trim();
+  if (!s) return true;
+  if (s.length > 128) return true;
+  if (s.includes('/') || s.includes(' ') || s.includes(':')) return true;
+  if (looksBase64(s)) {
+    try {
+      const decoded = atob(s);
+      if (/Mozilla\/|Chrome\/|Safari\/|AppleWebKit\/|Windows NT|Linux|Mac OS/i.test(decoded)) return true;
+      if (decoded.length > 128) return true;
+    } catch {}
+  }
+  return !isLikelyGuid(s);
+}
+
 function pruneMapBySize(map, max) {
   while (map.size > max) {
     const k = map.keys().next().value;
@@ -206,7 +230,6 @@ async function safeFetch(url, opts = {}) {
   return res.json();
 }
 
-
  export function getAuthHeader() {
   const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
   return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
@@ -322,7 +345,11 @@ async function makeApiRequest(url, options = {}) {
     };
     options.headers = { ...baseHeaders, ...(options.headers || {}) };
 
-    const response = await fetch(url, options);
+    const response = await fetch(url, {
+      ...options,
+      headers: options.headers,
+      signal: options.signal,
+    });
 
     if (response.status === 404) return null;
     if (response.status === 401) {
@@ -397,14 +424,73 @@ export function goToDetailsPage(itemId) {
   window.location.href = url;
 }
 
-export async function fetchItemDetails(itemId) {
-  if (!itemId || isTombstoned(itemId)) return null;
-  const { userId } = getSessionInfo();
-  const data = await safeFetch(`/Users/${userId}/Items/${itemId}`);
-  if (data === null) {
-    markTombstone(itemId);
+ export async function fetchItemDetails(itemId) {
+   if (!itemId) return null;
+   if (isTombstoned(itemId)) return null;
+   try {
+     const { userId } = getSessionInfo();
+     const data = await safeFetch(
+       `/Users/${userId}/Items/${encodeURIComponent(String(itemId).trim())}`
+     );
+     if (data === null) markTombstone(String(itemId));
+     return data || null;
+   } catch (e) {
+     if (e?.status === 400) return null;
+     if (e?.status === 404) { markTombstone(String(itemId)); return null; }
+     if (!isAbortError(e)) console.warn('fetchItemDetails error:', e);
+     return null;
+   }
+ }
+
+ const ITEM_FULL_FIELDS = [
+  "Type","Name","SeriesId","SeriesName","ParentId","ParentIndexNumber","IndexNumber",
+  "Overview","Genres","RunTimeTicks","OfficialRating","ProductionYear",
+  "CommunityRating","CriticRating",
+  "ImageTags","BackdropImageTags",
+  "UserData","MediaStreams","Series"
+];
+
+export async function fetchItemDetailsFull(itemId, { signal } = {}) {
+  if (!itemId) return null;
+  if (isTombstoned(itemId)) return null;
+  try {
+    const { userId } = getSessionInfo();
+    const url =
+      `/Users/${userId}/Items/${encodeURIComponent(String(itemId).trim())}` +
+      `?Fields=${ITEM_FULL_FIELDS.join(',')}`;
+    const data = await makeApiRequest(url, { signal });
+    if (data === null) markTombstone(String(itemId));
+    return data || null;
+  } catch (e) {
+    if (e?.status === 400) return null;
+    if (e?.status === 404) { markTombstone(String(itemId)); return null; }
+    if (!isAbortError(e, signal)) console.warn('fetchItemDetailsFull error:', e);
+    return null;
   }
-  return data || null;
+}
+
+const PLAYABLE_TYPES = new Set(['Series','Movie','Episode','Season']);
+
+export async function fetchPlayableItemDetails(
+  itemId,
+  { signal, resolvePlayable = false } = {}
+) {
+  let it = await fetchItemDetailsFull(itemId, { signal });
+  if (!it) return null;
+  if (!PLAYABLE_TYPES.has(it.Type)) return null;
+  if (!resolvePlayable) {
+    return it;
+  }
+
+  if (it.Type === 'Series') {
+    const best = await getBestEpisodeIdForSeries(it.Id, getSessionInfo().userId).catch(() => null);
+    return best ? fetchItemDetailsFull(best, { signal }) : null;
+  }
+  if (it.Type === 'Season') {
+    const best = await getBestEpisodeIdForSeason(it.Id, it.SeriesId, getSessionInfo().userId).catch(() => null);
+    return best ? fetchItemDetailsFull(best, { signal }) : null;
+  }
+  return it;
 }
 
 async function getCachedItemDetailsInternal(itemId) {
@@ -537,7 +623,9 @@ function sortEpisodes(episodes = []) {
 
 async function getBestEpisodeIdForSeries(seriesId, userId) {
   try {
-    const nextUp = await makeApiRequest(`/Shows/${seriesId}/NextUp?UserId=${userId}&Limit=1&Fields=UserData,IndexNumber,ParentIndexNumber`);
+    const nextUp = await makeApiRequest(
+      `/Shows/NextUp?UserId=${encodeURIComponent(userId)}&SeriesId=${encodeURIComponent(seriesId)}&Limit=1&Fields=UserData,IndexNumber,ParentIndexNumber`
+    );
     const cand = Array.isArray(nextUp?.Items) && nextUp.Items[0];
     if (cand?.Id) return cand.Id;
   } catch {}

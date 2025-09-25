@@ -1,4 +1,4 @@
-import { makeApiRequest, updateFavoriteStatus, getSessionInfo } from "./api.js";
+import { makeApiRequest, updateFavoriteStatus, getSessionInfo, fetchItemDetails } from "./api.js";
 import { getConfig } from "./config.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { tryOpenTrailerPopover, hideTrailerPopover } from "./studioTrailerPopover.js";
@@ -19,11 +19,6 @@ const __abortByCard = new WeakMap();
 function isAudioItem(it) {
   const t = (it?.Type || it?.MediaType || '').toLowerCase();
   return ['audio', 'musictrack', 'musicalbum', 'audiobook', 'playlist'].includes(t);
-}
-
-async function fetchItem(itemId, fields, abortSignal) {
-  const qs = fields && fields.length ? `?Fields=${fields.join(',')}` : '';
-  return makeApiRequest(`/Items/${itemId}${qs}`, { signal: abortSignal });
 }
 
 function ensureCss() {
@@ -276,22 +271,14 @@ function buildBackdropUrl(it, idx = 0) {
 }
 
 async function getDetails(itemId, abortSignal) {
-   const cached = detailsCache.get(itemId);
-   if (cached && (Date.now() - cached.ts) < DETAILS_TTL) return cached.data;
-  const fields = [
-    "Type","Name","SeriesId","SeriesName","ParentId","ParentIndexNumber","IndexNumber",
-    "Overview","Genres","RunTimeTicks","OfficialRating","ProductionYear",
-    "CommunityRating","CriticRating","ImageTags","BackdropImageTags",
-    "UserData","MediaStreams"
-  ];
+  const cached = detailsCache.get(itemId);
+  if (cached && (Date.now() - cached.ts) < DETAILS_TTL) return cached.data;
+
   try {
-    const data = await fetchItem(itemId, fields, abortSignal);
-    if (data?.Type === 'Season' && data?.SeriesId) {
-      const seriesFields = [
-        "Type","Name","Overview","Genres","OfficialRating","ProductionYear",
-        "CommunityRating","CriticRating","ImageTags","BackdropImageTags","MediaStreams"
-      ];
-      const series = await fetchItem(data.SeriesId, seriesFields, abortSignal);
+    const data = await fetchItemDetails(itemId, { signal: abortSignal });
+    if (!data) return null;
+    if (data.Type === 'Season' && data.SeriesId) {
+      const series = await fetchItemDetails(data.SeriesId, { signal: abortSignal });
       data.__series = series || null;
     }
 
@@ -301,10 +288,11 @@ async function getDetails(itemId, abortSignal) {
       detailsCache.delete(oldest);
     }
     return data;
-  } catch (e) {
+  } catch {
     return null;
   }
- }
+}
+
 
 function fillMiniContent(pop, itemBase, details) {
   const titleWrap = pop.querySelector(".mini-title");
@@ -497,6 +485,7 @@ export function attachMiniPosterHover(cardEl, itemLike) {
     if ((window.__studioMiniKillToken || 0) !== myKill) return;
     if (!document.contains(cardEl)) { cancelOpen(); return; }
     const pop = ensureMiniPopover();
+    if (!details) { hideMiniPopover(); return; }
     const hasContent = fillMiniContent(pop, itemLike, details || {});
     if (!hasContent) { hideMiniPopover(); return; }
     try {
@@ -639,6 +628,7 @@ export async function openMiniPopoverFor(cardEl, itemLikeOrId) {
   let details = null;
   try { details = await getDetails(itemLike.Id); } catch {}
   const pop = ensureMiniPopover();
+  if (!details) { hideMiniPopover(); return; }
   const hasContent = fillMiniContent(pop, itemLike, details || {});
   if (!hasContent) { hideMiniPopover(); return; }
   try { posNear(cardEl, pop); } catch {}

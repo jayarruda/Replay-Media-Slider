@@ -30,6 +30,7 @@ export const modalState = {
   __openLatchUntil: 0,
   __lastOpenedItem: null,
   __volTapGuardAt: 0,
+  __suppressOpenUntil: 0,
   inFlight: 0,
 };
 

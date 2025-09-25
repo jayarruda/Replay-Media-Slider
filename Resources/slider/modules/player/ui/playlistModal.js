@@ -4,11 +4,13 @@ import { showNotification } from "../ui/notification.js";
 import { playTrack } from "../player/playback.js";
 import { saveCurrentPlaylistToJellyfin, removeItemsFromPlaylist } from "../core/playlist.js";
 import { fetchJellyfinPlaylists } from "../core/jellyfinPlaylists.js";
-import { updateNextTracks } from "./playerUI.js";
-import { readID3Tags, arrayBufferToBase64 } from "../lyrics/id3Reader.js";
+import { readID3Tags } from "../lyrics/id3Reader.js";
 import { showGenreFilterModal } from "./genreFilterModal.js";
 
 const config = getConfig();
+
+let playlistItemsObserver = null;
+let outsideClickListener = null;
 
 export function createPlaylistModal() {
   const modal = document.createElement("div");
@@ -69,7 +71,6 @@ export function createPlaylistModal() {
   });
 
   searchContainer.appendChild(searchInput);
-  container.appendChild(searchContainer);
 
   const removeSelectedBtn = document.createElement("button");
   removeSelectedBtn.className = "playlist-remove-selected";
@@ -95,6 +96,8 @@ export function createPlaylistModal() {
 
   header.appendChild(title);
   header.appendChild(headerButtons);
+
+  container.appendChild(searchContainer);
   container.appendChild(header);
   container.appendChild(itemsContainer);
   modal.appendChild(container);
@@ -123,10 +126,8 @@ function updateSelectAllBtnState() {
   }
 }
 
-
 async function showSaveModal() {
   const selectedCount = musicPlayerState.selectedTracks.size;
-  const totalCount = musicPlayerState.playlist.length;
   const saveSelected = selectedCount > 0;
 
   const modal = document.createElement("div");
@@ -268,8 +269,9 @@ async function showSaveModal() {
   saveButton.className = "playlist-save-modal-save";
   saveButton.textContent = config.languageLabels.kaydet;
   saveButton.onclick = async () => {
+    const selectedIdx = Array.from(musicPlayerState.selectedTracks);
     const tracksToSave = selectedOnlyCheckbox.checked
-      ? Array.from(musicPlayerState.selectedTracks).map(i => musicPlayerState.playlist[i])
+      ? selectedIdx.map(i => musicPlayerState.playlist[i])
       : musicPlayerState.playlist;
 
     const isNew = newPlaylistRadio.checked;
@@ -286,9 +288,19 @@ async function showSaveModal() {
         isNew,
         playlistId
       );
+      showNotification(
+        `<i class="fas fa-check-circle"></i> ${config.languageLabels.playlistCreatedSuccessfully || "Liste kaydedildi"}`,
+        2500,
+        'addlist'
+      );
       closeModal();
     } catch (err) {
       console.error(err);
+      showNotification(
+        `<i class="fas fa-exclamation-circle"></i> ${config.languageLabels.playlistSaveError || "Liste kaydedilemedi"}`,
+        3000,
+        'error'
+      );
     }
   };
 
@@ -325,7 +337,7 @@ async function showSaveModal() {
 
   function closeModal() {
     document.removeEventListener("keydown", handleKeyDown);
-    document.body.removeChild(modal);
+    try { document.body.removeChild(modal); } catch {}
   }
 }
 
@@ -383,7 +395,7 @@ function toggleSelectAll() {
     selectAllBtn.title = config.languageLabels.selectAll || "Tümünü Seç";
   } else {
     musicPlayerState.selectedTracks = new Set([...Array(items.length).keys()]);
-    checkboxes.forEach((checkbox, index) => {
+    checkboxes.forEach((checkbox) => {
       checkbox.checked = true;
       checkbox.parentElement.classList.add("selected");
     });
@@ -393,14 +405,14 @@ function toggleSelectAll() {
   updateSelectAllBtnState();
 }
 
-let outsideClickListener = null;
-
 export function togglePlaylistModal(e) {
   const modal = musicPlayerState.playlistModal;
+  if (!modal) return;
 
   if (modal.style.display === "flex") {
     modal.style.display = "none";
     removeOutsideClickListener();
+    disconnectItemsObserver();
     resetSelectionState();
   } else {
     updatePlaylistModal();
@@ -460,6 +472,7 @@ function addOutsideClickListener() {
 
     playlistModal.style.display = 'none';
     removeOutsideClickListener();
+    disconnectItemsObserver();
     resetSelectionState();
   };
 
@@ -472,6 +485,11 @@ function removeOutsideClickListener() {
   if (!outsideClickListener) return;
   document.removeEventListener('click', outsideClickListener);
   outsideClickListener = null;
+}
+
+function disconnectItemsObserver() {
+  try { playlistItemsObserver?.disconnect?.(); } catch {}
+  playlistItemsObserver = null;
 }
 
 export async function updatePlaylistModal() {
@@ -548,19 +566,21 @@ export async function updatePlaylistModal() {
     itemsContainer.appendChild(item);
   }
 
-  const observer = new IntersectionObserver((entries) => {
+  disconnectItemsObserver();
+
+  playlistItemsObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const item = entry.target;
-        const index = parseInt(item.dataset.index);
+        const index = parseInt(item.dataset.index, 10);
         loadImageForItem(item, index);
-        observer.unobserve(item);
+        playlistItemsObserver.unobserve(item);
       }
     });
   }, { threshold: 0.1, root: itemsContainer });
 
   document.querySelectorAll('.playlist-item').forEach(item => {
-    observer.observe(item);
+    playlistItemsObserver.observe(item);
   });
 
   updateSelectAllBtnState();
@@ -574,35 +594,28 @@ export async function updatePlaylistModal() {
 
 async function loadImageForItem(item, index) {
   const track = musicPlayerState.playlist[index];
-  const id = track.Id;
-  const img = item.querySelector(".playlist-item-img");
+  if (!track) return;
 
+  const img = item.querySelector(".playlist-item-img");
   const DEFAULT_ARTWORK = "url('/web/slider/src/images/defaultArt.png')";
   img.style.backgroundImage = DEFAULT_ARTWORK;
 
   try {
-    if (!musicPlayerState.id3ImageCache) musicPlayerState.id3ImageCache = {};
-    if (musicPlayerState.id3ImageCache[id]) {
-      img.style.backgroundImage = `url('${musicPlayerState.id3ImageCache[id]}')`;
+    const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
+    if (imageTag) {
+      const imageId = track.AlbumId || track.Id;
+      const serverImageUrl = `/Items/${imageId}/Images/Primary?fillHeight=100&fillWidth=100&quality=70&tag=${imageTag}`;
+      img.style.backgroundImage = `url('${serverImageUrl}')`;
       return;
     }
 
-    const tags = await readID3Tags(id);
+    const tags = await readID3Tags(track.Id);
     if (tags?.pictureUri) {
-      musicPlayerState.id3ImageCache[id] = tags.pictureUri;
       img.style.backgroundImage = `url('${tags.pictureUri}')`;
       return;
     }
   } catch (error) {
-    console.warn(`ID3 görüntü yüklenirken hata (ID: ${id}):`, error);
-  }
-
-  const imageTag = track.AlbumPrimaryImageTag || track.PrimaryImageTag;
-  if (imageTag) {
-    const imageId = track.AlbumId || id;
-    const serverImageUrl = `/Items/${imageId}/Images/Primary?fillHeight=100&fillWidth=100&quality=80&tag=${imageTag}`;
-    img.style.backgroundImage = `url('${serverImageUrl}')`;
-    musicPlayerState.id3ImageCache[id] = serverImageUrl;
+    console.warn(`Kapak yüklenirken hata (ID: ${track?.Id}):`, error);
   }
 }
 
@@ -682,7 +695,7 @@ export function showRemoveConfirmModal(trackIndex, trackName) {
     } catch (err) {
       console.error(err);
       showNotification(
-        `<i class="fas fa-exclamation-circle"></i> ${playlistId ? config.languageLabels.removeError || "Kaldırma hatası" : config.languageLabels.removeLocalError || "Yerel silme hatası"}`,
+        `<i class="fas fa-exclamation-circle"></i> ${musicPlayerState.currentPlaylistId ? (config.languageLabels.removeError || "Kaldırma hatası") : (config.languageLabels.removeLocalError || "Yerel silme hatası")}`,
         3000,
         'error'
       );
@@ -696,7 +709,6 @@ export function showRemoveConfirmModal(trackIndex, trackName) {
     overlay.remove();
   });
 }
-
 
 export function showRemoveSelectedConfirmModal() {
   const selected = Array.from(musicPlayerState.selectedTracks);
@@ -732,8 +744,7 @@ export function showRemoveSelectedConfirmModal() {
     try {
       const playlistId = musicPlayerState.currentPlaylistId;
       const trackIds = selected.map(i => musicPlayerState.playlist[i].Id);
-      const isCurrentTrackSelected = selected.includes(musicPlayerState.currentIndex);
-      const currentTrackWasRemoved = isCurrentTrackSelected;
+      const currentTrackWasRemoved = selected.includes(musicPlayerState.currentIndex);
 
       if (playlistId) {
         await removeItemsFromPlaylist(playlistId, trackIds);
@@ -775,7 +786,7 @@ export function showRemoveSelectedConfirmModal() {
     } catch (err) {
       console.error(err);
       showNotification(
-        `<i class="fas fa-exclamation-circle"></i> ${playlistId ? config.languageLabels.removeError || "Kaldırma hatası" : config.languageLabels.removeLocalError || "Yerel silme hatası"}`,
+        `<i class="fas fa-exclamation-circle"></i> ${musicPlayerState.currentPlaylistId ? (config.languageLabels.removeError || "Kaldırma hatası") : (config.languageLabels.removeLocalError || "Yerel silme hatası")}`,
         3000,
         'error'
       );

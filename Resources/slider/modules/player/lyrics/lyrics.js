@@ -7,90 +7,38 @@ import { parseID3Tags } from "./id3Reader.js";
 
 const config = getConfig();
 
-export async function fetchLyrics() {
-  const currentTrack = musicPlayerState.playlist[musicPlayerState.currentIndex];
-  if (!currentTrack) return;
+let fetchAbort = null;
+let currentRequestKey = null;
+let rafId = null;
+let audioEndedHandlerAttached = false;
+let lastActiveIdx = -1;
+let lastNextIdx = -1;
+let settingsInitialized = false;
+let settingsRefs = null;
+let contentContainer = null;
 
-  if (musicPlayerState.lyricsCache[currentTrack.Id]) {
-    displayLyrics(musicPlayerState.lyricsCache[currentTrack.Id]);
-    return;
-  }
+const ENABLE_KARAOKE = Boolean(config.enableKaraokeWords);
 
-  const dbLyrics = await musicDB.getLyrics(currentTrack.Id);
-  if (dbLyrics) {
-    displayLyrics(dbLyrics);
-    musicPlayerState.lyricsCache[currentTrack.Id] = dbLyrics;
-    return;
-  }
-
-  musicPlayerState.lyricsContainer.innerHTML = `<div class='lyrics-loading'>${config.languageLabels.loadingLyrics}</div>`;
-  musicPlayerState.currentLyrics = [];
-
-  const token = getAuthToken();
-  const endpoints = [
-    `/Audio/${currentTrack.Id}/Lyrics`,
-    `/Items/${currentTrack.Id}/Lyrics`,
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      const res = await fetch(`${endpoint}`, {
-        headers: { "X-Emby-Token": token }
-      });
-
-      if (res.ok) {
-        const data = endpoint.includes('Items') ? await res.json() : await res.text();
-        const lyrics = typeof data === 'string' ? data : data.Lyrics;
-        if (lyrics && lyrics.length > 0) {
-          displayLyrics(lyrics);
-          musicPlayerState.lyricsCache[currentTrack.Id] = lyrics;
-          await musicDB.saveLyrics(currentTrack.Id, lyrics);
-          return;
-        }
-      }
-    } catch (_) {}
-  }
-
-  try {
-    const embeddedLyrics = await getEmbeddedLyrics(currentTrack.Id);
-    if (embeddedLyrics?.trim()) {
-      displayLyrics(embeddedLyrics);
-      musicPlayerState.lyricsCache[currentTrack.Id] = embeddedLyrics;
-      await musicDB.saveLyrics(currentTrack.Id, embeddedLyrics);
-      return;
-    }
-  } catch (_) {}
-
-  showNoLyricsMessage();
+function safeClear(node) {
+  while (node.firstChild) node.removeChild(node.firstChild);
 }
 
-export async function getEmbeddedLyrics(trackId) {
-  try {
-    if (musicPlayerState.lyricsCache[trackId]) {
-      return musicPlayerState.lyricsCache[trackId];
-    }
-
-    const token = getAuthToken();
-    const response = await fetch(`/Audio/${trackId}/stream.mp3?Static=true`, {
-      headers: { "X-Emby-Token": token }
-    });
-
-    if (!response.ok) throw new Error("Stream alınamadı");
-
-    const buffer = await response.arrayBuffer();
-    const lyrics = await parseID3Tags(buffer);
-    if (lyrics) musicPlayerState.lyricsCache[trackId] = lyrics;
-    return lyrics || null;
-  } catch (err) {
-    console.warn("Gömülü söz alınamadı:", err);
-    return null;
-  }
+function buildRequestKey(trackId, source) {
+  return `${trackId}::${source}`;
 }
 
-export function displayLyrics(data) {
-  musicPlayerState.lyricsContainer.scrollTop = 0;
-  musicPlayerState.currentLyrics = [];
-  musicPlayerState.lyricsContainer.innerHTML = "";
+function cancelOngoingFetch() {
+  if (fetchAbort) {
+    try { fetchAbort.abort(); } catch {}
+  }
+  fetchAbort = null;
+}
+
+function ensureSettingsUI() {
+  if (settingsInitialized) return;
+
+  const root = musicPlayerState.lyricsContainer;
+  safeClear(root);
 
   const headerContainer = document.createElement("div");
   headerContainer.className = "lyrics-header-container";
@@ -123,7 +71,7 @@ export function displayLyrics(data) {
     musicPlayerState.lyricsDelay = parseFloat(value);
   });
 
-  delayValue.addEventListener("click", (e) => {
+  delayValue.addEventListener("click", () => {
     const manualInput = document.createElement("input");
     manualInput.type = "number";
     manualInput.step = "0.1";
@@ -134,42 +82,29 @@ export function displayLyrics(data) {
     delayValue.style.display = "none";
     delayValue.parentNode.insertBefore(manualInput, delayValue.nextSibling);
 
-    function applyManualValue() {
+    const apply = () => {
       let v = parseFloat(manualInput.value);
-      if (isNaN(v)) {
-        v = 0;
-      }
-      if (v < parseFloat(delaySlider.min)) v = parseFloat(delaySlider.min);
-      if (v > parseFloat(delaySlider.max)) v = parseFloat(delaySlider.max);
+      if (Number.isNaN(v)) v = 0;
+      v = Math.max(parseFloat(delaySlider.min), Math.min(parseFloat(delaySlider.max), v));
       delaySlider.value = v;
       delayValue.textContent = `${v}s`;
       localStorage.setItem("lyricsDelay", v);
       musicPlayerState.lyricsDelay = v;
+      cleanup();
+    };
+    const cleanup = () => {
       manualInput.removeEventListener("blur", onBlur);
-      manualInput.removeEventListener("keydown", onKeyDown);
-      manualInput.parentNode.removeChild(manualInput);
+      manualInput.removeEventListener("keydown", onKey);
+      manualInput.remove();
       delayValue.style.display = "";
-    }
-
-    function onBlur() {
-      applyManualValue();
-    }
-
-    function onKeyDown(ev) {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        applyManualValue();
-      }
-      else if (ev.key === "Escape") {
-        manualInput.removeEventListener("blur", onBlur);
-        manualInput.removeEventListener("keydown", onKeyDown);
-        manualInput.parentNode.removeChild(manualInput);
-        delayValue.style.display = "";
-      }
-    }
-
+    };
+    const onBlur = () => apply();
+    const onKey = (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); apply(); }
+      else if (ev.key === "Escape") { cleanup(); }
+    };
     manualInput.addEventListener("blur", onBlur);
-    manualInput.addEventListener("keydown", onKeyDown);
+    manualInput.addEventListener("keydown", onKey);
     manualInput.focus();
   });
 
@@ -200,7 +135,7 @@ export function displayLyrics(data) {
     musicPlayerState.lyricsDuration = parseFloat(value);
   });
 
-  durationValue.addEventListener("click", (e) => {
+  durationValue.addEventListener("click", () => {
     const manualInput = document.createElement("input");
     manualInput.type = "number";
     manualInput.step = "0.5";
@@ -213,52 +148,38 @@ export function displayLyrics(data) {
     durationValue.style.display = "none";
     durationValue.parentNode.insertBefore(manualInput, durationValue.nextSibling);
 
-    function applyManualValue() {
+    const apply = () => {
       let v = parseFloat(manualInput.value);
-      if (isNaN(v)) {
-        v = 5;
-      }
-      if (v < parseFloat(durationSlider.min)) v = parseFloat(durationSlider.min);
-      if (v > parseFloat(durationSlider.max)) v = parseFloat(durationSlider.max);
+      if (Number.isNaN(v)) v = 5;
+      v = Math.max(parseFloat(durationSlider.min), Math.min(parseFloat(durationSlider.max), v));
       durationSlider.value = v;
       durationValue.textContent = `${v}s`;
       localStorage.setItem("lyricsDuration", v);
       musicPlayerState.lyricsDuration = v;
+      cleanup();
+    };
+    const cleanup = () => {
       manualInput.removeEventListener("blur", onBlur);
-      manualInput.removeEventListener("keydown", onKeyDown);
-      manualInput.parentNode.removeChild(manualInput);
+      manualInput.removeEventListener("keydown", onKey);
+      manualInput.remove();
       durationValue.style.display = "";
-    }
-
-    function onBlur() {
-      applyManualValue();
-    }
-
-    function onKeyDown(ev) {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        applyManualValue();
-      }
-      else if (ev.key === "Escape") {
-        manualInput.removeEventListener("blur", onBlur);
-        manualInput.removeEventListener("keydown", onKeyDown);
-        manualInput.parentNode.removeChild(manualInput);
-        durationValue.style.display = "";
-      }
-    }
-
+    };
+    const onBlur = () => apply();
+    const onKey = (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); apply(); }
+      else if (ev.key === "Escape") { cleanup(); }
+    };
     manualInput.addEventListener("blur", onBlur);
-    manualInput.addEventListener("keydown", onKeyDown);
+    manualInput.addEventListener("keydown", onKey);
     manualInput.focus();
   });
 
   durationContainer.append(durationLabel, durationSlider, durationValue);
-
   settingsContainer.append(delayContainer, durationContainer);
 
   const updateBtn = document.createElement("span");
   updateBtn.className = "update-lyrics-btn";
-  updateBtn.title = config.languageLabels.updateLyrics || 'Şarkı sözünü güncelle';
+  updateBtn.title = config.languageLabels.updateLyrics || "Şarkı sözünü güncelle";
   updateBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
   updateBtn.addEventListener("click", () => {
     const track = musicPlayerState.playlist[musicPlayerState.currentIndex];
@@ -268,20 +189,185 @@ export function displayLyrics(data) {
   headerContainer.append(settingsContainer, updateBtn);
   musicPlayerState.lyricsContainer.appendChild(headerContainer);
 
-  const contentContainer = document.createElement("div");
+  contentContainer = document.createElement("div");
   contentContainer.className = "lyrics-content-container";
   musicPlayerState.lyricsContainer.appendChild(contentContainer);
 
-  if (typeof data === 'string' && data.trim().startsWith('{')) {
+  settingsRefs = { delaySlider, delayValue, durationSlider, durationValue };
+  settingsInitialized = true;
+}
+
+function updateSettingsUIFromStorage() {
+  if (!settingsRefs) return;
+  const delay = localStorage.getItem("lyricsDelay") ?? "0";
+  const duration = localStorage.getItem("lyricsDuration") ?? "5";
+  settingsRefs.delaySlider.value = delay;
+  settingsRefs.delayValue.textContent = `${delay}s`;
+  musicPlayerState.lyricsDelay = parseFloat(delay);
+  settingsRefs.durationSlider.value = duration;
+  settingsRefs.durationValue.textContent = `${duration}s`;
+  musicPlayerState.lyricsDuration = parseFloat(duration);
+}
+
+function setLoading() {
+  ensureSettingsUI();
+  safeClear(contentContainer);
+  const loading = document.createElement("div");
+  loading.className = "lyrics-loading";
+  loading.textContent = config.languageLabels.loadingLyrics || "Yükleniyor...";
+  contentContainer.appendChild(loading);
+}
+
+function setNoLyrics() {
+  ensureSettingsUI();
+  safeClear(contentContainer);
+  const n = document.createElement("div");
+  n.className = "lyrics-not-found";
+  n.textContent = config.languageLabels.noLyricsFound || "Şarkı sözü yok";
+  contentContainer.appendChild(n);
+}
+
+function setError(msg) {
+  ensureSettingsUI();
+  safeClear(contentContainer);
+  const e = document.createElement("div");
+  e.className = "lyrics-error";
+  e.textContent = `${config.languageLabels.lyricsError || "Hata"}: ${msg}`;
+  contentContainer.appendChild(e);
+}
+
+async function fetchLyricsFromServer(trackId, signal) {
+  const token = getAuthToken();
+  const endpoints = [
+    { url: `/Audio/${trackId}/Lyrics`, type: "text" },
+    { url: `/Items/${trackId}/Lyrics`, type: "json" },
+  ];
+
+  for (const { url, type } of endpoints) {
     try {
-      data = JSON.parse(data);
-    } catch (_) {}
+      const res = await fetch(url, {
+        headers: { "X-Emby-Token": token },
+        signal,
+      });
+
+      if (res.status === 404) {
+        continue;
+      }
+      if (!res.ok) {
+        continue;
+      }
+
+      const data = (type === "json") ? await res.json() : await res.text();
+      const lyrics = (typeof data === "string") ? data : (data?.Lyrics || data?.lyrics || null);
+
+      if (lyrics && lyrics.length > 0) {
+        return lyrics;
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") return null;
+      continue;
+    }
+  }
+  return null;
+}
+
+export async function fetchLyrics() {
+  const currentTrack = musicPlayerState.playlist[musicPlayerState.currentIndex];
+  if (!currentTrack) return;
+
+  updateSettingsUIFromStorage();
+  stopLyricsSync();
+  setLoading();
+
+  const cached = musicPlayerState.lyricsCache[currentTrack.Id];
+  if (cached) {
+    displayLyrics(cached);
+    startLyricsSync();
+    return;
   }
 
-  if (typeof data === 'object' && Array.isArray(data.Lyrics)) {
+  const dbLyrics = await musicDB.getLyrics(currentTrack.Id);
+  if (dbLyrics) {
+    musicPlayerState.lyricsCache[currentTrack.Id] = dbLyrics;
+    displayLyrics(dbLyrics);
+    startLyricsSync();
+    return;
+  }
+
+  cancelOngoingFetch();
+  fetchAbort = new AbortController();
+  const reqKey = buildRequestKey(currentTrack.Id, "fetchLyrics");
+  currentRequestKey = reqKey;
+
+  try {
+    const serverLyrics = await fetchLyricsFromServer(currentTrack.Id, fetchAbort.signal);
+    if (reqKey !== currentRequestKey) return;
+    if (serverLyrics && serverLyrics.trim()) {
+      musicPlayerState.lyricsCache[currentTrack.Id] = serverLyrics;
+      try { await musicDB.saveLyrics(currentTrack.Id, serverLyrics); } catch {}
+      displayLyrics(serverLyrics);
+      startLyricsSync();
+      return;
+    }
+  } catch (e) {
+  }
+  try {
+    const embedded = await getEmbeddedLyrics(currentTrack.Id);
+    if (embedded?.trim()) {
+      musicPlayerState.lyricsCache[currentTrack.Id] = embedded;
+      try { await musicDB.saveLyrics(currentTrack.Id, embedded); } catch {}
+      displayLyrics(embedded);
+      startLyricsSync();
+      return;
+    }
+  } catch {
+  }
+  setNoLyrics();
+}
+
+export async function getEmbeddedLyrics(trackId) {
+  try {
+    const inMem = musicPlayerState.lyricsCache[trackId];
+    if (inMem) return inMem;
+
+    cancelOngoingFetch();
+    fetchAbort = new AbortController();
+
+    const token = getAuthToken();
+    const response = await fetch(`/Audio/${trackId}/stream.mp3?Static=true`, {
+      headers: { "X-Emby-Token": token },
+      signal: fetchAbort.signal
+    });
+    if (!response.ok) throw new Error("Stream alınamadı");
+
+    const buffer = await response.arrayBuffer();
+    const lyrics = await parseID3Tags(buffer);
+    if (lyrics) musicPlayerState.lyricsCache[trackId] = lyrics;
+    return lyrics || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+export function displayLyrics(data) {
+  ensureSettingsUI();
+  safeClear(contentContainer);
+
+  musicPlayerState.lyricsContainer.scrollTop = 0;
+  musicPlayerState.currentLyrics = [];
+  musicPlayerState.syncedLyrics.lines = [];
+  musicPlayerState.syncedLyrics.currentLine = -1;
+  lastActiveIdx = -1;
+  lastNextIdx = -1;
+
+  if (typeof data === "string" && data.trim().startsWith("{")) {
+    try { data = JSON.parse(data); } catch {}
+  }
+
+  if (typeof data === "object" && Array.isArray(data?.Lyrics)) {
     renderStructuredLyrics(data.Lyrics, contentContainer);
-  } else if (typeof data === 'string') {
-    if (data.includes('[')) {
+  } else if (typeof data === "string") {
+    if (data.includes("[")) {
       renderTimedTextLyrics(data, contentContainer);
     } else {
       renderPlainText(data, contentContainer);
@@ -291,61 +377,69 @@ export function displayLyrics(data) {
 
 function renderStructuredLyrics(lyricsArray, container) {
   const lines = [];
+  const frag = document.createDocumentFragment();
 
-  lyricsArray.forEach(line => {
+  for (let i = 0; i < lyricsArray.length; i++) {
+    const line = lyricsArray[i];
     const text = line.Text?.trim();
-    if (!text) return;
+    if (!text) continue;
 
     const time = line.Start ? line.Start / 10000000 : null;
 
     const lineContainer = document.createElement("div");
     lineContainer.className = "lyrics-line-container";
 
-    const textEl = document.createElement("div");
-    textEl.className = "lyrics-text";
-    textEl.textContent = text;
-
     if (time != null) {
       const timeEl = document.createElement("span");
       timeEl.className = "lyrics-time";
       const m = Math.floor(time / 60);
-      const s = Math.floor(time % 60).toString().padStart(2, '0');
+      const s = Math.floor(time % 60).toString().padStart(2, "0");
       timeEl.textContent = `${m}:${s}`;
       lineContainer.appendChild(timeEl);
     }
 
-    lineContainer.appendChild(textEl);
-    container.appendChild(lineContainer);
-
-    if (time != null) {
-      lines.push({ time, element: lineContainer });
+    const textEl = document.createElement("div");
+    textEl.className = "lyrics-text";
+    if (ENABLE_KARAOKE) {
+      appendKaraokeWords(textEl, text);
+    } else {
+      textEl.textContent = text;
     }
-  });
+    lineContainer.appendChild(textEl);
 
+    frag.appendChild(lineContainer);
+    if (time != null) lines.push({ time, element: lineContainer });
+  }
+
+  container.appendChild(frag);
   musicPlayerState.currentLyrics = lines;
   musicPlayerState.syncedLyrics.lines = lines;
   musicPlayerState.syncedLyrics.currentLine = -1;
 }
 
-function createKaraokeWords(text) {
+function appendKaraokeWords(target, text) {
   const words = text.trim().split(/\s+/);
-  return words.map(word => {
+  for (let i = 0; i < words.length; i++) {
     const span = document.createElement("span");
     span.className = "karaoke-word";
-    span.textContent = word + " ";
-    return span;
-  });
+    span.textContent = words[i] + (i === words.length - 1 ? "" : " ");
+    target.appendChild(span);
+  }
 }
 
 function renderTimedTextLyrics(text, container) {
   const lines = [];
-  const regex = /\[(\d{2}):(\d{2})\.(\d{2})\](.*)/;
+  const frag = document.createDocumentFragment();
+  const regex = /^\[(\d{2}):(\d{2})(?:\.(\d{2}))?\](.*)$/;
 
-  text.split('\n').forEach(raw => {
+  const rows = text.split("\n");
+  for (let i = 0; i < rows.length; i++) {
+    const raw = rows[i];
     const match = raw.match(regex);
     if (match) {
-      const [, m, s, , content] = match;
-      const time = parseInt(m) * 60 + parseInt(s);
+      const [, m, s, /*ms*/, content] = match;
+      const time = parseInt(m, 10) * 60 + parseInt(s, 10);
+
       const lineContainer = document.createElement("div");
       lineContainer.className = "lyrics-line-container";
 
@@ -356,33 +450,46 @@ function renderTimedTextLyrics(text, container) {
 
       const textEl = document.createElement("div");
       textEl.className = "lyrics-text";
-      createKaraokeWords(content.trim()).forEach(span => textEl.appendChild(span));
+      if (ENABLE_KARAOKE) {
+        appendKaraokeWords(textEl, content.trim());
+      } else {
+        textEl.textContent = content.trim();
+      }
       lineContainer.appendChild(textEl);
 
-      container.appendChild(lineContainer);
+      frag.appendChild(lineContainer);
       lines.push({ time, element: lineContainer });
     } else if (raw.trim()) {
-      renderPlainLine(raw.trim(), container);
+      const lineContainer = document.createElement("div");
+      lineContainer.className = "lyrics-line-container";
+      const textEl = document.createElement("div");
+      textEl.className = "lyrics-text";
+      textEl.textContent = raw.trim();
+      lineContainer.appendChild(textEl);
+      frag.appendChild(lineContainer);
     }
-  });
+  }
 
+  container.appendChild(frag);
   musicPlayerState.currentLyrics = lines;
   musicPlayerState.syncedLyrics.lines = lines;
   musicPlayerState.syncedLyrics.currentLine = -1;
 }
 
 function renderPlainText(text, container) {
-  text.split('\n').forEach(line => renderPlainLine(line, container));
-}
-
-function renderPlainLine(line, container) {
-  const lineContainer = document.createElement("div");
-  lineContainer.className = "lyrics-line-container";
-  const textEl = document.createElement("div");
-  textEl.className = "lyrics-text";
-  textEl.textContent = line;
-  lineContainer.appendChild(textEl);
-  container.appendChild(lineContainer);
+  const frag = document.createDocumentFragment();
+  const rows = text.split("\n");
+  for (let i = 0; i < rows.length; i++) {
+    const line = rows[i];
+    const lineContainer = document.createElement("div");
+    lineContainer.className = "lyrics-line-container";
+    const textEl = document.createElement("div");
+    textEl.className = "lyrics-text";
+    textEl.textContent = line;
+    lineContainer.appendChild(textEl);
+    frag.appendChild(lineContainer);
+  }
+  container.appendChild(frag);
 }
 
 export function toggleLyrics() {
@@ -397,203 +504,187 @@ export function toggleLyrics() {
     el.classList.remove("lyrics-visible");
     el.classList.add("lyrics-hidden");
     musicPlayerState.lyricsBtn.innerHTML = '<i class="fas fa-align-left"></i>';
+    stopLyricsSync();
+    cancelOngoingFetch();
   }
 }
 
-export function showNoLyricsMessage() {
-  musicPlayerState.lyricsContainer.innerHTML = `<div class='lyrics-not-found'>${config.languageLabels.noLyricsFound}</div>`;
-}
-
-export function showLyricsError(msg) {
-  musicPlayerState.lyricsContainer.innerHTML = `<div class='lyrics-error'>${config.languageLabels.lyricsError}: ${msg}</div>`;
-}
+export function showNoLyricsMessage() { setNoLyrics(); }
+export function showLyricsError(msg) { setError(msg); }
 
 export function updateSyncedLyrics(currentTime) {
   const lines = musicPlayerState.currentLyrics;
-  const container = musicPlayerState.lyricsContainer;
-  if (!lines?.length) return;
+  if (!lines || lines.length === 0) return;
 
-  const delay   = parseFloat(localStorage.getItem("lyricsDelay"))   || 0;
+  const delay = parseFloat(localStorage.getItem("lyricsDelay")) || 0;
   const duration = parseFloat(localStorage.getItem("lyricsDuration")) || 5;
-  const offset  = currentTime + delay;
+  const t = currentTime + delay;
 
-  if (offset < lines[0].time) {
-    container.scrollTop = 0;
-    resetAllHighlights();
-    musicPlayerState.syncedLyrics.currentLine = -1;
+  if (t < lines[0].time) {
+    setActiveLine(-1, 0);
     return;
   }
 
-  let currentIdx = 0;
-  let nextIdx    = null;
-  for (let i = 0; i < lines.length; i++) {
-    if (offset >= lines[i].time) {
-      currentIdx = i;
-      nextIdx = i + 1 < lines.length ? i + 1 : null;
-    } else {
-      break;
-    }
+  let lo = 0, hi = lines.length - 1, idx = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (lines[mid].time <= t) {
+      idx = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
   }
 
-  const currentLine = lines[currentIdx];
-  const lineStart   = currentLine.time;
-  const lineEnd     = lineStart + duration;
+  const lineStart = lines[idx].time;
+  const lineEnd = lineStart + duration;
 
-  if (offset < lineEnd) {
-    musicPlayerState.syncedLyrics.currentLine = currentIdx;
-    highlightLine(currentIdx, null);
-
+  if (t < lineEnd) {
+    setActiveLine(idx, idx + 1 < lines.length ? idx + 1 : -1);
+  } else if (idx + 1 < lines.length && t >= lines[idx + 1].time) {
+    setActiveLine(idx + 1, idx + 2 < lines.length ? idx + 2 : -1);
   } else {
+    setActiveLine(-1, idx + 1 < lines.length ? idx + 1 : -1);
+  }
+}
 
-    if (nextIdx !== null && offset >= lines[nextIdx].time) {
-      musicPlayerState.syncedLyrics.currentLine = nextIdx;
-      const nextNext = (nextIdx + 1 < lines.length) ? nextIdx + 1 : null;
-      highlightLine(nextIdx, nextNext);
+function setActiveLine(activeIdx, nextIdx) {
+  if (activeIdx === lastActiveIdx && nextIdx === lastNextIdx) {
+    return;
+  }
 
-    } else {
-      musicPlayerState.syncedLyrics.currentLine = -1;
-      highlightLine(-1, nextIdx);
+  if (lastActiveIdx >= 0) {
+    const prevEl = musicPlayerState.currentLyrics[lastActiveIdx]?.element;
+    if (prevEl) {
+      prevEl.classList.remove("lyrics-active");
+      prevEl.querySelectorAll(".active").forEach(w => w.classList.remove("active"));
     }
   }
-}
-
-
-function highlightLine(currentIdx, nextIdx) {
-  const lines = musicPlayerState.currentLyrics;
-
-  lines.forEach((lineObj, i) => {
-    const el = lineObj.element;
-    el.classList.remove("lyrics-active", "lyrics-next");
-
-    const existingCheck = el.querySelector(".next-check");
-    if (existingCheck) existingCheck.remove();
-  });
-
-  if (currentIdx >= 0) {
-    const el = lines[currentIdx].element;
-    el.classList.add("lyrics-active");
-    smoothScrollIntoView(el);
+  if (lastNextIdx >= 0) {
+    const prevNextEl = musicPlayerState.currentLyrics[lastNextIdx]?.element;
+    if (prevNextEl) {
+      prevNextEl.classList.remove("lyrics-next");
+      const existingCheck = prevNextEl.querySelector(".next-check");
+      if (existingCheck) existingCheck.remove();
+    }
   }
 
-  if (nextIdx !== null) {
-    const nextEl = lines[nextIdx].element;
-    nextEl.classList.add("lyrics-next");
-    const nextup = document.createElement("span");
-    nextup.className = "next-check";
-    nextup.innerHTML = '<i class="fas fa-arrow-right"></i>';
-    nextEl.querySelector(".lyrics-text")?.prepend(nextup);
+  if (activeIdx >= 0) {
+    const el = musicPlayerState.currentLyrics[activeIdx]?.element;
+    if (el) {
+      el.classList.add("lyrics-active");
+      smoothScrollIntoView(el);
+    }
   }
-}
 
+  if (nextIdx >= 0) {
+    const nextEl = musicPlayerState.currentLyrics[nextIdx]?.element;
+    if (nextEl) {
+      nextEl.classList.add("lyrics-next");
+      let nextup = nextEl.querySelector(".next-check");
+      if (!nextup) {
+        nextup = document.createElement("span");
+        nextup.className = "next-check";
+        nextup.innerHTML = '<i class="fas fa-arrow-right"></i>';
+        nextEl.querySelector(".lyrics-text")?.prepend(nextup);
+      }
+    }
+  }
 
-function resetAllHighlights() {
-  const lines = musicPlayerState.currentLyrics;
-  lines?.forEach(line => {
-    line.element.classList.remove("lyrics-active", "lyrics-next");
-    line.element.querySelectorAll('.active').forEach(w => w.classList.remove('active'));
-    const existingCheck = line.element.querySelector(".next-check");
-    if (existingCheck) existingCheck.remove();
-  });
+  lastActiveIdx = activeIdx;
+  lastNextIdx = nextIdx;
+  musicPlayerState.syncedLyrics.currentLine = activeIdx;
 }
 
 function smoothScrollIntoView(element) {
-  const parent = musicPlayerState.lyricsContainer;
-  const containerHeight = parent.clientHeight;
-  const elementRect = element.getBoundingClientRect();
-  const containerRect = parent.getBoundingClientRect();
-
-  const targetPosition = parent.scrollTop +
-                       elementRect.top -
-                       containerRect.top -
-                       (containerHeight / 2) +
-                       (elementRect.height / 2);
-  smoothScrollTo(parent, targetPosition);
-}
-
-let isScrolling = false;
-function smoothScrollTo(element, targetPosition, duration = 500) {
-  if (isScrolling) return;
-  isScrolling = true;
-
-  const startPosition = element.scrollTop;
-  const distance = targetPosition - startPosition;
-  let startTime = null;
-
-  function animation(currentTime) {
-    if (!startTime) startTime = currentTime;
-    const timeElapsed = currentTime - startTime;
-    const progress = Math.min(timeElapsed / duration, 1);
-    const easeProgress = easeOutQuad(progress);
-    element.scrollTop = startPosition + (distance * easeProgress);
-
-    if (timeElapsed < duration) {
-      requestAnimationFrame(animation);
-    } else {
-      isScrolling = false;
-    }
+  try {
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch {
+    const parent = musicPlayerState.lyricsContainer;
+    const containerHeight = parent.clientHeight;
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = parent.getBoundingClientRect();
+    const target = parent.scrollTop + elementRect.top - containerRect.top - (containerHeight / 2) + (elementRect.height / 2);
+    parent.scrollTop = target;
   }
-
-  function easeOutQuad(t) {
-    return t * (2 - t);
-  }
-
-  requestAnimationFrame(animation);
 }
 
 export function startLyricsSync() {
-  if (musicPlayerState.audio && !musicPlayerState._lyricsEndListenerAdded) {
-    musicPlayerState.audio.addEventListener('ended', () => {
+  if (musicPlayerState.audio && !audioEndedHandlerAttached) {
+    const onEnded = () => {
       const container = musicPlayerState.lyricsContainer;
-      container.scrollTop = 0;
-      musicPlayerState.currentLyrics.forEach(line => {
-        line.element.classList.remove('lyrics-active');
-        line.element.querySelectorAll('.active').forEach(w => w.classList.remove('active'));
-      });
-    });
-    musicPlayerState._lyricsEndListenerAdded = true;
+      if (container) container.scrollTop = 0;
+      if (musicPlayerState.currentLyrics) {
+        for (const line of musicPlayerState.currentLyrics) {
+          const el = line.element;
+          el.classList.remove("lyrics-active", "lyrics-next");
+          el.querySelectorAll(".active").forEach(w => w.classList.remove("active"));
+          const existingCheck = el.querySelector(".next-check");
+          if (existingCheck) existingCheck.remove();
+        }
+      }
+      lastActiveIdx = -1;
+      lastNextIdx = -1;
+    };
+    musicPlayerState._lyricsOnEnded = onEnded;
+    musicPlayerState.audio.addEventListener("ended", onEnded);
+    audioEndedHandlerAttached = true;
   }
 
-  function frame() {
+  if (rafId != null) cancelAnimationFrame(rafId);
+  const tick = () => {
     if (!musicPlayerState.audio) return;
     updateSyncedLyrics(musicPlayerState.audio.currentTime);
-    requestAnimationFrame(frame);
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+}
+
+function stopLyricsSync() {
+  if (rafId != null) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
   }
-  requestAnimationFrame(frame);
+  if (audioEndedHandlerAttached && musicPlayerState.audio && musicPlayerState._lyricsOnEnded) {
+    try {
+      musicPlayerState.audio.removeEventListener("ended", musicPlayerState._lyricsOnEnded);
+    } catch {}
+    audioEndedHandlerAttached = false;
+    musicPlayerState._lyricsOnEnded = null;
+  }
 }
 
 async function updateSingleTrackLyrics(trackId) {
-    try {
-        delete musicPlayerState.lyricsCache[trackId];
-        await musicDB.deleteLyrics(trackId);
-        const track = musicPlayerState.playlist.find(t => t.Id === trackId);
-        if (track) {
-            const originalIndex = musicPlayerState.currentIndex;
-            const originalPlaylist = [...musicPlayerState.playlist];
+  try {
+    delete musicPlayerState.lyricsCache[trackId];
+    await musicDB.deleteLyrics(trackId);
+    const track = musicPlayerState.playlist.find(t => t.Id === trackId);
+    if (track) {
+      const originalIndex = musicPlayerState.currentIndex;
+      const originalPlaylist = [...musicPlayerState.playlist];
 
-            musicPlayerState.playlist = [track];
-            musicPlayerState.currentIndex = 0;
+      musicPlayerState.playlist = [track];
+      musicPlayerState.currentIndex = 0;
 
-            await fetchLyrics();
+      await fetchLyrics();
 
-            musicPlayerState.playlist = originalPlaylist;
-            musicPlayerState.currentIndex = originalIndex;
+      musicPlayerState.playlist = originalPlaylist;
+      musicPlayerState.currentIndex = originalIndex;
 
-            if (musicPlayerState.lyricsCache[trackId]) {
-              showNotification(
-                `<i class="fas fa-subtitles"></i> ${config.languageLabels.syncSingle}`,
-                2000,
-                'db'
-              );
-                return true;
-            }
-        }
-    } catch (err) {
-        console.error('Şarkı sözü güncelleme hatası:', err);
+      if (musicPlayerState.lyricsCache[trackId]) {
         showNotification(
-                `<i class="fas fa-subtitles-slash"></i> ${config.languageLabels.syncSingleError}`,
-                2000,
-                'error'
-              );
+          `<i class="fas fa-subtitles"></i> ${config.languageLabels.syncSingle}`,
+          2000,
+          "db"
+        );
+        return true;
+      }
     }
-    return false;
+  } catch (err) {
+    console.error("Şarkı sözü güncelleme hatası:", err);
+    showNotification(
+      `<i class="fas fa-subtitles-slash"></i> ${config.languageLabels.syncSingleError}`,
+      2000,
+      "error"
+    );
+  }
+  return false;
 }

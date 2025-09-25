@@ -11,6 +11,10 @@ const config = getConfig();
 
 let keyboardControlsActive = false;
 let keyboardHandler = null;
+let controlsAbort = null;
+let volumeAbort = null;
+let volumeNotifyLast = 0;
+const VOLUME_NOTIFY_INTERVAL = 150;
 
 function areVolumeControlsReady() {
   return (
@@ -23,13 +27,22 @@ function areVolumeControlsReady() {
 export function enableKeyboardControls() {
   if (keyboardControlsActive) return;
 
+  controlsAbort = new AbortController();
   keyboardHandler = (e) => handleKeyPress(e);
-  document.addEventListener('keydown', keyboardHandler);
+  document.addEventListener('keydown', keyboardHandler, { signal: controlsAbort.signal });
   keyboardControlsActive = true;
 }
 
+export function disableKeyboardControls() {
+  if (!keyboardControlsActive) return;
+  try { controlsAbort?.abort(); } catch {}
+  controlsAbort = null;
+  keyboardHandler = null;
+  keyboardControlsActive = false;
+}
+
 export function updateVolumeIcon(volume) {
-  if (!musicPlayerState.volumeBtn) return;
+  if (!musicPlayerState.volumeBtn || !musicPlayerState.audio) return;
 
   let icon;
   if (volume === 0 || musicPlayerState.audio.muted) {
@@ -42,6 +55,22 @@ export function updateVolumeIcon(volume) {
   musicPlayerState.volumeBtn.innerHTML = icon;
 }
 
+function notifyVolumeThrottled(volume, isMuted = false) {
+  const now = performance.now();
+  if (now - volumeNotifyLast < VOLUME_NOTIFY_INTERVAL) return;
+  volumeNotifyLast = now;
+
+  let icon = '<i class="fas fa-volume-up"></i>';
+  if (volume === 0 || musicPlayerState.audio?.muted || isMuted) icon = '<i class="fas fa-volume-mute"></i>';
+  else if (volume < 0.5) icon = '<i class="fas fa-volume-down"></i>';
+
+  showNotification(
+    `${icon} ${config.languageLabels.volume || 'Ses seviyesi'}: ${Math.round(volume * 100)}%`,
+    2000,
+    'kontrol'
+  );
+}
+
 function updateVolumeUI(volume, isMuted = false) {
   if (!areVolumeControlsReady()) {
     console.warn('Ses kontrolleri güncelleme için hazır değil');
@@ -50,19 +79,7 @@ function updateVolumeUI(volume, isMuted = false) {
 
   updateVolumeIcon(volume);
   musicPlayerState.volumeSlider.value = volume;
-
-  let icon = '<i class="fas fa-volume-up"></i>';
-  if (volume === 0 || musicPlayerState.audio.muted || isMuted) {
-    icon = '<i class="fas fa-volume-mute"></i>';
-  } else if (volume < 0.5) {
-    icon = '<i class="fas fa-volume-down"></i>';
-  }
-
-  showNotification(
-    `${icon} ${config.languageLabels.volume || 'Ses seviyesi'}: ${Math.round(volume * 100)}%`,
-    2000,
-    'kontrol'
-  );
+  notifyVolumeThrottled(volume, isMuted);
 }
 
 export function toggleMute() {
@@ -89,17 +106,10 @@ export function toggleMute() {
     audio.volume = newVolume;
     volumeSlider.value = newVolume;
     updateVolumeUI(newVolume);
-
-    showNotification(
-      `<i class="fas fa-volume-up"></i> ${config.languageLabels.volOn || 'Ses açıldı'}`,
-      2000,
-      'kontrol'
-    );
   }
 
   saveUserSettings();
 }
-
 
 export function changeVolume(delta) {
   if (!areVolumeControlsReady()) {
@@ -111,6 +121,8 @@ export function changeVolume(delta) {
   const currentVolume = audio.volume;
   const newVolume = Math.min(1, Math.max(0, currentVolume + delta));
 
+  if (Math.abs(newVolume - currentVolume) < 0.001 && !audio.muted) return;
+
   audio.volume = newVolume;
   musicPlayerState.userSettings.volume = newVolume;
 
@@ -118,25 +130,38 @@ export function changeVolume(delta) {
     audio.muted = false;
   }
 
+  volumeSlider.value = newVolume;
   updateVolumeUI(newVolume);
   saveUserSettings();
 }
 
 export function setupVolumeControls() {
-  if (!musicPlayerState.volumeSlider) {
+  const slider = musicPlayerState.volumeSlider;
+  if (!slider) {
     console.warn('Ses kaydırıcısı bulunamadı');
     return;
   }
 
-  musicPlayerState.volumeSlider.addEventListener('input', (e) => {
+  if (volumeAbort) {
+    try { volumeAbort.abort(); } catch {}
+  }
+  volumeAbort = new AbortController();
+
+  const onInput = (e) => {
     const volume = parseFloat(e.target.value);
+    if (!musicPlayerState.audio) return;
+
+    if (Math.abs(musicPlayerState.audio.volume - volume) < 0.001 && !musicPlayerState.audio.muted) return;
+
     musicPlayerState.audio.volume = volume;
     musicPlayerState.userSettings.volume = volume;
     musicPlayerState.audio.muted = false;
 
     updateVolumeUI(volume);
     saveUserSettings();
-  });
+  };
+
+  slider.addEventListener('input', onInput, { signal: volumeAbort.signal });
 }
 
 export function toggleRepeatMode() {
@@ -348,4 +373,10 @@ export function toggleRemoveOnPlayMode() {
     : `<i class="fas fa-trash-list crossed-icon"></i> ${config.languageLabels.removeOnPlayOff || "Çaldıktan sonra sil modu kapalı"}`;
 
   showNotification(message, 2000, 'kontrol');
+}
+
+export function destroyControls() {
+  try { disableKeyboardControls(); } catch {}
+  try { volumeAbort?.abort(); } catch {}
+  volumeAbort = null;
 }

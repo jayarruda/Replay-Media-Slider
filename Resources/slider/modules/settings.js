@@ -263,6 +263,11 @@ themeToggleBtn.onclick = () => {
     2000,
     'info'
   );
+  try {
+    window.dispatchEvent(new CustomEvent('app:theme-changed', { detail: { theme: newTheme } }));
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) themeSelect.value = newTheme;
+  } catch {}
 };
 
     setSettingsThemeToggleVisuals();
@@ -406,7 +411,7 @@ function createNotificationsPage(config, labels) {
   panel.className = 'notifications-panel';
 
   const section = createSection();
-  const musicPage = createNotificationsPanel(config, labels);
+  const notificationsPage = createNotificationsPanel(config, labels);
   notificationsPage.render();
 
   panel.appendChild(section);
@@ -1018,7 +1023,6 @@ export function createNumberInput(key, label, value, min = 0, max = 100, step = 
   return container;
 }
 
-
 export function createTextInput(key, label, value) {
     const container = document.createElement('div');
     container.className = 'input-container';
@@ -1071,3 +1075,42 @@ export function createSelect(key, label, options, selectedValue) {
 
     return container;
 }
+
+let __settingsHotkeyInstalled = false;
+
+export function isSettingsModalOpen() {
+  const modal = document.getElementById('settings-modal');
+  if (!modal) return false;
+  const style = getComputedStyle(modal);
+  return style.display !== 'none';
+}
+
+export function toggleSettingsModal(defaultTab = 'slider') {
+  const modal = document.getElementById('settings-modal');
+  if (modal && isSettingsModalOpen()) {
+    modal.style.display = 'none';
+    return;
+  }
+  try {
+    const api = initSettings(defaultTab);
+    api.open(defaultTab);
+  } catch (e) {
+    requestAnimationFrame(() => {
+      const api = initSettings(defaultTab);
+      api.open(defaultTab);
+    });
+  }
+}
+
+export function installSettingsHotkey(defaultTab = 'slider') {
+  if (__settingsHotkeyInstalled) return;
+  __settingsHotkeyInstalled = true;
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'F2' || e.repeat) return;
+    e.preventDefault();
+    toggleSettingsModal(defaultTab);
+  }, { passive: false });
+}
+
+installSettingsHotkey('slider');

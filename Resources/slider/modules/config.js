@@ -61,19 +61,22 @@ export function getConfig() {
         enabled: j.enabled !== false,
         imagePreference: j.imagePreference || 'auto',
         showPlot: j.showPlot !== false,
+        requireWebSocket: j.requireWebSocket !== false,
         showMetadata: j.showMetadata !== false,
         showLogo: j.showLogo !== false,
         showBackdrop: j.showBackdrop !== false,
+        minVideoMinutes: _num(j.minVideoMinutes, 5),
       };
     } catch {}
   }
 
-  const rawImagePref   = localStorage.getItem('pauseOverlayImagePreference');
-  const rawShowPlot    = localStorage.getItem('pauseOverlayShowPlot');
-  const rawShowMeta    = localStorage.getItem('pauseOverlayShowMetadata');
-  const rawShowLogo    = localStorage.getItem('pauseOverlayShowLogo');
-  const rawShowBackdrop= localStorage.getItem('pauseOverlayShowBackdrop');
-
+  const rawImagePref = localStorage.getItem('pauseOverlayImagePreference');
+  const rawShowPlot = localStorage.getItem('pauseOverlayShowPlot');
+  const rawShowMeta = localStorage.getItem('pauseOverlayShowMetadata');
+  const rawShowLogo = localStorage.getItem('pauseOverlayShowLogo');
+  const rawShowBackdrop = localStorage.getItem('pauseOverlayShowBackdrop');
+  const rawRequireWebSocket = localStorage.getItem('pauseOverlayRequireWebSocket');
+  const rawMinVideoMin = localStorage.getItem('pauseOverlayMinVideoMinutes');
   const legacy = {
     enabled: raw !== 'false',
     imagePreference: rawImagePref || 'auto',
@@ -81,6 +84,8 @@ export function getConfig() {
     showMetadata: rawShowMeta !== 'false',
     showLogo: rawShowLogo !== 'false',
     showBackdrop: rawShowBackdrop !== 'false',
+    requireWebSocket: rawRequireWebSocket !== 'false',
+    minVideoMinutes: _num(rawMinVideoMin, 5),
   };
 
   try { localStorage.setItem('pauseOverlay', JSON.stringify(legacy)); } catch {}
@@ -252,6 +257,8 @@ export function getConfig() {
     enablePersonalRecommendations: localStorage.getItem('enablePersonalRecommendations') === 'true',
     personalRecsCacheTtlMs: parseInt(localStorage.getItem('personalRecsCacheTtlMs'), 10) || 360,
     enableStudioHubs: localStorage.getItem('enableStudioHubs') !== 'false',
+    placePersonalRecsUnderStudioHubs: localStorage.getItem('placePersonalRecsUnderStudioHubs') !== 'false',
+    placeGenreHubsUnderStudioHubs: localStorage.getItem('placeGenreHubsUnderStudioHubs') === 'true' ? true : false,
     studioHubsHoverVideo: localStorage.getItem('studioHubsHoverVideo') !== 'false',
     studioMiniTrailerPopover: (localStorage.getItem("studioMiniTrailerPopover") || "false") === "true",
     studioHubsMinRating: parseFloat(localStorage.getItem('studioHubsMinRating')) || 6.5,

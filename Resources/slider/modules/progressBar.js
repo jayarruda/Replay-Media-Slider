@@ -15,6 +15,8 @@ let secondsPausedMs = 0;
 let secondsEndAt = 0;
 let __pbInited = false;
 
+function now() { return performance.now(); }
+
 function getSlidesContainer() {
   return document.querySelector("#indexPage:not(.hide) #slides-container");
 }
@@ -88,6 +90,7 @@ function clearSecondsTimer() {
     secondsTimer = null;
   }
 }
+
 document.addEventListener('visibilitychange', () => {
   if (!useSecondsMode()) return;
   if (document.hidden) {
@@ -98,15 +101,18 @@ document.addEventListener('visibilitychange', () => {
 }, { passive: true });
 
 export function resetProgressBar() {
+  const dur = (typeof getSlideDuration === 'function' ? (getSlideDuration() || SLIDE_DURATION) : SLIDE_DURATION);
+
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
     clearSecondsTimer();
-    const dur = getSlideDuration?.() || SLIDE_DURATION;
     secondsPausedMs = 0;
     secondsEndAt = 0;
     el.textContent = Math.ceil(dur / 1000).toString();
     if (progressBarEl) { progressBarEl.style.width = "0%"; }
+    setSlideStartTime(now());
+    setRemainingTime(dur);
     return;
   }
 
@@ -116,102 +122,124 @@ export function resetProgressBar() {
   bar.style.transition = "none";
   bar.style.animation = "none";
   bar.style.transform = "scaleX(0)";
+  setSlideStartTime(now());
+  setRemainingTime(dur);
   void bar.offsetWidth;
-  pausedProgress = 0;
 }
 
 export function startProgressBarWithDuration(duration) {
+  const dur = Math.max(0, duration ?? (typeof getSlideDuration === 'function' ? (getSlideDuration() || SLIDE_DURATION) : SLIDE_DURATION));
+
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
     clearSecondsTimer();
-    const now = performance.now();
-    secondsEndAt = now + duration;
+    const t0 = now();
+    secondsEndAt = t0 + dur;
     secondsPausedMs = 0;
-    el.textContent = Math.max(0, Math.ceil(duration / 1000)).toString();
+    el.textContent = Math.max(0, Math.ceil(dur / 1000)).toString();
     secondsTimer = setInterval(() => {
-      const t = secondsEndAt - performance.now();
+      const t = secondsEndAt - now();
       const left = Math.max(0, Math.ceil(t / 1000));
       el.textContent = left.toString();
       if (t <= 0) {
         clearSecondsTimer();
       }
     }, 100);
+    setSlideStartTime(t0);
+    setRemainingTime(dur);
     return;
   }
 
   const bar = ensureProgressBarExists();
   if (!bar) return;
   const targetScale = Math.max(0, Math.min(1, (getConfig().progressBarWidth || 100) / 100));
+  const t0 = now();
+  setSlideStartTime(t0);
+  setRemainingTime(dur);
+  pausedProgress = 0;
+
   bar.style.transition = 'none';
   bar.style.transform = 'scaleX(0)';
   requestAnimationFrame(() => {
-    bar.style.transition = `transform ${duration}ms linear`;
+    bar.style.transition = `transform ${dur}ms linear`;
     bar.style.transform = `scaleX(${targetScale})`;
   });
 }
 
 export function pauseProgressBar() {
+  const dur = (typeof getSlideDuration === 'function' ? (getSlideDuration() || SLIDE_DURATION) : SLIDE_DURATION);
+
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
     if (secondsEndAt) {
-      secondsPausedMs = Math.max(0, secondsEndAt - performance.now());
+      secondsPausedMs = Math.max(0, secondsEndAt - now());
     } else {
       secondsPausedMs = 0;
     }
     clearSecondsTimer();
+    const t0 = getSlideStartTime?.() || now();
+    const elapsed = Math.max(0, Math.min(dur, now() - t0));
+    setRemainingTime(dur - elapsed);
     return;
   }
 
   const bar = ensureProgressBarExists();
   if (!bar) return;
-  const targetScale = Math.max(0, Math.min(1, (getConfig().progressBarWidth || 100) / 100));
-  let currentScale = 0;
-  const cs = getComputedStyle(bar);
-  const t = cs.transform || '';
-  if (t && t !== 'none') {
-    const m = t.match(/matrix\(([^)]+)\)/);
-    if (m) {
-      const a = parseFloat(m[1].split(',')[0].trim());
-      if (isFinite(a)) currentScale = a;
-    }
-  } else {
-    const m2 = (bar.style.transform || '').match(/scaleX\(([^)]+)\)/);
-    if (m2) currentScale = parseFloat(m2[1]);
-  }
-  currentScale = Math.max(0, Math.min(targetScale, currentScale));
-  const doneFrac = targetScale > 0 ? (currentScale / targetScale) : 0;
+
+  const t0 = getSlideStartTime?.() || now();
+  const elapsed = Math.max(0, Math.min(dur, now() - t0));
+  const doneFrac = dur > 0 ? (elapsed / dur) : 0;
   pausedProgress = Math.max(0, Math.min(100, doneFrac * 100));
-  bar.style.transition = "none";
+
+  const targetScale = Math.max(0, Math.min(1, (getConfig().progressBarWidth || 100) / 100));
+  const currentScale = targetScale * (pausedProgress / 100);
+  bar.style.transition = 'none';
   bar.style.transform = `scaleX(${currentScale})`;
+
+  setRemainingTime(dur - elapsed);
 }
 
 export function resumeProgressBar() {
+  const dur = (typeof getSlideDuration === 'function' ? (getSlideDuration() || SLIDE_DURATION) : SLIDE_DURATION);
+
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
     const remaining = secondsPausedMs > 0 ? secondsPausedMs : 0;
-    const now = performance.now();
-    secondsEndAt = now + remaining;
+    const t0 = now();
+    secondsEndAt = t0 + remaining;
     clearSecondsTimer();
     secondsTimer = setInterval(() => {
-      const t = secondsEndAt - performance.now();
+      const t = secondsEndAt - now();
       const left = Math.max(0, Math.ceil(t / 1000));
       el.textContent = left.toString();
       if (t <= 0) clearSecondsTimer();
     }, 100);
+    setSlideStartTime(t0 - (dur - remaining));
+    setRemainingTime(remaining);
     return;
   }
 
   const bar = ensureProgressBarExists();
   if (!bar) return;
-  const total = (typeof getSlideDuration === 'function' ? (getSlideDuration() || SLIDE_DURATION) : SLIDE_DURATION);
-  const remainingTime = Math.max(0, (1 - (pausedProgress / 100)) * total);
+
+  const prevRemaining = getRemainingTime?.();
+  const total = dur;
+  let remainingTime = typeof prevRemaining === 'number' && isFinite(prevRemaining)
+    ? Math.max(0, Math.min(total, prevRemaining))
+    : Math.max(0, (1 - (pausedProgress / 100)) * total);
+
   const targetScale = Math.max(0, Math.min(1, (getConfig().progressBarWidth || 100) / 100));
-  const startScale = Math.max(0, Math.min(1, (pausedProgress/100) * targetScale));
+  const startScale = Math.max(0, Math.min(1, (1 - (remainingTime / total)) * targetScale));
+
   bar.style.transition = 'none';
   bar.style.transform = `scaleX(${startScale})`;
+
+  const t0 = now();
+  setSlideStartTime(t0 - (total - remainingTime));
+
   requestAnimationFrame(() => {
     bar.style.transition = `transform ${remainingTime}ms linear`;
     bar.style.transform = `scaleX(${targetScale})`;

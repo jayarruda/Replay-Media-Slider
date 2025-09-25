@@ -137,6 +137,9 @@ function createDraggableList(id, items, labels) {
     list.insertBefore(dragEl, before ? over : over.nextSibling);
   });
 
+  const __cleanup = () => { };
+  wrap.addEventListener('jms:cleanup', __cleanup, { once:true });
+
   list.addEventListener("click", (e) => {
     const btnUp = e.target.closest?.(".dnd-btn-up");
     const btnDown = e.target.closest?.(".dnd-btn-down");
@@ -239,6 +242,13 @@ export function createStudioHubsPanel(config, labels) {
   );
   section.appendChild(enableHoverVideo);
 
+  const placeRecsUnderStudio = createCheckbox(
+  'placePersonalRecsUnderStudioHubs',
+  (labels?.hubsUnderStudioHubs) || 'Sana özel önerileri #studio-hubs altına yerleştir',
+  !!config.placePersonalRecsUnderStudioHubs
+  );
+  section.appendChild(placeRecsUnderStudio);
+
   const countWrap = createNumberInput(
     'studioHubsCardCount',
     labels?.studioHubsCardCount || 'Gösterilecek kart sayısı (Ana ekran)',
@@ -302,9 +312,10 @@ export function createStudioHubsPanel(config, labels) {
 
   (async () => {
     try {
+      const ctrl = new AbortController(); panel.addEventListener('jms:cleanup', ()=>ctrl.abort(), {once:true});
       const r = await fetch(
         `/Studios?Limit=300&Recursive=true&SortBy=SortName&SortOrder=Ascending`,
-        { headers: { "Accept": "application/json", "Authorization": getAuthHeader() } }
+        { headers: { "Accept": "application/json", "Authorization": getAuthHeader() }, signal: ctrl.signal }
       );
       if (!r.ok) throw new Error(`Studios fetch failed: ${r.status}`);
       const data = await r.json();
@@ -364,6 +375,13 @@ export function createStudioHubsPanel(config, labels) {
   );
   genreSection.appendChild(enableGenreHubs);
 
+  const placeGenreUnderStudio = createCheckbox(
+  'placeGenreHubsUnderStudioHubs',
+  (labels?.hubsUnderStudioHubs) || 'Üste Konumlandır',
+  !!config.placeGenreHubsUnderStudioHubs
+  );
+  genreSection.appendChild(placeGenreUnderStudio);
+
   const rowsCountWrap = createNumberInput(
     'studioHubsGenreRowsCount',
     labels?.studioHubsGenreRowsCount || 'Ekranda gösterilecek Tür sırası sayısı',
@@ -390,6 +408,7 @@ export function createStudioHubsPanel(config, labels) {
 
   (async () => {
     try {
+      const ctrl = new AbortController(); panel.addEventListener('jms:cleanup', ()=>ctrl.abort(), {once:true});
       const genres = await fetchGenresWeeklyForSettings();
       const existing = new Set(
         [...genreList.querySelectorAll(".dnd-item")].map(li => li.dataset.name.toLowerCase())
@@ -431,13 +450,13 @@ export function createStudioHubsPanel(config, labels) {
 const SETTINGS_GENRE_KEY = "settings_genre_list_v1";
 const SETTINGS_GENRE_TTL = 7 * 24 * 60 * 60 * 1000;
 
-async function fetchGenresWeeklyForSettings() {
+async function fetchGenresWeeklyForSettings(ctrl) {
   const cached = loadSettingsGenres();
   if (cached) return cached;
 
   try {
     let url = `/Genres?Recursive=true&SortBy=SortName&SortOrder=Ascending&IncludeItemTypes=Movie,Series`;
-    const r = await fetch(url, { headers: { "Accept": "application/json", "Authorization": getAuthHeader() } });
+    const r = await fetch(url, { headers: { "Accept": "application/json", "Authorization": getAuthHeader() }, signal: ctrl?.signal });
     if (!r.ok) throw new Error(`Genres fetch failed: ${r.status}`);
     const data = await r.json();
     const items = Array.isArray(data?.Items) ? data.Items : (Array.isArray(data) ? data : []);
