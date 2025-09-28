@@ -4,7 +4,7 @@ import { getCurrentIndex, setCurrentIndex } from "./modules/sliderState.js";
 import { startSlideTimer, stopSlideTimer } from "./modules/timer.js";
 import { ensureProgressBarExists, resetProgressBar } from "./modules/progressBar.js";
 import { createSlide } from "./modules/slideCreator.js";
-import { changeSlide, createDotNavigation} from "./modules/navigation.js";
+import { changeSlide, createDotNavigation, primePeakFirstPaint, updatePeakClasses } from "./modules/navigation.js";
 import { attachMouseEvents } from "./modules/events.js";
 import { fetchItemDetails } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from "./modules/positionOverrides.js";
@@ -25,6 +25,7 @@ window.__slidesCreated = 0;
 window.__cycleStartAt = 0;
 window.__cycleArmTimeout = null;
 window.__cycleExpired = window.__cycleExpired || false;
+window.__peakBooting = true;
 
 function clearCycleArm() {
   try { clearTimeout(window.__cycleArmTimeout); } catch {}
@@ -357,15 +358,25 @@ function loadExternalCSS(path) {
  }
 
 const cssPath =
-  config.cssVariant === "fullslider"
+  config.cssVariant === "peakslider"
+    ? "./slider/src/peakslider.css"
+    : config.cssVariant === "fullslider"
     ? "./slider/src/fullslider.css"
     : config.cssVariant === "normalslider"
     ? "./slider/src/normalslider.css"
     : "./slider/src/slider.css";
 loadExternalCSS(cssPath);
 
-window.__cssVariant = config.cssVariant === "fullslider" ? "fullslider" : config.cssVariant === "normalslider" ? "normalslider" : "slider";
+window.__cssVariant =
+  config.cssVariant === "peakslider"
+    ? "peakslider"
+    : config.cssVariant === "fullslider"
+    ? "fullslider"
+    : config.cssVariant === "normalslider"
+    ? "normalslider"
+    : "slider";
 document.documentElement.dataset.cssVariant = window.__cssVariant;
+config.peakSlider = (window.__cssVariant === "peakslider");
 
 function setupGlobalModalInit() {
   setupHoverForAllItems();
@@ -415,6 +426,7 @@ function fullSliderReset() {
   stopSlideTimer();
   cleanupSlider();
   clearCycleArm();
+  try { window.__peakBooting = true; } catch {}
   window.__cycleStartAt = 0;
   window.__cycleExpired = false;
   window.mySlider = {};
@@ -1005,21 +1017,42 @@ export async function slidesInit() {
               selectedItems.push(...selectedItemsFromShuffle);
             } else {
               const shuffleSeedLimit = parseInt(config.shuffleSeedLimit || "100", 10);
+              const alreadySelected = new Set(selectedItems.map((i) => i.Id));
+
               let history = getShuffleHistory(userId);
-              let unseenIds = allItemIds.filter((id) => !history.includes(id));
-              if (unseenIds.length === 0 || history.length >= shuffleSeedLimit) {
+              const allSet = new Set(allItemIds);
+              history = Array.from(new Set(history.filter((id) => allSet.has(id))));
+              if (history.length >= shuffleSeedLimit) {
                 resetShuffleHistory(userId);
                 history = [];
-                unseenIds = [...allItemIds];
               }
-              const shuffled = shuffleArray(unseenIds);
-              const newSelectionIds = shuffled.slice(0, remainingSlots);
-              const selectedItemsFromShuffle = allItems.filter((item) => newSelectionIds.includes(item.Id));
-              const updatedHistory = Array.from(
-                new Set([...history, ...newSelectionIds])
-              ).slice(-shuffleSeedLimit);
-              try { saveShuffleHistory(userId, updatedHistory); } catch {}
+              let attempt = 0;
+              let pickedIds = [];
+              let updatedHistory = history.slice();
+              while (attempt < 2 && pickedIds.length < remainingSlots) {
+                let unseenIds = allItemIds.filter(
+                  (id) => !updatedHistory.includes(id) && !alreadySelected.has(id)
+                );
+                if ((unseenIds.length < remainingSlots || updatedHistory.length >= shuffleSeedLimit) && attempt === 0) {
+                  resetShuffleHistory(userId);
+                  updatedHistory = [];
+                  attempt++;
+                  continue;
+                }
+                const shuffled = shuffleArray(unseenIds);
+                const need = remainingSlots - pickedIds.length;
+                pickedIds = pickedIds.concat(shuffled.slice(0, need));
+                break;
+              }
+              if (pickedIds.length < remainingSlots) {
+                const need = remainingSlots - pickedIds.length;
+                const fallbackPool = allItemIds.filter((id) => !alreadySelected.has(id) && !pickedIds.includes(id));
+                pickedIds = pickedIds.concat(fallbackPool.slice(0, need));
+              }
+              const selectedItemsFromShuffle = allItems.filter((item) => pickedIds.includes(item.Id));
               selectedItems.push(...selectedItemsFromShuffle);
+              const newHistory = Array.from(new Set([...history, ...pickedIds])).slice(-shuffleSeedLimit);
+              try { saveShuffleHistory(userId, newHistory); } catch {}
             }
           } else {
             selectedItems.push(...allItems.slice(0, remainingSlots));
@@ -1069,6 +1102,22 @@ export async function slidesInit() {
             await createSlide(it);
             try { annotateDomWithQualityHints(document); } catch {}
             markSlideCreated();
+            if (config.peakSlider) {
+            const idxPage = document.querySelector('#indexPage:not(.hide), #homePage:not(.hide)');
+            const sc = idxPage?.querySelector('#slides-container');
+            const slides = idxPage?.querySelectorAll('.slide');
+            if (sc && slides?.length) {
+            const spanLeft  = Number(config?.peakSpanLeft  ?? 2);
+            const spanRight = Number(config?.peakSpanRight ?? spanLeft);
+            const diagonal  = !!config?.peakDiagonal;
+
+            if (sc.classList.contains('peak-ready')) {
+                updatePeakClasses(slides, getCurrentIndex(), { spanLeft, spanRight, diagonal });
+                } else {
+                primePeakFirstPaint(slides, getCurrentIndex(), sc, { spanLeft, spanRight, diagonal });
+                }
+              }
+            }
           } catch (e) {
             console.warn("Arka plan slayt oluşturma hatası:", e);
           }
@@ -1099,6 +1148,16 @@ function initializeSlider() {
     primeProgressBar(indexPage);
     ensureInitialActivation(indexPage);
     hydrateFirstSlide(indexPage);
+    if (config.peakSlider) {
+    const sc = indexPage.querySelector('#slides-container');
+    const slides = indexPage.querySelectorAll('.slide');
+    if (sc && slides.length) {
+    const spanLeft  = Number(config?.peakSpanLeft  ?? 2);
+    const spanRight = Number(config?.peakSpanRight ?? spanLeft);
+    const diagonal  = !!config?.peakDiagonal;
+    primePeakFirstPaint(slides, getCurrentIndex(), sc, { spanLeft, spanRight, diagonal });
+  }
+}
     triggerSlideEnterHooks(indexPage);
 
     try {
@@ -1140,6 +1199,22 @@ function startWhenAllReady() {
     startSlideTimer();
     if (pb) pb.style.opacity = "1";
   });
+
+    try {
+      window.__peakBooting = false;
+      if (config.peakSlider) {
+        const sc = indexPage.querySelector('#slides-container');
+        const slides = indexPage.querySelectorAll('.slide');
+        if (sc && slides.length) {
+          const spanLeft  = Number(config?.peakSpanLeft  ?? 2);
+          const spanRight = Number(config?.peakSpanRight ?? spanLeft);
+          const diagonal  = !!config?.peakDiagonal;
+          sc.classList.add('peak-ready');
+          sc.classList.remove('peak-init');
+          updatePeakClasses(slides, getCurrentIndex(), { spanLeft, spanRight, diagonal });
+        }
+      }
+    } catch {}
 
   try { window.__cleanupActiveWatch?.(); } catch {}
   window.__cleanupActiveWatch = watchActiveSlideChanges();
@@ -1283,6 +1358,13 @@ function initializeSliderOnHome() {
 
   fullSliderReset();
   upsertSlidesContainerAtTop(indexPage);
+  const sc = indexPage.querySelector('#slides-container');
+  if (config.peakSlider && sc) {
+    sc.scrollLeft = 0;
+    sc.classList.remove('peak-ready');
+    sc.classList.add('peak-init');
+    try { delete sc.dataset.peakPrimed; } catch {}
+  }
   forceHomeSectionsTop();
   forceSkinHeaderPointerEvents();
   try {
@@ -1330,10 +1412,20 @@ function cleanupSlider() {
     window.mySlider = {};
   }
 
-  const indexPage = document.querySelector("#indexPage:not(.hide)");
-  if (indexPage) {
-    const sliderContainer = indexPage.querySelector("#slides-container");
+  const host =
+    document.querySelector("#indexPage:not(.hide)") ||
+    document.querySelector("#homePage:not(.hide)");
+
+  if (host) {
+    const sliderContainer = host.querySelector("#slides-container");
     if (sliderContainer) {
+      try {
+        sliderContainer.scrollLeft = 0;
+        sliderContainer.classList.remove('peak-ready');
+        sliderContainer.classList.remove('peak-diagonal');
+        sliderContainer.classList.remove('peak-init');
+        delete sliderContainer.dataset.peakPrimed;
+      } catch {}
       sliderContainer.remove();
     }
   }
