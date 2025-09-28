@@ -217,7 +217,8 @@ function hideRatingGenre(reason) {
   if (!ratingGenreElement) return;
   ratingGenreElement.classList.remove("visible");
   if (reason === "auto" || reason === "finished") {
-    setTimeout(() => {
+    try { if (ratingGenreTimeout) clearTimeout(ratingGenreTimeout); } catch {}
+    ratingGenreTimeout = setTimeout(() => {
       wipeBadgeStateAndDom();
     }, 360);
   }
@@ -1219,7 +1220,7 @@ window.addEventListener('popstate', _onRouteHint, { signal });
         content && (content.style.willChange = "transform, opacity"); } catch {}
   activeVideo.play();
   hideOverlay();
-});
+}, { signal });
 
   function renderIconOrEmoji(iconValue) {
     if (!iconValue) return "";
@@ -1243,62 +1244,75 @@ window.addEventListener('popstate', _onRouteHint, { signal });
 
   function showOverlay() {
   if (!overlayConfig.enabled) return;
-    overlayEl.classList.add("visible");
-    overlayVisible = true;
-    if (pausedLabel) {
-      pausedLabel.style.display = "flex";
-      pausedLabel.style.opacity = "0";
-      setTimeout(() => {
-        pausedLabel.style.opacity = "0.92";
-      }, 10);
-    }
-    const content = overlayEl.querySelector(".pause-overlay-content");
-    content && (content.style.willChange = "transform, opacity");
-    if (content) {
-      content.style.transform = "translateY(10px)";
-      content.style.opacity = "0";
-      setTimeout(() => {
-        content.style.transition =
-          "transform 0.4s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.4s ease";
-        content.style.transform = "translateY(0)";
-        content.style.opacity = "1";
-      }, 10);
-      content.addEventListener("transitionend", () => {
-        content.style.willChange = "";
-      });
-    }
+
+  overlayEl.classList.add("visible");
+  overlayVisible = true;
+
+  if (pausedLabel) {
+    pausedLabel.style.display = "flex";
+    pausedLabel.style.opacity = "0";
+    LC.addTimeout(() => {
+      pausedLabel.style.opacity = "0.92";
+    }, 10);
   }
-  function hideOverlay() {
-    const content = overlayEl.querySelector(".pause-overlay-content");
-    content && (content.style.willChange = "transform, opacity");
-    if (content) {
-      content.style.transition =
-        "transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease";
-      content.style.transform = "translateY(10px)";
-      content.style.opacity = "0";
-    }
-    if (pausedLabel) {
-      pausedLabel.style.opacity = "0";
-      setTimeout(() => {
-        overlayEl?.classList.remove("visible");
-        pausedLabel.style.display = "none";
-      }, 300);
-    }
+
+  const content = overlayEl.querySelector(".pause-overlay-content");
+  if (content) {
+    content.style.willChange = "transform, opacity";
+    content.style.transform = "translateY(10px)";
+    content.style.opacity = "0";
     setTimeout(() => {
-      overlayEl.classList.remove("visible");
-      overlayVisible = false;
-      if (content) {
-        content.style.transition = "";
-        content.style.transform = "";
-        content.style.opacity = "";
-      }
-      wipeOverlayState();
-    }, 300);
-    if (pauseTimeout) {
-      clearTimeout(pauseTimeout);
-      pauseTimeout = null;
-    }
+      content.style.transition =
+        "transform 0.4s cubic-bezier(0.2, 0.8, 0.4, 1), opacity 0.4s ease";
+      content.style.transform = "translateY(0)";
+      content.style.opacity = "1";
+    }, 10);
+
+    content.addEventListener(
+      "transitionend",
+      () => {
+        content.style.willChange = "";
+      },
+      { once: true, signal }
+    );
   }
+}
+
+function hideOverlay() {
+  const content = overlayEl.querySelector(".pause-overlay-content");
+  if (content) {
+    content.style.willChange = "transform, opacity";
+    content.style.transition =
+      "transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease";
+    content.style.transform = "translateY(10px)";
+    content.style.opacity = "0";
+  }
+
+  if (pausedLabel) {
+    pausedLabel.style.opacity = "0";
+    LC.addTimeout(() => {
+      overlayEl?.classList.remove("visible");
+      pausedLabel.style.display = "none";
+    }, 300);
+  }
+
+  LC.addTimeout(() => {
+    overlayEl.classList.remove("visible");
+    overlayVisible = false;
+    if (content) {
+      content.style.transition = "";
+      content.style.transform = "";
+      content.style.opacity = "";
+    }
+    wipeOverlayState();
+  }, 300);
+
+  if (pauseTimeout) {
+    clearTimeout(pauseTimeout);
+    pauseTimeout = null;
+  }
+}
+
 
   function resetContent() {
     if (config.pauseOverlay.showBackdrop) {
@@ -1578,7 +1592,7 @@ async function onTimeUpdateArm() {
         return;
       }
       if (pauseTimeout) clearTimeout(pauseTimeout);
-      pauseTimeout = setTimeout(async () => {
+      pauseTimeout = LC.addTimeout(async () => {
         if (!video.paused || video.ended) return;
         const dur = Number(video.duration || 0);
         const ok = (isFinite(dur) && dur >= getMinVideoDurationSec()) || (!isFinite(dur) && (video.currentTime || 0) >= 2);
@@ -1632,7 +1646,7 @@ async function onTimeUpdateArm() {
       badgeStartAt = 0;
       badgeChecks = 0;
       video.addEventListener("timeupdate", onTimeUpdateArm, { passive: true });
-      setTimeout(onTimeUpdateArm, 800);
+      LC.addTimeout(onTimeUpdateArm, 800);
     };
 
     const onLoadedMetadata = () => {
@@ -1690,11 +1704,11 @@ async function onTimeUpdateArm() {
     armSmart();
 
     if (!video.paused && !video.ended) {
-     onPlay();
-     setTimeout(() => {
-       try { onTimeUpdateArm(); } catch {}
-     }, 300);
-   }
+      onPlay();
+      LC.addTimeout(() => {
+        try { onTimeUpdateArm(); } catch {}
+      }, 300);
+    }
 
     removeHandlers = () => {
       video.removeEventListener("pause", onPause);
@@ -1923,19 +1937,19 @@ function findAnyVideoAnywhere(maxDepth) {
   }
 
   let _visIO = null,
-    _visMap = new WeakMap(),
-    _visObserved = new WeakSet();
+      _visMap = new WeakMap(),
+      _visObserved = new WeakSet();
   function ensureVisIO() {
-  if (_visIO) return _visIO;
-  const thr = Number(config?.pauseOverlay?.visThreshold ?? 0.1);
-  _visIO = new IntersectionObserver((ents) => {
-    ents.forEach((e) => {
-      const ratio = e.intersectionRatio ?? 0;
-      _visMap.set(e.target, ratio >= thr);
-    });
-  }, { root: null, threshold: [0, thr] });
-  return _visIO;
-}
+    if (_visIO) return _visIO;
+    const thr = Number(config?.pauseOverlay?.visThreshold ?? 0.1);
+    _visIO = LC.trackMo(new IntersectionObserver((ents) => {
+      ents.forEach((e) => {
+        const ratio = e.intersectionRatio ?? 0;
+        _visMap.set(e.target, ratio >= thr);
+      });
+    }, { root: null, threshold: [0, thr] }));
+    return _visIO;
+  }
   function unobserveVideo(vid) {
     if (!vid || !_visIO) return;
     try {
@@ -2235,7 +2249,7 @@ function findAnyVideoAnywhere(maxDepth) {
           }
         });
       }
-      requestAnimationFrame(() => {
+      LC.addRaf(() => {
         _moQueued = false;
         queue.forEach((v) => bindVideo(v));
       });
@@ -2252,7 +2266,7 @@ function findAnyVideoAnywhere(maxDepth) {
       if (v) bindVideo(v);
     }
     _fallbackTries++;
-    if (_fallbackTries > 10) return;
+    if (_fallbackTries > 10) { clearInterval(_fallbackScan); return; }
   }, 300);
  LC.trackClean(() => clearInterval(_fallbackScan));
 
@@ -2291,7 +2305,10 @@ function findAnyVideoAnywhere(maxDepth) {
   document.addEventListener("keydown", _onKey, { signal });
 
   const stopLoop = startOverlayLogic();
-  requestIdleCallback?.(() => initDescriptorTagsOnce(), { timeout: 3000 });
+  requestIdleCallback?.(() => {
+    if (!window.__jmsPauseOverlay?.active) return;
+    initDescriptorTagsOnce();
+  }, { timeout: 3000 });
 
   function destroy() {
     try {
@@ -2303,7 +2320,10 @@ function findAnyVideoAnywhere(maxDepth) {
     try {
       if (activeVideo) unobserveVideo(activeVideo);
     } catch {}
-    hideOverlay();
+    try { if (ratingGenreTimeout) clearTimeout(ratingGenreTimeout); } catch {}
+    ratingGenreTimeout = null;
+    try { wipeBadgeStateAndDom(); } catch {}
+    try { overlayEl?.classList.remove("visible"); } catch {}
     activeVideo = null;
     currentMediaId = null;
     if (pauseTimeout) clearTimeout(pauseTimeout);
@@ -2314,8 +2334,13 @@ function findAnyVideoAnywhere(maxDepth) {
     try {
       LC.cleanupAll();
     } catch {}
+    try { _visIO?.disconnect(); } catch {}
+    _visIO = null;
+    _visObserved = new WeakSet();
+    _visMap = new WeakMap();
     try {
-      hideRatingGenre("finished");
+      for (const v of imageBlobCache.values()) { if (v) URL.revokeObjectURL(v); }
+      imageBlobCache.clear();
     } catch {}
     window.__jmsPauseOverlay.active = false;
     window.__jmsPauseOverlay.destroy = null;

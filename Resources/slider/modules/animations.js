@@ -1,7 +1,9 @@
 import { getConfig } from './config.js';
 
 const __animTimers = new WeakMap();
+const __animRafs   = new WeakMap();
 const __globalTimers = new Set();
+const __globalRafs   = new Set();
 
 function trackTimer(el, id) {
   if (!el || !id) return;
@@ -11,11 +13,32 @@ function trackTimer(el, id) {
   __globalTimers.add(id);
 }
 
+function trackRaf(el, id) {
+  if (!id) return;
+  if (el) {
+    let arr = __animRafs.get(el);
+    if (!arr) { arr = []; __animRafs.set(el, arr); }
+    arr.push(id);
+  }
+  __globalRafs.add(id);
+}
+
+function raf(el, cb) {
+  const id = requestAnimationFrame(cb);
+  trackRaf(el, id);
+  return id;
+}
+
 function clearTimers(el) {
   const arr = __animTimers.get(el);
   if (arr) {
     for (const id of arr) { clearTimeout(id); __globalTimers.delete(id); }
     __animTimers.delete(el);
+  }
+  const rfs = __animRafs.get(el);
+  if (rfs) {
+    for (const id of rfs) { cancelAnimationFrame(id); __globalRafs.delete(id); }
+    __animRafs.delete(el);
   }
   if (el.__glowSub) { stopLoop(el.__glowSub); el.__glowSub = null; }
 }
@@ -23,6 +46,11 @@ function clearTimers(el) {
 export function teardownAnimations() {
   for (const id of __globalTimers) { clearTimeout(id); }
   __globalTimers.clear();
+  for (const id of __globalRafs) { cancelAnimationFrame(id); }
+  __globalRafs.clear();
+  try { __io?.disconnect?.(); } catch {}
+  __io = null;
+  try { __mo?.disconnect?.(); } catch {}
 }
 if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', teardownAnimations, { once: true });
@@ -58,9 +86,11 @@ function cleanupTree(root) {
 }
 
 const animationStyles = `
+  #slides-container {
+    perspective: 1000px;
+  }
   .slide {
     transform-style: preserve-3d;
-    perspective: 1000px;
     backface-visibility: hidden;
   }
   .poster-dot {
@@ -123,7 +153,7 @@ function onTransitionEndOnce(el, timeoutMs, cb) {
 function animateStep(el, styles, duration, easing) {
   const props = Object.keys(styles).map(jsPropToCssProp);
   withTransition(el, duration, easing, props);
-  requestAnimationFrame(() => setStyles(el, styles));
+  raf(el, () => setStyles(el, styles));
   return new Promise(res => onTransitionEndOnce(el, duration, res));
 }
 async function animateSequence(el, steps, easing = 'cubic-bezier(0.33,1,0.68,1)') {
@@ -161,7 +191,9 @@ function __rafPump(ts) {
   }
   if (__rafSubscribers.size) {
     __rafId = requestAnimationFrame(__rafPump);
+    __globalRafs.add(__rafId);
   } else {
+    if (__rafId) { cancelAnimationFrame(__rafId); __globalRafs.delete(__rafId); }
     __rafId = null;
   }
 }
@@ -170,10 +202,20 @@ function startLoop(el, periodMs, tick) {
   __rafSubscribers.add(sub);
   ensureIO();
   try { __io.observe(el); } catch {}
-  if (!__rafId) __rafId = requestAnimationFrame(__rafPump);
+  if (!__rafId) {
+    __rafId = requestAnimationFrame(__rafPump);
+    __globalRafs.add(__rafId);
+  }
   return sub;
 }
-function stopLoop(sub) { __rafSubscribers.delete(sub); }
+
+function stopLoop(sub) {
+  if (!sub) return;
+  try { __io?.unobserve?.(sub.el); } catch {}
+  sub.tick = null;
+  sub.el = null;
+  __rafSubscribers.delete(sub);
+}
 
 export function applySlideAnimation(currentSlide, newSlide, direction) {
   if (!currentSlide || !newSlide) return;
@@ -231,7 +273,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
 
   if (same) {
     newSlide.style.opacity = "0";
-    requestAnimationFrame(() => { newSlide.style.opacity = "1"; });
+    raf(newSlide, () => { newSlide.style.opacity = "1"; });
     onTransitionEndOnce(newSlide, duration, () => {
       newSlide.style.transition = "";
       newSlide.style.opacity = "1";
@@ -243,7 +285,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
     case 'fade': {
       currentSlide.style.opacity = "0";
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => { newSlide.style.opacity = "1"; });
+      raf(newSlide, () => { newSlide.style.opacity = "1"; });
       break;
     }
 
@@ -252,7 +294,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "1";
       newSlide.style.transform = "translateY(-100%)";
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "translateY(0)";
         newSlide.style.opacity = "1";
       });
@@ -264,7 +306,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "1";
       newSlide.style.transform = "translateY(100%)";
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "translateY(0)";
         newSlide.style.opacity = "1";
       });
@@ -276,7 +318,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "1";
       newSlide.style.transform = "rotate(-180deg) scale(0)";
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "rotate(0deg) scale(1)";
         newSlide.style.opacity = "1";
       });
@@ -289,7 +331,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.transform = "perspective(400px) rotateX(90deg)";
       newSlide.style.opacity = "0";
       newSlide.style.backfaceVisibility = "hidden";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "perspective(400px) rotateX(0deg)";
         newSlide.style.opacity = "1";
         newSlide.style.backfaceVisibility = "visible";
@@ -303,7 +345,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.transform = "perspective(400px) rotateY(90deg)";
       newSlide.style.opacity = "0";
       newSlide.style.backfaceVisibility = "hidden";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "perspective(400px) rotateY(0deg)";
         newSlide.style.opacity = "1";
         newSlide.style.backfaceVisibility = "visible";
@@ -329,7 +371,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "0";
       newSlide.style.transform = `rotateY(${direction > 0 ? 180 : -180}deg)`;
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "rotateY(0deg)";
         newSlide.style.opacity = "1";
       });
@@ -364,7 +406,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
         newSlide.style.clipPath = `polygon(0 ${jitter()}%,100% ${jitter()}%,100% ${jitter()}%,0 ${jitter()}%)`;
         requestAnimationFrame(step);
       };
-      requestAnimationFrame(step);
+      raf(newSlide, step);
       break;
     }
 
@@ -375,7 +417,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.borderRadius = "50%";
       newSlide.style.transform = "scale(0.1) rotate(-180deg)";
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.borderRadius = "0";
         newSlide.style.transform = "scale(1) rotate(0deg)";
         newSlide.style.opacity = "1";
@@ -389,7 +431,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.transform = `translateZ(-200px) rotateY(${direction > 0 ? 90 : -90}deg)`;
       newSlide.style.opacity = "0";
       newSlide.style.backfaceVisibility = "hidden";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "translateZ(0) rotateY(0deg)";
         newSlide.style.opacity = "1";
         newSlide.style.backfaceVisibility = "visible";
@@ -402,7 +444,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "0";
       newSlide.style.transform = "scale(0.5)";
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "scale(1)";
         newSlide.style.opacity = "1";
       });
@@ -414,7 +456,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "0";
       newSlide.style.transform = `translateX(${direction > 0 ? 100 : -100}%) translateZ(-100px) rotateY(-30deg)`;
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "translateX(0) translateZ(0) rotateY(0deg)";
         newSlide.style.opacity = "1";
       });
@@ -426,7 +468,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = '0';
       newSlide.style.transform = `translateX(${direction > 0 ? '100%' : '-100%'})`;
       newSlide.style.opacity = '1';
-      requestAnimationFrame(() => { newSlide.style.transform = 'translateX(0)'; });
+      raf(newSlide, () => { newSlide.style.transform = 'translateX(0)'; });
       break;
     }
 
@@ -435,7 +477,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = "0";
       newSlide.style.transform = `translate(${direction > 0 ? "100%" : "-100%"}, 100%)`;
       newSlide.style.opacity = "0";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "translate(0, 0)";
         newSlide.style.opacity = "1";
       });
@@ -447,7 +489,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.transform = "scale(1)";
       newSlide.style.opacity = "0";
       newSlide.style.transform = "scale(1.5)";
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.opacity = "1";
         newSlide.style.transform = "scale(1)";
       });
@@ -465,7 +507,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.opacity = "0.5";
       newSlide.style.zIndex = "5";
       void newSlide.offsetWidth;
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.transform = "translateX(0)";
         newSlide.style.opacity = "1";
       });
@@ -477,7 +519,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       currentSlide.style.opacity = '0';
       newSlide.style.filter = 'blur(5px)';
       newSlide.style.opacity = '0';
-      requestAnimationFrame(() => {
+      raf(newSlide, () => {
         newSlide.style.filter = 'blur(0)';
         newSlide.style.opacity = '1';
       });

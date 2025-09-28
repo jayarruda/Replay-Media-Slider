@@ -34,7 +34,7 @@ export function applySettings(reload = false) {
         const sapRespect = formData.get('sapRespectPiP') === 'on';
         const sapIgnoreShort = _intOr(formData.get('sapIgnoreShortUnderSec'), 300);
         const pauseOverlayMinDurMin =
-          _clamp(_floatOr(formData.get('pauseOverlayMinVideoMinutes'), 5), _MIN_MIN, _MAX_MIN);
+            _clamp(_floatOr(formData.get('pauseOverlayMinVideoMinutes'), 5), 1, _MAX_MIN);
         const boolFromFd = (name, fallback) =>
           (formData.has(name) ? (formData.get(name) === 'on') : (fallback ?? false));
         const updatedConfig = {
@@ -413,6 +413,12 @@ export function applySettings(reload = false) {
 
             progressSecondsTop: parseInt(formData.get('progressSecondsTop'), 10) || 0,
             progressSecondsLeft: parseInt(formData.get('progressSecondsLeft'), 10) || 0,
+            peakDiagonal: formData.get('peakDiagonal') === 'on',
+            peakSpanRight: parseInt(formData.get('peakSpanRight'), 10) || 3,
+            peakSpanLeft: parseInt(formData.get('peakSpanLeft'), 10) || 3,
+            peakGapLeft: parseInt(formData.get('peakGapLeft'), 10) || 80,
+            peakGapRight: parseInt(formData.get('peakGapRight'), 10) || 80,
+            peakGapY: parseInt(formData.get('peakGapY'), 10) || 0,
 
             pauseOverlay: {
             enabled: formData.get('pauseOverlay') === 'on',

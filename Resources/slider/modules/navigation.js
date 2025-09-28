@@ -66,25 +66,45 @@ function hardResetProgressBarEl() {
 
 function microFadeSwap(oldSlide, newSlide, durMs = Math.min(300, Math.max(100, (getConfig()?.slideAnimationDuration || 280)))) {
   if (!newSlide) return;
-  newSlide.style.display = "block";
-  newSlide.style.opacity = "0";
-  newSlide.style.willChange = "opacity, transform";
-  newSlide.style.transition = `opacity ${durMs}ms ease`;
-  requestAnimationFrame(() => { newSlide.style.opacity = "1"; });
-  const onEnd = () => {
-    newSlide.removeEventListener('transitionend', onEnd);
+ newSlide.style.display = "block";
+ newSlide.style.opacity = "0";
+ newSlide.style.zIndex = "2";
+ newSlide.style.willChange = "opacity, transform";
+ newSlide.style.transition = `opacity ${durMs}ms ease`;
+
+ if (oldSlide && oldSlide !== newSlide) {
+   oldSlide.style.transition = `opacity ${durMs}ms ease`;
+   oldSlide.style.willChange = "opacity, transform";
+   oldSlide.style.zIndex = "1";
+   oldSlide.style.pointerEvents = "none";
+   if (!oldSlide.style.opacity) oldSlide.style.opacity = "1";
+ }
+
+ void newSlide.offsetWidth;
+ requestAnimationFrame(() => {
+   newSlide.style.opacity = "1";
+   if (oldSlide && oldSlide !== newSlide) {
+     oldSlide.style.opacity = "0";
+   }
+ });
+   const onEnd = () => {
+     newSlide.removeEventListener('transitionend', onEnd);
     newSlide.style.transition = "";
     newSlide.style.willChange = "";
+    newSlide.style.zIndex = "";
     if (oldSlide && oldSlide !== newSlide) {
       oldSlide.style.display = "none";
-      oldSlide.style.opacity = "0";
       oldSlide.style.transition = "";
       oldSlide.style.transform = "";
       oldSlide.style.willChange = "";
+      oldSlide.style.pointerEvents = "";
+      oldSlide.style.zIndex = "";
+      oldSlide.style.opacity = "0";
     }
-  };
-  newSlide.addEventListener('transitionend', onEnd, { once: true });
+   };
+   newSlide.addEventListener('transitionend', onEnd, { once: true });
 }
+
 
 function getBackdropFromDot(dot) {
   const img = dot?.querySelector?.('.dot-poster-image');
@@ -620,31 +640,54 @@ export function displaySlide(index) {
   const currentIndex = getCurrentIndex();
   const direction = index > currentIndex ? 1 : -1;
   const activeSlide = indexPage.querySelector(".slide.active");
-
+  const slidesContainer = indexPage.querySelector("#slides-container");
+  const isPeak = !!getConfig()?.peakSlider;
+  if (slidesContainer) slidesContainer.classList.toggle("peak-mode", isPeak);
+  if (isPeak && slidesContainer && !slidesContainer.classList.contains('peak-ready')) {
+    slidesContainer.classList.add('peak-init');
+    slidesContainer.scrollLeft = 0;
+  }
   if (activeSlide) {
-    if (!getConfig()?.enableSlideAnimations) {
-      microFadeSwap(activeSlide, currentSlide);
-    } else {
-      applySlideAnimation(activeSlide, currentSlide, direction);
+    if (!isPeak) {
+      const enableAnims = !!getConfig()?.enableSlideAnimations;
+      if (!enableAnims) {
+        requestAnimationFrame(() => {
+          microFadeSwap(activeSlide, currentSlide);
+        });
+      } else {
+        currentSlide.style.display = "block";
+        currentSlide.style.opacity = "0";
+        currentSlide.style.willChange = "transform, opacity";
+        requestAnimationFrame(() => {
+          applySlideAnimation(activeSlide, currentSlide, direction);
+        });
+      }
     }
   } else {
     currentSlide.style.display = "block";
     currentSlide.style.opacity = "1";
   }
 
-  slides.forEach(slide => {
-    if (slide !== currentSlide) {
-      slide.classList.remove("active");
-      setTimeout(() => {
-        if (!slide.classList.contains("active")) {
-          slide.style.display = "none";
-        }
-      }, getConfig().slideAnimationDuration || 300);
-    }
-  });
+  if (isPeak) {
+    ensurePeakVars(slidesContainer);
+    const spanLeft  = Number(getConfig()?.peakSpanLeft  ?? 1);
+    const spanRight = Number(getConfig()?.peakSpanRight ?? 5);
+    primePeakFirstPaint(slides, index, slidesContainer, { spanLeft, spanRight, diagonal: !!getConfig()?.peakDiagonal });
+  } else {
+    slides.forEach(slide => {
+      if (slide !== currentSlide) {
+        slide.classList.remove("active");
+        setTimeout(() => {
+          if (!slide.classList.contains("active")) {
+            slide.style.display = "none";
+          }
+        }, getConfig().slideAnimationDuration || 300);
+      }
+    });
+  }
 
   currentSlide.style.display = "block";
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     currentSlide.classList.add("active");
     currentSlide.dispatchEvent(new CustomEvent("slideActive"));
     const directorContainer = currentSlide.querySelector(".director-container");
@@ -655,11 +698,175 @@ export function displaySlide(index) {
         transitionDuration: 600,
       });
     }
-  }, 50);
+  });
 
   updateActiveDot();
   initSliderArrows(currentSlide);
   initSwipeEvents();
+}
+
+export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
+  if (window.__peakBooting) {
+    const arr = Array.from(slides);
+    arr.forEach(s => {
+      s.classList.remove('active','off-left','off-right');
+      s.classList.remove('peak-neighbor');
+      [...s.classList].forEach(c => {
+        if (/^(left|right)\d+$/.test(c)) s.classList.remove(c);
+      });
+      s.removeAttribute("data-side");
+      s.style.removeProperty("--k");
+      s.style.display = "block";
+    });
+    const active = arr[activeIndex] || arr[0];
+    if (active) active.classList.add('active');
+    const container = document.querySelector('#slides-container');
+    if (container) {
+      container.classList.remove('peak-ready');
+      container.classList.add('peak-init');
+    }
+    return;
+  }
+
+  const opts = (typeof spanOrOpts === 'object')
+    ? { spanLeft: 2, spanRight: 2, diagonal: false, ...spanOrOpts }
+    : { spanLeft: spanOrOpts, spanRight: spanOrOpts, diagonal: false };
+
+  const { spanLeft, spanRight, diagonal } = opts;
+  const arr = Array.from(slides);
+
+  arr.forEach(s => {
+    s.classList.remove('active','off-left','off-right');
+    s.classList.remove('peak-neighbor');
+    [...s.classList].forEach(c => {
+      if (/^(left|right)\d+$/.test(c)) s.classList.remove(c);
+    });
+    s.removeAttribute("data-side");
+    s.style.removeProperty("--k");
+    s.style.display = "block";
+  });
+
+  const len = arr.length;
+  for (let i = -spanLeft; i <= spanRight; i++) {
+    const idx = (activeIndex + i + len) % len;
+    const slide = arr[idx];
+    if (!slide) continue;
+    if (i === 0) {
+      slide.classList.add('active');
+    } else if (i < 0) {
+      slide.dataset.side = "left";
+      slide.style.setProperty("--k", Math.min(-i, spanLeft));
+      slide.classList.add('peak-neighbor');
+    } else {
+      slide.dataset.side = "right";
+      slide.style.setProperty("--k", Math.min(i, spanRight));
+      slide.classList.add('peak-neighbor');
+    }
+  }
+
+  arr.forEach((s, i) => {
+    const leftDist  = (activeIndex - i + len) % len;
+    const rightDist = (i - activeIndex + len) % len;
+    const signed = (i >= activeIndex) ? rightDist : -leftDist;
+    if (signed < -spanLeft)  s.classList.add('off-left');
+    if (signed >  spanRight) s.classList.add('off-right');
+  });
+
+  const container = document.querySelector('#slides-container');
+  if (container) {
+    container.classList.toggle('peak-diagonal', !!diagonal);
+    ensurePeakVars(container);
+  }
+}
+
+export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOrOpts = 2) {
+  if (window.__peakBooting) {
+    const arr = Array.from(slides);
+    if (slidesContainer) {
+      ensurePeakVars(slidesContainer);
+      slidesContainer.dataset.peakPrimed = '1';
+      slidesContainer.classList.add('peak-init');
+      slidesContainer.classList.remove('peak-ready');
+    }
+    arr.forEach((s, i) => {
+      s.style.setProperty('transition','none','important');
+      s.style.display = 'block';
+      s.classList.toggle('active', i === activeIndex);
+      s.classList.remove('off-left','off-right','peak-neighbor');
+      [...s.classList].forEach(c => { if (/^(left|right)\d+$/.test(c)) s.classList.remove(c); });
+      s.removeAttribute('data-side');
+      s.style.removeProperty('--k');
+    });
+    requestAnimationFrame(() => {
+      arr.forEach(s => s.style.removeProperty('transition'));
+    });
+    return;
+  }
+  const opts = (typeof spanOrOpts === 'object')
+    ? { spanLeft: 2, spanRight: 2, ...spanOrOpts }
+    : { spanLeft: spanOrOpts, spanRight: spanOrOpts };
+
+  if (!slidesContainer || slidesContainer.dataset.peakPrimed === '1') {
+    updatePeakClasses(slides, activeIndex, opts);
+    return;
+  }
+  ensurePeakVars(slidesContainer);
+  slidesContainer.dataset.peakPrimed = '1';
+  slidesContainer.classList.add('peak-init');
+
+  const arr = Array.from(slides);
+  const len = arr.length;
+  const { spanLeft, spanRight } = opts;
+
+  arr.forEach((s, i) => {
+    s.style.setProperty('transition', 'none', 'important');
+    s.style.display = 'block';
+    s.style.left = '50%';
+    s.style.top  = '50%';
+    s.removeAttribute('data-prime-pos');
+
+    const leftDist  = (activeIndex - i + len) % len;
+    const rightDist = (i - activeIndex + len) % len;
+
+    if (i === activeIndex) {
+      s.setAttribute('data-prime-pos', 'active');
+    } else if (leftDist >= 1 && leftDist <= spanLeft) {
+      s.dataset.side = "left";
+      s.style.setProperty("--k", leftDist);
+    } else if (rightDist >= 1 && rightDist <= spanRight) {
+      s.dataset.side = "right";
+      s.style.setProperty("--k", rightDist);
+    }
+  });
+
+  requestAnimationFrame(() => {
+    void document.body.offsetHeight;
+    requestAnimationFrame(() => {
+      arr.forEach(s => {
+        s.style.removeProperty('transition');
+        s.style.removeProperty('left');
+        s.style.removeProperty('top');
+      });
+      slidesContainer.classList.add('peak-ready');
+      slidesContainer.classList.remove('peak-init');
+      updatePeakClasses(slides, activeIndex, opts);
+      arr.forEach(s => s.removeAttribute('data-prime-pos'));
+    });
+  });
+}
+
+function ensurePeakVars(container) {
+  if (!container) return;
+  const cfg = getConfig();
+  const gxLeft  = (cfg.peakGapLeft  ?? cfg.peakGapX ?? 110) + 'px';
+  const gxRight = (cfg.peakGapRight ?? cfg.peakGapX ?? 110) + 'px';
+  const gy      = (cfg.peakGapY ?? 0) + 'px';
+
+  container.style.setProperty('--peak-gap-left', gxLeft);
+  container.style.setProperty('--peak-gap-right', gxRight);
+  container.style.setProperty('--peak-gap-y', gy);
+
+  if (cfg.peakDiagonal) container.classList.add('peak-diagonal');
 }
 
 export function showAndHideElementWithAnimation(el, config) {

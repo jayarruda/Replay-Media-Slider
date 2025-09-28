@@ -222,7 +222,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     } catch {}
     videoContainer.style.display = "none";
     videoElement.style.opacity = "0";
-    slide.classList.remove("video-active", "intro-active");
+    slide.classList.remove("video-active", "intro-active", "trailer-active");
   };
 
   const hardStopIframe = () => {
@@ -318,7 +318,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     backdropImg.style.opacity = "0";
     hardStopIframe();
     videoContainer.style.display = "block";
-    slide.classList.add("video-active", "intro-active");
+    slide.classList.add("video-active", "intro-active", "trailer-active");
     playingKind = "localTrailer";
     await loadStreamFor(best.Id, hoverId, 0);
     return true;

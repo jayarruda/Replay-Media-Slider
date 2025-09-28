@@ -1,7 +1,8 @@
 const QUALITY_CACHE_STORAGE_KEY = 'videoQualityCache';
 
 let inMemoryOnly = false;
-let pendingSave = null;
+let pendingSaveId = null;
+let useRIC = typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function';
 
 function storageAvailable() {
   try {
@@ -32,19 +33,30 @@ function denormalizeEntry(entry) {
 
 function scheduleSave(saveFn) {
   if (inMemoryOnly) return;
-  if (pendingSave) return;
-  pendingSave = true;
-
+  if (pendingSaveId != null) return;
   const run = () => {
-    pendingSave = null;
-    saveFn();
+    pendingSaveId = null;
+    try { saveFn(); } catch {}
   };
-
   try {
-    (window.requestIdleCallback || setTimeout)(run, 200);
+    pendingSaveId = useRIC
+      ? window.requestIdleCallback(run, { timeout: 500 })
+      : setTimeout(run, 200);
   } catch {
-    setTimeout(run, 200);
+    pendingSaveId = setTimeout(run, 200);
   }
+}
+
+function cancelScheduledSave() {
+  if (pendingSaveId == null) return;
+  try {
+    if (useRIC && typeof window.cancelIdleCallback === 'function') {
+      window.cancelIdleCallback(pendingSaveId);
+    } else {
+      clearTimeout(pendingSaveId);
+    }
+  } catch {}
+  pendingSaveId = null;
 }
 
 function tryLocalStorageSet(key, value, evictBatch, getOldestKeys) {
@@ -159,6 +171,7 @@ const videoQualityCache = {
     };
 
     if (force) {
+      cancelScheduledSave();
       doSave();
     } else {
       scheduleSave(doSave);
@@ -240,6 +253,7 @@ export function clearQualityCache() {
 
 try {
   window.addEventListener('pagehide', () => {
+    try { cancelScheduledSave(); } catch {}
     try { videoQualityCache.save(true); } catch {}
   }, { once: true });
 } catch {}

@@ -44,7 +44,10 @@ function shortPreload(url, ms = 1200) {
   link.as = 'image';
   link.href = url;
   document.head.appendChild(link);
-  setTimeout(() => { try { link.remove(); } catch {} }, ms);
+  const id = setTimeout(() => {
+    try { link.remove(); } catch {}
+  }, ms);
+  return () => { clearTimeout(id); try { link.remove(); } catch {} };
 }
 
 async function createSlide(item) {
@@ -100,6 +103,7 @@ async function createSlide(item) {
   const ac = new AbortController();
   const { signal } = ac;
   const perSlideObservers = [];
+  const perSlideCleanups = [];
   const slidesContainer = createSlidesContainer(indexPage);
   const existing = slidesContainer.querySelector(`.slide[data-item-id="${itemIdRaw}"]`);
  if (existing) {
@@ -257,7 +261,8 @@ if (isFirstSlide) {
 }
 
   let isBackdropLoaded = false;
-backdropImg.addEventListener('load', () => { isBackdropLoaded = true; }, { once: true, signal });
+  const onBackdropLoadOnce = () => { isBackdropLoaded = true; };
+  backdropImg.addEventListener('load', onBackdropLoadOnce, { once: true, signal });
 
 const finalBackdropForWarm = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
 backdropWarmQueue.enqueue(finalBackdropForWarm, { shortPreload: true });
@@ -289,26 +294,27 @@ const warmOnHover = () => {
 
     const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
     let preload = document.querySelector(`link[rel="preload"][as="image"][href="${finalBackdrop}"]`);
-     if (!preload) {
-       preload = document.createElement('link');
-       preload.rel = 'preload';
-       preload.as = 'image';
-       preload.href = finalBackdrop;
-       document.head.appendChild(preload);
-     }
+    if (!preload) {
+      preload = document.createElement('link');
+      preload.rel = 'preload';
+      preload.as = 'image';
+      preload.href = finalBackdrop;
+      document.head.appendChild(preload);
+    }
 
     backdropImg.src = finalBackdrop;
     backdropImg.onload = () => {
       backdropImg.style.transition = 'opacity 0.5s ease';
       backdropImg.style.opacity = '1';
-      setTimeout(() => {
-         try {
-           if (preload && !preload.__pinned) preload.remove();
-         } catch {}
-       }, 1500);
+      const t = setTimeout(() => {
+        try {
+          if (preload && !preload.__pinned) preload.remove();
+        } catch {}
+      }, 1500);
+      perSlideCleanups.push(() => clearTimeout(t));
     };
     backdropImg.onerror = () => {
-      setTimeout(() => { try { preload.remove(); } catch {} }, 0);
+      try { preload?.remove?.(); } catch {}
     };
 
     observer.unobserve(backdropImg);
@@ -326,8 +332,12 @@ perSlideObservers.push(io);
     try { ac.abort(); } catch {}
     try {
      backdropImg.removeEventListener('mouseenter', warmOnHover);
-     backdropImg.removeEventListener('pointerover', warmOnHover);
-   } catch {}
+      backdropImg.removeEventListener('pointerover', warmOnHover);
+      backdropImg.removeEventListener('load', onBackdropLoadOnce);
+      backdropImg.onload = null;
+      backdropImg.onerror = null;
+    } catch {}
+    try { perSlideCleanups.forEach(fn => { try { fn(); } catch {} }); } catch {}
   };
 
   slide.__cleanupSlide = teardown;

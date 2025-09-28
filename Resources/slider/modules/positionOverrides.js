@@ -1,11 +1,15 @@
 import { getConfig } from './config.js';
-import { updateSlidePosition } from './positionUtils.js';
+
+let homeTopObserver = null;
+let skinHeaderObserver = null;
 
 function detectCssVariantFromDom() {
   if (window.__cssVariant) return window.__cssVariant;
   const dv = document.documentElement?.dataset?.cssVariant;
   if (dv) return dv;
+
   const has = (s) => !!document.querySelector(`link[href*="${s}"]`);
+  if (has('peakslider.css'))   return 'peakslider';
   if (has('normalslider.css')) return 'normalslider';
   if (has('fullslider.css'))   return 'fullslider';
   if (has('slider.css'))       return 'slider';
@@ -21,18 +25,19 @@ function isMobileDevice() {
 
 function getDefaultTopByVariant(variant) {
   const mobile = isMobileDevice();
-
   if (mobile) {
     switch (variant) {
       case 'normalslider': return -20;
       case 'fullslider': return -16;
+      case 'peakslider': return 0;
       case 'slider':
       default: return 0;
     }
   } else {
     switch (variant) {
-      case 'normalslider': return -23;
+      case 'normalslider': return -20;
       case 'fullslider': return 7;
+      case 'peakslider': return -5;
       case 'slider':
       default: return 0;
     }
@@ -42,48 +47,32 @@ function getDefaultTopByVariant(variant) {
 function readUserTopFromLocalStorage() {
   const raw = localStorage.getItem('homeSectionsTop');
   if (raw === null || raw === '') return null;
-
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
   if (n === 0) return null;
-
   return n;
 }
 
 function applyTopToElements(vh) {
-  const elements = [
+  const value = `${vh}vh`;
+  const targets = [
     ...document.querySelectorAll('.homeSectionsContainer'),
     document.querySelector('#favoritesTab')
   ];
-  elements.forEach(el => {
-    if (!el) return;
-    el.style.setProperty('top', `${vh}vh`, 'important');
-  });
+  for (const el of targets) {
+    if (!el) continue;
+    if (el.style.top !== value) {
+      el.style.setProperty('top', value, 'important');
+    }
+  }
 }
 
-export function forceHomeSectionsTop() {
-  const applyAlways = () => {
-    const cfg = (typeof getConfig === 'function') ? getConfig() : {};
-    const userTop = readUserTopFromLocalStorage();
-    const hasCustomTop = (userTop !== null);
-    const variant = cfg.cssVariant || detectCssVariantFromDom();
-    const effectiveTop = hasCustomTop ? userTop : getDefaultTopByVariant(variant);
-    applyTopToElements(effectiveTop);
-    waitForFavoritesTabAndApply(effectiveTop);
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyAlways);
-  } else {
-    applyAlways();
-  }
-
-  const observer = new MutationObserver(applyAlways);
-  observer.observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    attributes: false
-  });
+function computeEffectiveTop() {
+  const cfg = (typeof getConfig === 'function') ? getConfig() : {};
+  const userTop = readUserTopFromLocalStorage();
+  const hasCustomTop = (userTop !== null);
+  const variant = cfg.cssVariant || detectCssVariantFromDom();
+  return hasCustomTop ? userTop : getDefaultTopByVariant(variant);
 }
 
 function waitForFavoritesTabAndApply(topValue) {
@@ -97,6 +86,51 @@ function waitForFavoritesTabAndApply(topValue) {
     if (++tries < 30) setTimeout(attempt, 100);
   }
   attempt();
+}
+
+export function forceHomeSectionsTop() {
+  const applyAlways = () => {
+    const top = computeEffectiveTop();
+    applyTopToElements(top);
+    waitForFavoritesTabAndApply(top);
+  };
+
+  if (!homeTopObserver) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', applyAlways, { once: true });
+    } else {
+      applyAlways();
+    }
+
+    homeTopObserver = new MutationObserver(applyAlways);
+    homeTopObserver.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: false
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        try { homeTopObserver.disconnect(); } catch {}
+      } else {
+        try {
+          homeTopObserver.observe(document.documentElement, {
+            subtree: true,
+            childList: true,
+            attributes: false
+          });
+          applyAlways();
+        } catch {}
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      try { homeTopObserver.disconnect(); } catch {}
+      homeTopObserver = null;
+    }, { once: true });
+  } else {
+    applyAlways();
+  }
 }
 
 export function forceSkinHeaderPointerEvents() {
@@ -117,16 +151,40 @@ export function forceSkinHeaderPointerEvents() {
     }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', apply);
+  if (!skinHeaderObserver) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', apply, { once: true });
+    } else {
+      apply();
+    }
+
+    skinHeaderObserver = new MutationObserver(apply);
+    skinHeaderObserver.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: false
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        try { skinHeaderObserver.disconnect(); } catch {}
+      } else {
+        try {
+          skinHeaderObserver.observe(document.documentElement, {
+            subtree: true,
+            childList: true,
+            attributes: false
+          });
+          apply();
+        } catch {}
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      try { skinHeaderObserver.disconnect(); } catch {}
+      skinHeaderObserver = null;
+    }, { once: true });
   } else {
     apply();
   }
-
-  const observer = new MutationObserver(apply);
-  observer.observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    attributes: false
-  });
 }

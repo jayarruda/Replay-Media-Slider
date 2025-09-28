@@ -40,6 +40,13 @@ function readSmartAutoPause() {
 }
 
 export function getConfig() {
+  function readPeakSlider() {
+  const variant = (localStorage.getItem('cssVariant') || 'normalslider').toLowerCase();
+  const isPeakLike = ['peak', 'peakslider', 'peak-skin'].includes(variant);
+  if (variant) return isPeakLike;
+  const explicit = localStorage.getItem('peakSlider');
+  return explicit === 'true';
+}
   function readDotPreviewMode() {
     try {
       const v = localStorage.getItem('dotPreviewPlaybackMode');
@@ -53,11 +60,12 @@ export function getConfig() {
   }
   function readPauseOverlay() {
   const raw = localStorage.getItem('pauseOverlay');
-
   if (raw && raw.trim().startsWith('{') && raw !== '[object Object]') {
     try {
       const j = JSON.parse(raw);
-      return {
+      const mv = _num(j.minVideoMinutes, 5);
+      const safeMin = Math.max(1, mv);
+      const cfg = {
         enabled: j.enabled !== false,
         imagePreference: j.imagePreference || 'auto',
         showPlot: j.showPlot !== false,
@@ -65,8 +73,10 @@ export function getConfig() {
         showMetadata: j.showMetadata !== false,
         showLogo: j.showLogo !== false,
         showBackdrop: j.showBackdrop !== false,
-        minVideoMinutes: _num(j.minVideoMinutes, 5),
+        minVideoMinutes: safeMin,
       };
+      if (safeMin !== mv) { try { localStorage.setItem('pauseOverlay', JSON.stringify(cfg)); } catch {} }
+      return cfg;
     } catch {}
   }
 
@@ -77,6 +87,10 @@ export function getConfig() {
   const rawShowBackdrop = localStorage.getItem('pauseOverlayShowBackdrop');
   const rawRequireWebSocket = localStorage.getItem('pauseOverlayRequireWebSocket');
   const rawMinVideoMin = localStorage.getItem('pauseOverlayMinVideoMinutes');
+
+  const mvLegacy = _num(rawMinVideoMin, 5);
+  const safeMinLegacy = Math.max(1, mvLegacy);
+
   const legacy = {
     enabled: raw !== 'false',
     imagePreference: rawImagePref || 'auto',
@@ -85,12 +99,13 @@ export function getConfig() {
     showLogo: rawShowLogo !== 'false',
     showBackdrop: rawShowBackdrop !== 'false',
     requireWebSocket: rawRequireWebSocket !== 'false',
-    minVideoMinutes: _num(rawMinVideoMin, 5),
+    minVideoMinutes: safeMinLegacy,
   };
 
   try { localStorage.setItem('pauseOverlay', JSON.stringify(legacy)); } catch {}
   return legacy;
 }
+
   const defaultLanguage = getDefaultLanguage();
   return {
     customQueryString: localStorage.getItem('customQueryString') || 'IncludeItemTypes=Movie,Series&Recursive=true&hasOverview=true&imageTypes=Logo,Backdrop&sortBy=DateCreated&sortOrder=Descending',
@@ -497,6 +512,17 @@ export function getConfig() {
     backdropMaxWidth: parseInt(localStorage.getItem("backdropMaxWidth"), 10) || 1920,
     minPixelCount: parseInt(localStorage.getItem("minPixelCount"), 10) || (1920 * 1080),
     cssVariant: localStorage.getItem('cssVariant') || 'normalslider',
+    peakSlider: readPeakSlider(),
+    peakDiagonal: (() => {
+      const v = localStorage.getItem('peakDiagonal');
+      if (v === 'true' || v === 'false') return v === 'true';
+      return readPeakSlider();
+    })(),
+    peakSpanLeft:  parseInt(localStorage.getItem('peakSpanLeft'), 10)  || 3,
+    peakSpanRight: parseInt(localStorage.getItem('peakSpanRight'), 10) || 3,
+    peakGapLeft: parseInt(localStorage.getItem('peakGapLeft'), 10) || 80,
+    peakGapRight: parseInt(localStorage.getItem('peakGapRight'), 10) || 80,
+    peakGapY: parseInt(localStorage.getItem('peakGapY'), 10) || 0,
     enableImageSizeFilter: localStorage.getItem("enableImageSizeFilter") === "true",
     minImageSizeKB: parseInt(localStorage.getItem("minImageSizeKB"), 10) || 800,
     maxImageSizeKB: parseInt(localStorage.getItem("maxImageSizeKB"), 10) || 1500,

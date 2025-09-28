@@ -43,129 +43,230 @@ export function createSliderPanel(config, labels) {
   languageDiv.append(languageLabel, languageSelect);
 
     const cssDiv = document.createElement('div');
-    cssDiv.className = 'fsetting-item';
-    const cssLabel = document.createElement('label');
-    cssLabel.textContent = labels.gorunum || 'CSS Varyantı:';
-    const cssSelect = document.createElement('select');
-    cssSelect.name = 'cssVariant';
+  cssDiv.className = 'fsetting-item';
+  const cssLabel = document.createElement('label');
+  cssLabel.textContent = labels.gorunum || 'CSS Varyantı:';
+  const cssSelect = document.createElement('select');
+  cssSelect.name = 'cssVariant';
 
+  const variants = [
+    { value: 'kompak', label: labels.kompaktslider || 'Kompakt' },
+    { value: 'normalslider' ,label: labels.normalslider || 'Normal' },
+    { value: 'fullslider', label: labels.tamslider || 'Tam Ekran' },
+    { value: 'peakslider', label: (labels.peakslider || 'Peak') },
+  ];
 
-    const variants = [
-        { value: 'kompak', label: labels.kompaktslider || 'Kompakt' },
-        { value: 'fullslider', label: labels.tamslider || 'Tam Ekran' },
-        { value: 'normalslider', label: labels.normalslider || 'Normal' },
+  variants.forEach(variant => {
+    const option = document.createElement('option');
+    option.value = variant.value;
+    option.textContent = variant.label;
+    if (variant.value === config.cssVariant) {
+      option.selected = true;
+    }
+    cssSelect.appendChild(option);
+  });
+
+  const peakDiagonalCheckbox = createCheckbox(
+    'peakDiagonal',
+    labels.peakDiagonal || 'Diagonal Görünüm',
+    (config.cssVariant === 'peakslider') && !!config.peakDiagonal
+  );
+
+  function updatePeakDiagonalVisibility() {
+    const isPeak = cssSelect.value === 'peakslider';
+    const input = peakDiagonalCheckbox.querySelector('input');
+    peakDiagonalCheckbox.style.display = isPeak ? '' : 'none';
+
+    if (isPeak) {
+      input.disabled = false;
+    } else {
+      input.disabled = true;
+      input.checked = false;
+    }
+    const showExtra = input.checked;
+    const extraFields = [
+      peakSpanLeftLabel, peakSpanLeftInput,
+      peakSpanRightLabel, peakSpanRightInput,
+      peakGapRightLabel, peakGapRightInput,
+      peakGapLeftLabel, peakGapLeftInput,
+      peakGapYLabel, peakGapYInput
     ];
-
-    variants.forEach(variant => {
-        const option = document.createElement('option');
-        option.value = variant.value;
-        option.textContent = variant.label;
-        if (variant.value === config.cssVariant) {
-            option.selected = true;
-        }
-        cssSelect.appendChild(option);
+    extraFields.forEach(el => {
+      el.style.display = showExtra ? '' : 'none';
     });
-
-    const cssDesc = document.createElement('div');
-    cssDesc.className = 'description-text';
-    cssDesc.textContent = labels.cssDescription || 'Full Ekran Masaüstü Ortamlarda Aktifleştirilmiş Poster Dot için Düzenlenmiştir.';
-
-    cssLabel.htmlFor = 'cssVariantSelect';
-    cssSelect.id = 'cssVariantSelect';
-    cssDiv.append(cssLabel, cssSelect, cssDesc);
-
-    const sliderDiv = document.createElement('div');
-    sliderDiv.className = 'fsetting-item';
-    const sliderLabel = document.createElement('label');
-    sliderLabel.textContent = labels.sliderDuration || 'Slider Süresi (ms):';
-    const sliderInput = document.createElement('input');
-    sliderInput.type = 'number';
-    sliderInput.value = config.sliderDuration || 15000;
-    sliderInput.name = 'sliderDuration';
-    sliderInput.min = 1000;
-    sliderInput.step = 250;
-    sliderLabel.htmlFor = 'sliderDurationInput';
-    sliderInput.id = 'sliderDurationInput';
-    const sliderDesc = document.createElement('div');
-    sliderDesc.className = 'description-text';
-    sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
-    sliderDiv.append(sliderLabel, sliderDesc, sliderInput);
-
-    const showProgressCheckbox = createCheckbox(
-    'showProgressBar',
-    labels.progressBar || "ProgressBar'ı Göster",
-    config.showProgressBar
-  );
-    sliderDiv.appendChild(showProgressCheckbox);
-    const showSecondsCheckbox = createCheckbox(
-    'showProgressAsSeconds',
-    (labels.showProgressAsSeconds || "İlerlemeyi Saniye Olarak Göster"),
-    config.showProgressAsSeconds || false
-  );
-    sliderDiv.appendChild(showSecondsCheckbox);
-    const spInput = showProgressCheckbox.querySelector('input');
-    const ssInput = showSecondsCheckbox.querySelector('input');
-
-    function syncSecondsAvailability() {
-    const enabled = !!spInput.checked;
-    ssInput.disabled = !enabled;
-    showSecondsCheckbox.style.opacity = enabled ? 1 : 0.6;
   }
-    spInput.addEventListener('change', syncSecondsAvailability);
-    requestAnimationFrame(syncSecondsAvailability);
+        const cssDesc = document.createElement('div');
+        cssDesc.className = 'description-text';
+        const baseDesc =
+          labels.cssDescriptionBase ||
+          labels.cssDescription ||
+          '• Tam Ekran Görünümü Masaüstü Ortamlarda Aktifleştirilmiş Poster Dot için Düzenlenmiştir.';
+        const mobileNote =
+          labels.cssMobileNote ||
+          '• Vitrin görünüm henüz mobil için hazır değil.';
+        cssDesc.innerHTML = `${baseDesc}<br><br>${mobileNote}`;
 
-    const playbackOptionsDiv = document.createElement('div');
-    playbackOptionsDiv.className = 'playback-options-container';
+        cssLabel.htmlFor = 'cssVariantSelect';
+        cssSelect.id = 'cssVariantSelect';
 
-    const playbackCheckboxesDiv = document.createElement('div');
-    playbackCheckboxesDiv.style.display = 'flex';
-    playbackCheckboxesDiv.style.gap = '10px';
-    playbackCheckboxesDiv.style.flexDirection = 'column';
+        const peakSpanRightLabel = document.createElement('label');
+        peakSpanRightLabel.textContent = labels.peakSpanRight || 'Kart Sayısı:';
+        const peakSpanRightInput = document.createElement('input');
+        peakSpanRightInput.type = 'number';
+        peakSpanRightInput.value = config.peakSpanRight || 3;
+        peakSpanRightInput.name = 'peakSpanRight';
+        peakSpanRightInput.min = 1;
+        peakSpanRightInput.step = 1;
+        peakSpanRightInput.setAttribute('data-group', 'actor');
+        peakSpanRightLabel.htmlFor = 'peakSpanRightInput';
+        peakSpanRightInput.id = 'peakSpanRightInput';
 
-    const trailerPlaybackCheckbox = createCheckbox(
-    'enableTrailerPlayback',
-    labels.enableTrailerPlayback || 'Yerleşik Fragman Oynatımına İzin Ver',
-    config.enableTrailerPlayback
-    );
+        const peakSpanLeftLabel = document.createElement('label');
+        peakSpanLeftLabel.textContent = labels.peakSpanLeft || 'Sol Kart Sayısı:';
+        const peakSpanLeftInput = document.createElement('input');
+        peakSpanLeftInput.type = 'number';
+        peakSpanLeftInput.value = config.peakSpanLeft || 3;
+        peakSpanLeftInput.name = 'peakSpanLeft';
+        peakSpanLeftInput.min = 1;
+        peakSpanLeftInput.step = 1;
+        peakSpanLeftInput.setAttribute('data-group', 'actor');
+        peakSpanLeftLabel.htmlFor = 'peakSpanLeftInput';
+        peakSpanLeftInput.id = 'peakSpanLeftInput';
 
-    const videoPlaybackCheckbox = createCheckbox(
-    'enableVideoPlayback',
-    labels.enableVideoPlayback || 'Yerleşik Video Oynatımına İzin Ver',
-    config.enableVideoPlayback
-    );
+        const peakGapLeftLabel = document.createElement('label');
+        peakGapLeftLabel.textContent = labels.peakGapLeft || 'Sol Komşu X Ekseni (px)';
+        const peakGapLeftInput = document.createElement('input');
+        peakGapLeftInput.type = 'number';
+        peakGapLeftInput.value = config.peakGapLeft || 80;
+        peakGapLeftInput.name = 'peakGapLeft';
+        peakGapLeftInput.min = 0;
+        peakGapLeftInput.step = 1;
+        peakGapLeftInput.setAttribute('data-group', 'actor');
+        peakGapLeftLabel.htmlFor = 'peakGapLeftInput';
+        peakGapLeftInput.id = 'peakGapLeftInput';
 
-    const trailerThenVideoCheckbox = createCheckbox(
-    'enableTrailerThenVideo',
-    labels.enableTrailerThenVideo || 'Önce Fragman, Yoksa Video',
-    false
-    );
+        const peakGapRightLabel = document.createElement('label');
+        peakGapRightLabel.textContent = labels.peakGapRight || 'Sağ Komşu X Ekseni (px)';
+        const peakGapRightInput = document.createElement('input');
+        peakGapRightInput.type = 'number';
+        peakGapRightInput.value = config.peakGapRight || 80;
+        peakGapRightInput.name = 'peakGapRight';
+        peakGapRightInput.min = 0;
+        peakGapRightInput.step = 1;
+        peakGapRightInput.setAttribute('data-group', 'actor');
+        peakGapRightLabel.htmlFor = 'peakGapRightInput';
+        peakGapRightInput.id = 'peakGapRightInput';
 
-    const disableAllPlaybackCheckbox = createCheckbox(
-    'disableAllPlayback',
-    labels.selectNone || 'hiçbiri',
-    config.disableAllPlayback || false
-);
+        const peakGapYLabel = document.createElement('label');
+        peakGapYLabel.textContent = labels.peakGapY || 'Y Ekseni (px)';
+        const peakGapYInput = document.createElement('input');
+        peakGapYInput.type = 'number';
+        peakGapYInput.value = config.peakGapY || 0;
+        peakGapYInput.name = 'peakGapY';
+        peakGapYInput.min = 0;
+        peakGapYInput.step = 1;
+        peakGapYInput.setAttribute('data-group', 'actor');
+        peakGapYLabel.htmlFor = 'peakGapYInput';
+        peakGapYInput.id = 'peakGapYInput';
 
-    function disableAllPlaybackOptions() {
-    const trailerCheckbox = document.querySelector('#enableTrailerPlayback');
-    const videoCheckbox = document.querySelector('#enableVideoPlayback');
-    const trailerThenVideoCheckbox = document.querySelector('#enableTrailerThenVideo');
+        cssDiv.append(cssLabel, cssSelect, peakDiagonalCheckbox, peakSpanLeftLabel, peakSpanLeftInput, peakSpanRightLabel, peakSpanRightInput, peakGapRightLabel, peakGapRightInput, peakGapLeftLabel, peakGapLeftInput, peakGapYLabel, peakGapYInput, cssDesc);
 
-    if (trailerCheckbox) trailerCheckbox.checked = false;
-    if (videoCheckbox) videoCheckbox.checked = false;
-    if (trailerThenVideoCheckbox) trailerThenVideoCheckbox.checked = false;
+        cssSelect.addEventListener('change', updatePeakDiagonalVisibility);
+        peakDiagonalCheckbox.querySelector('input').addEventListener('change', updatePeakDiagonalVisibility);
+        updatePeakDiagonalVisibility();
 
-    localStorage.setItem('previewPlaybackMode', 'none');
-    updateTrailerRelatedFields();
-}
+        const sliderDiv = document.createElement('div');
+        sliderDiv.className = 'fsetting-item';
+        const sliderLabel = document.createElement('label');
+        sliderLabel.textContent = labels.sliderDuration || 'Slider Süresi (ms):';
+        const sliderInput = document.createElement('input');
+        sliderInput.type = 'number';
+        sliderInput.value = config.sliderDuration || 15000;
+        sliderInput.name = 'sliderDuration';
+        sliderInput.min = 1000;
+        sliderInput.step = 250;
+        sliderLabel.htmlFor = 'sliderDurationInput';
+        sliderInput.id = 'sliderDurationInput';
+        const sliderDesc = document.createElement('div');
+        sliderDesc.className = 'description-text';
+        sliderDesc.textContent = labels.sliderDurationDescription || 'Bu ayar, ms cinsinden olmalıdır.';
+        sliderDiv.append(sliderLabel, sliderDesc, sliderInput);
 
-    disableAllPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
+        const showProgressCheckbox = createCheckbox(
+        'showProgressBar',
+        labels.progressBar || "ProgressBar'ı Göster",
+        config.showProgressBar
+      );
+        sliderDiv.appendChild(showProgressCheckbox);
+        const showSecondsCheckbox = createCheckbox(
+        'showProgressAsSeconds',
+        (labels.showProgressAsSeconds || "İlerlemeyi Saniye Olarak Göster"),
+        config.showProgressAsSeconds || false
+      );
+        sliderDiv.appendChild(showSecondsCheckbox);
+        const spInput = showProgressCheckbox.querySelector('input');
+        const ssInput = showSecondsCheckbox.querySelector('input');
+
+        function syncSecondsAvailability() {
+        const enabled = !!spInput.checked;
+        ssInput.disabled = !enabled;
+        showSecondsCheckbox.style.opacity = enabled ? 1 : 0.6;
+      }
+        spInput.addEventListener('change', syncSecondsAvailability);
+        requestAnimationFrame(syncSecondsAvailability);
+
+        const playbackOptionsDiv = document.createElement('div');
+        playbackOptionsDiv.className = 'playback-options-container';
+
+        const playbackCheckboxesDiv = document.createElement('div');
+        playbackCheckboxesDiv.style.display = 'flex';
+        playbackCheckboxesDiv.style.gap = '10px';
+        playbackCheckboxesDiv.style.flexDirection = 'column';
+
+        const trailerPlaybackCheckbox = createCheckbox(
+        'enableTrailerPlayback',
+        labels.enableTrailerPlayback || 'Yerleşik Fragman Oynatımına İzin Ver',
+        config.enableTrailerPlayback
+        );
+
+        const videoPlaybackCheckbox = createCheckbox(
+        'enableVideoPlayback',
+        labels.enableVideoPlayback || 'Yerleşik Video Oynatımına İzin Ver',
+        config.enableVideoPlayback
+        );
+
+        const trailerThenVideoCheckbox = createCheckbox(
+        'enableTrailerThenVideo',
+        labels.enableTrailerThenVideo || 'Önce Fragman, Yoksa Video',
+        false
+        );
+
+        const disableAllPlaybackCheckbox = createCheckbox(
+        'disableAllPlayback',
+        labels.selectNone || 'hiçbiri',
+        config.disableAllPlayback || false
+        );
+
+        function disableAllPlaybackOptions() {
+        const trailerCheckbox = document.querySelector('#enableTrailerPlayback');
+        const videoCheckbox = document.querySelector('#enableVideoPlayback');
+        const trailerThenVideoCheckbox = document.querySelector('#enableTrailerThenVideo');
+
+        if (trailerCheckbox) trailerCheckbox.checked = false;
+        if (videoCheckbox) videoCheckbox.checked = false;
+        if (trailerThenVideoCheckbox) trailerThenVideoCheckbox.checked = false;
+
+        localStorage.setItem('previewPlaybackMode', 'none');
+        updateTrailerRelatedFields();
+        }
+
+        disableAllPlaybackCheckbox.querySelector('input').addEventListener('change', (e) => {
         if (e.target.checked) {
            disableAllPlaybackOptions();
         }
     });
 
-    [trailerPlaybackCheckbox, videoPlaybackCheckbox, trailerThenVideoCheckbox].forEach(checkbox => {
+        [trailerPlaybackCheckbox, videoPlaybackCheckbox, trailerThenVideoCheckbox].forEach(checkbox => {
         checkbox.querySelector('input').addEventListener('change', () => {
             disableAllPlaybackCheckbox.querySelector('input').checked = false;
         });

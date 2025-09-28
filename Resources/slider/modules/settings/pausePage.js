@@ -94,12 +94,12 @@ export function createPausePanel(_config, labels) {
   const minDurRow = addNumberRow({
     name: 'pauseOverlayMinVideoMinutes',
     label: labels.pauseOverlayMinVideoMinutes || 'Minimum video süresi (badge/overlay)',
-    value: (config.pauseOverlay?.minVideoMinutes ?? 5),
-    min: 0.1,
+    value: Math.max(1, Number(config.pauseOverlay?.minVideoMinutes ?? 5) || 5),
+    min: 1,
     max: 1000,
-    step: 0.1,
+    step: 1,
     suffix: labels.dk || 'dk'
-  });
+});
   section.appendChild(minDurRow);
 
   const minDurDesc = document.createElement('div');
