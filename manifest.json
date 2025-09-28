@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.6.0.6",
+        "changelog": "New slide view added – Showcase View with Optional Diagonal Mode.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.6.0/JMSFusion-1.6.0.6-server.zip",
+        "checksum": "24277418032119108eb57284df505ba6",
+        "timestamp": "2025-09-28T10:32:40.9800644Z"
+      },
+      {
         "version": "1.6.0.5",
         "changelog": "Known bugs have been fixed. General improvements have been made across the plugin.",
         "targetAbi": "10.10.0.0",
