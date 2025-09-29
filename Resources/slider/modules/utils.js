@@ -87,7 +87,6 @@ export function getYoutubeEmbedUrl(input) {
   )}?${params.toString()}`;
 }
 
-
 export function getProviderUrl(provider, id, slug = "") {
   if (!provider || !id) return "#";
 
@@ -143,6 +142,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     return;
   }
 
+  const isActiveSlide = () => slide?.classList?.contains('active');
   const savedMode = localStorage.getItem("previewPlaybackMode");
   const mode =
     savedMode === "trailer" ||
@@ -310,11 +310,13 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   }
 
   async function tryPlayLocalTrailer(hoverId) {
+    if (!isActiveSlide()) return false;
     const locals = await fetchLocalTrailers(itemId, { signal: abortController.signal });
-    if (!isMouseOver || hoverId !== latestHoverId) throw new Error("HoverAbortError");
+    if (!isMouseOver || hoverId !== latestHoverId || !isActiveSlide()) throw new Error("HoverAbortError");
     const best = pickBestLocalTrailer(locals);
     if (!best?.Id) return false;
 
+    if (!isActiveSlide()) return false;
     backdropImg.style.opacity = "0";
     hardStopIframe();
     videoContainer.style.display = "block";
@@ -325,11 +327,12 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   }
 
   async function tryPlayRemoteTrailer(_hoverId) {
+    if (!isActiveSlide()) return false;
     const trailer = Array.isArray(RemoteTrailers) && RemoteTrailers.length ? RemoteTrailers[0] : null;
     if (!trailer?.Url) return false;
 
     const url = getYoutubeEmbedUrl(trailer.Url);
-    if (!isValidUrl(url)) return false;
+    if (!isValidUrl(url) || !isActiveSlide()) return false;
 
     backdropImg.style.opacity = "0";
     hardStopVideo();
@@ -353,6 +356,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
       slide.appendChild(ytIframe);
     }
 
+    if (!isActiveSlide()) return false;
     ytIframe.style.display = "block";
     ytIframe.src = url;
     slide.classList.add("trailer-active");
@@ -361,6 +365,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   }
 
   async function playMainVideo(hoverId) {
+    if (!isActiveSlide()) return false;
     backdropImg.style.opacity = "0";
     hardStopIframe();
     videoContainer.style.display = "block";
@@ -371,6 +376,8 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
   }
 
   const handleEnter = () => {
+    if (!isActiveSlide()) return;
+
     isMouseOver = true;
     latestHoverId++;
     const thisHoverId = latestHoverId;
@@ -383,22 +390,18 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     }
 
     enterTimeout = setTimeout(async () => {
-      if (!isMouseOver || thisHoverId !== latestHoverId) return;
+      if (!isMouseOver || thisHoverId !== latestHoverId || !isActiveSlide()) return;
       try {
         if (mode === "video") {
-          await playMainVideo(thisHoverId);
-          return;
-        }
-        const localOk = await tryPlayLocalTrailer(thisHoverId);
-        if (localOk) return;
-
-        const remoteOk = await tryPlayRemoteTrailer(thisHoverId);
-        if (remoteOk) return;
-
-        if (mode === "trailerThenVideo") {
-          await playMainVideo(thisHoverId);
+          if (await playMainVideo(thisHoverId)) return;
         } else {
-          fullCleanup();
+          if (await tryPlayLocalTrailer(thisHoverId)) return;
+          if (await tryPlayRemoteTrailer(thisHoverId)) return;
+          if (mode === "trailerThenVideo") {
+            if (await playMainVideo(thisHoverId)) return;
+          } else {
+            fullCleanup();
+          }
         }
       } catch (e) {
         if (e.name === "AbortError" || e.message === "HoverAbortError") return;
@@ -548,15 +551,35 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     return () => cleanups.forEach((fn) => { try { fn(); } catch {} });
   }
 
+  let lastActive = isActiveSlide();
+  let leavingLock = false;
   detachGuards = attachAutoCleanupGuards(slide);
+
+  const classObserver = new MutationObserver(() => {
+  const nowActive = isActiveSlide();
+
+    if (lastActive && !nowActive && !leavingLock) {
+      leavingLock = true;
+      (typeof queueMicrotask === 'function' ? queueMicrotask : (fn) => Promise.resolve().then(fn))(() => {
+        try { handleLeave(); } finally { leavingLock = false; }
+      });
+    }
+
+    lastActive = nowActive;
+  });
+
+  classObserver.observe(slide, { attributes: true, attributeFilter: ['class'] });
+
   const hoverTarget = backdropImg || slide;
   hoverTarget.addEventListener("mouseenter", handleEnter, { passive: true });
   hoverTarget.addEventListener("mouseleave", handleLeave, { passive: true });
+
   const mo = new MutationObserver(() => {
     if (!document.body.contains(slide)) {
       try { hoverTarget.removeEventListener("mouseenter", handleEnter); } catch {}
       try { hoverTarget.removeEventListener("mouseleave", handleLeave); } catch {}
       try { detachGuards?.(); } catch {}
+      try { classObserver.disconnect(); } catch {}
       mo.disconnect();
     }
   });

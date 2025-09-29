@@ -42,7 +42,7 @@ export function createSliderPanel(config, labels) {
 
   languageDiv.append(languageLabel, languageSelect);
 
-    const cssDiv = document.createElement('div');
+  const cssDiv = document.createElement('div');
   cssDiv.className = 'fsetting-item';
   const cssLabel = document.createElement('label');
   cssLabel.textContent = labels.gorunum || 'CSS Varyantı:';

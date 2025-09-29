@@ -670,9 +670,13 @@ export function displaySlide(index) {
 
   if (isPeak) {
     ensurePeakVars(slidesContainer);
-    const spanLeft  = Number(getConfig()?.peakSpanLeft  ?? 1);
-    const spanRight = Number(getConfig()?.peakSpanRight ?? 5);
-    primePeakFirstPaint(slides, index, slidesContainer, { spanLeft, spanRight, diagonal: !!getConfig()?.peakDiagonal });
+    const cfg = getConfig();
+   let spanLeft  = Number(cfg?.peakSpanLeft  ?? 1);
+   let spanRight = Number(cfg?.peakSpanRight ?? 5);
+   const diagonal = !!cfg?.peakDiagonal;
+   if (!diagonal) { spanLeft = 1; spanRight = 1; }
+   primePeakFirstPaint(slides, index, slidesContainer, { spanLeft, spanRight, diagonal });
+   enablePeakNeighborActivation();
   } else {
     slides.forEach(slide => {
       if (slide !== currentSlide) {
@@ -755,11 +759,11 @@ export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
       slide.classList.add('active');
     } else if (i < 0) {
       slide.dataset.side = "left";
-      slide.style.setProperty("--k", Math.min(-i, spanLeft));
+      slide.style.setProperty("--k", diagonal ? Math.min(-i, spanLeft) : 1);
       slide.classList.add('peak-neighbor');
     } else {
       slide.dataset.side = "right";
-      slide.style.setProperty("--k", Math.min(i, spanRight));
+      slide.style.setProperty("--k", diagonal ? Math.min(i, spanRight) : 1);
       slide.classList.add('peak-neighbor');
     }
   }
@@ -803,8 +807,8 @@ export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOr
     return;
   }
   const opts = (typeof spanOrOpts === 'object')
-    ? { spanLeft: 2, spanRight: 2, ...spanOrOpts }
-    : { spanLeft: spanOrOpts, spanRight: spanOrOpts };
+    ? { spanLeft: 2, spanRight: 2, diagonal: false, ...spanOrOpts }
+    : { spanLeft: spanOrOpts, spanRight: spanOrOpts, diagonal: false };
 
   if (!slidesContainer || slidesContainer.dataset.peakPrimed === '1') {
     updatePeakClasses(slides, activeIndex, opts);
@@ -816,7 +820,7 @@ export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOr
 
   const arr = Array.from(slides);
   const len = arr.length;
-  const { spanLeft, spanRight } = opts;
+  const { spanLeft, spanRight, diagonal } = opts;
 
   arr.forEach((s, i) => {
     s.style.setProperty('transition', 'none', 'important');
@@ -832,10 +836,10 @@ export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOr
       s.setAttribute('data-prime-pos', 'active');
     } else if (leftDist >= 1 && leftDist <= spanLeft) {
       s.dataset.side = "left";
-      s.style.setProperty("--k", leftDist);
+      s.style.setProperty("--k", diagonal ? leftDist : 1);
     } else if (rightDist >= 1 && rightDist <= spanRight) {
       s.dataset.side = "right";
-      s.style.setProperty("--k", rightDist);
+      s.style.setProperty("--k", diagonal ? rightDist : 1);
     }
   });
 
@@ -865,8 +869,6 @@ function ensurePeakVars(container) {
   container.style.setProperty('--peak-gap-left', gxLeft);
   container.style.setProperty('--peak-gap-right', gxRight);
   container.style.setProperty('--peak-gap-y', gy);
-
-  if (cfg.peakDiagonal) container.classList.add('peak-diagonal');
 }
 
 export function showAndHideElementWithAnimation(el, config) {
@@ -1024,4 +1026,47 @@ function ensureDotQualityBadgeCSS() {
     }
   `;
   document.head.appendChild(style);
+}
+
+function enablePeakNeighborActivation() {
+  const container = document.querySelector('#slides-container');
+  if (!container || container.__peakClickBound) return;
+  container.__peakClickBound = true;
+
+  container.addEventListener('click', (e) => {
+    if (!container.classList.contains('peak-mode')) return;
+
+    const IG = ['BUTTON','A','INPUT','SELECT','TEXTAREA','LABEL','VIDEO'];
+    if (e.defaultPrevented || IG.includes(e.target?.tagName)) return;
+    if (e.target.closest?.('[data-no-peak-activate="1"], .dot-navigation-container')) return;
+
+    const x = e.clientX, y = e.clientY;
+    const topEl    = document.elementFromPoint(x, y);
+    const topSlide = topEl?.closest?.('.slide');
+    if (!topSlide) return;
+    if (!topSlide.classList.contains('peak-neighbor')) return;
+    if (topSlide.classList.contains('active')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const slides = Array.from(container.querySelectorAll('.slide'));
+    const targetIndex  = slides.indexOf(topSlide);
+    const currentIndex = getCurrentIndex();
+    if (targetIndex < 0 || targetIndex === currentIndex) return;
+
+    const len = slides.length;
+    let delta = targetIndex - currentIndex;
+    if (delta >  len / 2) delta -= len;
+    if (delta < -len / 2) delta += len;
+
+    changeSlide(delta);
+  }, { capture: true, passive: false });
+
+  if (!document.getElementById('peak-neighbor-cursor-css')) {
+    const style = document.createElement('style');
+    style.id = 'peak-neighbor-cursor-css';
+    style.textContent = `.peak-ready .slide.peak-neighbor{ cursor:pointer; }`;
+    document.head.appendChild(style);
+  }
 }

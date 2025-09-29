@@ -3,10 +3,32 @@ import { getConfig } from './config.js';
 let homeTopObserver = null;
 let skinHeaderObserver = null;
 
+function isMobileDevice() {
+  const widthNarrow = window.matchMedia?.('(max-width: 768px)')?.matches;
+  const coarse     = window.matchMedia?.('(pointer: coarse)')?.matches;
+  const hoverNone  = window.matchMedia?.('(hover: none)')?.matches;
+  const touchPts   = navigator.maxTouchPoints || 0;
+  const uaMobile   = navigator.userAgentData?.mobile ?? /Mobi|Android/i.test(navigator.userAgent);
+
+  return widthNarrow && (coarse || hoverNone || touchPts > 0 || uaMobile);
+}
+
+function normalizeVariant(x) {
+  const s = String(x ?? '').toLowerCase().trim();
+  if (!s) return 'slider';
+
+  if (s.includes('normalslider') || s.includes('normal')) return 'normalslider';
+  if (s.includes('fullslider')   || s.includes('full'))   return 'fullslider';
+  if (s.includes('peakslider')   || s.includes('peak'))   return 'peakslider';
+  if (s.includes('slider'))                                   return 'slider';
+  return 'slider';
+}
+
 function detectCssVariantFromDom() {
-  if (window.__cssVariant) return window.__cssVariant;
+  if (window.__cssVariant) return normalizeVariant(window.__cssVariant);
+
   const dv = document.documentElement?.dataset?.cssVariant;
-  if (dv) return dv;
+  if (dv) return normalizeVariant(dv);
 
   const has = (s) => !!document.querySelector(`link[href*="${s}"]`);
   if (has('peakslider.css'))   return 'peakslider';
@@ -16,11 +38,22 @@ function detectCssVariantFromDom() {
   return 'slider';
 }
 
-function isMobileDevice() {
-  const coarse = window.matchMedia?.('(pointer: coarse)')?.matches;
-  const narrow = window.matchMedia?.('(max-width: 768px)')?.matches;
-  const touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  return Boolean(coarse || narrow || touch);
+function computeEffectiveTop() {
+  const cfg = (typeof getConfig === 'function') ? getConfig() : {};
+  const userTop = readUserTopFromLocalStorage();
+  if (userTop !== null) return userTop;
+
+  const rawVariant = (cfg && 'cssVariant' in cfg) ? cfg.cssVariant : undefined;
+  const variant = normalizeVariant(rawVariant ?? detectCssVariantFromDom());
+
+  try {
+    console.debug('[positionOverrides] variant', {
+      rawCfg: rawVariant, detected: detectCssVariantFromDom(), normalized: variant,
+      mobile: isMobileDevice()
+    });
+  } catch {}
+
+  return getDefaultTopByVariant(variant);
 }
 
 function getDefaultTopByVariant(variant) {
@@ -30,15 +63,15 @@ function getDefaultTopByVariant(variant) {
       case 'normalslider': return -20;
       case 'fullslider': return -16;
       case 'peakslider': return 0;
-      case 'slider':
+      case 'slider': return 0;
       default: return 0;
     }
   } else {
     switch (variant) {
-      case 'normalslider': return -20;
-      case 'fullslider': return 7;
-      case 'peakslider': return -5;
-      case 'slider':
+      case 'normalslider': return -23;
+      case 'fullslider': return 4;
+      case 'peakslider': return -7;
+      case 'slider': return -3;
       default: return 0;
     }
   }
@@ -65,14 +98,6 @@ function applyTopToElements(vh) {
       el.style.setProperty('top', value, 'important');
     }
   }
-}
-
-function computeEffectiveTop() {
-  const cfg = (typeof getConfig === 'function') ? getConfig() : {};
-  const userTop = readUserTopFromLocalStorage();
-  const hasCustomTop = (userTop !== null);
-  const variant = cfg.cssVariant || detectCssVariantFromDom();
-  return hasCustomTop ? userTop : getDefaultTopByVariant(variant);
 }
 
 function waitForFavoritesTabAndApply(topValue) {

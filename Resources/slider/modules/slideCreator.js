@@ -323,9 +323,16 @@ const warmOnHover = () => {
 io.observe(backdropImg);
 perSlideObservers.push(io);
 
-  backdropImg.addEventListener('click', () => {
-    goToDetailsPage(itemId);
-  }, { signal });
+  backdropImg.addEventListener('click', (ev) => {
+  const slideEl = ev.currentTarget.closest('.slide');
+  const sc = document.querySelector('#slides-container');
+  const isPeak = sc?.classList.contains('peak-mode');
+  const isActive = slideEl?.classList.contains('active');
+  if (isPeak && !isActive) {
+    return;
+  }
+  goToDetailsPage(itemId);
+}, { signal });
 
   const teardown = () => {
     try { perSlideObservers.forEach(o => o.disconnect()); } catch {}
@@ -606,7 +613,6 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   starWrap.appendChild(fill);
 
   const ratingText = document.createElement("span");
-  // ratingText.textContent = `${rating5.toFixed(1)} / 5 (${rating10.toFixed(1)} / 10)`;
   ratingText.textContent = `${rating5.toFixed(1)} / 5`;
 
   communityRatingElement.appendChild(starWrap);
