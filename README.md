@@ -1,5 +1,6 @@
 ## Jellyfin Media Slider
-<img width="960" height="465" alt="peak" src="https://github.com/user-attachments/assets/8ca09dd6-f6b9-4900-996c-0933d234833f" />
+<img width="1920" height="931" alt="vt" src="https://github.com/user-attachments/assets/714fa44a-4713-4c19-ab33-b38806905a4c" />
+
 
 
 An all-in-one JavaScript toolkit for Jellyfin, featuring a customizable Media Slider builder, music player, Netflix-style pause screen, Netflix-like HoverVideo, quality labels on cards, DiceBear avatar generator, and a sleek notification panel.
@@ -28,9 +29,13 @@ An all-in-one JavaScript toolkit for Jellyfin, featuring a customizable Media Sl
 
 ## 🖼️ Screenshots / Ekran Görüntüleri
 
+### Vitrin Görünüm / Showcase View
+
+![peak1](https://github.com/user-attachments/assets/1dcbacb8-2fef-47c9-bccb-c3b29b114f2b)
+
 ### Diyagonal Vitrin Görünüm / Diagonal Showcase View
 
-![peak](https://github.com/user-attachments/assets/8ca09dd6-f6b9-4900-996c-0933d234833f)
+![peak1](https://github.com/user-attachments/assets/39963804-65b8-4c60-b418-695963568a4e)
 
 ### DiceBear Avatar Görünümü / DiceBear Avatar Skin
 
