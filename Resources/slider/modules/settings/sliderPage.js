@@ -50,7 +50,7 @@ export function createSliderPanel(config, labels) {
   cssSelect.name = 'cssVariant';
 
   const variants = [
-    { value: 'kompak', label: labels.kompaktslider || 'Kompakt' },
+    { value: 'slider', label: labels.kompaktslider || 'Kompakt' },
     { value: 'normalslider' ,label: labels.normalslider || 'Normal' },
     { value: 'fullslider', label: labels.tamslider || 'Tam Ekran' },
     { value: 'peakslider', label: (labels.peakslider || 'Peak') },

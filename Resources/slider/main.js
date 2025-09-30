@@ -27,6 +27,81 @@ window.__cycleArmTimeout = null;
 window.__cycleExpired = window.__cycleExpired || false;
 window.__peakBooting = true;
 
+(function earlyCssBoot(){
+  const D = document;
+  const HEAD = D.head || D.documentElement;
+  const criticalCSS = `
+    :root[data-notif-theme=light]{--jf-notif-text:#2d3748;--jf-notif-accent:#e91e63;--jf-notif-border:rgba(45,55,72,.1);--jf-notif-up:#fff}
+    :root[data-notif-theme=dark]{--jf-notif-text:#fff;--jf-notif-accent:#e91e63;--jf-notif-border:hsla(0,0%,100%,.1);--jf-notif-up:rgba(0,0,0,.1)}
+    #jfNotifBtn{position:relative;overflow:visible}
+    .skinHeader .headerRight #jfNotifBtn { order: -9999; }
+  `;
+  if (!D.getElementById('jms-critical-css')) {
+    const s = D.createElement('style');
+    s.id = 'jms-critical-css';
+    s.textContent = criticalCSS;
+    HEAD.prepend(s);
+  }
+
+  function addCSS(href, id){
+    if (!href || D.getElementById(id)) return;
+    const l = D.createElement('link');
+    l.id = id;
+    l.rel = 'stylesheet';
+    l.href = href;
+    try { l.fetchPriority = 'high'; } catch {}
+    l.setAttribute('fetchpriority','high');
+    HEAD.prepend(l);
+  }
+
+  function getCssVariant() {
+    try {
+      if (typeof getConfig === 'function') {
+        const cfg = getConfig() || {};
+        return cfg.cssVariant || 'normalslider';
+      }
+    } catch {}
+    try {
+      const cfg = JSON.parse(localStorage.getItem('jms-config')||'{}');
+      return cfg.cssVariant || 'normalslider';
+    } catch {}
+    return 'normalslider';
+  }
+
+  const variant = getCssVariant();
+  addCSS('/web/slider/src/notifications.css', 'jms-css-notifications');
+  addCSS('/web/slider/src/pauseModul.css', 'jms-css-pause');
+  addCSS('/web/slider/src/personalRecommendations.css', 'jms-css-recs');
+
+  const vmap = {
+    peakslider: '/web/slider/src/peakslider.css',
+    fullslider: '/web/slider/src/fullslider.css',
+    normalslider: '/web/slider/src/normalslider.css',
+    slider: '/web/slider/src/slider.css'
+  };
+  addCSS(vmap[variant] || vmap.normalslider, 'jms-css-variant');
+
+  document.documentElement.dataset.cssVariant =
+    variant === 'slider' ? 'slider' : variant;
+  window.__cssVariant = document.documentElement.dataset.cssVariant;
+})();
+
+async function waitForStylesReady() {
+  const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+    .filter(l => !l.disabled);
+  await Promise.all(links.map(l => {
+    if (l.sheet) return Promise.resolve();
+    return new Promise(res => {
+      l.addEventListener('load', res, { once:true });
+      l.addEventListener('error', res, { once:true });
+      setTimeout(res, 2000);
+    });
+  }));
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch {}
+  }
+}
+
 function clearCycleArm() {
   try { clearTimeout(window.__cycleArmTimeout); } catch {}
   window.__cycleArmTimeout = null;
@@ -238,80 +313,6 @@ let pauseBooted = false;
 let navObsBooted = false;
 window.sliderResetInProgress = window.sliderResetInProgress || false;
 
-(function preloadPersonalRecsCSS() {
-    if (document.getElementById("personalRecsCss")) return;
-    const link = document.createElement("link");
-    link.id = "personalRecsCss";
-    link.rel = "stylesheet";
-    link.href = "slider/src/personalRecommendations.css";
-    document.head.appendChild(link);
-})();
-
-(function injectNotifCriticalCSS() {
-  if (document.getElementById("jfNotifCritical")) return;
-  const style = document.createElement("style");
-  style.id = "jfNotifCritical";
-  style.textContent = `
-    :root[data-notif-theme=light]{--jf-notif-text:#2d3748;--jf-notif-accent:#e91e63;--jf-notif-border:rgba(45,55,72,.1);--jf-notif-up:#fff}
-    :root[data-notif-theme=dark]{--jf-notif-text:#fff;--jf-notif-accent:#e91e63;--jf-notif-border:hsla(0,0%,100%,.1);--jf-notif-up:rgba(0,0,0,.1)}
-    #jfNotifBtn{position:relative;overflow:visible}
-    .skinHeader .headerRight #jfNotifBtn { order: -9999; }
-    #jfNotifBtn[data-has-notifs=true]{color:var(--jf-notif-accent)}
-    #jfNotifBtn[data-has-notifs=true]::after{
-      content:attr(data-count);position:absolute;right:1px;top:-2px;z-index:2;
-      display:inline-flex;align-items:center;justify-content:center;
-      width:12px;height:12px;border-radius:50px;font-size:10px;padding:3px;
-      background:var(--jf-notif-up);color:var(--jf-notif-accent);backdrop-filter:blur(10px)
-    }
-    .jf-notif-modal.open{right:0}
-    .jf-notif-backdrop{position:absolute;inset:0;opacity:0;transition:opacity .3s}
-    .jf-notif-modal.open .jf-notif-backdrop{opacity:1}
-    .jf-notif-panel{position:absolute;width:400px;height:100%;overflow:hidden}
-  `;
-  const head = document.head || document.getElementsByTagName("head")[0];
-  head.prepend(style);
-})();
-
-(function preloadNotifCSSFast() {
-  if (document.getElementById("jfNotifCss")) return;
-  const preload = document.createElement("link");
-  preload.id = "jfNotifCssPreload";
-  preload.rel = "preload";
-  preload.as = "style";
-  preload.href = "slider/src/notifications.css";
-  try { preload.fetchPriority = "high"; } catch {}
-  preload.setAttribute("fetchpriority", "high");
-  preload.onload = function () {
-    const sheet = document.createElement("link");
-    sheet.id = "jfNotifCss";
-    sheet.rel = "stylesheet";
-    sheet.type = "text/css";
-    sheet.href = preload.href;
-    requestAnimationFrame(() => {
-      preload.replaceWith(sheet);
-    });
-  };
-  preload.onerror = function () {
-    const fallback = document.createElement("link");
-    fallback.id = "jfNotifCss";
-    fallback.rel = "stylesheet";
-    fallback.type = "text/css";
-    fallback.href = preload.href;
-    preload.replaceWith(fallback);
-  };
-  (document.head || document.documentElement).prepend(preload);
-})();
-
-(function ensurePauseCss() {
-  if (!document.getElementById("jms-pause-css")) {
-    const link = document.createElement("link");
-    link.id = "jms-pause-css";
-    link.rel = "stylesheet";
-    link.href = "slider/src/pauseModul.css";
-    document.head.appendChild(link);
-  }
-})();
-
 function startPauseOverlayOnce() {
   if (pauseBooted) return;
   cleanupPauseOverlay = setupPauseScreen();
@@ -334,49 +335,6 @@ const shuffleArray = (array) => {
   }
   return array;
 };
-
-function loadExternalCSS(path) {
-  const preload = document.createElement("link");
-  preload.rel = "preload";
-  preload.as = "style";
-  preload.href = path;
-  try { preload.fetchPriority = "high"; } catch {}
-  preload.setAttribute("fetchpriority", "high");
-  preload.onload = function () {
-    const sheet = document.createElement("link");
-    sheet.rel = "stylesheet";
-    sheet.href = path;
-    requestAnimationFrame(() => preload.replaceWith(sheet));
-  };
-  preload.onerror = function () {
-    const sheet = document.createElement("link");
-    sheet.rel = "stylesheet";
-    sheet.href = path;
-    preload.replaceWith(sheet);
-  };
-  (document.head || document.documentElement).prepend(preload);
- }
-
-const cssPath =
-  config.cssVariant === "peakslider"
-    ? "./slider/src/peakslider.css"
-    : config.cssVariant === "fullslider"
-    ? "./slider/src/fullslider.css"
-    : config.cssVariant === "normalslider"
-    ? "./slider/src/normalslider.css"
-    : "./slider/src/slider.css";
-loadExternalCSS(cssPath);
-
-window.__cssVariant =
-  config.cssVariant === "peakslider"
-    ? "peakslider"
-    : config.cssVariant === "fullslider"
-    ? "fullslider"
-    : config.cssVariant === "normalslider"
-    ? "normalslider"
-    : "slider";
-document.documentElement.dataset.cssVariant = window.__cssVariant;
-config.peakSlider = (window.__cssVariant === "peakslider");
 
 function setupGlobalModalInit() {
   setupHoverForAllItems();
@@ -1222,7 +1180,6 @@ function startWhenAllReady() {
   document.removeEventListener("jms:all-slides-ready", startWhenAllReady);
 }
 
-
 if (window.__totalSlidesPlanned > 0 && window.__slidesCreated >= window.__totalSlidesPlanned) {
   startWhenAllReady();
 } else {
@@ -1458,6 +1415,8 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
 
 (async function robustBoot() {
   try {
+    await waitForStylesReady();
+
     idle(() => {
       try {
         startUpdatePolling({
@@ -1468,17 +1427,14 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
         });
       } catch {}
       idle(() => {
-        try {
-          initNotifications();
-        } catch {}
+        try { initNotifications(); } catch {}
         if (config.enableQualityBadges && !window.__qualityBadgesBooted) {
           window.__qualityBadgesBooted = true;
-          try {
-            window.cleanupQualityBadges = initializeQualityBadges();
-          } catch {}
+          try { window.cleanupQualityBadges = initializeQualityBadges(); } catch {}
         }
       });
     });
+
     const fastIndex = document.querySelector("#indexPage:not(.hide), #homePage:not(.hide)");
     if (fastIndex) {
       startPauseOverlayOnce();
@@ -1491,9 +1447,7 @@ function observeWhenHomeReady(cb, maxMs = 20000) {
       }, 15000);
     }
     setupNavigationObserver();
-    idle(() => {
-    if (config.enableStudioHubs) ensureStudioHubsMounted();
- });
+    idle(() => { if (config.enableStudioHubs) ensureStudioHubsMounted(); });
   } catch (e) {
     console.warn("robustBoot (fast) hata:", e);
   }

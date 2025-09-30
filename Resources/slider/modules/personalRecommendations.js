@@ -951,6 +951,9 @@ function loadGenreItemsFromCache(genre) {
     const data = JSON.parse(raw);
     if (!data || !data.timestamp || !Array.isArray(data.items)) return null;
     if (Date.now() - data.timestamp > CACHE_TTL) return null;
+    if (data.items.some(it => !it || !Array.isArray(it.Genres))) {
+      return null;
+    }
     return data.items;
   } catch { return null; }
 }
@@ -1075,8 +1078,10 @@ function safeCloseHoverModal() {
 
 const CACHE_ITEM_FIELDS = [
   "Id","Name","Type","ImageTags","PrimaryImageTag","LogoImageTag",
-  "CommunityRating","OfficialRating","ProductionYear","RunTimeTicks","CumulativeRunTimeTicks"
+  "CommunityRating","OfficialRating","ProductionYear","RunTimeTicks","CumulativeRunTimeTicks",
+  "Genres"
 ];
+
 function toSlimItem(it){
   if (!it) return null;
   const slim = {};
@@ -1195,6 +1200,10 @@ function loadPersonalRecsCache() {
     const data = JSON.parse(raw);
     if (!data || !data.timestamp) return null;
     if (Date.now() - data.timestamp > CACHE_TTL) return null;
+    if (Array.isArray(data.recommendations) &&
+        data.recommendations.some(it => !it || !Array.isArray(it.Genres))) {
+      return null;
+    }
     return data;
   } catch {
     return null;
