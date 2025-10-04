@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Default Language",
+  all: "All",
+  seeAll: "See All",
   peakDiagonal: "Diagonal View",
   cssDescription: "• Full Screen View is adjusted for Poster Dot enabled in Desktop environments.",
   cssMobileNote: "• Showcase view is not yet ready for mobile.",

@@ -369,7 +369,7 @@ export function createTrailerIframe({ config, RemoteTrailers, slide, backdropImg
     backdropImg.style.opacity = "0";
     hardStopIframe();
     videoContainer.style.display = "block";
-    slide.classList.add("video-active", "intro-active");
+    slide.classList.add("video-active", "intro-active", "trailer-active");
     playingKind = "video";
     await loadStreamFor(itemId, hoverId, 600);
     return true;

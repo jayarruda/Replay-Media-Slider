@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Varsayılan Dil",
+  all: "Tümü",
+  seeAll: "Tümünü Göster",
   peakDiagonal: "Diagonal Görünüm",
   cssDescriptionBase: "• Tam Ekran Görünümü Masaüstü Ortamlarda Aktifleştirilmiş Poster Dot için Düzenlenmiştir.",
   cssMobileNote: "• Vitrin görünüm henüz mobil için hazır değil.",

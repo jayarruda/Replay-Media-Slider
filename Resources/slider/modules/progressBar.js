@@ -1,8 +1,5 @@
 import { startSlideTimer, stopSlideTimer, pauseSlideTimer, resumeSlideTimer, SLIDE_DURATION } from "./timer.js";
-import {
-  getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout,
-  setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime
-} from "./sliderState.js";
+import { getCurrentIndex, setCurrentIndex, getSlideDuration, setAutoSlideTimeout, getAutoSlideTimeout, setSlideStartTime, getSlideStartTime, setRemainingTime, getRemainingTime } from "./sliderState.js";
 import { attachMouseEvents, setupVisibilityHandler } from "./events.js";
 import { getConfig } from './config.js';
 import { applyContainerStyles } from "./positionUtils.js";
@@ -159,11 +156,13 @@ export function resetProgressBar() {
     if (!el) return;
     clearSecondsTimer();
     secondsPausedMs = 0;
-    secondsEndAt = 0;
+    const t0tmp = now();
+    secondsEndAt = t0tmp + dur;
     el.removeAttribute('data-done');
     el.textContent = Math.ceil(dur / 1000).toString();
-    setSlideStartTime(now());
+    setSlideStartTime(t0tmp);
     setRemainingTime(dur);
+    requestAnimationFrame(() => startProgressBarWithDuration(dur));
     return;
   }
 
@@ -182,7 +181,6 @@ export function resetProgressBar() {
 
 export function startProgressBarWithDuration(duration) {
   const dur = Math.max(0, duration ?? (typeof getSlideDuration === 'function' ? (getSlideDuration() || SLIDE_DURATION) : SLIDE_DURATION));
-
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
@@ -190,15 +188,12 @@ export function startProgressBarWithDuration(duration) {
     const t0 = now();
     secondsRunId = (secondsRunId + 1) || 1;
     const runId = secondsRunId;
-    const startIndex = (typeof getCurrentIndex === 'function') ? getCurrentIndex() : null;
     secondsEndAt = t0 + dur + 30;
     secondsPausedMs = 0;
     el.removeAttribute('data-done');
     el.textContent = Math.max(0, Math.ceil(dur / 1000)).toString();
     secondsTimer = setInterval(() => {
       if (runId !== secondsRunId) { clearSecondsTimer(); return; }
-      const idxNow = (typeof getCurrentIndex === 'function') ? getCurrentIndex() : startIndex;
-      if (startIndex != null && idxNow !== startIndex) { clearSecondsTimer(); return; }
 
       const t = secondsEndAt - now();
       const left = Math.ceil(Math.max(0, t) / 1000);
@@ -242,15 +237,14 @@ export function pauseProgressBar() {
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
-    if (secondsEndAt) {
-      secondsPausedMs = Math.max(0, secondsEndAt - now());
-    } else {
-      secondsPausedMs = 0;
-    }
-    clearSecondsTimer();
     const t0 = getSlideStartTime?.() || now();
     const elapsed = Math.max(0, Math.min(dur, now() - t0));
-    setRemainingTime(dur - elapsed);
+    const remaining = Math.max(0, dur - elapsed);
+    secondsPausedMs = secondsEndAt
+      ? Math.max(0, secondsEndAt - now())
+      : remaining;
+    clearSecondsTimer();
+    setRemainingTime(remaining);
     __paused = true;
     return;
   }
@@ -282,7 +276,10 @@ export function resumeProgressBar() {
   if (useSecondsMode()) {
     const el = ensureSecondsExists();
     if (!el) return;
-    const remaining = secondsPausedMs > 0 ? secondsPausedMs : 0;
+    let remaining = secondsPausedMs > 0
+      ? secondsPausedMs
+      : (typeof getRemainingTime === 'function' ? (getRemainingTime() || 0) : 0);
+    if (!Number.isFinite(remaining) || remaining <= 0) remaining = dur;
     const t0 = now();
     secondsEndAt = t0 + remaining + 30;
     clearSecondsTimer();

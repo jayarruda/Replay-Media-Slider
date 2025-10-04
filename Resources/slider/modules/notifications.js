@@ -54,6 +54,25 @@ function isHoverCapable() {
   } catch { return false; }
 }
 
+ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+ function isAuthReady() {
+   try {
+     const s = getSessionInfo();
+     return !!(s?.accessToken && s?.userId);
+   } catch { return false; }
+ }
+
+ async function waitForAuthReady(timeoutMs = 15000) {
+   const start = Date.now();
+   while (Date.now() - start < timeoutMs) {
+     if (isAuthReady()) return true;
+     await sleep(250);
+   }
+   return false;
+ }
+
+
 function clearHoverTimers() {
   if (__hoverOpenTimer)  { clearTimeout(__hoverOpenTimer);  __hoverOpenTimer = null; }
   if (__hoverCloseTimer) { clearTimeout(__hoverCloseTimer); __hoverCloseTimer = null; }
@@ -305,6 +324,7 @@ function toggleTheme() {
 }
 
 async function fetchLatestAll() {
+  if (!isAuthReady()) return [];
   const { userId } = getSessionInfo();
 
   let latestVideo = [];
@@ -316,14 +336,14 @@ async function fetchLatestAll() {
     );
     latestVideo = Array.isArray(latestVideo?.Items) ? latestVideo.Items : (Array.isArray(latestVideo) ? latestVideo : []);
   } catch (e) {
-    throw e;
+    return [];
   }
 
   const seriesIds = Array.from(new Set(
     latestVideo.filter(x => x?.Type === 'Episode' && x?.SeriesId).map(x => x.SeriesId)
   ));
   let seriesMap = new Map();
-  if (seriesIds.length) {
+  if (seriesIds.length && isAuthReady()) {
     try {
       const { found } = await fetchItemsBulk(seriesIds);
       seriesMap = found || new Map();
@@ -366,6 +386,7 @@ async function fetchLatestAll() {
 }
 
 async function backfillFromLastSeen() {
+  if (!isAuthReady()) return;
   if (!notifState.seenIds) notifState.seenIds = new Set();
 
   const items = await fetchLatestAll();
@@ -587,6 +608,34 @@ function ensureUI() {
     });
   });
   __uiReady = true;
+ensureSystemTabPresence();
+ }
+
+function ensureSystemTabPresence() {
+  const tabs = document.querySelector(".jf-notif-tabs");
+  const contentHost = document.querySelector(".jf-notif-content");
+  if (!tabs || !contentHost) return;
+  const hasTab = !!tabs.querySelector('[data-tab="system"]');
+  const allowed = !!notifState._systemAllowed;
+  if (allowed && !hasTab) {
+    const btn = document.createElement("button");
+    btn.className = "jf-notif-tab";
+    btn.setAttribute("data-tab", "system");
+    btn.textContent = config.languageLabels.systemNotifications || "Sistem Bildirimleri";
+    tabs.appendChild(btn);
+    const pane = document.createElement("div");
+    pane.className = "jf-notif-tab-content";
+    pane.setAttribute("data-tab", "system");
+    pane.style.display = "none";
+    pane.innerHTML = `<ul class="jf-activity-list" id="jfActivityList"></ul>`;
+    contentHost.appendChild(pane);
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".jf-notif-tab").forEach(b => b.classList.toggle("active", b === btn));
+      document.querySelectorAll(".jf-notif-tab-content").forEach(c => {
+        c.style.display = (c.getAttribute("data-tab") === "system") ? "" : "none";
+      });
+    });
+  }
 }
 
 function injectCriticalNotifCSS() {
@@ -974,6 +1023,7 @@ items.forEach((it, idx) => {
 }
 
 async function pollLatest({ seedIfFirstRun = false } = {}) {
+  if (!isAuthReady()) return;
   if (!notifState.seenIds) notifState.seenIds = new Set();
   try {
     const items = await fetchLatestAll();
@@ -1306,12 +1356,13 @@ function escapeHtml(s) {
 }
 
 export async function initNotifications() {
-  await waitForSessionReady(7000);
+  await waitForAuthReady(15000);
   migrateNouserToUser();
   notifState._systemAllowed = await canReadActivityLog();
 
   loadState();
   ensureUI();
+  ensureSystemTabPresence();
 
   setTimeout(() => ensureNotifButtonIn(findHeaderContainer()), 250);
   setTimeout(() => ensureNotifButtonIn(findHeaderContainer()), 750);
@@ -1324,6 +1375,17 @@ export async function initNotifications() {
   }
 
   schedulePollLatest(POLL_INTERVAL_MS);
+
+  setInterval(async () => {
+    const before = !!notifState._systemAllowed;
+    const nowAllowed = await canReadActivityLog();
+    notifState._systemAllowed = !!nowAllowed;
+    if (!before && nowAllowed) {
+      ensureSystemTabPresence();
+      renderNotifications();
+      pollActivities({ seedIfFirstRun: true });
+    }
+  }, 20_000);
 
   window.forceCheckNotifications = () => {
      pollLatest();
@@ -1361,7 +1423,7 @@ function schedulePollLatest(delay = POLL_INTERVAL_MS) {
     catch (e) {  }
     finally {
       pollCtl.latestRunning = false;
-      schedulePollLatest(POLL_INTERVAL_MS);
+      schedulePollLatest(isAuthReady() ? POLL_INTERVAL_MS : 1000);
     }
   }, Math.max(300, delay));
 }
@@ -1415,18 +1477,42 @@ function clampToNow(ts) {
 }
 
 const ADMIN_CAP_TTL_MS = 5 * 60 * 1000;
+const ADMIN_NEG_TTL_MS = 15 * 1000;
+
 async function canReadActivityLog() {
+  if (!isAuthReady()) return false;
   const now = Date.now();
   if (!notifState._adminCapCache) {
     notifState._adminCapCache = { value: null, ts: 0 };
   }
   const cached = notifState._adminCapCache;
-  if (cached.value !== null && (now - cached.ts) < ADMIN_CAP_TTL_MS) {
-    return cached.value;
+  if (cached.value !== null) {
+    const ttl = cached.neg ? ADMIN_NEG_TTL_MS : ADMIN_CAP_TTL_MS;
+    if ((now - cached.ts) < ttl) return cached.value;
   }
-  const ok = await isCurrentUserAdmin().catch(() => false);
-  notifState._adminCapCache = { value: ok, ts: now };
-  return ok;
+
+  try {
+    const s = getSessionInfo();
+    if (s?.User?.Policy?.IsAdministrator || s?.IsAdministrator || s?.user?.Policy?.IsAdministrator) {
+      notifState._adminCapCache = { value: true, ts: now, neg: false };
+      return true;
+    }
+  } catch {}
+
+  let isAdmin = await isCurrentUserAdmin().catch(() => null);
+
+  try {
+    await makeApiRequest(`/System/ActivityLog/Entries?StartIndex=0&Limit=1`);
+    notifState._adminCapCache = { value: true, ts: now, neg: false };
+    return true;
+  } catch (e) {
+    const code = e?.status;
+    const msg  = String(e?.message || "");
+    const forbidden = (code === 401 || code === 403 || msg.includes("401") || msg.includes("403"));
+    const value = forbidden ? false : (isAdmin === true);
+    notifState._adminCapCache = { value, ts: now, neg: !value };
+    return value;
+  }
 }
 
 async function fetchActivityLog(limit = 30) {
@@ -1503,7 +1589,8 @@ const BACKOFF_STEP_MS = 5_000;
 const BACKOFF_MAX_MS  = 60_000;
 
 async function pollActivities({ seedIfFirstRun = false } = {}) {
-    if (!notifState.activitySeenIds) notifState.activitySeenIds = new Set();
+  if (!isAuthReady()) return;
+  if (!notifState.activitySeenIds) notifState.activitySeenIds = new Set();
    if (notifState._activityBackoffMs > 0) {
      await new Promise(r => setTimeout(r, notifState._activityBackoffMs));
    }

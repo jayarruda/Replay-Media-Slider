@@ -1,4 +1,4 @@
-import { makeApiRequest } from "./api.js";
+import { makeApiRequest, getSessionInfo, waitForAuthReadyStrict } from "./api.js";
 import { getServerAddress, getConfig } from "./config.js";
 import { addStyleSpecificParams } from "./dicebearSpecificParams.js";
 
@@ -88,6 +88,19 @@ function getValidParamsForStyle(style) {
   return paramsMap[style] || [];
 }
 
+ async function waitForAuthReady(timeout = 15000) {
+   const start = Date.now();
+   while (Date.now() - start < timeout) {
+     try {
+       const s = getSessionInfo();
+       if (s?.accessToken) return s;
+     } catch {}
+     await new Promise(r => setTimeout(r, 250));
+   }
+   return null;
+ }
+
+
 export async function updateHeaderUserAvatar() {
   try {
     if (_updatingAvatar) return;
@@ -101,7 +114,7 @@ export async function updateHeaderUserAvatar() {
 
     const [headerButton, user] = await Promise.all([
       waitForElement("button.headerUserButton"),
-      ensureUserData()
+      (await waitForAuthReadyStrict(12000), ensureUserData())
     ]);
 
     if (!headerButton || !user) { _updatingAvatar = false; return; }
@@ -138,8 +151,14 @@ export async function updateHeaderUserAvatar() {
 async function ensureUserData() {
   const now = Date.now();
   if (!userCache.data || now - userCache.timestamp > userCache.cacheDuration) {
-    userCache.data = await makeApiRequest("/Users/Me");
-    userCache.timestamp = now;
+    const sess = await waitForAuthReady();
+    if (!sess) return null;
+    try {
+      userCache.data = await makeApiRequest("/Users/Me");
+      userCache.timestamp = Date.now();
+    } catch {
+      return null;
+   }
   }
   return userCache.data;
 }
@@ -512,9 +531,9 @@ export function initAvatarSystem() {
     startAvatarRotation(refreshTimeMs);
   }
 
-  updateHeaderUserAvatar();
   let retryCount = 0;
-  const maxRetries = 5;
+  const maxRetries = config?.avatarMaxRetries ?? 40;
+  const retryDelay = config?.avatarRetryDelayMs ?? 500;
 
   const applyButton = document.getElementById('applyDicebearAvatar');
   if (applyButton) {
@@ -525,18 +544,15 @@ export function initAvatarSystem() {
   }
 
   const tryOnce = async () => {
-    try {
-      await updateHeaderUserAvatar();
-    } catch (err) {
-      retryCount++;
-      if (retryCount < maxRetries) {
-        setTimeout(tryOnce, 1000);
-      } else {
-        console.error("Avatar güncellenemedi, maksimum deneme sayısına ulaşıldı.");
-      }
+    await updateHeaderUserAvatar();
+    const headerBtn = document.querySelector('button.headerUserButton');
+    const ok = headerBtn && (headerBtn.querySelector('.custom-user-avatar') || hasJellyfinAvatar(headerBtn));
+    if (!ok && retryCount++ < maxRetries) {
+      setTimeout(tryOnce, retryDelay);
+    } else if (!ok) {
+      console.error("Avatar güncellenemedi, maksimum deneme sayısına ulaşıldı.");
     }
   };
-
   tryOnce();
 
   return () => {

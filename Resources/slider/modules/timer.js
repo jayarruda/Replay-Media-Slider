@@ -53,7 +53,11 @@ export function startSlideTimer() {
   slideStartTime = Date.now();
 
   resetProgressBar();
-  startProgressBarWithDuration(remainingTime);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      startProgressBarWithDuration(remainingTime);
+    });
+  });
   autoSlideTimeout = setTimeout(handleAutoAdvance, remainingTime);
   window.mySlider = window.mySlider || {};
   window.mySlider.autoSlideTimeout = autoSlideTimeout;

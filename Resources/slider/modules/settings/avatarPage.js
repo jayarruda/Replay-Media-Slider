@@ -23,7 +23,7 @@ export function createAvatarPanel(config, labels) {
       { value: 'initials', text: labels.avatarStyleInitials || 'Baş Harfler' },
       { value: 'dicebear', text: labels.avatarStyleDicebear || 'Dicebear Avatar' }
     ],
-    config.avatarStyle || 'initials'
+    config.avatarStyle || 'dicebear'
   );
   section.appendChild(avatarStyleSelect);
   const dicebearElements = [];
@@ -121,7 +121,7 @@ export function createAvatarPanel(config, labels) {
   scaleInput.min = '0.5';
   scaleInput.max = '5';
   scaleInput.step = '0.1';
-  scaleInput.value = config.avatarScale || '1';
+  scaleInput.value = config.avatarScale || '4';
   scaleInput.name = 'avatarScale';
   scaleInput.id = 'avatarScale';
   scaleInput.className = 'range-input';

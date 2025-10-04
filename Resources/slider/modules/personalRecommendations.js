@@ -2,6 +2,7 @@ import { getSessionInfo, makeApiRequest, getCachedUserTopGenres } from "./api.js
 import { getConfig } from "./config.js";
 import { getLanguageLabels } from "../language/index.js";
 import { attachMiniPosterHover } from "./studioHubsUtils.js";
+import { openGenreExplorer } from "./genreExplorer.js";
 
 const config = getConfig();
 const labels = getLanguageLabels?.() || {};
@@ -74,7 +75,6 @@ function buildPosterUrlLQ(item) {
 function buildPosterUrlHQ(item) {
   return buildPosterUrl(item, 540, 72);
 }
-
 
 function hardWipeHoverModalDom() {
   const modal = document.querySelector('.video-preview-modal');
@@ -825,7 +825,15 @@ async function renderGenreHubs(indexPage) {
     section.className = "homeSection genre-hub-section";
     section.innerHTML = `
       <div class="sectionTitleContainer sectionTitleContainer-cards">
-        <h2 class="sectionTitle sectionTitle-cards">${escapeHtml(genre)}</h2>
+        <h2 class="sectionTitle sectionTitle-cards gh-title">
+  <span class="gh-title-text">${escapeHtml(genre)}</span>
+  <div class="gh-see-all" data-genre="${escapeHtml(genre)}"
+              aria-label="${(config.languageLabels?.seeAll) || "Tümünü gör"}"
+              title="${(config.languageLabels?.seeAll) || "Tümünü gör"}">
+        <span class="material-icons">keyboard_arrow_right</span>
+      </div>
+      <span class="gh-see-all-tip">${(config.languageLabels?.seeAll) || "Tümünü gör"}</span>
+</h2>
       </div>
       <div class="personal-recs-scroll-wrap">
         <button class="hub-scroll-btn hub-scroll-left" aria-label="${(config.languageLabels && config.languageLabels.scrollLeft) || "Sola kaydır"}" aria-disabled="true">
@@ -838,6 +846,14 @@ async function renderGenreHubs(indexPage) {
       </div>
     `;
     wrap.appendChild(section);
+    const seeAllBtn = section.querySelector('.gh-see-all');
+if (seeAllBtn) {
+  seeAllBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openGenreExplorer(genre);
+  }, { passive: false });
+}
     const row = section.querySelector(".genre-row");
     renderSkeletonCards(row, GENRE_ROW_CARD_COUNT);
     return { genre, section, row };

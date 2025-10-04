@@ -127,39 +127,48 @@ namespace JMSFusion.Controllers
         }
 
         [HttpPost("run")]
-        public IActionResult Run([FromBody] RunRequest req, CancellationToken outerCt)
+public IActionResult Run([FromBody] RunRequest req, CancellationToken outerCt)
+{
+    try
+    {
+        // 1) Plugin config'i güvenli al
+        var cfg = JMSFusionPlugin.Instance?.Configuration;
+        if (cfg is null)
         {
-            try
-            {
-                var cfg = JMSFusionPlugin.Instance?.Configuration
-                          ?? throw new InvalidOperationException("Plugin configuration not available.");
+            return StatusCode(500, new {
+                error = "Plugin configuration not available.",
+                hint  = "Docker'da /config/plugins ve /config/plugins/configurations yazılabilir olmalı; plugin gerçekten yüklendi mi? Konteyner loglarına bakın.",
+            });
+        }
 
-                var token = Request.Headers["X-Emby-Token"].FirstOrDefault();
-                if (string.IsNullOrWhiteSpace(token))
-                    return Unauthorized(new { error = "X-Emby-Token header gerekli." });
+        // 2) Auth header kontrolleri aynen kalsın
+        var token = Request.Headers["X-Emby-Token"].FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(token))
+            return Unauthorized(new { error = "X-Emby-Token header gerekli." });
 
-                var userIdHeader =
-                    Request.Headers["X-Emby-UserId"].FirstOrDefault() ??
-                    Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault();
+        var userIdHeader =
+            Request.Headers["X-Emby-UserId"].FirstOrDefault() ??
+            Request.Headers["X-MediaBrowser-UserId"].FirstOrDefault();
 
-                if (!Guid.TryParse(userIdHeader, out var userId) || userId == Guid.Empty)
-                    return Unauthorized(new { error = "X-Emby-UserId header gerekli." });
+        if (!Guid.TryParse(userIdHeader, out var userId) || userId == Guid.Empty)
+            return Unauthorized(new { error = "X-Emby-UserId header gerekli." });
 
-                var user = _users.GetUserById(userId);
-                if (user is null)
-                    return Unauthorized(new { error = "Kullanıcı bulunamadı." });
+        var user = _users.GetUserById(userId);
+        if (user is null)
+            return Unauthorized(new { error = "Kullanıcı bulunamadı." });
 
-                if (!IsAdminUser(user))
-                    return StatusCode(403, new { error = "Sadece admin kullanıcılar çalıştırabilir." });
+        if (!IsAdminUser(user))
+            return StatusCode(403, new { error = "Sadece admin kullanıcılar çalıştırabilir." });
 
-                if (!cfg.AllowScriptExecution)
-                    return StatusCode(403, new { error = "Script çalıştırma kapalı (AllowScriptExecution=false)." });
+        if (!cfg.AllowScriptExecution)
+            return StatusCode(403, new { error = "Script çalıştırma kapalı (AllowScriptExecution=false)." });
 
-                var steps = new List<string>();
-                if (req.runDownloader && cfg.EnableTrailerDownloader) steps.Add("trailers.sh");
-                if (req.runUrlNfo && cfg.EnableTrailerUrlNfo) steps.Add("trailersurl.sh");
-                if (steps.Count == 0)
-                    return BadRequest(new { error = "Hiçbir görev etkin değil." });
+        // 3) Adımlar (config null olmadığı için güvenli)
+        var steps = new List<string>();
+        if (req.runDownloader && cfg.EnableTrailerDownloader) steps.Add("trailers.sh");
+        if (req.runUrlNfo && cfg.EnableTrailerUrlNfo) steps.Add("trailersurl.sh");
+        if (steps.Count == 0)
+            return BadRequest(new { error = "Hiçbir görev etkin değil." });
 
                 if (_jobs.TryGetValue(userId, out var existing) && existing.Running)
                 {
@@ -282,9 +291,37 @@ namespace JMSFusion.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { error = ex.Message, stack = ex.ToString() });
             }
         }
+
+        [HttpGet("diag")]
+public IActionResult Diag()
+{
+    var cfg = JMSFusionPlugin.Instance?.Configuration;
+    var asm = typeof(EmbeddedScriptRunner).Assembly;
+    var names = asm.GetManifestResourceNames();
+
+    var hasBash = System.IO.File.Exists("/bin/bash");
+    var tmpOk = true;
+    try {
+        var p = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "jmsf._probe");
+        System.IO.File.WriteAllText(p, "ok");
+        System.IO.File.Delete(p);
+    } catch { tmpOk = false; }
+
+    return Ok(new {
+        ok = true,
+        pluginConfigLoaded = cfg != null,
+        allowScriptExecution = cfg?.AllowScriptExecution,
+        enableTrailerDownloader = cfg?.EnableTrailerDownloader,
+        enableTrailerUrlNfo = cfg?.EnableTrailerUrlNfo,
+        tempWritable = tmpOk,
+        hasBash,
+        embeddedResourcesSample = names.Where(n => n.Contains("Resources.slider")).Take(5).ToArray()
+    });
+}
+
 
         private bool IsAdminUser(object userObj) { return true; }
 

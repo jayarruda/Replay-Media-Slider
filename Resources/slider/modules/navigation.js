@@ -5,37 +5,12 @@ import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js";
 import { playNow, fetchItemDetails, getCachedUserTopGenres, getGenresForDot, goToDetailsPage } from "./api.js";
-import { applySlideAnimation, applyDotPosterAnimation, teardownAnimations } from "./animations.js";
+import { applySlideAnimation, applyDotPosterAnimation, teardownAnimations, forceReflow } from "./animations.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { previewPreloadCache } from "./hoverTrailerModal.js";
 import { attachMiniPosterHover, openMiniPopoverFor } from "./studioHubsUtils.js";
 import { modalState, set, get, resetModalRefs } from './modalState.js';
-import {
-  createVideoModal,
-  destroyVideoModal,
-  animatedShow,
-  closeVideoModal,
-  modalIsVisible,
-  preloadVideoPreview,
-  updateModalContent,
-  positionModalRelativeToItem,
-  applyVolumePreference,
-  ensureOverlaysClosed,
-  getBackdropFromItem,
-  calculateMatchPercentage,
-  openPreviewModalForItem,
-  setModalAnimation,
-  getPlayButtonText,
-  PREVIEW_MAX_ENTRIES,
-  startModalHideTimer,
-  getClosingRemaining,
-  bindModalEvents,
-  hardStopPlayback,
-  resetModalInfo,
-  resetModalButtons,
-  scheduleOpenForItem
-} from './hoverTrailerModal.js';
-
+import { createVideoModal, destroyVideoModal, animatedShow, closeVideoModal, modalIsVisible, preloadVideoPreview, updateModalContent, positionModalRelativeToItem, applyVolumePreference, ensureOverlaysClosed, getBackdropFromItem, calculateMatchPercentage, openPreviewModalForItem, setModalAnimation, getPlayButtonText, PREVIEW_MAX_ENTRIES, startModalHideTimer, getClosingRemaining, bindModalEvents, hardStopPlayback, resetModalInfo, resetModalButtons, scheduleOpenForItem } from './hoverTrailerModal.js';
 
 const IS_TOUCH = (typeof window !== 'undefined') && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
 const config = getConfig();
@@ -64,47 +39,87 @@ function hardResetProgressBarEl() {
   pb.style.animation  = "";
 }
 
-function microFadeSwap(oldSlide, newSlide, durMs = Math.min(300, Math.max(100, (getConfig()?.slideAnimationDuration || 280)))) {
-  if (!newSlide) return;
- newSlide.style.display = "block";
- newSlide.style.opacity = "0";
- newSlide.style.zIndex = "2";
- newSlide.style.willChange = "opacity, transform";
- newSlide.style.transition = `opacity ${durMs}ms ease`;
+function microFadeSwap(
+   oldSlide,
+   newSlide,
+   durMs = Math.min(300, Math.max(120, (getConfig()?.slideAnimationDuration ?? 280))))
+ {
+   if (!newSlide) return;
+   const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+   const D = prefersReduced ? 0 : durMs;
 
- if (oldSlide && oldSlide !== newSlide) {
-   oldSlide.style.transition = `opacity ${durMs}ms ease`;
-   oldSlide.style.willChange = "opacity, transform";
-   oldSlide.style.zIndex = "1";
-   oldSlide.style.pointerEvents = "none";
-   if (!oldSlide.style.opacity) oldSlide.style.opacity = "1";
- }
+   if (newSlide.dataset.fx === 'running') return;
+    newSlide.dataset.fx = 'running';
+    if (oldSlide) oldSlide.dataset.fxPrev = 'running';
 
- void newSlide.offsetWidth;
- requestAnimationFrame(() => {
-   newSlide.style.opacity = "1";
-   if (oldSlide && oldSlide !== newSlide) {
-     oldSlide.style.opacity = "0";
-   }
- });
-   const onEnd = () => {
-     newSlide.removeEventListener('transitionend', onEnd);
-    newSlide.style.transition = "";
-    newSlide.style.willChange = "";
-    newSlide.style.zIndex = "";
+   const killTransitions = (el) => {
+    el.style.transition = 'none';
+    el.style.willChange = 'auto';
+  };
+  const flush = () => { void document.body.offsetWidth; };
+
+  newSlide.style.display = 'block';
+  killTransitions(newSlide);
+  newSlide.style.opacity = '0';
+  newSlide.style.zIndex = '2';
+  newSlide.style.willChange = 'opacity';
+
+  if (oldSlide && oldSlide !== newSlide) {
+    oldSlide.style.display = 'block';
+    killTransitions(oldSlide);
+    oldSlide.style.opacity = '1';
+    oldSlide.style.zIndex = '1';
+    oldSlide.style.pointerEvents = 'none';
+    oldSlide.style.willChange = 'opacity';
+  }
+
+  flush();
+  flush();
+
+  if (D === 0) {
+    newSlide.style.opacity = '1';
+    if (oldSlide && oldSlide !== newSlide) oldSlide.style.opacity = '0';
+    cleanup(true);
+    return;
+  }
+  newSlide.style.transition = `opacity ${D}ms ease`;
+  if (oldSlide && oldSlide !== newSlide) {
+    oldSlide.style.transition = `opacity ${D}ms ease`;
+  }
+  requestAnimationFrame(() => {
+    newSlide.style.opacity = '1';
     if (oldSlide && oldSlide !== newSlide) {
-      oldSlide.style.display = "none";
-      oldSlide.style.transition = "";
-      oldSlide.style.transform = "";
-      oldSlide.style.willChange = "";
-      oldSlide.style.pointerEvents = "";
-      oldSlide.style.zIndex = "";
-      oldSlide.style.opacity = "0";
+      oldSlide.style.opacity = '0';
     }
+  });
+   function cleanup(immediate = false) {
+    newSlide.style.transition = '';
+    newSlide.style.willChange = '';
+    newSlide.style.zIndex = '';
+    delete newSlide.dataset.fx;
+
+    if (oldSlide && oldSlide !== newSlide) {
+      oldSlide.style.display = 'none';
+      oldSlide.style.transition = '';
+      oldSlide.style.transform = '';
+      oldSlide.style.willChange = '';
+      oldSlide.style.pointerEvents = '';
+      oldSlide.style.zIndex = '';
+      oldSlide.style.opacity = '0';
+      delete oldSlide.dataset.fxPrev;
+    }
+  }
+
+   let done = false;
+   const onEnd = () => {
+     if (done) return;
+     done = true;
+     newSlide.removeEventListener('transitionend', onEnd);
+     cleanup();
    };
    newSlide.addEventListener('transitionend', onEnd, { once: true });
-}
-
+  setTimeout(onEnd, D + 80);
+ }
 
 function getBackdropFromDot(dot) {
   const img = dot?.querySelector?.('.dot-poster-image');
@@ -127,6 +142,7 @@ export function changeSlide(direction) {
   setCurrentIndex(newIndex);
   displaySlide(newIndex);
   hardResetProgressBarEl();
+  resetProgressBar();
   setRemainingTime(SLIDE_DURATION);
   startSlideTimer();
 }
@@ -637,9 +653,15 @@ export function displaySlide(index) {
   const currentSlide = slides[index];
   if (!currentSlide) return;
 
-  const currentIndex = getCurrentIndex();
-  const direction = index > currentIndex ? 1 : -1;
   const activeSlide = indexPage.querySelector(".slide.active");
+  const slidesArr = Array.from(slides);
+  const len = slidesArr.length;
+  let prevIndex = activeSlide ? slidesArr.indexOf(activeSlide) : -1;
+  if (prevIndex < 0) prevIndex = (index - 1 + len) % len;
+  let delta = index - prevIndex;
+  if (delta >  len / 2)  delta -= len;
+  if (delta < -len / 2)  delta += len;
+  const direction = delta === 0 ? 1 : (delta > 0 ? 1 : -1);
   const slidesContainer = indexPage.querySelector("#slides-container");
   const isPeak = !!getConfig()?.peakSlider;
   if (slidesContainer) slidesContainer.classList.toggle("peak-mode", isPeak);
@@ -658,6 +680,7 @@ export function displaySlide(index) {
         currentSlide.style.display = "block";
         currentSlide.style.opacity = "0";
         currentSlide.style.willChange = "transform, opacity";
+        forceReflow(currentSlide);
         requestAnimationFrame(() => {
           applySlideAnimation(activeSlide, currentSlide, direction);
         });
@@ -722,6 +745,7 @@ export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
       s.style.removeProperty("--k");
       s.style.display = "block";
     });
+
     const active = arr[activeIndex] || arr[0];
     if (active) active.classList.add('active');
     const container = document.querySelector('#slides-container');
@@ -750,22 +774,30 @@ export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
     s.style.display = "block";
   });
 
+  const active = arr[activeIndex];
+  if (active) {
+    active.classList.add('active');
+    active.removeAttribute('data-side');
+    active.style.removeProperty('--k');
+  }
+
   const len = arr.length;
   for (let i = -spanLeft; i <= spanRight; i++) {
+    if (i === 0) continue;
     const idx = (activeIndex + i + len) % len;
     const slide = arr[idx];
     if (!slide) continue;
-    if (i === 0) {
-      slide.classList.add('active');
-    } else if (i < 0) {
-      slide.dataset.side = "left";
-      slide.style.setProperty("--k", diagonal ? Math.min(-i, spanLeft) : 1);
-      slide.classList.add('peak-neighbor');
-    } else {
-      slide.dataset.side = "right";
-      slide.style.setProperty("--k", diagonal ? Math.min(i, spanRight) : 1);
-      slide.classList.add('peak-neighbor');
-    }
+    if (i < 0) {
+  const dist = Math.min(-i, spanLeft);
+  slide.dataset.side = "left";
+  slide.style.setProperty("--k", dist);
+  slide.classList.add('peak-neighbor');
+} else {
+  const dist = Math.min(i, spanRight);
+  slide.dataset.side = "right";
+  slide.style.setProperty("--k", dist);
+  slide.classList.add('peak-neighbor');
+}
   }
 
   arr.forEach((s, i) => {
@@ -835,12 +867,12 @@ export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOr
     if (i === activeIndex) {
       s.setAttribute('data-prime-pos', 'active');
     } else if (leftDist >= 1 && leftDist <= spanLeft) {
-      s.dataset.side = "left";
-      s.style.setProperty("--k", diagonal ? leftDist : 1);
-    } else if (rightDist >= 1 && rightDist <= spanRight) {
-      s.dataset.side = "right";
-      s.style.setProperty("--k", diagonal ? rightDist : 1);
-    }
+  s.dataset.side = "left";
+  s.style.setProperty("--k", leftDist);
+} else if (rightDist >= 1 && rightDist <= spanRight) {
+  s.dataset.side = "right";
+  s.style.setProperty("--k", rightDist);
+}
   });
 
   requestAnimationFrame(() => {

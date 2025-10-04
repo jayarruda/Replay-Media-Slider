@@ -6,7 +6,7 @@ import { ensureProgressBarExists, resetProgressBar } from "./modules/progressBar
 import { createSlide } from "./modules/slideCreator.js";
 import { changeSlide, createDotNavigation, primePeakFirstPaint, updatePeakClasses } from "./modules/navigation.js";
 import { attachMouseEvents } from "./modules/events.js";
-import { fetchItemDetails } from "./modules/api.js";
+import { fetchItemDetails, getSessionInfo, getAuthHeader } from "./modules/api.js";
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from "./modules/positionOverrides.js";
 import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
@@ -72,6 +72,7 @@ window.__peakBooting = true;
   addCSS('/web/slider/src/notifications.css', 'jms-css-notifications');
   addCSS('/web/slider/src/pauseModul.css', 'jms-css-pause');
   addCSS('/web/slider/src/personalRecommendations.css', 'jms-css-recs');
+  addCSS('/web/slider/src/studioHubs.css', 'jms-css-studiohubs');
 
   const vmap = {
     peakslider: '/web/slider/src/peakslider.css',
@@ -139,14 +140,7 @@ function armCycleReset() {
   const remain = Math.max(0, cycleMs - elapsed);
 
   window.__cycleArmTimeout = setTimeout(() => {
-    const active = document.querySelector("#indexPage:not(.hide) .slide.active, #homePage:not(.hide) .slide.active");
-    const idx = getSlideIndex(active);
-
-    if (isPlannedLastIndex(idx)) {
-      scheduleSliderRebuild("cycle-time-hit-on-last");
-    } else {
-      window.__cycleExpired = true;
-    }
+  window.__cycleExpired = true;
   }, remain);
 }
 
@@ -257,36 +251,6 @@ function getSlideDurationMs() {
   if (config && Number.isFinite(config.slideDurationMs)) return config.slideDurationMs;
   return 15000;
 }
-
-(async function bootstrapCredentials() {
-  try {
-    const token = getAuthToken();
-    if (!token || localStorage.getItem("json-credentials")) return;
-
-    saveApiKey(token);
-    const res = await fetch(`/Sessions?UserId=&api_key=${token}`);
-    if (!res.ok) throw new Error("Sessions alınamadı");
-
-    const sessions = await res.json();
-    const sess = sessions
-      .filter((s) => s.UserId)
-      .sort((a, b) => new Date(b.LastActivityDate) - new Date(a.LastActivityDate))[0];
-
-    if (!sess) throw new Error("Oturum bulunamadı");
-    const creds = {
-      AccessToken: token,
-      SessionId: sess.Id,
-      User: { Id: sess.UserId },
-      DeviceId: sess.DeviceId || "web-client",
-      Client: sess.Client || "Jellyfin Web Client",
-      Version: sess.Version || "1.0.0",
-    };
-
-    saveCredentials(creds);
-  } catch (e) {
-    console.warn("bootstrapCredentials hatası:", e);
-  }
-})();
 
 (function applySafePauseShim() {
   try {
@@ -467,7 +431,7 @@ function hydrateSlideMedia(slide) {
     overlay?.getAttribute("data-backdrop") ||
     overlay?.getAttribute("data-bg") ||
     overlay?.getAttribute("data-bg-src");
-  if (overlay && bg && !overlay.style.backgroundImage) {
+    if (overlay && bg && !overlay.style.backgroundImage) {
     overlay.style.backgroundImage = `url("${bg}")`;
   }
   slide.querySelectorAll("[data-backdrop],[data-bg],[data-bg-src]").forEach((el) => {
@@ -614,7 +578,6 @@ function hydrateFirstSlide(indexPage) {
   });
 
   const bgCandidates = [
-    firstActive.querySelector(".gradient-overlay"),
     firstActive.querySelector(".horizontal-gradient-overlay"),
     firstActive.querySelector(".slide-backdrop"),
     firstActive.querySelector(".backdrop"),
@@ -763,8 +726,7 @@ export async function slidesInit() {
     window.sliderResetInProgress = true;
     fullSliderReset();
 
-    const rawCred = sessionStorage.getItem("json-credentials") || localStorage.getItem("json-credentials");
-    const apiKey = sessionStorage.getItem("api-key") || localStorage.getItem("api-key");
+    let userId = null, accessToken = null;
 
     function isQuotaErr(e){ return e && (e.name === 'QuotaExceededError' || e.code === 22); }
     function safeLocalGet(key, fallback="[]"){
@@ -810,32 +772,14 @@ export async function slidesInit() {
       safeLocalRemove(key);
     }
 
-    if (!rawCred || !apiKey) {
-      console.error("Kullanıcı bilgisi veya API anahtarı bulunamadı.");
-      return;
-    }
-
-    let userId = null,
-      accessToken = null;
     try {
-      const parsed = JSON.parse(rawCred);
-      if (parsed.Servers && Array.isArray(parsed.Servers) && parsed.Servers[0]) {
-        userId = parsed.Servers[0].UserId;
-        accessToken = parsed.Servers[0].AccessToken;
-      } else if (parsed.AccessToken && parsed.User && parsed.User.Id) {
-        userId = parsed.User.Id;
-        accessToken = parsed.AccessToken;
-      } else {
-        throw new Error("Credential JSON yapısı tanınamadı");
-      }
-    } catch (err) {
-      console.error("Credential JSON hatası:", err);
-    }
-
-    if (!userId || !accessToken) {
-      console.error("Geçerli kullanıcı bilgisi veya token bulunamadı.");
-      return;
-    }
+   const s = getSessionInfo();
+   userId = s.userId;
+   accessToken = s.accessToken;
+ } catch (e) {
+   console.error("Oturum bilgisi okunamadı:", e);
+   return;
+ }
 
     const savedLimit = parseInt(localStorage.getItem("limit") || "20", 10);
     window.myUserId = userId;
@@ -884,14 +828,16 @@ export async function slidesInit() {
 
         let playingItems = [];
         const playingLimit = (onlyUnwatched ? 0 : parseInt(config.playingLimit || 0, 10));
+        const authHeaders = {
+        "X-Emby-Authorization": getAuthHeader(),
+        "X-Emby-Token": accessToken
+      };
 
         if (playingLimit > 0) {
           try {
             const res = await fetch(`/Users/${userId}/Items/Resume?Limit=${playingLimit * 2}`, {
-              headers: {
-                Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`,
-              },
-            });
+   headers: authHeaders,
+ });
             const data = await res.json();
             let fetchedItems = data.Items || [];
 
@@ -907,10 +853,8 @@ export async function slidesInit() {
 
         const maxShufflingLimit = parseInt(config.maxShufflingLimit || "10000", 10);
         const res = await fetch(`/Users/${userId}/Items?${queryString}&Limit=${maxShufflingLimit}`, {
-          headers: {
-            Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`,
-          },
-        });
+   headers: authHeaders,
+ });
         const data = await res.json();
         let allItems = data.Items || [];
 
@@ -918,18 +862,10 @@ export async function slidesInit() {
           const detailedSeasons = await Promise.all(
             allItems.map(async (item) => {
               try {
-                const seasonRes = await fetch(`/Users/${userId}/Items/${item.Id}`, {
-                  headers: {
-                    Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`,
-                  },
-                });
+                const seasonRes = await fetch(`/Users/${userId}/Items/${item.Id}`, { headers: authHeaders });
                 const seasonData = await seasonRes.json();
                 if (seasonData.SeriesId) {
-                  const seriesRes = await fetch(`/Users/${userId}/Items/${seasonData.SeriesId}`, {
-                    headers: {
-                      Authorization: `MediaBrowser Client="Jellyfin Web", Device="Web", DeviceId="Web", Version="1.0", Token="${accessToken}"`,
-                    },
-                  });
+                  const seriesRes = await fetch(`/Users/${userId}/Items/${seasonData.SeriesId}`, { headers: authHeaders });
                   seasonData.SeriesData = await seriesRes.json();
                 }
                 return seasonData;

@@ -1,4 +1,4 @@
-import { getSessionInfo, fetchItemDetails, makeApiRequest } from "./api.js";
+import { getSessionInfo, fetchItemDetails, makeApiRequest, isAuthReadyStrict } from "./api.js";
 import { getCurrentPlaybackInfo } from "./webSocket.js";
 import { getConfig } from "./config.js";
 import { getLanguageLabels, getDefaultLanguage } from "../language/index.js";
@@ -289,8 +289,14 @@ async function fetchFiltersFor(type) {
     IncludeItemTypes: type,
     Recursive: "true",
   });
-  const res = await makeApiRequest(`/Items/Filters?${qs.toString()}`);
-  return res || {};
+  try {
+    if (typeof isAuthReadyStrict === "function" && !isAuthReadyStrict()) return {};
+    const res = await makeApiRequest(`/Items/Filters?${qs.toString()}`);
+    return res || {};
+  } catch (e) {
+    if (e?.status === 401 || e?.status === 403 || e?.status === 0 || e?.isAbort) return {};
+    throw e;
+  }
 }
 function _computeStamp() {
   return [getApiBase(), getUserIdSafe() || ''].join('|');
@@ -305,9 +311,21 @@ async function loadCatalogTagsWithCache() {
   ) {
     return _tagsMemCache.tags;
   }
-  const [movie, series] = await Promise.all([fetchFiltersFor("Movie"), fetchFiltersFor("Series")]);
-  const allTags = new Set([...(movie?.Tags || []), ...(series?.Tags || [])]);
-  _tagsMemCache = { stamp, savedAt: now, tags: allTags };
+  if (typeof isAuthReadyStrict === "function" && !isAuthReadyStrict()) {
+    return new Set();
+  }
+  const [movie, series] = await Promise.all([
+    fetchFiltersFor("Movie"),
+    fetchFiltersFor("Series"),
+  ]);
+  const allTagsArr = [
+    ...(movie?.Tags || []),
+    ...(series?.Tags || []),
+  ];
+  const allTags = new Set(allTagsArr);
+  if (allTags.size > 0) {
+    _tagsMemCache = { stamp, savedAt: now, tags: allTags };
+  }
   return allTags;
 }
 
@@ -1060,7 +1078,9 @@ window.addEventListener('popstate', _onRouteHint, { signal });
       const autoMap = buildAutoDescriptorTagMap(catalogTags);
       labels.descriptorTagMap = autoMap;
     } catch (e) {
-      console.warn("descriptor tag map init hata:", e);
+      if (!(e?.status === 0 || e?.status === 401 || e?.status === 403 || e?.isAbort)) {
+        console.warn("descriptor tag map init hata:", e);
+      }
     }
   }
 

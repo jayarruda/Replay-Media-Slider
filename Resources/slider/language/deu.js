@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Standardsprache",
+  all: "Alle",
+  seeAll: "Alle anzeigen",
   peakDiagonal: "Diagonale Ansicht",
   cssDescription: "• Die Vollbildansicht ist für aktivierte Poster-Dots in Desktop-Umgebungen angepasst.",
   cssMobileNote: "• Die Schaufensteransicht ist noch nicht für Mobilgeräte bereit.",

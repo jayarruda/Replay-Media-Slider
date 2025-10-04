@@ -14,6 +14,101 @@ const MAX_DOT_GENRE_CACHE = 1200;
 const MAX_PREVIEW_CACHE = 200;
 const MAX_TOMBSTONES = 2000;
 
+let __lastAuthSnapshot = null;
+let __authWarmupStart = Date.now();
+const AUTH_WARMUP_MS = 8000;
+
+ export function isAuthReadyStrict() {
+   try {
+     const api = (typeof window !== "undefined" && window.ApiClient) ? window.ApiClient : null;
+     if (!api) return false;
+     const token  = (typeof api.accessToken === "function" ? api.accessToken() : api._accessToken) || "";
+     const userId = (typeof api.getCurrentUserId === "function" ? api.getCurrentUserId() : api._currentUserId) || "";
+     return !!(token && userId);
+   } catch { return false; }
+ }
+
+ export async function waitForAuthReadyStrict(timeoutMs = 15000) {
+   const t0 = Date.now();
+   while (Date.now() - t0 < timeoutMs) {
+     if (isAuthReadyStrict()) return true;
+     await new Promise(r => setTimeout(r, 250));
+   }
+   return false;
+ }
+
+
+ function hasCredentials() {
+  try {
+    if (sessionStorage.getItem("json-credentials") || localStorage.getItem("json-credentials")) return true;
+    if (localStorage.getItem("jellyfin_credentials")) return true;
+    for (const k in localStorage) {
+      if (/jellyfin.*credentials/i.test(k)) return true;
+    }
+    const api = (typeof window !== "undefined" && window.ApiClient) ? window.ApiClient : null;
+    if (api && (typeof api.accessToken === "function" ? api.accessToken() : api._accessToken)) return true;
+    return false;
+  } catch { return false; }
+ }
+
+function clearPersistedIdentity() {
+  try {
+    localStorage.removeItem(USER_ID_KEY);
+    sessionStorage.removeItem(USER_ID_KEY);
+  } catch {}
+  try {
+    localStorage.removeItem(DEVICE_ID_KEY);
+    sessionStorage.removeItem(DEVICE_ID_KEY);
+  } catch {}
+}
+
+function requiresAuth(url = "") {
+  try {
+    const u = url.startsWith("http") ? new URL(url) : null;
+    const path = u ? u.pathname : url;
+    return /\/Users\/|\/Sessions\b|\/Items\/[^/]+\/PlaybackInfo\b|\/Videos\//i.test(path);
+  } catch {
+    return true;
+  }
+}
+
+function buildEmbyHeaders(extra = {}) {
+  try {
+    const api = (typeof window !== "undefined" && window.ApiClient) ? window.ApiClient : null;
+    const { accessToken } = getSessionInfo();
+    const headers = { ...extra };
+    if (api?.getAuthorizationHeader) {
+      headers['X-Emby-Authorization'] = api.getAuthorizationHeader();
+    } else {
+      headers['X-Emby-Authorization'] = getAuthHeader();
+    }
+    if (accessToken) headers['X-Emby-Token'] = accessToken;
+    return headers;
+  } catch {
+    return { ...extra };
+  }
+}
+
+function nukeAllCachesAndLocalUserCaches() {
+  clearAllInMemoryCaches();
+  try {
+    localStorage.removeItem("userTopGenresCache");
+    localStorage.removeItem("userTopGenres_v2");
+  } catch {}
+}
+
+function onAuthProfileChanged(prev, next) {
+  if (!prev) return;
+  const changed =
+    prev.userId !== next.userId ||
+    prev.serverId !== next.serverId ||
+    prev.accessToken !== next.accessToken;
+  if (changed) {
+    console.log("🔐 Auth profili değişti → tüm cache’ler temizleniyor");
+    nukeAllCachesAndLocalUserCaches();
+  }
+}
+
 function isLikelyGuid(id) {
   if (typeof id !== 'string') return false;
   const s = id.trim();
@@ -58,7 +153,9 @@ function isAbortError(err, signal) {
   return (
     err?.name === 'AbortError' ||
     (typeof err?.message === 'string' && /aborted|user aborted/i.test(err.message)) ||
-    signal?.aborted === true
+    signal?.aborted === true ||
+    err?.isAbort === true ||
+    err?.status === 0
   );
 }
 
@@ -82,18 +179,16 @@ function readApiClientDeviceId() {
   return null;
 }
 
-(function bootstrapPersistApiClientDeviceId() {
+ (function bootstrapPersistApiClientDeviceId() {
+  if (!hasCredentials()) return;
   const existing = safeGet(DEVICE_ID_KEY);
   const detected = readApiClientDeviceId();
-  if (detected && detected !== existing) {
-    safeSet(DEVICE_ID_KEY, detected);
-  }
-})();
+  if (detected && detected !== existing) safeSet(DEVICE_ID_KEY, detected);
+ })();
 
 function getStoredDeviceId() {
   return safeGet(DEVICE_ID_KEY);
 }
-
 
  function getStoredUserId() {
    try {
@@ -107,7 +202,7 @@ function getStoredDeviceId() {
    }
  }
 
- function persistUserId(id) {
+function persistUserId(id) {
    try {
      if (id) {
        localStorage.setItem(USER_ID_KEY, id);
@@ -201,7 +296,19 @@ export async function fetchItemsBulk(ids = [], fields = [
 }
 
 async function safeFetch(url, opts = {}) {
-  const headers = { ...(opts.headers || {}), Authorization: getAuthHeader() };
+  if (requiresAuth(url) && !isAuthReadyStrict()) {
+    const e = new Error("Auth not ready, skipping request");
+    e.status = 0; e.isAbort = true;
+    throw e;
+  }
+  let token = "";
+  try { token = getSessionInfo()?.accessToken || ""; } catch {}
+  if (!token && requiresAuth(url)) {
+    const e = new Error("Giriş yapılmadı: access token yok.");
+    e.status = 401;
+    throw e;
+  }
+  const headers = buildEmbyHeaders(opts.headers || {});
 
   let res;
   try {
@@ -215,6 +322,7 @@ async function safeFetch(url, opts = {}) {
 
   if (res.status === 401) {
     clearCredentials();
+    clearPersistedIdentity();
     throw new Error("Oturum geçersiz, yeniden giriş yapın.");
   }
   if (res.status === 404) return null;
@@ -230,12 +338,121 @@ async function safeFetch(url, opts = {}) {
   return res.json();
 }
 
- export function getAuthHeader() {
+export function getAuthHeader() {
   const { accessToken, clientName, deviceId, clientVersion } = getSessionInfo();
-  return `MediaBrowser Client="${clientName}", Device="${navigator.userAgent}", DeviceId="${deviceId}", Version="${clientVersion}", Token="${accessToken}"`;
- }
+  const base = `MediaBrowser Client="${clientName}", Device="${deviceId || 'web-client'}", DeviceId="${deviceId}", Version="${clientVersion}"`;
+  return accessToken ? `${base}, Token="${accessToken}"` : base;
+}
+
+function readJellyfinWebCredentialsFromStorage() {
+  try {
+    let raw = localStorage.getItem("jellyfin_credentials");
+    if (!raw) {
+      for (const k in localStorage) {
+        if (/jellyfin.*credentials/i.test(k)) { raw = localStorage.getItem(k); break; }
+      }
+    }
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    const token =
+      parsed.AccessToken || parsed.accessToken || parsed.Token || null;
+    const userId =
+      parsed.User?.Id || parsed.userId || parsed.UserId || null;
+    const sessionId =
+      parsed.SessionId || parsed.sessionId || null;
+    const serverId =
+      parsed.ServerId || parsed.SystemId ||
+      (parsed.Servers && (parsed.Servers[0]?.SystemId || parsed.Servers[0]?.Id)) || null;
+    const deviceId =
+      parsed.DeviceId || parsed.ClientDeviceId || null;
+    const clientName = parsed.Client || "Jellyfin Web Client";
+    const clientVersion = parsed.Version || "1.0.0";
+
+    if (!token || !userId) return null;
+    return { token, userId, sessionId, serverId, deviceId, clientName, clientVersion };
+  } catch {
+    return null;
+  }
+}
+
+function readFromApiClient() {
+  try {
+    const api = (typeof window !== "undefined" && window.ApiClient) ? window.ApiClient : null;
+    if (!api) return null;
+
+    const token = (typeof api.accessToken === "function" ? api.accessToken() : api._accessToken) || null;
+    const userId = (typeof api.getCurrentUserId === "function" ? api.getCurrentUserId() : api._currentUserId) || null;
+    const deviceId =
+      (typeof api.deviceId === "function" ? api.deviceId() :
+       (typeof api.getDeviceId === "function" ? api.getDeviceId() : (api.deviceId || api._deviceId))) || null;
+
+    const serverId =
+      api._serverInfo?.SystemId ||
+      api._serverInfo?.Id ||
+      null;
+
+    if (!token || !userId) return null;
+    return {
+      token, userId, sessionId: api._sessionId || null, serverId,
+      deviceId, clientName: "Jellyfin Web Client", clientVersion: "1.0.0"
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function getSessionInfo() {
+  const apiCreds = readFromApiClient();
+  if (apiCreds) {
+    persistUserId(apiCreds.userId);
+    const result = {
+      userId: apiCreds.userId,
+      accessToken: apiCreds.token,
+      sessionId: apiCreds.sessionId || null,
+      serverId: apiCreds.serverId || safeGet("serverId") || null,
+      deviceId: getStoredDeviceId() || readApiClientDeviceId() || apiCreds.deviceId || "web-client",
+      clientName: apiCreds.clientName,
+      clientVersion: apiCreds.clientVersion,
+    };
+    onAuthProfileChanged(__lastAuthSnapshot, result);
+    __lastAuthSnapshot = { userId: result.userId, accessToken: result.accessToken, serverId: result.serverId };
+    return result;
+  }
+
+  if (typeof window !== "undefined" && window.ApiClient) {
+    if (Date.now() - __authWarmupStart < AUTH_WARMUP_MS) {
+    if (__lastAuthSnapshot?.userId && __lastAuthSnapshot?.accessToken) {
+      return {
+        userId: __lastAuthSnapshot.userId,
+        accessToken: __lastAuthSnapshot.accessToken,
+        sessionId: null,
+        serverId: __lastAuthSnapshot.serverId || null,
+        deviceId: getStoredDeviceId() || readApiClientDeviceId() || "web-client",
+        clientName: "Jellyfin Web Client",
+        clientVersion: "1.0.0",
+      };
+    }
+  }
+}
+
+  const jf = readJellyfinWebCredentialsFromStorage();
+  if (jf) {
+      persistUserId(jf.userId);
+      const result = {
+        userId: jf.userId,
+        accessToken: jf.token,
+        sessionId: jf.sessionId || null,
+        serverId: jf.serverId || null,
+        deviceId: getStoredDeviceId() || readApiClientDeviceId() || jf.deviceId || "web-client",
+        clientName: jf.clientName,
+        clientVersion: jf.clientVersion,
+      };
+      onAuthProfileChanged(__lastAuthSnapshot, result);
+      __lastAuthSnapshot = { userId: result.userId, accessToken: result.accessToken, serverId: result.serverId };
+      return result;
+    }
+
   const raw =
     sessionStorage.getItem("json-credentials") ||
     localStorage.getItem("json-credentials");
@@ -272,7 +489,7 @@ export function getSessionInfo() {
 
   if (topLevelToken && topLevelUser) {
     persistUserId(topLevelUser);
-    return {
+    const result = {
       userId: topLevelUser,
       accessToken: topLevelToken,
       sessionId: topLevelSessionId || parsed.SessionId || null,
@@ -287,6 +504,13 @@ export function getSessionInfo() {
       clientName: parsed.Client || hints.clientName || "Jellyfin Web Client",
       clientVersion: parsed.Version || hints.clientVersion || "1.0.0",
     };
+    onAuthProfileChanged(__lastAuthSnapshot, result);
+    __lastAuthSnapshot = {
+      userId: result.userId,
+      accessToken: result.accessToken,
+      serverId: result.serverId,
+    };
+    return result;
   }
 
   const server = (parsed.Servers && parsed.Servers[0]) || {};
@@ -301,7 +525,7 @@ export function getSessionInfo() {
 
   if (oldToken && oldUser) {
     persistUserId(oldUser);
-    return {
+    const result = {
       userId: oldUser,
       accessToken: oldToken,
       sessionId: oldSessionId || null,
@@ -315,12 +539,19 @@ export function getSessionInfo() {
       clientName: parsed.Client || hints.clientName || "Jellyfin Web Client",
       clientVersion: parsed.Version || hints.clientVersion || "1.0.0",
     };
+    onAuthProfileChanged(__lastAuthSnapshot, result);
+    __lastAuthSnapshot = {
+      userId: result.userId,
+      accessToken: result.accessToken,
+      serverId: result.serverId,
+    };
+    return result;
   }
 
   const stored = getStoredUserId();
   if (stored) {
     const hints2 = getWebClientHints();
-    return {
+    const result = {
       userId: stored,
       accessToken: hints2.accessToken || "",
       sessionId: hints2.sessionId || null,
@@ -329,6 +560,13 @@ export function getSessionInfo() {
       clientName: hints2.clientName || "Jellyfin Web Client",
       clientVersion: hints2.clientVersion || "1.0.0",
     };
+    onAuthProfileChanged(__lastAuthSnapshot, result);
+    __lastAuthSnapshot = {
+      userId: result.userId,
+      accessToken: result.accessToken,
+      serverId: result.serverId,
+    };
+    return result;
   }
   throw new Error(
     "Kimlik bilgisi eksik: ne top-level ne de Servers[0] altından gerekli alanlar bulunamadı"
@@ -337,13 +575,19 @@ export function getSessionInfo() {
 
 async function makeApiRequest(url, options = {}) {
   try {
-    const { accessToken } = getSessionInfo();
-    const baseHeaders = {
-      'X-Emby-Authorization': getAuthHeader(),
-      'X-Emby-Token': accessToken || '',
-      'Authorization': getAuthHeader(),
-    };
-    options.headers = { ...baseHeaders, ...(options.headers || {}) };
+    if (requiresAuth(url) && !isAuthReadyStrict()) {
+      const e = new Error("Auth not ready, skipping request");
+      e.status = 0; e.isAbort = true;
+      throw e;
+    }
+    let token = "";
+    try { token = getSessionInfo()?.accessToken || ""; } catch {}
+    if (!token && requiresAuth(url)) {
+      const e = new Error("Giriş yapılmadı: access token yok.");
+      e.status = 401;
+      throw e;
+    }
+    options.headers = buildEmbyHeaders(options.headers || {});
 
     const response = await fetch(url, {
       ...options,
@@ -353,8 +597,15 @@ async function makeApiRequest(url, options = {}) {
 
     if (response.status === 404) return null;
     if (response.status === 401) {
-      clearCredentials?.();
-      const err = new Error("Oturum geçersiz, yeniden giriş yapın.");
+      if (!options.__retried401) {
+        const retryOpts = {
+          ...options,
+          __retried401: true,
+          headers: buildEmbyHeaders({ ...(options.headers || {}) }),
+        };
+        return await makeApiRequest(url, retryOpts);
+      }
+      const err = new Error("Oturum geçersiz veya yetkisiz (401).");
       err.status = 401;
       throw err;
     }
@@ -400,6 +651,7 @@ async function makeApiRequest(url, options = {}) {
 
 export async function isCurrentUserAdmin() {
   try {
+    if (!hasCredentials()) return false;
     const { userId } = getSessionInfo();
     const u = await makeApiRequest(`/Users/${userId}`);
     return !!(u?.Policy?.IsAdministrator);
@@ -428,6 +680,7 @@ export function goToDetailsPage(itemId) {
    if (!itemId) return null;
    if (isTombstoned(itemId)) return null;
    try {
+     if (!hasCredentials()) return null;
      const { userId } = getSessionInfo();
      const data = await safeFetch(
        `/Users/${userId}/Items/${encodeURIComponent(String(itemId).trim())}`
@@ -539,7 +792,10 @@ export async function getImageDimensions(url) {
     const xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
     xhr.responseType = "blob";
-    xhr.setRequestHeader("Authorization", getAuthHeader());
+    try {
+      const token = getSessionInfo()?.accessToken || "";
+      if (token) xhr.setRequestHeader("X-Emby-Authorization", getAuthHeader());
+    } catch {}
 
     xhr.onload = function () {
       if (this.status === 200) {
@@ -727,10 +983,7 @@ export async function playNow(itemId) {
     }
     const res = await fetch(playUrl, {
       method: "POST",
-      headers: {
-        'Authorization': getAuthHeader(),
-        'Content-Type': 'application/json'
-      }
+      headers: buildEmbyHeaders({ 'Content-Type': 'application/json' })
     });
 
     if (!res.ok) {
@@ -783,6 +1036,9 @@ export async function getVideoStreamUrl(
   forceDirectPlay = false,
   enableHls = config.enableHls
 ) {
+  if (!isAuthReadyStrict()) {
+    await waitForAuthReadyStrict(3000);
+  }
   const { userId, deviceId, accessToken } = getSessionInfo();
 
   const buildQueryParams = (params) =>
@@ -830,13 +1086,16 @@ if (item.Type === "Series") {
   item.Type === "MusicVideo" ||
   item.MediaType === "Audio"
 ) {
-  const playbackInfo = await makeApiRequest(`/Items/${itemId}/stream.mp3?Static=true`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      UserId: userId
-    })
-  });
+  const playbackInfo = await makeApiRequest(`/Items/${itemId}/PlaybackInfo`, {
+   method: "POST",
+   headers: { "Content-Type": "application/json" },
+   body: JSON.stringify({
+     UserId: userId,
+     EnableDirectPlay: true,
+     EnableDirectStream: true,
+     EnableTranscoding: true
+   })
+ });
 
       const source = playbackInfo?.MediaSources?.[0];
       if (!source) {
@@ -929,12 +1188,13 @@ if (item.Type === "Series") {
     const hasDovi = streams.some((s) => s.Type === "Video" && s.VideoRangeType === "DOVI");
 
     if (enableHls) {
+      const wantCopy = allowCopy === true;
       const hlsParams = {
-        MediaSourceId: videoSource.Id,
-        DeviceId: deviceId,
-        api_key: accessToken,
-        VideoCodec: "h264",
-        AudioCodec: "aac",
+      MediaSourceId: videoSource.Id,
+      DeviceId: deviceId,
+      api_key: accessToken,
+      VideoCodec: wantCopy ? "copy" : "h264",
+      AudioCodec: wantCopy ? "copy" : "aac",
         VideoBitrate: 1000000,
         AudioBitrate: 128000,
         MaxHeight: maxHeight,
@@ -1179,6 +1439,16 @@ export async function getCachedItemDetails(itemId) {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', clearAllInMemoryCaches, { once: true });
+  window.addEventListener('storage', (e) => {
+    if (["json-credentials", "embyToken", "serverId"].includes(e.key)) {
+      console.log("🗝️ Storage değişti → cache temizleniyor");
+      nukeAllCachesAndLocalUserCaches();
+      __lastAuthSnapshot = null;
+      if (e.key === "json-credentials" && (e.newValue === null || e.newValue === undefined)) {
+        clearPersistedIdentity();
+      }
+    }
+  });
 }
 
 export async function getCachedUserTopGenres(limit = 50, itemType = null) {
@@ -1214,7 +1484,6 @@ export async function getCachedUserTopGenres(limit = 50, itemType = null) {
   }
 }
 
-
 export async function getGenresForDot(itemId) {
   const cached = dotGenreCache.get(itemId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.genres;
@@ -1248,6 +1517,26 @@ function extractGenresFromItem(item) {
         .includes(tag.toLowerCase())
     );
   }
-
   return [];
+}
+
+export function hardSignOutCleanup() {
+  try {
+    localStorage.removeItem("json-credentials");
+    sessionStorage.removeItem("json-credentials");
+    localStorage.removeItem("embyToken");
+    sessionStorage.removeItem("embyToken");
+    localStorage.removeItem(USER_ID_KEY);
+    sessionStorage.removeItem(USER_ID_KEY);
+    localStorage.removeItem(DEVICE_ID_KEY);
+    sessionStorage.removeItem(DEVICE_ID_KEY);
+    localStorage.removeItem(USER_ID_KEY);
+    sessionStorage.removeItem(USER_ID_KEY);
+  } catch {}
+  nukeAllCachesAndLocalUserCaches();
+  __lastAuthSnapshot = null;
+}
+
+export function clearLocalIdentityForDebug() {
+  clearPersistedIdentity();
 }

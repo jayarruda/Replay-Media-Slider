@@ -1057,7 +1057,7 @@ function injectOrUpdateModalStyle() {
       position: absolute;
       width: 400px;
       height: 330px;
-      background: rgba(24, 27, 38, 0.97);
+      background: rgba(28, 28, 46, 0.97);
       border-radius: 20px;
       box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.38), 0 1.5px 4px rgba(0,0,0,.09);
       z-index: 1000;

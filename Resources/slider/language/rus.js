@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Язык по умолчанию",
+  all: "Все",
+  seeAll: "Показать все",
   peakDiagonal: "Диагональный вид",
   cssDescription: "• Полноэкранный режим адаптирован для Poster Dot в настольных средах.",
   cssMobileNote: "• Витринный вид пока не готов для мобильных устройств.",

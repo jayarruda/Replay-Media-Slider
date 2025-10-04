@@ -70,6 +70,26 @@ let __studioHubsMounting = false;
 let __studioHubsMountedOnce = false;
 let __studioHubsRetryTo = null;
 
+function upsertImg(card, className) {
+  let img = card.querySelector('img.hub-img');
+  if (!img) {
+    img = document.createElement('img');
+    img.className = className;
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.fetchPriority = 'low';
+    img.style.opacity = '0';
+    img.addEventListener('load', () => {
+      card.classList.remove('skeleton');
+      img.style.opacity = '1';
+    }, { once: true });
+    card.appendChild(img);
+  } else {
+    img.className = className;
+  }
+  return img;
+}
+
 function toCanonicalStudioName(name) {
   if (!name) return null;
   const key = String(name).toLowerCase();
@@ -473,6 +493,7 @@ async function setupHoverVideo(card, logoUrl, studioName, studioId, userId) {
     if (ok) { playableUrl = u; break; }
   }
   if (!playableUrl) return;
+
   let vidEl = null;
 
   const ensureVideo = () => {
@@ -499,17 +520,42 @@ async function setupHoverVideo(card, logoUrl, studioName, studioId, userId) {
     v.style.opacity = "1";
     v.play().catch(() => {});
   };
-  const stop = () => {
+  const stop = (remove = false) => {
     if (!vidEl) return;
-    vidEl.pause();
+    try { vidEl.pause(); } catch {}
     vidEl.style.opacity = "0";
+    if (remove) {
+      const v = vidEl;
+      vidEl = null;
+      try { v.removeAttribute('src'); v.load?.(); } catch {}
+      try { v.remove(); } catch {}
+    }
   };
 
   card.addEventListener("mouseenter", () => { if (__userInteracted) play(); });
-  card.addEventListener("mouseleave", stop);
+  card.addEventListener("mouseleave", () => stop(false));
   card.addEventListener("focus", play);
-  card.addEventListener("blur", stop);
+  card.addEventListener("blur", () => stop(false));
+  const stopAndRemove = () => stop(true);
+  card.addEventListener("click", stopAndRemove);
+  card.addEventListener("pointerdown", stopAndRemove);
+
+  const onRouteOrHide = () => stop(true);
+  window.addEventListener("hashchange", onRouteOrHide);
+  window.addEventListener("beforeunload", onRouteOrHide);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) onRouteOrHide();
+  });
+
+  card.__hoverVideoCleanup = () => {
+    stop(true);
+    card.removeEventListener("click", stopAndRemove);
+    card.removeEventListener("pointerdown", stopAndRemove);
+    window.removeEventListener("hashchange", onRouteOrHide);
+    window.removeEventListener("beforeunload", onRouteOrHide);
+  };
 }
+
 
 function withVer(url, v = "1") { return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(v)}`; }
 function loadLogoCache() {
@@ -680,6 +726,7 @@ function buildStudioHref(studioId, serverId) {
 function createBackdropCardShell(title, studio, serverId) {
   const a = document.createElement("a");
   a.className = "hub-card skeleton";
+  a.dataset.hub = title;
   a.href = studio?.Id ? buildStudioHref(studio.Id, serverId) : "javascript:void(0)";
   a.setAttribute("aria-label", title);
 
@@ -704,14 +751,6 @@ export async function renderStudioHubs() {
   __fetchAbort = new AbortController();
 
   try {
-    if (!document.getElementById("studioHubsCss")) {
-      const link = document.createElement("link");
-      link.id = "studioHubsCss";
-      link.rel = "stylesheet";
-      link.href = "slider/src/studioHubs.css";
-      (document.head || document.documentElement).appendChild(link);
-    }
-
     const indexPage =
       document.querySelector("#indexPage:not(.hide)") ||
       document.querySelector("#homePage:not(.hide)");
@@ -724,16 +763,17 @@ export async function renderStudioHubs() {
     }
      setupScroller(row);
      row.innerHTML = "";
-
-     const { serverId, userId } = getSessionInfo();
+     let { serverId, userId } = getSessionInfo();
+     serverId = serverId || localStorage.getItem("serverId") || sessionStorage.getItem("serverId") || null;
      const shells = {};
 
     const maxCards = Number.isFinite(config.studioHubsCardCount) ? config.studioHubsCardCount : ORDER.length;
     const wanted = ORDER.slice(0, Math.max(1, maxCards));
 
     for (const desired of wanted) {
-      const card = createBackdropCardShell(desired, null, null);
-      row.appendChild(card);
+      const existing = row.querySelector(`.hub-card[data-hub="${CSS.escape(desired)}"]`);
+      const card = existing || createBackdropCardShell(desired, null, null);
+      if (!existing) row.appendChild(card);
       shells[desired] = card;
     }
     row.parentElement.style.display = "";
@@ -760,20 +800,13 @@ export async function renderStudioHubs() {
       const logoUrl = await resolveLogoUrl(name);
 
       if (logoUrl) {
-        const old = card.querySelector("img.hub-img");
-        if (old) old.remove();
-
-        const img = document.createElement("img");
-        img.className = "hub-img hub-logo";
-        img.loading = "lazy";
-        img.decoding = "async";
-        img.fetchPriority = "low";
+        const img = upsertImg(card, "hub-img hub-logo");
         img.alt = `${name} logo`;
-        img.src = logoUrl;
-
+        if (img.src !== logoUrl) {
+          img.style.opacity = '0';
+          img.src = logoUrl;
+        }
         card.href = buildStudioHref(studio.Id, serverId);
-        card.classList.remove("skeleton");
-        card.appendChild(img);
 
         ensurePreviewButton(card, name, studio.Id, userId);
         if (config.studioHubsHoverVideo) {
@@ -786,20 +819,12 @@ export async function renderStudioHubs() {
         const chosen = await chooseBackdropForStudio(studio, userId, __fetchAbort.signal);
         if (!chosen?.url) return;
 
-        const old = card.querySelector("img.hub-img");
-        if (old) old.remove();
-
-        const img = document.createElement("img");
-        img.className = "hub-img";
-        img.loading = "lazy";
-        img.decoding = "async";
-        img.fetchPriority = "low";
+        const img = upsertImg(card, "hub-img");
         img.alt = name;
-        img.src = chosen.url;
-
-        card.href = buildStudioHref(studio.Id, serverId);
-        card.classList.remove("skeleton");
-        card.appendChild(img);
+        if (img.src !== chosen.url) {
+          img.style.opacity = '0';
+          img.src = chosen.url;
+        }
         ensurePreviewButton(card, name, studio.Id, userId);
       }
     }));
@@ -817,7 +842,13 @@ export async function renderStudioHubs() {
 function ensureContainer(indexPage) {
   const all = indexPage.querySelectorAll("#studio-hubs");
   if (all.length > 1) {
-    for (let i = 1; i < all.length; i++) all[i].remove();
+    for (let i = 1; i < all.length; i++) {
+     all[i].querySelectorAll('video.hub-video').forEach(v => {
+       try { v.pause(); } catch {}
+       try { v.removeAttribute('src'); v.load?.(); } catch {}
+     });
+     all[i].remove();
+   }
   }
   const homeSections = indexPage.querySelector(".homeSectionsContainer");
   if (!homeSections) return null;
@@ -933,9 +964,6 @@ export function ensureStudioHubsMounted({ eager=false } = {}) {
       if (!section) { scheduleRetry(800); return; }
       await renderStudioHubs();
       __studioHubsMountedOnce = true;
-      requestIdleCallback?.(() => {
-        try { renderStudioHubs(); } catch {}
-      });
     } finally {
       __studioHubsMounting = false;
     }
@@ -948,4 +976,3 @@ export function ensureStudioHubsMounted({ eager=false } = {}) {
 
   kick();
 }
-

@@ -1,5 +1,7 @@
 export const languageLabels = {
   defaultLanguage: "Langue par défaut",
+  all: "Tout",
+  seeAll: "Tout voir",
   peakDiagonal: "Vue Diagonale",
   cssDescription: "• La vue plein écran est adaptée pour le Poster Dot activé sur les environnements de bureau.",
   cssMobileNote: "• La vue vitrine n’est pas encore prête pour le mobile.",

@@ -5,6 +5,17 @@ const __animRafs   = new WeakMap();
 const __globalTimers = new Set();
 const __globalRafs   = new Set();
 
+export function forceReflow(el) {
+  if (!el) return;
+  void el.offsetWidth;
+}
+
+function startTransition(el, setInitial, setFinal) {
+  setInitial?.();
+  forceReflow(el);
+  raf(el, () => setFinal?.());
+}
+
 function trackTimer(el, id) {
   if (!el || !id) return;
   let arr = __animTimers.get(el);
@@ -55,8 +66,16 @@ export function teardownAnimations() {
 if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', teardownAnimations, { once: true });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) teardownAnimations();
-  });
+   if (document.hidden) {
+     __rafSubscribers.forEach(s => s.__paused = true);
+   } else {
+     __rafSubscribers.forEach(s => s.__paused = false);
+     if (!__rafId && __rafSubscribers.size) {
+       __rafId = requestAnimationFrame(__rafPump);
+       __globalRafs.add(__rafId);
+     }
+   }
+ });
 }
 
 const __removedSentinel = new WeakSet();
@@ -92,6 +111,7 @@ const animationStyles = `
   .slide {
     transform-style: preserve-3d;
     backface-visibility: hidden;
+    transform-origin: center center;
   }
   .poster-dot {
     transition: all 0.3s ease;
@@ -126,7 +146,9 @@ function withTransition(
   props = ['transform','opacity','filter','clip-path','border-radius']
 ) {
   const trs = props.map(p => `${p} ${duration}ms ${easing}`).join(', ');
-  el.style.transition = trs;
+  el.style.transition = 'none';
+ forceReflow(el);
+ el.style.transition = trs;
   setWillChange(el, props);
 }
 function setStyles(el, styles) { for (const k in styles) el.style[k] = styles[k]; }
@@ -219,6 +241,9 @@ function stopLoop(sub) {
 
 export function applySlideAnimation(currentSlide, newSlide, direction) {
   if (!currentSlide || !newSlide) return;
+  if (newSlide.__animating || currentSlide.__animating) return;
+  newSlide.__animating = true;
+  currentSlide.__animating = true;
   clearTimers(currentSlide);
   clearTimers(newSlide);
 
@@ -240,6 +265,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
   newSlide.style.display = "block";
   newSlide.style.zIndex = "2";
   withTransition(newSlide, duration, easing);
+  forceReflow(newSlide);
   if (!same) {
     withTransition(currentSlide, duration, easing);
     currentSlide.style.zIndex = "1";
@@ -268,6 +294,8 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.zIndex = "";
       newSlide.style.backfaceVisibility = "";
       clearWillChange(newSlide);
+      newSlide && (newSlide.__animating = false);
+currentSlide && (currentSlide.__animating = false);
     }
   };
 
@@ -275,9 +303,11 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
     newSlide.style.opacity = "0";
     raf(newSlide, () => { newSlide.style.opacity = "1"; });
     onTransitionEndOnce(newSlide, duration, () => {
-      newSlide.style.transition = "";
-      newSlide.style.opacity = "1";
-    });
+     newSlide.style.transition = "";
+     newSlide.style.opacity = "1";
+     newSlide.__animating = false;
+     currentSlide && (currentSlide.__animating = false);
+   });
     return;
   }
 
@@ -290,28 +320,36 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
     }
 
     case 'slideTop': {
-      currentSlide.style.transform = "translateY(0)";
-      currentSlide.style.opacity = "1";
-      newSlide.style.transform = "translateY(-100%)";
+  currentSlide.style.transform = "translate3d(0,0,0)";
+  currentSlide.style.opacity = "1";
+  startTransition(newSlide,
+    () => {
+      newSlide.style.transform = "translate3d(0,-100%,0)";
       newSlide.style.opacity = "0";
-      raf(newSlide, () => {
-        newSlide.style.transform = "translateY(0)";
-        newSlide.style.opacity = "1";
-      });
-      break;
+    },
+    () => {
+      newSlide.style.transform = "translate3d(0,0,0)";
+      newSlide.style.opacity = "1";
     }
+  );
+  break;
+}
 
     case 'slideBottom': {
-      currentSlide.style.transform = "translateY(0)";
-      currentSlide.style.opacity = "1";
-      newSlide.style.transform = "translateY(100%)";
+  currentSlide.style.transform = "translate3d(0,0,0)";
+  currentSlide.style.opacity = "1";
+  startTransition(newSlide,
+    () => {
+      newSlide.style.transform = "translate3d(0,100%,0)";
       newSlide.style.opacity = "0";
-      raf(newSlide, () => {
-        newSlide.style.transform = "translateY(0)";
-        newSlide.style.opacity = "1";
-      });
-      break;
+    },
+    () => {
+      newSlide.style.transform = "translate3d(0,0,0)";
+      newSlide.style.opacity = "1";
     }
+  );
+  break;
+}
 
     case 'rotateIn': {
       currentSlide.style.transform = "rotate(0deg) scale(1)";
@@ -426,93 +464,131 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
     }
 
     case 'cube': {
-      currentSlide.style.transform = `translateZ(-200px) rotateY(${direction > 0 ? -90 : 90}deg)`;
-      currentSlide.style.opacity = "0";
-      newSlide.style.transform = `translateZ(-200px) rotateY(${direction > 0 ? 90 : -90}deg)`;
+  newSlide.style.backfaceVisibility = "hidden";
+  currentSlide.style.backfaceVisibility = "hidden";
+  currentSlide.style.transform =
+    `translate3d(0,0,-200px) rotateY(${direction > 0 ? -90 : 90}deg)`;
+  currentSlide.style.opacity = "0";
+
+  startTransition(newSlide,
+    () => {
+      newSlide.style.transform =
+        `translate3d(0,0,-200px) rotateY(${direction > 0 ? 90 : -90}deg)`;
       newSlide.style.opacity = "0";
-      newSlide.style.backfaceVisibility = "hidden";
-      raf(newSlide, () => {
-        newSlide.style.transform = "translateZ(0) rotateY(0deg)";
-        newSlide.style.opacity = "1";
-        newSlide.style.backfaceVisibility = "visible";
-      });
-      break;
+    },
+    () => {
+      newSlide.style.transform = "translate3d(0,0,0) rotateY(0deg)";
+      newSlide.style.opacity = "1";
+      newSlide.style.backfaceVisibility = "visible";
     }
+  );
+  break;
+}
 
     case 'zoom': {
-      currentSlide.style.transform = "scale(1.5)";
-      currentSlide.style.opacity = "0";
-      newSlide.style.transform = "scale(0.5)";
+  currentSlide.style.transform = "scale3d(1.5,1.5,1)";
+  currentSlide.style.opacity = "0";
+
+  startTransition(newSlide,
+    () => {
+      newSlide.style.transform = "scale3d(0.5,0.5,1)";
       newSlide.style.opacity = "0";
-      raf(newSlide, () => {
-        newSlide.style.transform = "scale(1)";
-        newSlide.style.opacity = "1";
-      });
-      break;
+    },
+    () => {
+      newSlide.style.transform = "scale3d(1,1,1)";
+      newSlide.style.opacity = "1";
     }
+  );
+  break;
+}
 
     case 'slide3d': {
-      currentSlide.style.transform = `translateX(${direction > 0 ? -100 : 100}%) translateZ(-100px) rotateY(30deg)`;
-      currentSlide.style.opacity = "0";
-      newSlide.style.transform = `translateX(${direction > 0 ? 100 : -100}%) translateZ(-100px) rotateY(-30deg)`;
+  currentSlide.style.transform =
+    `translate3d(${direction > 0 ? '-100%' : '100%'}, 0, 0) rotateY(${direction > 0 ? 30 : -30}deg)`;
+  currentSlide.style.opacity = "0";
+
+  startTransition(newSlide,
+    () => {
+      newSlide.style.transform =
+        `translate3d(${direction > 0 ? '100%' : '-100%'}, 0, 0) rotateY(${direction > 0 ? -30 : 30}deg)`;
       newSlide.style.opacity = "0";
-      raf(newSlide, () => {
-        newSlide.style.transform = "translateX(0) translateZ(0) rotateY(0deg)";
-        newSlide.style.opacity = "1";
-      });
-      break;
+    },
+    () => {
+      newSlide.style.transform = "translate3d(0,0,0) rotateY(0deg)";
+      newSlide.style.opacity = "1";
     }
+  );
+  break;
+}
 
     case 'slide': {
-      currentSlide.style.transform = `translateX(${direction > 0 ? '-100%' : '100%'})`;
-      currentSlide.style.opacity = '0';
-      newSlide.style.transform = `translateX(${direction > 0 ? '100%' : '-100%'})`;
-      newSlide.style.opacity = '1';
-      raf(newSlide, () => { newSlide.style.transform = 'translateX(0)'; });
-      break;
-    }
-
+   currentSlide.style.transform = `translate3d(${direction > 0 ? '-100%' : '100%'},0,0)`;
+   currentSlide.style.opacity = '0';
+   startTransition(newSlide,
+     () => {
+       newSlide.style.transform = `translate3d(${direction > 0 ? '100%' : '-100%'},0,0)`;
+       newSlide.style.opacity = '1';
+     },
+     () => {
+       newSlide.style.transform = 'translate3d(0,0,0)';
+     }
+   );
+   break;
+ }
     case 'diagonal': {
-      currentSlide.style.transform = `translate(${direction > 0 ? "-100%" : "100%"}, -100%)`;
-      currentSlide.style.opacity = "0";
-      newSlide.style.transform = `translate(${direction > 0 ? "100%" : "-100%"}, 100%)`;
-      newSlide.style.opacity = "0";
-      raf(newSlide, () => {
-        newSlide.style.transform = "translate(0, 0)";
-        newSlide.style.opacity = "1";
-      });
-      break;
-    }
+   currentSlide.style.transform = `translate3d(${direction > 0 ? '-100%' : '100%'}, -100%, 0)`;
+   currentSlide.style.opacity = '0';
+   startTransition(newSlide,
+     () => {
+       newSlide.style.transform = `translate3d(${direction > 0 ? '100%' : '-100%'}, 100%, 0)`;
+       newSlide.style.opacity = '0';
+     },
+     () => {
+       newSlide.style.transform = 'translate3d(0,0,0)';
+       newSlide.style.opacity = '1';
+     }
+   );
+   break;
+ }
 
     case 'fadezoom': {
-      currentSlide.style.opacity = "1";
-      currentSlide.style.transform = "scale(1)";
-      newSlide.style.opacity = "0";
-      newSlide.style.transform = "scale(1.5)";
-      raf(newSlide, () => {
-        newSlide.style.opacity = "1";
-        newSlide.style.transform = "scale(1)";
-      });
-      break;
-    }
+  currentSlide.style.opacity = "0";
+  currentSlide.style.transform = "scale3d(1.05,1.05,1)";
 
-    case 'parallax': {
-      const slideDuration = duration || 700;
-      const ez = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
-      currentSlide.style.transition = `transform ${slideDuration}ms ${ez}, opacity ${slideDuration}ms ease`;
-      newSlide.style.transition = `transform ${slideDuration}ms ${ez}, opacity ${slideDuration}ms ease`;
-      currentSlide.style.transform = `translateX(${direction > 0 ? '-30%' : '30%'})`;
-      currentSlide.style.opacity = "0";
-      newSlide.style.transform = `translateX(${direction > 0 ? '50%' : '-50%'})`;
-      newSlide.style.opacity = "0.5";
-      newSlide.style.zIndex = "5";
-      void newSlide.offsetWidth;
-      raf(newSlide, () => {
-        newSlide.style.transform = "translateX(0)";
-        newSlide.style.opacity = "1";
-      });
-      break;
+  startTransition(newSlide,
+    () => {
+      newSlide.style.opacity = "0";
+      newSlide.style.transform = "scale3d(1.5,1.5,1)";
+    },
+    () => {
+      newSlide.style.opacity = "1";
+      newSlide.style.transform = "scale3d(1,1,1)";
     }
+  );
+  break;
+}
+
+  case 'parallax': {
+  const ez = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+  withTransition(currentSlide, duration, ez, ['transform','opacity']);
+  withTransition(newSlide,     duration, ez, ['transform','opacity']);
+
+  currentSlide.style.transform = `translate3d(${direction > 0 ? '-30%' : '30%'}, 0, 0)`;
+  currentSlide.style.opacity = "0";
+
+  newSlide.style.zIndex = "5";
+  startTransition(newSlide,
+    () => {
+      newSlide.style.transform = `translate3d(${direction > 0 ? '50%' : '-50%'}, 0, 0)`;
+      newSlide.style.opacity = "0.5";
+    },
+    () => {
+      newSlide.style.transform = "translate3d(0,0,0)";
+      newSlide.style.opacity = "1";
+    }
+  );
+  break;
+}
 
     case 'blur-fade': {
       currentSlide.style.filter = 'blur(5px)';
