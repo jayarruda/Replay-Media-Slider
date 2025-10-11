@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.6.1.0",
+        "changelog": "Plugin improvements and bug fixes.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.6.0/JMSFusion-1.6.1.0-server.zip",
+        "checksum": "cccc5f693327a27f5a2ea33c50b54a00",
+        "timestamp": "2025-10-11T07:18:51.1814035Z"
+      },
+      {
         "version": "1.6.0.9",
         "changelog": "Added a ‘See All’ modal for genre collections. + Plugin improvements and bug fixes.",
         "targetAbi": "10.10.0.0",
