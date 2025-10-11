@@ -5,7 +5,7 @@ import { getLanguageLabels, getDefaultLanguage } from '../language/index.js';
 import { getCurrentIndex, setCurrentIndex, setRemainingTime } from "./sliderState.js";
 import { applyContainerStyles } from "./positionUtils.js";
 import { playNow, fetchItemDetails, getCachedUserTopGenres, getGenresForDot, goToDetailsPage } from "./api.js";
-import { applySlideAnimation, applyDotPosterAnimation, teardownAnimations, forceReflow } from "./animations.js";
+import { applySlideAnimation, applyDotPosterAnimation, teardownAnimations, forceReflow, nextAnimToken, hardCleanupSlide } from "./animations.js";
 import { getVideoQualityText } from "./containerUtils.js";
 import { previewPreloadCache } from "./hoverTrailerModal.js";
 import { attachMiniPosterHover, openMiniPopoverFor } from "./studioHubsUtils.js";
@@ -22,6 +22,51 @@ if (!config.languageLabels) {
 if (typeof document !== 'undefined' && (document.hidden || document.visibilityState === 'hidden')) {
   closeVideoModal();
 }
+
+function ensureFlickerFixCSS() {
+  if (document.getElementById('android-flicker-fix')) return;
+  const st = document.createElement('style');
+  st.id = 'android-flicker-fix';
+  st.textContent = `
+    #slides-container.peak-mode .slide {
+      will-change: transform, opacity;
+      backface-visibility: hidden;
+    }
+    .slide.is-hidden {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+    .slide.is-visible {
+      visibility: visible !important;
+      pointer-events: auto !important;
+    }
+    #slides-container.peak-ready .slide.off-left,
+    #slides-container.peak-ready .slide.off-right {
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+  `;
+  document.head.appendChild(st);
+}
+
+function showSlide(el) {
+  if (!el) return;
+  el.classList.add('is-visible');
+  el.classList.remove('is-hidden');
+  if (el.style.display) el.style.removeProperty('display');
+}
+
+function hideSlide(el, { soft = true } = {}) {
+  if (!el) return;
+  el.classList.remove('is-visible');
+  el.classList.add('is-hidden');
+  if (!soft) {
+    setTimeout(() => {
+      if (!el.classList.contains('active')) el.style.display = 'none';
+    }, 50);
+  }
+}
+
 
 function L(key, fallback = '') {
   try { return (getConfig()?.languageLabels?.[key]) ?? fallback; }
@@ -40,86 +85,94 @@ function hardResetProgressBarEl() {
 }
 
 function microFadeSwap(
-   oldSlide,
-   newSlide,
-   durMs = Math.min(300, Math.max(120, (getConfig()?.slideAnimationDuration ?? 280))))
- {
-   if (!newSlide) return;
-   const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-   const D = prefersReduced ? 0 : durMs;
+  oldSlide,
+  newSlide,
+  durMs = Math.min(300, Math.max(120, (getConfig()?.slideAnimationDuration ?? 280)))
+) {
+  if (!newSlide) return;
 
-   if (newSlide.dataset.fx === 'running') return;
-    newSlide.dataset.fx = 'running';
-    if (oldSlide) oldSlide.dataset.fxPrev = 'running';
+  const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const D = prefersReduced ? 0 : durMs;
 
-   const killTransitions = (el) => {
+  if (newSlide.dataset.fx === 'running') return;
+  newSlide.dataset.fx = 'running';
+  if (oldSlide) oldSlide.dataset.fxPrev = 'running';
+
+  const killTransitions = (el) => {
     el.style.transition = 'none';
     el.style.willChange = 'auto';
   };
   const flush = () => { void document.body.offsetWidth; };
 
-  newSlide.style.display = 'block';
-  killTransitions(newSlide);
+  showSlide(newSlide);
   newSlide.style.opacity = '0';
   newSlide.style.zIndex = '2';
   newSlide.style.willChange = 'opacity';
+  killTransitions(newSlide);
 
   if (oldSlide && oldSlide !== newSlide) {
-    oldSlide.style.display = 'block';
-    killTransitions(oldSlide);
+    showSlide(oldSlide);
     oldSlide.style.opacity = '1';
     oldSlide.style.zIndex = '1';
     oldSlide.style.pointerEvents = 'none';
     oldSlide.style.willChange = 'opacity';
+    killTransitions(oldSlide);
   }
 
-  flush();
-  flush();
+  flush(); flush();
 
-  if (D === 0) {
-    newSlide.style.opacity = '1';
-    if (oldSlide && oldSlide !== newSlide) oldSlide.style.opacity = '0';
-    cleanup(true);
-    return;
-  }
-  newSlide.style.transition = `opacity ${D}ms ease`;
-  if (oldSlide && oldSlide !== newSlide) {
-    oldSlide.style.transition = `opacity ${D}ms ease`;
-  }
-  requestAnimationFrame(() => {
-    newSlide.style.opacity = '1';
-    if (oldSlide && oldSlide !== newSlide) {
-      oldSlide.style.opacity = '0';
-    }
-  });
-   function cleanup(immediate = false) {
+  const cleanup = () => {
     newSlide.style.transition = '';
     newSlide.style.willChange = '';
     newSlide.style.zIndex = '';
     delete newSlide.dataset.fx;
 
     if (oldSlide && oldSlide !== newSlide) {
-      oldSlide.style.display = 'none';
+      hideSlide(oldSlide, { soft: true });
       oldSlide.style.transition = '';
       oldSlide.style.transform = '';
       oldSlide.style.willChange = '';
       oldSlide.style.pointerEvents = '';
       oldSlide.style.zIndex = '';
       oldSlide.style.opacity = '0';
+      setTimeout(() => {
+        if (!oldSlide.classList.contains('active')) oldSlide.style.display = 'none';
+      }, 60);
       delete oldSlide.dataset.fxPrev;
     }
+  };
+
+  if (D === 0) {
+    newSlide.style.opacity = '1';
+    if (oldSlide && oldSlide !== newSlide) oldSlide.style.opacity = '0';
+    cleanup();
+    return;
   }
 
-   let done = false;
-   const onEnd = () => {
-     if (done) return;
-     done = true;
-     newSlide.removeEventListener('transitionend', onEnd);
-     cleanup();
-   };
-   newSlide.addEventListener('transitionend', onEnd, { once: true });
-  setTimeout(onEnd, D + 80);
- }
+  newSlide.style.transition = `opacity ${D}ms ease`;
+  if (oldSlide && oldSlide !== newSlide) {
+    oldSlide.style.transition = `opacity ${D}ms ease`;
+  }
+
+  requestAnimationFrame(() => {
+    newSlide.style.opacity = '1';
+    if (oldSlide && oldSlide !== newSlide) {
+      oldSlide.style.opacity = '0';
+    }
+  });
+
+  let done = false;
+  const onEnd = () => {
+    if (done) return;
+    done = true;
+    newSlide.removeEventListener('transitionend', onEnd);
+    cleanup();
+  };
+
+  newSlide.addEventListener('transitionend', onEnd, { once: true });
+  setTimeout(onEnd, D + 100);
+}
+
 
 function getBackdropFromDot(dot) {
   const img = dot?.querySelector?.('.dot-poster-image');
@@ -640,6 +693,8 @@ async function preloadGenreData(itemIds) {
 }
 
 export function displaySlide(index) {
+  ensureFlickerFixCSS();
+
   const indexPage = document.querySelector("#indexPage:not(.hide)");
   if (!indexPage) return;
 
@@ -656,19 +711,32 @@ export function displaySlide(index) {
   const activeSlide = indexPage.querySelector(".slide.active");
   const slidesArr = Array.from(slides);
   const len = slidesArr.length;
+
   let prevIndex = activeSlide ? slidesArr.indexOf(activeSlide) : -1;
   if (prevIndex < 0) prevIndex = (index - 1 + len) % len;
+
   let delta = index - prevIndex;
   if (delta >  len / 2)  delta -= len;
   if (delta < -len / 2)  delta += len;
+
   const direction = delta === 0 ? 1 : (delta > 0 ? 1 : -1);
   const slidesContainer = indexPage.querySelector("#slides-container");
+
   const isPeak = !!getConfig()?.peakSlider;
   if (slidesContainer) slidesContainer.classList.toggle("peak-mode", isPeak);
   if (isPeak && slidesContainer && !slidesContainer.classList.contains('peak-ready')) {
     slidesContainer.classList.add('peak-init');
     slidesContainer.scrollLeft = 0;
   }
+
+  slides.forEach(s => {
+    if (s === currentSlide) {
+      showSlide(s);
+    } else if (!isPeak) {
+      hideSlide(s, { soft: true });
+    }
+  });
+
   if (activeSlide) {
     if (!isPeak) {
       const enableAnims = !!getConfig()?.enableSlideAnimations;
@@ -677,7 +745,8 @@ export function displaySlide(index) {
           microFadeSwap(activeSlide, currentSlide);
         });
       } else {
-        currentSlide.style.display = "block";
+        cancelOngoingAnimations(slidesArr);
+        showSlide(currentSlide);
         currentSlide.style.opacity = "0";
         currentSlide.style.willChange = "transform, opacity";
         forceReflow(currentSlide);
@@ -687,33 +756,34 @@ export function displaySlide(index) {
       }
     }
   } else {
-    currentSlide.style.display = "block";
+    showSlide(currentSlide);
     currentSlide.style.opacity = "1";
   }
 
   if (isPeak) {
     ensurePeakVars(slidesContainer);
     const cfg = getConfig();
-   let spanLeft  = Number(cfg?.peakSpanLeft  ?? 1);
-   let spanRight = Number(cfg?.peakSpanRight ?? 5);
-   const diagonal = !!cfg?.peakDiagonal;
-   if (!diagonal) { spanLeft = 1; spanRight = 1; }
-   primePeakFirstPaint(slides, index, slidesContainer, { spanLeft, spanRight, diagonal });
-   enablePeakNeighborActivation();
+    let spanLeft  = Number(cfg?.peakSpanLeft  ?? 1);
+    let spanRight = Number(cfg?.peakSpanRight ?? 5);
+    const diagonal = !!cfg?.peakDiagonal;
+    if (!diagonal) { spanLeft = 1; spanRight = 1; }
+
+    primePeakFirstPaint(slides, index, slidesContainer, { spanLeft, spanRight, diagonal });
+    enablePeakNeighborActivation();
   } else {
     slides.forEach(slide => {
       if (slide !== currentSlide) {
         slide.classList.remove("active");
         setTimeout(() => {
           if (!slide.classList.contains("active")) {
-            slide.style.display = "none";
+            hideSlide(slide, { soft: true });
           }
         }, getConfig().slideAnimationDuration || 300);
       }
     });
   }
 
-  currentSlide.style.display = "block";
+  showSlide(currentSlide);
   requestAnimationFrame(() => {
     currentSlide.classList.add("active");
     currentSlide.dispatchEvent(new CustomEvent("slideActive"));
@@ -732,18 +802,33 @@ export function displaySlide(index) {
   initSwipeEvents();
 }
 
+function cancelOngoingAnimations(slidesArr) {
+  for (const s of slidesArr) {
+    if (s.__animating || s.__animToken) {
+      hardCleanupSlide(s);
+      if (!s.classList.contains('active')) {
+        s.style.display = "none";
+        s.style.opacity = "0";
+      }
+    }
+  }
+}
+
+function circSignedDist(i, active, len) {
+  let d = ((i - active) % len + len) % len;
+  if (d > len / 2) d -= len;
+  return d;
+}
+
 export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
   if (window.__peakBooting) {
     const arr = Array.from(slides);
     arr.forEach(s => {
-      s.classList.remove('active','off-left','off-right');
-      s.classList.remove('peak-neighbor');
-      [...s.classList].forEach(c => {
-        if (/^(left|right)\d+$/.test(c)) s.classList.remove(c);
-      });
+      s.classList.remove('active','off-left','off-right','peak-neighbor');
+      [...s.classList].forEach(c => { if (/^(left|right)\d+$/.test(c)) s.classList.remove(c); });
       s.removeAttribute("data-side");
       s.style.removeProperty("--k");
-      s.style.display = "block";
+      showSlide(s);
     });
 
     const active = arr[activeIndex] || arr[0];
@@ -764,14 +849,11 @@ export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
   const arr = Array.from(slides);
 
   arr.forEach(s => {
-    s.classList.remove('active','off-left','off-right');
-    s.classList.remove('peak-neighbor');
-    [...s.classList].forEach(c => {
-      if (/^(left|right)\d+$/.test(c)) s.classList.remove(c);
-    });
+    s.classList.remove('active','off-left','off-right','peak-neighbor');
+    [...s.classList].forEach(c => { if (/^(left|right)\d+$/.test(c)) s.classList.remove(c); });
     s.removeAttribute("data-side");
     s.style.removeProperty("--k");
-    s.style.display = "block";
+    showSlide(s);
   });
 
   const active = arr[activeIndex];
@@ -779,6 +861,7 @@ export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
     active.classList.add('active');
     active.removeAttribute('data-side');
     active.style.removeProperty('--k');
+    showSlide(active);
   }
 
   const len = arr.length;
@@ -788,24 +871,28 @@ export function updatePeakClasses(slides, activeIndex, spanOrOpts = 2) {
     const slide = arr[idx];
     if (!slide) continue;
     if (i < 0) {
-  const dist = Math.min(-i, spanLeft);
-  slide.dataset.side = "left";
-  slide.style.setProperty("--k", dist);
-  slide.classList.add('peak-neighbor');
-} else {
-  const dist = Math.min(i, spanRight);
-  slide.dataset.side = "right";
-  slide.style.setProperty("--k", dist);
-  slide.classList.add('peak-neighbor');
-}
+      const dist = Math.min(-i, spanLeft);
+      slide.dataset.side = "left";
+      slide.style.setProperty("--k", dist);
+      slide.classList.add('peak-neighbor');
+    } else {
+      const dist = Math.min(i, spanRight);
+      slide.dataset.side = "right";
+      slide.style.setProperty("--k", dist);
+      slide.classList.add('peak-neighbor');
+    }
   }
 
   arr.forEach((s, i) => {
-    const leftDist  = (activeIndex - i + len) % len;
-    const rightDist = (i - activeIndex + len) % len;
-    const signed = (i >= activeIndex) ? rightDist : -leftDist;
-    if (signed < -spanLeft)  s.classList.add('off-left');
-    if (signed >  spanRight) s.classList.add('off-right');
+    const d = circSignedDist(i, activeIndex, len);
+    if (d < -spanLeft)  s.classList.add('off-left');
+    if (d >  spanRight) s.classList.add('off-right');
+
+    if (s.classList.contains('off-left') || s.classList.contains('off-right')) {
+      hideSlide(s, { soft: true });
+    } else {
+      showSlide(s);
+    }
   });
 
   const container = document.querySelector('#slides-container');
@@ -826,7 +913,7 @@ export function primePeakFirstPaint(slides, activeIndex, slidesContainer, spanOr
     }
     arr.forEach((s, i) => {
       s.style.setProperty('transition','none','important');
-      s.style.display = 'block';
+      showSlide(s);
       s.classList.toggle('active', i === activeIndex);
       s.classList.remove('off-left','off-right','peak-neighbor');
       [...s.classList].forEach(c => { if (/^(left|right)\d+$/.test(c)) s.classList.remove(c); });

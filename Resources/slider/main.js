@@ -10,7 +10,7 @@ import { fetchItemDetails, getSessionInfo, getAuthHeader } from "./modules/api.j
 import { forceHomeSectionsTop, forceSkinHeaderPointerEvents } from "./modules/positionOverrides.js";
 import { setupPauseScreen } from "./modules/pauseModul.js";
 import { updateHeaderUserAvatar, initAvatarSystem } from "./modules/userAvatar.js";
-import { initializeQualityBadges, primeQualityFromItems, annotateDomWithQualityHints } from "./modules/qualityBadges.js";
+import { initializeQualityBadges, primeQualityFromItems } from "./modules/qualityBadges.js";
 import { initNotifications, forcejfNotifBtnPointerEvents } from "./modules/notifications.js";
 import { startUpdatePolling } from "./modules/update.js";
 import { ensureStudioHubsMounted } from "./modules/studioHubs.js";
@@ -317,14 +317,12 @@ forcejfNotifBtnPointerEvents();
 updateHeaderUserAvatar();
 initNotifications();
 
-document.addEventListener("DOMContentLoaded", () => {
-  if (config.enableQualityBadges && !window.__qualityBadgesBooted) {
-    window.__qualityBadgesBooted = true;
-    try {
-      window.cleanupQualityBadges = initializeQualityBadges();
-    } catch {}
-  }
-});
+document.addEventListener('DOMContentLoaded', () => {
+    if (config.enableQualityBadges && !window.__qualityBadgesBooted) {
+      window.__qualityBadgesBooted = true;
+      try { window.cleanupQualityBadges = initializeQualityBadges(); } catch {}
+    }
+  });
 
 function fullSliderReset() {
   try { teardownAnimations(); } catch {}
@@ -672,6 +670,13 @@ function watchActiveSlideChanges() {
         hardProgressReset();
         restartSlideTimerDeterministic();
         try { warmUpcomingBackdrops(4); } catch {}
+        try {
+          const activeImg = document.querySelector('#slides-container .slide.active .backdrop');
+          if (activeImg) {
+            activeImg.loading = 'eager';
+            activeImg.setAttribute('fetchpriority','high');
+          }
+        } catch {}
       });
     });
   };
@@ -716,6 +721,60 @@ function warmUpcomingBackdrops(count = 3) {
     }
   } catch {}
 }
+
+(function mountSliderKeepAlive(){
+  if (window.__sliderKeepAliveMounted) return;
+  window.__sliderKeepAliveMounted = true;
+  const PIN_ATTR = 'data-preload-pin';
+  let pinnedLink = null;
+
+  const pinPreload = (url) => {
+    if (!url) return;
+    if (pinnedLink && pinnedLink.href === url) return;
+    try { pinnedLink?.remove(); } catch {}
+    const l = document.createElement('link');
+    l.rel = 'preload';
+    l.as = 'image';
+    l.href = url;
+    l.setAttribute(PIN_ATTR, '1');
+    l.__pinned = true;
+    document.head.appendChild(l);
+    pinnedLink = l;
+  };
+  const unpin = () => { try { pinnedLink?.remove(); } catch {} pinnedLink = null; };
+
+  const getActiveBackdropUrl = () => {
+    const sc = document.querySelector('#slides-container');
+    if (!sc) return '';
+    const active = sc.querySelector('.slide.active');
+    if (!active) return '';
+    const img = active.querySelector('.backdrop');
+    if (img?.__bgData?.hqSrc) return img.__bgData.hqSrc;
+    return active.dataset.background || active.dataset.backdropUrl || '';
+  };
+
+  const sc = document.querySelector('#slides-container');
+  if (!sc) return;
+  const io = new IntersectionObserver((entries) => {
+    const ent = entries[0];
+    if (!ent) return;
+    if (!ent.isIntersecting) {
+      const url = getActiveBackdropUrl();
+      pinPreload(url);
+      try { warmUpcomingBackdrops(2); } catch {}
+    } else {
+      unpin();
+      try {
+        const activeImg = document.querySelector('#slides-container .slide.active .backdrop');
+        if (activeImg) {
+          activeImg.loading = 'eager';
+          activeImg.setAttribute('fetchpriority','high');
+        }
+      } catch {}
+    }
+  }, { root: null, threshold: 0 });
+  io.observe(sc);
+})();
 
 export async function slidesInit() {
   try {
@@ -978,7 +1037,6 @@ export async function slidesInit() {
 
     const first = items[0];
     await createSlide(first);
-    try { annotateDomWithQualityHints(document); } catch {}
     markSlideCreated();
 
     const idxPage = document.querySelector("#indexPage:not(.hide)") || document.querySelector("#homePage:not(.hide)");
@@ -994,7 +1052,6 @@ export async function slidesInit() {
         for (const it of rest) {
           try {
             await createSlide(it);
-            try { annotateDomWithQualityHints(document); } catch {}
             markSlideCreated();
             if (config.peakSlider) {
             const idxPage = document.querySelector('#indexPage:not(.hide), #homePage:not(.hide)');

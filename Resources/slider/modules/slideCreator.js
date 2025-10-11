@@ -10,6 +10,124 @@ const settingsBackgroundSlides = [];
 const backdropWarmQueue = createImageWarmQueue({ concurrency: 3 });
 window.__backdropWarmQueue = backdropWarmQueue;
 
+const BG_HYDRATION_PER_FRAME = 12;
+const NEIGHBOR_WARM_COUNT = 2;
+let __bgHydrationQueue = [];
+let __bgHydrationRAF = 0;
+let __bgScrollActive = false;
+let __bgScrollIdleTimer = 0;
+
+function bgQueueHydration(fn) {
+  __bgHydrationQueue.push(fn);
+  if (!__bgHydrationRAF) {
+    __bgHydrationRAF = requestAnimationFrame(bgFlushHydrationFrame);
+  }
+}
+function bgFlushHydrationFrame() {
+  __bgHydrationRAF = 0;
+  if (__bgScrollActive) return;
+  let budget = BG_HYDRATION_PER_FRAME;
+  while (budget-- > 0 && __bgHydrationQueue.length) {
+    const fn = __bgHydrationQueue.shift();
+    try { fn && fn(); } catch {}
+  }
+  if (__bgHydrationQueue.length) {
+    __bgHydrationRAF = requestAnimationFrame(bgFlushHydrationFrame);
+  }
+}
+
+(function injectBackdropPerfStyles(){
+  if (document.getElementById('backdrop-perf-css')) return;
+  const st = document.createElement('style');
+  st.id = 'backdrop-perf-css';
+  st.textContent = `
+    .backdrop { opacity: 1; transition: opacity .5s ease; will-change: opacity, filter, transform; }
+    .backdrop.is-lqip { filter: blur(16px); transform: scale(1.03); }
+  `;
+  document.head.appendChild(st);
+})();
+
+const __bgIO = new IntersectionObserver((entries) => {
+  for (const ent of entries) {
+    const img = ent.target;
+    const data = img.__bgData || {};
+    if (ent.isIntersecting) {
+      if (!img.__hiRequested) {
+        img.__hiRequested = true;
+        img.__phase = 'hi';
+        bgQueueHydration(() => {
+          if (!img.isConnected) return;
+          if (data.hqSrcset) img.srcset = data.hqSrcset;
+          if (data.hqSrc)    img.src    = data.hqSrc;
+        });
+      }
+    }
+  }
+}, { rootMargin: '800px 0px' });
+
+function hydrateBackdrop(img, { lqSrc, hqSrc, hqSrcset = '', fallback = '', eager = false, onHiLoaded }) {
+  const fb = fallback || lqSrc || '';
+  img.__bgData = { lqSrc, hqSrc, hqSrcset, fallback: fb };
+  img.__phase = 'lq';
+  img.__hiRequested = false;
+
+  try { img.removeAttribute('srcset'); } catch {}
+  img.classList.add('is-lqip');
+  img.decoding = 'async';
+  img.loading = eager ? 'eager' : 'auto';
+  img.src = lqSrc || fb || img.src;
+  if (!eager) {
+    img.style.opacity = '0';
+  } else {
+    img.style.opacity = '1';
+  }
+
+  const onError = () => {
+    if (img.__phase === 'hi') {
+      try { img.removeAttribute('srcset'); } catch {}
+      if (lqSrc) img.src = lqSrc; else if (fb) img.src = fb;
+      img.classList.add('is-lqip');
+      img.__phase = 'lq';
+      img.__hiRequested = false;
+    }
+  };
+  const onLoad = () => {
+    if (img.__phase === 'hi') {
+      img.classList.remove('is-lqip');
+      img.style.opacity = '1';
+      img.__hydrated = true;
+      try { img.loading = 'eager'; } catch {}
+      try { img.decoding = 'auto'; } catch {}
+      try { img.setAttribute('fetchpriority','high'); } catch {}
+      if (typeof onHiLoaded === 'function') { try { onHiLoaded(); } catch {} }
+    } else {
+      img.style.opacity = '1';
+    }
+  };
+
+  img.__bgOnErr = onError;
+  img.__bgOnLoad = onLoad;
+  img.addEventListener('error', onError, { passive: true });
+  img.addEventListener('load',  onLoad,  { passive: true });
+
+  __bgIO.observe(img);
+  if (eager && hqSrc) {
+    img.__phase = 'hi';
+    img.__hiRequested = true;
+    if (hqSrcset) img.srcset = hqSrcset;
+    img.src = hqSrc;
+  }
+}
+
+function unobserveBackdrop(img) {
+  try { __bgIO.unobserve(img); } catch {}
+  try { img.removeEventListener('error', img.__bgOnErr); } catch {}
+  try { img.removeEventListener('load',  img.__bgOnLoad); } catch {}
+  delete img.__bgOnErr;
+  delete img.__bgOnLoad;
+  try { img.removeAttribute('srcset'); } catch {}
+}
+
 function warmImageOnce(url, { timeout = 2500 } = {}) {
   if (!url) return Promise.resolve();
   const LRU_MAX = 500;
@@ -33,7 +151,6 @@ function warmImageOnce(url, { timeout = 2500 } = {}) {
     img.src = url;
   });
 }
-
 
 function shortPreload(url, ms = 1200) {
   if (!url) return;
@@ -106,7 +223,24 @@ async function createSlide(item) {
   const perSlideCleanups = [];
   const slidesContainer = createSlidesContainer(indexPage);
   const existing = slidesContainer.querySelector(`.slide[data-item-id="${itemIdRaw}"]`);
- if (existing) {
+  (function bindSlidesScrollPerf(){
+    if (window.__jmsSlidesScrollBound) return;
+    window.__jmsSlidesScrollBound = true;
+    const scroller = document.querySelector('#slides-container');
+    if (!scroller) return;
+    const onScrollPerf = () => {
+      __bgScrollActive = true;
+      if (__bgScrollIdleTimer) clearTimeout(__bgScrollIdleTimer);
+      __bgScrollIdleTimer = setTimeout(() => {
+        __bgScrollActive = false;
+        if (!__bgHydrationRAF && __bgHydrationQueue.length) {
+          __bgHydrationRAF = requestAnimationFrame(bgFlushHydrationFrame);
+        }
+      }, 120);
+    };
+    scroller.addEventListener('scroll', onScrollPerf, { passive: true });
+  })();
+  if (existing) {
    try { existing.__cleanupSlide?.(); } catch {}
    try { existing.remove(); } catch {}
  }
@@ -232,96 +366,70 @@ if (typeof RunTimeTicks === "number") {
   slide.dataset.artUrl = artUrl;
   slide.dataset.discUrl = discUrl;
 
-  const { backdropUrl, placeholderUrl } = await getHighResImageUrls({
-  ...item,
-  Id: parentId
-}, highestQualityBackdropIndex);
-
+  const { backdropUrl, placeholderUrl, srcset } = await getHighResImageUrls(
+    { ...item, Id: parentId },
+    highestQualityBackdropIndex
+  );
+  const finalBackdropForWarm = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
 
   const backdropImg = document.createElement('img');
   backdropImg.className = 'backdrop';
-  backdropImg.sizes = '100vw';
   backdropImg.alt = 'Backdrop';
-  backdropImg.loading = isFirstSlide ? 'eager' : 'lazy';
-  backdropImg.decoding = 'async';
-  backdropImg.style.opacity = '0';
-  backdropImg.src = placeholderUrl;
+  backdropImg.sizes = '100vw';
+  if (isFirstSlide) backdropImg.setAttribute('fetchpriority', 'high');
 
-if (isFirstSlide) {
-  const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
-  backdropImg.setAttribute('fetchpriority', 'high');
-  backdropImg.loading = 'eager';
-  backdropImg.src = finalBackdrop;
-  backdropImg.onload = () => {
-    backdropImg.style.transition = 'opacity 0.5s ease';
-    backdropImg.style.opacity = '1';
-  };
-} else {
-  prefetchImages([backdropUrl]);
-}
+  hydrateBackdrop(backdropImg, {
+    lqSrc: placeholderUrl,
+    hqSrc: config.manualBackdropSelection ? manualBackdropUrl : backdropUrl,
+    hqSrcset: srcset || '',
+    eager: isFirstSlide,
+    onHiLoaded: () => {  }
+  });
 
-  let isBackdropLoaded = false;
-  const onBackdropLoadOnce = () => { isBackdropLoaded = true; };
-  backdropImg.addEventListener('load', onBackdropLoadOnce, { once: true, signal });
-
-const finalBackdropForWarm = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
-backdropWarmQueue.enqueue(finalBackdropForWarm, { shortPreload: true });
-const warmObserver = new IntersectionObserver((entries, obs) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      if (!isBackdropLoaded) {
+  backdropWarmQueue.enqueue(finalBackdropForWarm, { shortPreload: true });
+  const warmObserver = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
         shortPreload(finalBackdropForWarm, 1500);
         warmImageOnce(finalBackdropForWarm).catch(() => {});
+        obs.unobserve(entry.target);
       }
-      obs.unobserve(entry.target);
-    }
-  });
-}, { root: null, rootMargin: '600px 0px' });
-warmObserver.observe(backdropImg);
-perSlideObservers.push(warmObserver);
+    });
+  }, { root: null, rootMargin: '600px 0px' });
+  warmObserver.observe(backdropImg);
+  perSlideObservers.push(warmObserver);
 
-const warmOnHover = () => {
-   if (!isBackdropLoaded) {
-     warmImageOnce(finalBackdropForWarm).catch(() => {});
-   }
-};
-  backdropImg.addEventListener('mouseenter', warmOnHover, { passive: true, signal });
+  const pinActiveIfNeeded = () => {
+    const slideEl = backdropImg.closest('.slide');
+    const active = slideEl?.classList.contains('active');
+    if (!active) return;
+    try { backdropImg.setAttribute('fetchpriority','high'); } catch {}
+    try { backdropImg.loading = 'eager'; } catch {}
+  };
+  backdropImg.addEventListener('load', pinActiveIfNeeded, { once:true, passive:true, signal });
+
+  const warmOnHover = () => { warmImageOnce(finalBackdropForWarm).catch(() => {}); };
+  backdropImg.addEventListener('mouseenter',  warmOnHover, { passive: true, signal });
   backdropImg.addEventListener('pointerover', warmOnHover, { passive: true, signal });
-
-  const io = new IntersectionObserver((entries, observer) => {
-  entries.forEach(entry => {
-    if (!entry.isIntersecting) return;
-
-    const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
-    let preload = document.querySelector(`link[rel="preload"][as="image"][href="${finalBackdrop}"]`);
-    if (!preload) {
-      preload = document.createElement('link');
-      preload.rel = 'preload';
-      preload.as = 'image';
-      preload.href = finalBackdrop;
-      document.head.appendChild(preload);
-    }
-
-    backdropImg.src = finalBackdrop;
-    backdropImg.onload = () => {
-      backdropImg.style.transition = 'opacity 0.5s ease';
-      backdropImg.style.opacity = '1';
-      const t = setTimeout(() => {
-        try {
-          if (preload && !preload.__pinned) preload.remove();
-        } catch {}
-      }, 1500);
-      perSlideCleanups.push(() => clearTimeout(t));
-    };
-    backdropImg.onerror = () => {
-      try { preload?.remove?.(); } catch {}
-    };
-
-    observer.unobserve(backdropImg);
-  });
-});
-io.observe(backdropImg);
-perSlideObservers.push(io);
+  const ioPreload = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const finalBackdrop = config.manualBackdropSelection ? manualBackdropUrl : backdropUrl;
+      let preload = document.querySelector(`link[rel="preload"][as="image"][href="${finalBackdrop}"]`);
+      if (!preload) {
+        preload = document.createElement('link');
+        preload.rel = 'preload';
+        preload.as = 'image';
+        preload.href = finalBackdrop;
+        document.head.appendChild(preload);
+      }
+      const tid = setTimeout(() => { try { if (preload && !preload.__pinned) preload.remove(); } catch {} }, 1500);
+      perSlideCleanups.push(() => clearTimeout(tid));
+      observer.unobserve(entry.target);
+    });
+  }, { rootMargin: '800px 0px' });
+  ioPreload.observe(backdropImg);
+  perSlideObservers.push(ioPreload);
 
   backdropImg.addEventListener('click', (ev) => {
   const slideEl = ev.currentTarget.closest('.slide');
@@ -334,17 +442,15 @@ perSlideObservers.push(io);
   goToDetailsPage(itemId);
 }, { signal });
 
+  const prevTeardown = slide.__cleanupSlide;
   const teardown = () => {
     try { perSlideObservers.forEach(o => o.disconnect()); } catch {}
     try { ac.abort(); } catch {}
-    try {
-     backdropImg.removeEventListener('mouseenter', warmOnHover);
-      backdropImg.removeEventListener('pointerover', warmOnHover);
-      backdropImg.removeEventListener('load', onBackdropLoadOnce);
-      backdropImg.onload = null;
-      backdropImg.onerror = null;
-    } catch {}
+    try { backdropImg.removeEventListener('mouseenter', warmOnHover); } catch {}
+    try { backdropImg.removeEventListener('pointerover', warmOnHover); } catch {}
+    try { unobserveBackdrop(backdropImg); } catch {}
     try { perSlideCleanups.forEach(fn => { try { fn(); } catch {} }); } catch {}
+    if (typeof prevTeardown === 'function') { try { prevTeardown(); } catch {} }
   };
 
   slide.__cleanupSlide = teardown;
@@ -500,6 +606,7 @@ function addSlideToSettingsBackground(itemId, backdropUrl) {
 function buildStarLayer(useSolid) {
   const layer = document.createElement("span");
   layer.className = useSolid ? "trailer-star-fill" : "trailer-star-track";
+
   for (let i = 0; i < 5; i++) {
     const star = document.createElement("i");
     star.className = useSolid ? "fa-solid fa-star" : "fa-regular fa-star";
@@ -606,8 +713,18 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   starWrap.setAttribute("aria-label", `${rating5.toFixed(1)} / 5`);
 
   const track = buildStarLayer(false);
-  const fill  = buildStarLayer(true);
+  const fill = buildStarLayer(true);
+  starWrap.style.display = 'inline-flex';
+  starWrap.style.position = 'relative';
+  starWrap.style.width = 'fit-content';
   fill.style.width = `${fillPercent}%`;
+  fill.style.overflow = 'hidden';
+  fill.style.position = 'absolute';
+  fill.style.top = '0';
+  fill.style.left = '0';
+  fill.style.pointerEvents = 'none';
+  track.style.position = 'relative';
+  track.style.zIndex = '1';
 
   starWrap.appendChild(track);
   starWrap.appendChild(fill);
@@ -619,7 +736,6 @@ function openTrailerModal(trailerUrl, trailerName, itemName = '', itemType = '',
   communityRatingElement.appendChild(ratingText);
   ratingContainer.appendChild(communityRatingElement);
 }
-
 
   if (CriticRating) {
     const criticRatingElement = document.createElement("div");

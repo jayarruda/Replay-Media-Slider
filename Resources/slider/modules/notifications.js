@@ -264,19 +264,73 @@ function toastShouldEnqueue(key) {
   return true;
 }
 
+let __themeSwapInFlight = null;
+
+function pruneNotifStylesheets(keepEl) {
+  const all = Array.from(
+    document.querySelectorAll('link[rel="stylesheet"][href*="slider/src/notifications"]')
+  );
+  for (const el of all) {
+    if (keepEl && el === keepEl) continue;
+    if (el.id === 'jfNotifCss') continue;
+    try { el.parentElement?.removeChild(el); } catch {}
+  }
+}
+
 function ensureNotifStylesheet() {
-  document.querySelectorAll('link[rel="stylesheet"][href*="slider/src/notifications"]')
-    .forEach(l => { if (l.id !== 'jfNotifCss') l.parentElement?.removeChild(l); });
+  pruneNotifStylesheets();
+
   let link = document.getElementById('jfNotifCss');
   if (!link) {
     link = document.createElement('link');
     link.id = 'jfNotifCss';
     link.rel = 'stylesheet';
     (document.head || document.documentElement).appendChild(link);
+  } else {
+    pruneNotifStylesheets(link);
   }
   return link;
 }
 
+function swapNotifStylesheet(href, { timeoutMs = 8000 } = {}) {
+  const current = ensureNotifStylesheet();
+  const curHrefAttr = current.getAttribute('href') || '';
+  if (curHrefAttr === href) return Promise.resolve();
+  if (__themeSwapInFlight) return __themeSwapInFlight;
+
+  __themeSwapInFlight = new Promise((resolve, reject) => {
+    const next = document.createElement('link');
+    next.rel = 'stylesheet';
+    next.href = href;
+    next.media = 'print';
+    next.id = 'jfNotifCss_next';
+
+    let settled = false;
+    const cleanup = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(tid);
+      __themeSwapInFlight = null;
+      if (ok) {
+        next.media = 'all';
+        next.id = 'jfNotifCss';
+        try { current.remove(); } catch {}
+        pruneNotifStylesheets(next);
+        resolve();
+      } else {
+        try { next.remove(); } catch {}
+        resolve();
+      }
+    };
+    const tid = setTimeout(() => cleanup(false), timeoutMs);
+    next.addEventListener('load', () => cleanup(true),  { once: true });
+    next.addEventListener('error', () => cleanup(false), { once: true });
+
+    (document.head || document.documentElement).appendChild(next);
+  });
+
+  return __themeSwapInFlight;
+}
 
 function getThemePreferenceKey() {
   const userId = getSafeUserId();
@@ -289,38 +343,38 @@ function loadThemePreference() {
   setTheme(theme);
 }
 
-function setTheme(themeNumber) {
-  const link = ensureNotifStylesheet();
+async function setTheme(themeNumber) {
+  const order = ['1','2','3','4'];
+  const t = String(themeNumber);
+  const theme = order.includes(t) ? t : '1';
+
   const href =
-    themeNumber === '1' ? 'slider/src/notifications.css'  :
-    themeNumber === '2' ? 'slider/src/notifications2.css' :
-                          'slider/src/notifications3.css';
-  let settled = false;
-  const finish = () => {
-    if (settled) return;
-    settled = true;
-    link.disabled = false;
-    link.removeEventListener('load', finish);
-    link.removeEventListener('error', finish);
-  };
-  link.addEventListener('load', finish);
-  link.addEventListener('error', finish);
-  requestAnimationFrame(() => { if (!settled) link.disabled = false; });
-  setTimeout(() => { if (!settled) link.disabled = false; }, 50);
-  link.disabled = true;
-  const absHref = new URL(href, location.href).href;
-  if (link.href !== absHref) {
-    link.href = href;
-  } else {
-    finish();
+    theme === '1' ? 'slider/src/notifications.css'  :
+    theme === '2' ? 'slider/src/notifications2.css' :
+    theme === '3' ? 'slider/src/notifications3.css' :
+                    'slider/src/notifications4.css';
+
+  const themeBtn = document.getElementById("jfNotifThemeToggle");
+  const modeBtn  = document.getElementById("jfNotifModeToggle");
+  const prevDisabled = [themeBtn?.disabled, modeBtn?.disabled];
+  if (themeBtn) themeBtn.disabled = true;
+  if (modeBtn)  modeBtn.disabled  = true;
+
+  try {
+    await swapNotifStylesheet(href, { timeoutMs: 8000 });
+    try { localStorage.setItem(getThemePreferenceKey(), theme); } catch {}
+  } finally {
+    if (themeBtn) themeBtn.disabled = prevDisabled[0] ?? false;
+    if (modeBtn)  modeBtn.disabled  = prevDisabled[1] ?? false;
   }
-  try { localStorage.setItem(getThemePreferenceKey(), themeNumber); } catch {}
 }
 
 function toggleTheme() {
   const current = localStorage.getItem(getThemePreferenceKey()) || '1';
-  const next = current === '1' ? '2' : current === '2' ? '3' : '1';
-  setTheme(next);
+  const order = ['1','2','3','4'];
+  const idx = order.indexOf(current);
+  const next = order[(idx + 1) % order.length];
+  setTheme(next).catch(() => {});
 }
 
 async function fetchLatestAll() {
@@ -650,13 +704,12 @@ function injectCriticalNotifCSS() {
 }
 
 function waitForNotifCss() {
-  return new Promise((resolve, reject) => {
-    const link = ensureNotifStylesheet();
-    if (!link) return resolve();
-    if (link.sheet) return resolve();
-    const t = setTimeout(() => reject(new Error("css-timeout")), CSS_READY_TIMEOUT_MS);
-    link.addEventListener("load", () => { clearTimeout(t); resolve(); }, { once: true });
-    link.addEventListener("error", () => { clearTimeout(t); reject(new Error("css-error")); }, { once: true });
+  const link = document.getElementById('jfNotifCss');
+  if (!link) return Promise.resolve();
+  if (link.sheet) return Promise.resolve();
+  return new Promise((res) => {
+    link.addEventListener('load', () => res(), { once: true });
+    link.addEventListener('error', () => res(), { once: true });
   });
 }
 
@@ -1738,7 +1791,10 @@ function loadThemeModePreference() {
   });
 }
 
-function toggleThemeMode() {
+async function toggleThemeMode() {
+  if (__themeSwapInFlight) {
+    try { await __themeSwapInFlight; } catch {}
+  }
   const current = document.documentElement.getAttribute("data-notif-theme") || "light";
   setThemeMode(current === "dark" ? "light" : "dark");
 }

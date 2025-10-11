@@ -372,7 +372,6 @@ export async function createDirectorContainer({ config, People, item }) {
   return container;
 }
 
-
 export async function createRatingContainer({
   config,
   CommunityRating,
@@ -405,23 +404,30 @@ export async function createRatingContainer({
     }
 
     if (config.showCommunityRating && CommunityRating) {
-      let ratingValue = Array.isArray(CommunityRating)
-        ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
-        : Math.round(CommunityRating * 10) / 10;
+    let ratingValue = Array.isArray(CommunityRating)
+    ? Math.round((CommunityRating.reduce((a, b) => a + b, 0) / CommunityRating.length) * 10) / 10
+    : Math.round(CommunityRating * 10) / 10;
 
-      const ratingPercentage = ratingValue * 10;
-      const ratingSpan = document.createElement("span");
-      ratingSpan.className = "rating";
-      ratingSpan.innerHTML = `
-        <span class="star-rating" style="position: relative; color: #ccc;">
-          <i class="fa-solid fa-star fa-lg"></i>
-          <span class="star-filled" style="position: absolute; bottom: 0; left: 0; width: auto; overflow: hidden; clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
-            <i class="fa-regular fa-star fa-lg" style="display: block;"></i>
-          </span>
-        </span> ${ratingValue} `;
-      container.appendChild(ratingSpan);
-      ratingExists = true;
-    }
+  let ratingClass = "rating-default";
+  if (ratingValue >= 9) ratingClass = "rating-excellent";
+  else if (ratingValue >= 7.5) ratingClass = "rating-good";
+  else if (ratingValue >= 6) ratingClass = "rating-average";
+  else if (ratingValue >= 4) ratingClass = "rating-poor";
+  else ratingClass = "rating-bad";
+
+  const ratingPercentage = ratingValue * 10;
+  const ratingSpan = document.createElement("span");
+  ratingSpan.className = `rating ${ratingClass}`;
+  ratingSpan.innerHTML = `
+    <span class="star-rating">
+      <i class="fa-regular fa-star fa-lg"></i>
+      <span class="star-filled" style="clip-path: inset(${100 - ratingPercentage}% 0 0 0);">
+        <i class="fa-solid fa-star fa-lg" style="display: block;"></i>
+      </span>
+    </span> ${ratingValue} `;
+  container.appendChild(ratingSpan);
+  ratingExists = true;
+}
 
     if (config.showCriticRating && CriticRating) {
       const criticSpan = document.createElement("span");

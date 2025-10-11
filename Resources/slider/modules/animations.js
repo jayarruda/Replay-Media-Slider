@@ -10,6 +10,26 @@ export function forceReflow(el) {
   void el.offsetWidth;
 }
 
+let __animSeq = 0;
+export function nextAnimToken() { return (++__animSeq) >>> 0; }
+
+export function hardCleanupSlide(slide) {
+  if (!slide) return;
+  clearTimers(slide);
+  slide.style.transition = "";
+  slide.style.transform = "";
+  slide.style.opacity = "";
+  slide.style.filter = "";
+  slide.style.clipPath = "";
+  slide.style.borderRadius = "";
+  slide.style.zIndex = "";
+  slide.style.display = "";
+  slide.style.backfaceVisibility = "";
+  clearWillChange(slide);
+  slide.__animating = false;
+  slide.__animToken = 0;
+}
+
 function startTransition(el, setInitial, setFinal) {
   setInitial?.();
   forceReflow(el);
@@ -241,9 +261,14 @@ function stopLoop(sub) {
 
 export function applySlideAnimation(currentSlide, newSlide, direction) {
   if (!currentSlide || !newSlide) return;
-  if (newSlide.__animating || currentSlide.__animating) return;
-  newSlide.__animating = true;
+  if (currentSlide.__animating) hardCleanupSlide(currentSlide);
+  if (newSlide.__animating)     hardCleanupSlide(newSlide);
+
+  const animToken = nextAnimToken();
+  newSlide.__animating     = true;
   currentSlide.__animating = true;
+  newSlide.__animToken     = animToken;
+  currentSlide.__animToken = animToken;
   clearTimers(currentSlide);
   clearTimers(newSlide);
 
@@ -272,6 +297,7 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
   }
 
   const cleanupStyles = () => {
+    if (newSlide.__animToken !== animToken) return;
     if (currentSlide) {
       currentSlide.style.transition = "";
       currentSlide.style.transform = "";
@@ -294,15 +320,19 @@ export function applySlideAnimation(currentSlide, newSlide, direction) {
       newSlide.style.zIndex = "";
       newSlide.style.backfaceVisibility = "";
       clearWillChange(newSlide);
-      newSlide && (newSlide.__animating = false);
-currentSlide && (currentSlide.__animating = false);
+      newSlide.__animating = false;
+      currentSlide && (currentSlide.__animating = false);
     }
   };
 
   if (same) {
     newSlide.style.opacity = "0";
-    raf(newSlide, () => { newSlide.style.opacity = "1"; });
+    raf(newSlide, () => {
+      if (newSlide.__animToken !== animToken) return;
+      newSlide.style.opacity = "1";
+    });
     onTransitionEndOnce(newSlide, duration, () => {
+      if (newSlide.__animToken !== animToken) return;
      newSlide.style.transition = "";
      newSlide.style.opacity = "1";
      newSlide.__animating = false;
@@ -357,6 +387,7 @@ currentSlide && (currentSlide.__animating = false);
       newSlide.style.transform = "rotate(-180deg) scale(0)";
       newSlide.style.opacity = "0";
       raf(newSlide, () => {
+        if (newSlide.__animToken !== animToken) return;
         newSlide.style.transform = "rotate(0deg) scale(1)";
         newSlide.style.opacity = "1";
       });
@@ -370,6 +401,7 @@ currentSlide && (currentSlide.__animating = false);
       newSlide.style.opacity = "0";
       newSlide.style.backfaceVisibility = "hidden";
       raf(newSlide, () => {
+        if (newSlide.__animToken !== animToken) return;
         newSlide.style.transform = "perspective(400px) rotateX(0deg)";
         newSlide.style.opacity = "1";
         newSlide.style.backfaceVisibility = "visible";
@@ -384,6 +416,7 @@ currentSlide && (currentSlide.__animating = false);
       newSlide.style.opacity = "0";
       newSlide.style.backfaceVisibility = "hidden";
       raf(newSlide, () => {
+        if (newSlide.__animToken !== animToken) return;
         newSlide.style.transform = "perspective(400px) rotateY(0deg)";
         newSlide.style.opacity = "1";
         newSlide.style.backfaceVisibility = "visible";
@@ -410,6 +443,7 @@ currentSlide && (currentSlide.__animating = false);
       newSlide.style.transform = `rotateY(${direction > 0 ? 180 : -180}deg)`;
       newSlide.style.opacity = "0";
       raf(newSlide, () => {
+        if (newSlide.__animToken !== animToken) return;
         newSlide.style.transform = "rotateY(0deg)";
         newSlide.style.opacity = "1";
       });
@@ -596,6 +630,7 @@ currentSlide && (currentSlide.__animating = false);
       newSlide.style.filter = 'blur(5px)';
       newSlide.style.opacity = '0';
       raf(newSlide, () => {
+        if (newSlide.__animToken !== animToken) return;
         newSlide.style.filter = 'blur(0)';
         newSlide.style.opacity = '1';
       });

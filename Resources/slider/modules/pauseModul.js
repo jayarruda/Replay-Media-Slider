@@ -1234,13 +1234,94 @@ window.addEventListener('popstate', _onRouteHint, { signal });
 
   overlayEl.addEventListener("click", (e) => {
   if (!overlayVisible || !activeVideo) return;
+  if (overlayEl.__jmsSwipeConsumed) { overlayEl.__jmsSwipeConsumed = false; return; }
   const inRecos = e.target.closest("#jms-recos-row, .pause-reco-card");
   if (inRecos) return;
-  try { const content = overlayEl.querySelector(".pause-overlay-content");
-        content && (content.style.willChange = "transform, opacity"); } catch {}
+  try {
+    const content = overlayEl.querySelector(".pause-overlay-content");
+    content && (content.style.willChange = "transform, opacity");
+  } catch {}
   activeVideo.play();
   hideOverlay();
 }, { signal });
+
+  (function setupSwipeToDismiss(){
+    const content = overlayEl.querySelector(".pause-overlay-content");
+    if (!content) return;
+    let startY = 0, startX = 0, lastY = 0, moved = false, dragging = false, startT = 0;
+    const THRESHOLD_PX = 60;
+    const MAX_ANGLE_TAN = Math.tan(35 * Math.PI/180);
+    const CANCEL_CLICK_LOCK_MS = 300;
+    const MAX_PULL_PX = 220;
+
+    function setTransform(y){
+      const dy = Math.max(0, Math.min(y, MAX_PULL_PX));
+      const op = Math.max(0, 1 - dy/180);
+      content.style.transform = `translateY(${dy}px)`;
+      content.style.opacity = String(op);
+    }
+    function clearTransform(){
+      content.style.transition = "";
+      content.style.transform = "";
+      content.style.opacity = "";
+      content.style.willChange = "";
+    }
+    function onStart(ev){
+      if (!overlayVisible) return;
+      const t = ev.touches?.[0];
+      if (!t) return;
+      startY = lastY = t.clientY;
+      startX = t.clientX;
+      startT = performance.now();
+      moved = false; dragging = true;
+      content.style.willChange = "transform, opacity";
+    }
+    function onMove(ev){
+      if (!dragging) return;
+      const t = ev.touches?.[0]; if (!t) return;
+      const dy = t.clientY - startY;
+      const dx = Math.abs(t.clientX - startX);
+      if (!moved) {
+        if (dy < 6 && dx < 6) return;
+        const tan = dx / Math.max(1, Math.abs(dy));
+        if (tan > MAX_ANGLE_TAN) { dragging = false; clearTransform(); return; }
+        moved = true;
+      }
+      if (dy > 0) {
+        ev.preventDefault();
+        setTransform(dy);
+      }
+      lastY = t.clientY;
+    }
+    function onEnd(){
+      if (!dragging) return;
+      dragging = false;
+      const totalDy = Math.max(0, lastY - startY);
+      const dt = Math.max(1, performance.now() - startT);
+      const v = totalDy / dt;
+      const shouldDismiss = totalDy > THRESHOLD_PX || v > 0.9;
+      if (shouldDismiss) {
+        content.style.transition = "transform 0.22s ease, opacity 0.22s ease";
+        content.style.transform = `translateY(${Math.max(totalDy, 160)}px)`;
+        content.style.opacity = "0";
+        overlayEl.__jmsSwipeConsumed = true;
+        setTimeout(() => {
+          overlayEl.__jmsSwipeClosing = true;
+          hideOverlay({ fromSwipe: true });
+          setTimeout(() => { overlayEl.__jmsSwipeConsumed = false; }, CANCEL_CLICK_LOCK_MS);
+        }, 200);
+      } else {
+        content.style.transition = "transform 0.25s cubic-bezier(.2,.8,.4,1), opacity 0.25s ease";
+        content.style.transform = "translateY(0)";
+        content.style.opacity = "1";
+        setTimeout(clearTransform, 260);
+      }
+    }
+    content.addEventListener("touchstart", onStart, { passive: true,  signal });
+    content.addEventListener("touchmove",  onMove,  { passive: false, signal });
+    content.addEventListener("touchend",   onEnd,   { passive: true,  signal });
+    content.addEventListener("touchcancel",onEnd,   { passive: true,  signal });
+  })();
 
   function renderIconOrEmoji(iconValue) {
     if (!iconValue) return "";
@@ -1298,14 +1379,17 @@ window.addEventListener('popstate', _onRouteHint, { signal });
   }
 }
 
-function hideOverlay() {
+function hideOverlay(opts = {}) {
+  const fromSwipe = !!opts.fromSwipe || !!overlayEl.__jmsSwipeClosing;
   const content = overlayEl.querySelector(".pause-overlay-content");
   if (content) {
     content.style.willChange = "transform, opacity";
-    content.style.transition =
-      "transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease";
-    content.style.transform = "translateY(10px)";
-    content.style.opacity = "0";
+    if (!fromSwipe) {
+      content.style.transition =
+        "transform 0.3s cubic-bezier(0.4, 0, 0.6, 1), opacity 0.3s ease";
+      content.style.transform = "translateY(10px)";
+      content.style.opacity = "0";
+    }
   }
 
   if (pausedLabel) {
@@ -1320,11 +1404,15 @@ function hideOverlay() {
     overlayEl.classList.remove("visible");
     overlayVisible = false;
     if (content) {
-      content.style.transition = "";
-      content.style.transform = "";
-      content.style.opacity = "";
+      const doReset = () => {
+        content.style.transition = "";
+        content.style.transform = "";
+        content.style.opacity = "";
+      };
+      if (fromSwipe) requestAnimationFrame(doReset); else doReset();
     }
     wipeOverlayState();
+    overlayEl.__jmsSwipeClosing = false;
   }, 300);
 
   if (pauseTimeout) {
@@ -2313,16 +2401,42 @@ function findAnyVideoAnywhere(maxDepth) {
   };
   window.addEventListener("hashchange", () => { blurAt = null; hiddenAt = null; lastPauseReason = null; }, { signal });
   window.addEventListener("popstate",   () => { blurAt = null; hiddenAt = null; lastPauseReason = null; }, { signal });
-  const _onKey = (e) => {
-    if (e.key === "Escape" && overlayVisible) {
-      e.preventDefault();
-      hideOverlay();
+  function isFullscreenNow() {
+  return !!(document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.msFullscreenElement);
+}
+
+const _onKey = (e) => {
+  if (e.key === "Escape" && overlayVisible && !isFullscreenNow()) {
+    e.preventDefault();
+    hideOverlay();
+    return;
+  }
+
+  const altClose =
+    (e.key === "Backspace")
+
+  if (altClose && overlayVisible) {
+    e.preventDefault();
+    hideOverlay();
+    return;
+  }
+
+  if (e.key.toLowerCase() === "f" && activeVideo) {
+    if (isFullscreenNow()) {
+      document.exitFullscreen?.();
+    } else {
+      activeVideo.requestFullscreen?.();
     }
-  };
+  }
+};
+  document.addEventListener("keydown", _onKey, { signal });
   window.addEventListener("popstate", _onPop, { signal });
   window.addEventListener("hashchange", _onHash, { signal });
   document.addEventListener("visibilitychange", _onVis, { signal });
-  document.addEventListener("keydown", _onKey, { signal });
+
 
   const stopLoop = startOverlayLogic();
   requestIdleCallback?.(() => {

@@ -6,9 +6,11 @@ import { openGenreExplorer } from "./genreExplorer.js";
 
 const config = getConfig();
 const labels = getLanguageLabels?.() || {};
+const IS_MOBILE = (navigator.maxTouchPoints > 0) || (window.innerWidth <= 820);
 const CARD_COUNT = Number.isFinite(config.studioHubsCardCount)
   ? Math.max(1, config.studioHubsCardCount | 0)
   : 12;
+const EFFECTIVE_CARD_COUNT = IS_MOBILE ? Math.min(CARD_COUNT, 8) : CARD_COUNT;
 const MIN_RATING = Number.isFinite(config.studioHubsMinRating)
   ? Math.max(0, Number(config.studioHubsMinRating))
   : 0;
@@ -27,14 +29,16 @@ const GENRE_ITEMS_LS_PREFIX = "genreItems_cache_v2:";
 const GENRE_ROW_CARD_COUNT = Number.isFinite(config.studioHubsGenreCardCount)
   ? Math.max(1, config.studioHubsGenreCardCount | 0)
   : 10;
+const EFFECTIVE_GENRE_ROWS = IS_MOBILE ? Math.min(GENRE_ROWS_COUNT, 5) : GENRE_ROWS_COUNT;
+const EFFECTIVE_GENRE_ROW_CARD_COUNT = IS_MOBILE ? Math.min(GENRE_ROW_CARD_COUNT, 10) : GENRE_ROW_CARD_COUNT;
 const __hoverIntent = new WeakMap();
 const __enterTimers = new WeakMap();
 const __enterSeq     = new WeakMap();
 const __cooldownUntil= new WeakMap();
 const __openTokenMap = new WeakMap();
 const __boundPreview = new WeakMap();
-const OPEN_DELAY_MS = 250;
-const HOVER_REOPEN_COOLDOWN_MS = 300;
+const OPEN_DELAY_MS = 400;
+const HOVER_REOPEN_COOLDOWN_MS = 150;
 
 let __personalRecsBusy = false;
 let   __lastMoveTS   = 0;
@@ -58,15 +62,27 @@ const __imgIO = new IntersectionObserver((entries) => {
         if (data.hqSrc)    img.src    = data.hqSrc;
       }
     } else {
-      try { img.removeAttribute('srcset'); } catch {}
-      if (data.lqSrc && img.src !== data.lqSrc) img.src = data.lqSrc;
-      img.__phase = 'lq';
-      img.__hiRequested = false;
-      img.classList.add('is-lqip');
-      img.__hydrated = false;
-  }
+    }
   }
 }, { rootMargin: '600px 0px' });
+
+(function injectPerfCssOnce(){
+  if (document.getElementById('prc-perf-css')) return;
+  const st = document.createElement('style');
+  st.id = 'prc-perf-css';
+  st.textContent = `
+    .personal-recs-row, .genre-row {
+      content-visibility: auto;
+      contain-intrinsic-size: 260px 1200px;
+      contain: content;
+    }
+    .personal-recs-card { contain: content; }
+    @media (max-width: 820px) {
+      .personal-recs-card .cardImage { aspect-ratio: 2/3; }
+    }
+  `;
+  document.head.appendChild(st);
+})();
 
 function buildPosterUrlLQ(item) {
   return buildPosterUrl(item, 120, 25);
@@ -347,13 +363,13 @@ export async function renderPersonalRecommendations() {
          if (row) {
           if (!row.dataset.mounted || row.childElementCount === 0) {
             row.dataset.mounted = "1";
-            renderSkeletonCards(row, CARD_COUNT);
+            renderSkeletonCards(row, EFFECTIVE_CARD_COUNT);
             setupScroller(row);
           }
         }
         jobs.push((async () => {
           const { userId, serverId } = getSessionInfo();
-          const recommendations = await fetchPersonalRecommendations(userId, CARD_COUNT, MIN_RATING);
+          const recommendations = await fetchPersonalRecommendations(userId, EFFECTIVE_CARD_COUNT, MIN_RATING);
           renderRecommendationCards(row, recommendations, serverId);
         })());
       }
@@ -536,13 +552,24 @@ function renderRecommendationCards(row, items, serverId) {
     row.innerHTML = `<div class="no-recommendations">${(config.languageLabels?.noRecommendations) || labels.noRecommendations || "Öneri bulunamadı"}</div>`;
     return;
   }
-  const frag = document.createDocumentFragment();
-  const slice = items.slice(0, CARD_COUNT);
-  for (let i = 0; i < slice.length; i++) {
-    const card = createRecommendationCard(slice[i], serverId, i < 2);
-    frag.appendChild(card);
+  const rIC = window.requestIdleCallback || ((fn)=>setTimeout(fn,0));
+  const slice = items.slice(0, EFFECTIVE_CARD_COUNT);
+  const aboveFoldCount = IS_MOBILE ? Math.min(4, slice.length) : Math.min(6, slice.length);
+  const f1 = document.createDocumentFragment();
+  for (let i = 0; i < aboveFoldCount; i++) f1.appendChild(createRecommendationCard(slice[i], serverId, true));
+  row.appendChild(f1);
+  let idx = aboveFoldCount;
+  function pump() {
+    const start = idx;
+    const end = Math.min(slice.length, start + (IS_MOBILE ? 2 : 3));
+    if (start >= end) return;
+    const fx = document.createDocumentFragment();
+    for (let i = start; i < end; i++) fx.appendChild(createRecommendationCard(slice[i], serverId, false));
+    row.appendChild(fx);
+    idx = end;
+    if (idx < slice.length) rIC(pump);
   }
-  row.appendChild(frag);
+  rIC(pump);
 }
 
 const COMMON_FIELDS = [
@@ -639,9 +666,9 @@ function createRecommendationCard(item, serverId, aboveFold = false) {
         <div class="cardImageContainer">
           <img class="cardImage"
             alt="${item.Name}"
-            loading="lazy"
+            loading="${aboveFold ? 'eager' : 'lazy'}"
             decoding="async"
-            fetchpriority="${aboveFold ? 'high' : 'low'}">
+            ${aboveFold ? 'fetchpriority="high"' : ''}>
           <div class="prc-top-badges">
             ${community}
             <div class="prc-type-badge">
@@ -669,7 +696,11 @@ function createRecommendationCard(item, serverId, aboveFold = false) {
   `;
 
   const img = card.querySelector('.cardImage');
-try { img.setAttribute('sizes', '(max-width: 640px) 45vw, (max-width: 1200px) 22vw, 220px'); } catch {}
+  try {
+  const sizesMobile = '(max-width: 640px) 45vw, (max-width: 820px) 38vw, 220px';
+  const sizesDesk   = '(max-width: 1200px) 22vw, 220px';
+  img.setAttribute('sizes', IS_MOBILE ? sizesMobile : sizesDesk);
+} catch {}
 if (posterUrlHQ) {
   hydrateBlurUp(img, {
     lqSrc: posterUrlLQ,
@@ -696,9 +727,16 @@ if (posterUrlHQ) {
 
   const logoImg = card.querySelector('.prc-logo');
   if (logoImg && logoUrl) {
-  hydrateBlurUp(logoImg, { lqSrc: logoUrl, hqSrc: logoUrl, hqSrcset: '', fallback: '' });
-  logoImg.classList.remove('is-lqip');
-}
+    const io = new IntersectionObserver((ents, obs) => {
+      ents.forEach(ent => {
+        if (!ent.isIntersecting) return;
+        hydrateBlurUp(logoImg, { lqSrc: logoUrl, hqSrc: logoUrl, hqSrcset: '', fallback: '' });
+        logoImg.classList.remove('is-lqip');
+        obs.unobserve(ent.target);
+      });
+    }, { rootMargin: '300px 0px' });
+    io.observe(card);
+  }
 
   const mode = (getConfig()?.globalPreviewMode === 'studioMini') ? 'studioMini' : 'modal';
   const defer = window.requestIdleCallback || ((fn)=>setTimeout(fn, 0));
@@ -721,19 +759,19 @@ function setupScroller(row) {
 
   const btnL = section.querySelector(".hub-scroll-left");
   const btnR = section.querySelector(".hub-scroll-right");
-
   const canScroll = () => row.scrollWidth > row.clientWidth + 2;
-  const step = () => Math.max(240, Math.floor(row.clientWidth * 0.9));
+  // const STEP_PCT = Number.isFinite(getConfig().scrollerStepPct) ? getConfig().scrollerStepPct : 1;
+  const STEP_PCT = 1;
+  const stepPx   = () => Math.max(320, Math.floor(row.clientWidth * STEP_PCT));
 
-    let _rafToken = null;
-    const updateButtonsNow = () => {
+  let _rafToken = null;
+  const updateButtonsNow = () => {
     const max = Math.max(0, row.scrollWidth - row.clientWidth);
     const atStart = !canScroll() || row.scrollLeft <= 1;
     const atEnd = !canScroll() || row.scrollLeft >= max - 1;
     if (btnL) btnL.setAttribute("aria-disabled", atStart ? "true" : "false");
     if (btnR) btnR.setAttribute("aria-disabled", atEnd ? "true" : "false");
   };
-
   const scheduleUpdate = () => {
     if (_rafToken) return;
     _rafToken = requestAnimationFrame(() => {
@@ -742,17 +780,38 @@ function setupScroller(row) {
     });
   };
 
-  const doScroll = (dir) => {
-    if (!canScroll()) return;
-    const delta = dir < 0 ? -step() : step();
-    const target = row.scrollLeft + delta;
-    try { row.scrollTo({ left: target, behavior: "smooth" }); }
-    catch { row.scrollLeft = target; }
-    scheduleUpdate();
-  };
+  function animateScrollTo(targetLeft, duration = 350) {
+    const start = row.scrollLeft;
+    const dist  = targetLeft - start;
+    if (Math.abs(dist) < 1) { row.scrollLeft = targetLeft; scheduleUpdate(); return; }
 
-  if (btnL) btnL.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); doScroll(-1); });
-  if (btnR) btnR.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); doScroll(1); });
+    let startTs = null;
+    const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+
+    function tick(ts) {
+      if (startTs == null) startTs = ts;
+      const p = Math.min(1, (ts - startTs) / duration);
+      row.scrollLeft = start + dist * easeOutCubic(p);
+      if (p < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        scheduleUpdate();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function doScroll(dir, evt) {
+    if (!canScroll()) return;
+    const fast = evt?.shiftKey ? 2 : 1;
+    const delta = (dir < 0 ? -1 : 1) * stepPx() * fast;
+    const max = Math.max(0, row.scrollWidth - row.clientWidth);
+    const target = Math.max(0, Math.min(max, row.scrollLeft + delta));
+    animateScrollTo(target, 180);
+  }
+
+  if (btnL) btnL.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); doScroll(-1, e); });
+  if (btnR) btnR.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); doScroll( 1, e); });
 
   const onWheel = (e) => {
     const horizontalIntent = Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey;
@@ -817,7 +876,7 @@ async function renderGenreHubs(indexPage) {
   const { userId, serverId } = getSessionInfo();
   const allGenres = await getCachedGenresWeekly(userId);
   if (!allGenres || !allGenres.length) return;
-  const picked = pickOrderedFirstK(allGenres, GENRE_ROWS_COUNT);
+  const picked = pickOrderedFirstK(allGenres, EFFECTIVE_GENRE_ROWS);
   if (!picked.length) return;
   const seenIds = new Set();
   const sections = picked.map(genre => {
@@ -826,7 +885,12 @@ async function renderGenreHubs(indexPage) {
     section.innerHTML = `
       <div class="sectionTitleContainer sectionTitleContainer-cards">
         <h2 class="sectionTitle sectionTitle-cards gh-title">
-  <span class="gh-title-text">${escapeHtml(genre)}</span>
+  <span class="gh-title-text"
+        role="button"
+        tabindex="0"
+        aria-label="${(config.languageLabels?.seeAll || 'Tümünü gör')}: ${escapeHtml(genre)}">
+    ${escapeHtml(genre)}
+  </span>
   <div class="gh-see-all" data-genre="${escapeHtml(genre)}"
               aria-label="${(config.languageLabels?.seeAll) || "Tümünü gör"}"
               title="${(config.languageLabels?.seeAll) || "Tümünü gör"}">
@@ -847,18 +911,30 @@ async function renderGenreHubs(indexPage) {
     `;
     wrap.appendChild(section);
     const seeAllBtn = section.querySelector('.gh-see-all');
-if (seeAllBtn) {
-  seeAllBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openGenreExplorer(genre);
+    const titleBtn  = section.querySelector('.gh-title-text');
+    if (titleBtn) {
+      const open = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openGenreExplorer(genre);
+      };
+      titleBtn.addEventListener('click', open, { passive: false });
+      titleBtn.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') open(e);
+      });
+    }
+    if (seeAllBtn) {
+      seeAllBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openGenreExplorer(genre);
   }, { passive: false });
 }
     const row = section.querySelector(".genre-row");
-    renderSkeletonCards(row, GENRE_ROW_CARD_COUNT);
+    renderSkeletonCards(row, EFFECTIVE_GENRE_ROW_CARD_COUNT);
     return { genre, section, row };
   });
-  const CONCURRENCY = 5;
+  const CONCURRENCY = IS_MOBILE ? 2 : 5;
   let idx = 0;
 
   async function worker() {
@@ -879,7 +955,22 @@ if (seeAllBtn) {
         if (!unique.length) {
           row.innerHTML = `<div class="no-recommendations">${labels.noRecommendations || "Uygun içerik yok"}</div>`;
         } else {
-          for (const it of unique) row.appendChild(createRecommendationCard(it, serverId, false));
+          const rIC = window.requestIdleCallback || ((fn)=>setTimeout(fn,0));
+          const head = Math.min(unique.length, IS_MOBILE ? 4 : 6);
+          const f1 = document.createDocumentFragment();
+          for (let i=0;i<head;i++) f1.appendChild(createRecommendationCard(unique[i], serverId, i<2));
+          row.appendChild(f1);
+          let j = head;
+          (function pump(){
+            if (j >= unique.length) return;
+            const chunk = IS_MOBILE ? 2 : 3;
+            const f = document.createDocumentFragment();
+            for (let k=0;k<chunk && j<unique.length;k++,j++) {
+              f.appendChild(createRecommendationCard(unique[j], serverId, false));
+            }
+            row.appendChild(f);
+            rIC(pump);
+          })();
         }
         setupScroller(row);
       } catch (err) {
@@ -1139,7 +1230,7 @@ function attachHoverTrailer(cardEl, itemLike) {
         __touchStickyOpen = true;
         __touchLastOpenTS = Date.now();
       }
-      if (!isTouch) schedulePostOpenGuard(cardEl, token, 140);
+      if (!isTouch) schedulePostOpenGuard(cardEl, token, 240);
     }, OPEN_DELAY_MS);
 
     __enterTimers.set(cardEl, timer);

@@ -351,6 +351,11 @@ function getItemIdFromCard(card) {
 
 let __badgeIO;
 function ensureBadgeIO() {
+  if (!shouldShowTrailerBadge()) {
+    return {
+      observe(){}, unobserve(){}, disconnect(){},
+    };
+  }
   if (__badgeIO) return __badgeIO;
   __badgeIO = new IntersectionObserver(async (entries) => {
     for (const ent of entries) {
@@ -383,6 +388,7 @@ function disconnectObservers() {
 }
 
 function observeCardForTrailer(card) {
+  if (!shouldShowTrailerBadge()) return;
   if (!card || card.__jmsTrailerObserved) return;
   card.__jmsTrailerObserved = true;
   ensureTrailerBadgeCSS();
@@ -390,6 +396,7 @@ function observeCardForTrailer(card) {
 }
 
 function rescanAllCardsForBadge(root = document) {
+  if (!shouldShowTrailerBadge()) return;
   try {
     const list = root.querySelectorAll?.('.cardImageContainer');
     if (!list || !list.length) return;
@@ -399,6 +406,7 @@ function rescanAllCardsForBadge(root = document) {
 
 function installTrailerBadgeAutobind() {
   if (window.__jmsTrailerBadgeObsInstalled) return;
+  if (!shouldShowTrailerBadge()) return;
   window.__jmsTrailerBadgeObsInstalled = true;
   onFirstInteraction(() => rescanAllCardsForBadge(), 1200);
   const deb = (fn, ms=120) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
@@ -432,7 +440,51 @@ function installTrailerBadgeAutobind() {
   });
 }
 
-installTrailerBadgeAutobind();
+function shouldShowTrailerBadge() {
+  try {
+    const cfg = getConfig();
+    return !!(cfg && cfg.allPreviewModal !== false);
+  } catch { return false; }
+}
+
+function hideAllTrailerBadges() {
+  try {
+    document.querySelectorAll('.jms-trailer-badge').forEach(n => {
+      n.style.display = 'none';
+    });
+  } catch {}
+}
+
+function ensureTrailerBadgeGlobalCSSLock() {
+  const id = 'jms-trailer-badge-visibility-lock';
+  let style = document.getElementById(id);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = id;
+    document.head.appendChild(style);
+  }
+  style.textContent = shouldShowTrailerBadge()
+    ? ''
+    : '.jms-trailer-badge{display:none!important}';
+}
+
+if (shouldShowTrailerBadge()) {
+  installTrailerBadgeAutobind();
+} else {
+  ensureTrailerBadgeGlobalCSSLock();
+  hideAllTrailerBadges();
+}
+
+window.addEventListener('jms:globalPreviewModeChanged', () => {
+  ensureTrailerBadgeGlobalCSSLock();
+  if (shouldShowTrailerBadge()) {
+    installTrailerBadgeAutobind();
+    try { rescanAllCardsForBadge(document); } catch {}
+  } else {
+    try { disconnectObservers(); } catch {}
+    hideAllTrailerBadges();
+  }
+}, { passive:true });
 
 function mountTrailerBadge(card, text = 'Fragman') {
   if (!card || card.querySelector('.jms-trailer-badge')) return;
