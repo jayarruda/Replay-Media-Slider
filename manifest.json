@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/G-grbz/Jellyfin-Media-Slider/main/img/icon.png",
     "versions": [
       {
+        "version": "1.6.1.1",
+        "changelog": "Plugin improvements and bug fixes.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/G-grbz/Jellyfin-Media-Slider/releases/download/v1.6.0/JMSFusion-1.6.1.1-server.zip",
+        "checksum": "0a6ad65bc267d216576f289f78559831",
+        "timestamp": "2025-10-12T16:38:05.4858546Z"
+      },
+      {
         "version": "1.6.1.0",
         "changelog": "Plugin improvements and bug fixes.",
         "targetAbi": "10.10.0.0",
